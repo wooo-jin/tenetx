@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" fill="none">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0f23" />
+      <stop offset="100%" style="stop-color:#1a1a3e" />
+    </linearGradient>
+    <linearGradient id="layer0" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f59e0b" />
+      <stop offset="100%" style="stop-color:#fbbf24" />
+    </linearGradient>
+    <linearGradient id="layer1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6366f1" />
+      <stop offset="100%" style="stop-color:#8b5cf6" />
+    </linearGradient>
+    <linearGradient id="layer2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#10b981" />
+      <stop offset="100%" style="stop-color:#34d399" />
+    </linearGradient>
+  </defs>
+
+  <rect width="720" height="420" rx="12" fill="url(#bg2)"/>
+
+  <!-- Title -->
+  <text x="360" y="35" text-anchor="middle" font-family="'SF Mono', monospace" font-size="14" fill="#ffffff" opacity="0.6" letter-spacing="4">3-LAYER ARCHITECTURE</text>
+
+  <!-- Layer 0: Philosophy -->
+  <rect x="40" y="55" width="640" height="95" rx="8" fill="#f59e0b" opacity="0.08" stroke="#f59e0b" stroke-width="1.5" opacity="0.4"/>
+  <text x="60" y="80" font-family="'SF Mono', monospace" font-size="13" font-weight="700" fill="#fbbf24">Layer 0 — Philosophy (WHY)</text>
+  <text x="60" y="100" font-family="'Inter', sans-serif" font-size="12" fill="#fde68a" opacity="0.8">philosophy.yaml &rarr; Declare your principles</text>
+
+  <g transform="translate(60, 110)">
+    <rect width="145" height="28" rx="4" fill="#f59e0b" opacity="0.12"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#fbbf24">understand-before-act</text>
+  </g>
+  <g transform="translate(215, 110)">
+    <rect width="145" height="28" rx="4" fill="#f59e0b" opacity="0.12"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#fbbf24">decompose-to-control</text>
+  </g>
+  <g transform="translate(370, 110)">
+    <rect width="148" height="28" rx="4" fill="#f59e0b" opacity="0.12"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#fbbf24">capitalize-on-failure</text>
+  </g>
+  <g transform="translate(528, 110)">
+    <rect width="142" height="28" rx="4" fill="#f59e0b" opacity="0.12"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#fbbf24">focus-resources</text>
+  </g>
+
+  <!-- Arrow -->
+  <line x1="360" y1="155" x2="360" y2="170" stroke="#ffffff" stroke-width="1" opacity="0.3"/>
+  <polygon points="355,168 360,178 365,168" fill="#ffffff" opacity="0.3"/>
+
+  <!-- Layer 1: Workflow Engine -->
+  <rect x="40" y="180" width="640" height="105" rx="8" fill="#6366f1" opacity="0.08" stroke="#6366f1" stroke-width="1.5" opacity="0.4"/>
+  <text x="60" y="205" font-family="'SF Mono', monospace" font-size="13" font-weight="700" fill="#a78bfa">Layer 1 — Workflow Engine (HOW)</text>
+  <text x="60" y="225" font-family="'Inter', sans-serif" font-size="12" fill="#c4b5fd" opacity="0.8">Auto-generated from principles: modes, routing, hooks, monitoring</text>
+
+  <g transform="translate(60, 238)">
+    <rect width="90" height="28" rx="4" fill="#6366f1" opacity="0.15"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#a78bfa">9 Modes</text>
+  </g>
+  <g transform="translate(160, 238)">
+    <rect width="100" height="28" rx="4" fill="#6366f1" opacity="0.15"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#a78bfa">3-Tier Route</text>
+  </g>
+  <g transform="translate(270, 238)">
+    <rect width="100" height="28" rx="4" fill="#6366f1" opacity="0.15"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#a78bfa">10 Hooks</text>
+  </g>
+  <g transform="translate(380, 238)">
+    <rect width="100" height="28" rx="4" fill="#6366f1" opacity="0.15"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#a78bfa">Monitoring</text>
+  </g>
+  <g transform="translate(490, 238)">
+    <rect width="120" height="28" rx="4" fill="#6366f1" opacity="0.15"/>
+    <text x="10" y="18" font-family="monospace" font-size="10" fill="#a78bfa">Compound Loop</text>
+  </g>
+
+  <!-- Arrow -->
+  <line x1="360" y1="290" x2="360" y2="305" stroke="#ffffff" stroke-width="1" opacity="0.3"/>
+  <polygon points="355,303 360,313 365,303" fill="#ffffff" opacity="0.3"/>
+
+  <!-- Layer 2: Pack -->
+  <rect x="40" y="315" width="640" height="90" rx="8" fill="#10b981" opacity="0.08" stroke="#10b981" stroke-width="1.5" opacity="0.4"/>
+  <text x="60" y="340" font-family="'SF Mono', monospace" font-size="13" font-weight="700" fill="#34d399">Layer 2 — Pack (KNOW + SHARE)</text>
+  <text x="60" y="360" font-family="'Inter', sans-serif" font-size="12" fill="#6ee7b7" opacity="0.8">Domain knowledge &amp; sharing across scopes</text>
+
+  <g transform="translate(60, 370)">
+    <rect width="80" height="26" rx="4" fill="#10b981" opacity="0.12"/>
+    <text x="14" y="17" font-family="monospace" font-size="11" fill="#34d399">Me</text>
+  </g>
+  <g transform="translate(150, 370)">
+    <rect width="80" height="26" rx="4" fill="#10b981" opacity="0.12"/>
+    <text x="14" y="17" font-family="monospace" font-size="11" fill="#34d399">Team</text>
+  </g>
+  <g transform="translate(240, 370)">
+    <rect width="80" height="26" rx="4" fill="#10b981" opacity="0.12"/>
+    <text x="14" y="17" font-family="monospace" font-size="11" fill="#34d399">Project</text>
+  </g>
+
+  <g transform="translate(380, 370)">
+    <rect width="80" height="26" rx="4" fill="#10b981" opacity="0.12"/>
+    <text x="10" y="17" font-family="monospace" font-size="10" fill="#34d399">Solutions</text>
+  </g>
+  <g transform="translate(470, 370)">
+    <rect width="70" height="26" rx="4" fill="#10b981" opacity="0.12"/>
+    <text x="10" y="17" font-family="monospace" font-size="10" fill="#34d399">Rules</text>
+  </g>
+  <g transform="translate(550, 370)">
+    <rect width="80" height="26" rx="4" fill="#10b981" opacity="0.12"/>
+    <text x="10" y="17" font-family="monospace" font-size="10" fill="#34d399">Manuals</text>
+  </g>
+</svg>
