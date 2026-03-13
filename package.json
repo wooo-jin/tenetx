@@ -1,0 +1,54 @@
+{
+  "name": "tenet",
+  "version": "0.2.0",
+  "main": "dist/cli.js",
+  "scripts": {
+    "build": "tsc && cp src/hooks/dangerous-patterns.json dist/hooks/",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "link": "npm run build && npm link",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "author": "jang-ujin",
+  "license": "MIT",
+  "description": "Philosophy-driven Claude Code harness — 원칙 선언형 워크플로우 프레임워크",
+  "keywords": [
+    "claude-code",
+    "tenet",
+    "philosophy",
+    "compound-engineering",
+    "workflow",
+    "ai-agent"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wooo-jin/tenet.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "module",
+  "bin": {
+    "tenet": "./dist/cli.js",
+    "tenetx": "./dist/chx.js"
+  },
+  "files": [
+    "dist/",
+    "agents/",
+    "skills/",
+    "plugin.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@types/react": "^18.3.28",
+    "ink": "^5.2.1",
+    "react": "^18.3.1"
+  }
+}

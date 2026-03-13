@@ -1,0 +1,106 @@
+{
+  "$schema": "https://claude.ai/schemas/claude-plugin.json",
+  "name": "tenet",
+  "version": "0.2.0",
+  "description": "Philosophy-driven Claude Code harness — 원칙 선언형 워크플로우 프레임워크",
+  "author": "jang-ujin",
+  "license": "MIT",
+  "homepage": "https://github.com/wooo-jin/tenet",
+  "keywords": [
+    "claude-code",
+    "harness",
+    "philosophy",
+    "workflow",
+    "compound-engineering"
+  ],
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/keyword-detector.js\"", "timeout": 5000 },
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/skill-injector.js\"", "timeout": 3000 },
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/context-guard.js\"", "timeout": 2000 }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/session-recovery.js\"", "timeout": 3000 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/context-guard.js\"", "timeout": 3000 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/pre-tool-use.js\"", "timeout": 3000 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/post-tool-use.js\"", "timeout": 3000 }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/subagent-tracker.js\" start", "timeout": 2000 }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/subagent-tracker.js\" stop", "timeout": 2000 }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/pre-compact.js\"", "timeout": 3000 }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/permission-handler.js\"", "timeout": 2000 }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/post-tool-failure.js\"", "timeout": 3000 }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "tenet status"
+  },
+  "agents": "agents/",
+  "skills": "skills/"
+}

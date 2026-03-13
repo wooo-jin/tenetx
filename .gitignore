@@ -1,0 +1,22 @@
+node_modules/
+dist/
+*.js.map
+
+# Internal docs
+BENCHMARK.md
+CHECKLIST.md
+PLANS.md
+HARNESS.md
+
+# Claude Code local config
+.claude/
+CLAUDE.md
+.modified-files.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*

@@ -1,0 +1,449 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import * as crypto from 'node:crypto';
+import { loadPhilosophyForProject, initDefaultPhilosophy } from './philosophy-loader.js';
+import { resolveScope } from './scope-resolver.js';
+import { generateClaudeRules, buildEnv, registerTmuxBindings } from './config-injector.js';
+import { COMPOUND_HOME, ME_DIR, ME_SOLUTIONS, ME_RULES, SESSIONS_DIR } from './paths.js';
+import { startSessionLog } from './session-logger.js';
+import { ModelRouter } from '../engine/router.js';
+import type { RoutingPreset } from '../engine/router.js';
+import type { HarnessContext } from './types.js';
+import { debugLog } from './logger.js';
+import { cleanStaleStateFiles } from './state-gc.js';
+import { loadGlobalConfig } from './global-config.js';
+
+const CLAUDE_DIR = path.join(os.homedir(), '.claude');
+const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
+const SETTINGS_BACKUP_PATH = path.join(CLAUDE_DIR, 'settings.json.tenet-backup');
+const SETTINGS_LOCK_PATH = path.join(CLAUDE_DIR, 'settings.json.lock');
+
+/** lockfile 획득 (최대 3초 대기, 100ms 간격 재시도) */
+function acquireLock(): void {
+  const maxWaitMs = 3000;
+  const intervalMs = 100;
+  const start = Date.now();
+
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      fs.writeFileSync(SETTINGS_LOCK_PATH, String(process.pid), { flag: 'wx' });
+      return; // 성공
+    } catch {
+      // lock 파일이 이미 존재 — 대기 후 재시도
+      const elapsed = Date.now() - start;
+      if (elapsed + intervalMs >= maxWaitMs) break;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, intervalMs);
+    }
+  }
+  // 타임아웃: stale lock일 수 있으므로 강제 획득
+  debugLog('harness', 'lockfile 타임아웃 — stale lock 강제 해제');
+  fs.writeFileSync(SETTINGS_LOCK_PATH, String(process.pid));
+}
+
+/** lockfile 해제 */
+function releaseLock(): void {
+  try {
+    fs.rmSync(SETTINGS_LOCK_PATH, { force: true });
+  } catch { /* 이미 없으면 무시 */ }
+}
+
+/** 임시파일에 쓴 후 rename으로 원자적 교체 */
+function atomicWriteFileSync(targetPath: string, data: string): void {
+  const tmpPath = `${targetPath}.tmp.${process.pid}`;
+  fs.writeFileSync(tmpPath, data);
+  fs.renameSync(tmpPath, targetPath);
+}
+
+/** tenet 패키지 루트 */
+function getPackageRoot(): string {
+  return path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+}
+
+/** 최초 실행 여부: ~/.compound/ 디렉토리가 없으면 true */
+export function isFirstRun(): boolean {
+  return !fs.existsSync(COMPOUND_HOME);
+}
+
+/** ~/.compound/ 디렉토리 구조 초기화 */
+function ensureDirectories(): void {
+  const dirs = [
+    COMPOUND_HOME,
+    ME_DIR,
+    ME_SOLUTIONS,
+    ME_RULES,
+    SESSIONS_DIR,
+    path.join(COMPOUND_HOME, 'state'),
+    path.join(COMPOUND_HOME, 'handoffs'),
+    path.join(COMPOUND_HOME, 'plans'),
+    path.join(COMPOUND_HOME, 'specs'),
+    path.join(COMPOUND_HOME, 'skills'),
+    path.join(COMPOUND_HOME, 'artifacts', 'ask'),
+    path.join(ME_DIR, 'skills'),
+  ];
+  for (const dir of dirs) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+/** settings.json.tenet-backup 파일에서 원본 복원 */
+export function rollbackSettings(): boolean {
+  if (!fs.existsSync(SETTINGS_BACKUP_PATH)) return false;
+  acquireLock();
+  try {
+    const backup = fs.readFileSync(SETTINGS_BACKUP_PATH, 'utf-8');
+    atomicWriteFileSync(SETTINGS_PATH, backup);
+    fs.rmSync(SETTINGS_BACKUP_PATH);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    releaseLock();
+  }
+}
+
+/** Claude Code settings.json에 하네스 환경변수 + 훅 주입 */
+function injectSettings(env: Record<string, string>): void {
+  fs.mkdirSync(CLAUDE_DIR, { recursive: true });
+  acquireLock();
+
+  let settings: Record<string, unknown> = {};
+  if (fs.existsSync(SETTINGS_PATH)) {
+    try {
+      settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      // 파싱 성공한 경우에만 백업 생성 (깨진 파일 백업 방지)
+      fs.copyFileSync(SETTINGS_PATH, SETTINGS_BACKUP_PATH);
+    } catch (e) { debugLog('harness', 'settings.json 파싱 실패, 빈 설정으로 시작', e); }
+  }
+
+  // 기존 env에 하네스 환경변수 병합
+  const existingEnv = (settings.env as Record<string, string>) ?? {};
+  settings.env = { ...existingEnv, ...env };
+
+  // statusLine
+  settings.statusLine = {
+    type: 'command',
+    command: 'tenet status',
+  };
+
+  // 훅 주입: Claude Code hooks 시스템에 등록
+  // hooks 스키마: { "EventName": [{ "matcher": "...", "hooks": [{ "type": "command", ... }] }] }
+  const pkgRoot = getPackageRoot();
+  const hooksConfig = settings.hooks as Record<string, unknown[]> ?? {};
+
+  // dist 경로의 훅 스크립트
+  const keywordDetectorPath = path.join(pkgRoot, 'dist', 'hooks', 'keyword-detector.js');
+  const skillInjectorPath = path.join(pkgRoot, 'dist', 'hooks', 'skill-injector.js');
+  const sessionRecoveryPath = path.join(pkgRoot, 'dist', 'hooks', 'session-recovery.js');
+  const contextGuardPath = path.join(pkgRoot, 'dist', 'hooks', 'context-guard.js');
+  const preToolUsePath = path.join(pkgRoot, 'dist', 'hooks', 'pre-tool-use.js');
+  const postToolUsePath = path.join(pkgRoot, 'dist', 'hooks', 'post-tool-use.js');
+  const subagentTrackerPath = path.join(pkgRoot, 'dist', 'hooks', 'subagent-tracker.js');
+  const preCompactPath = path.join(pkgRoot, 'dist', 'hooks', 'pre-compact.js');
+  const permissionHandlerPath = path.join(pkgRoot, 'dist', 'hooks', 'permission-handler.js');
+  const postToolFailurePath = path.join(pkgRoot, 'dist', 'hooks', 'post-tool-failure.js');
+
+  /** tenet 훅인지 판별 (matcher 래핑 여부 무관) */
+  function isCHHook(entry: Record<string, unknown>): boolean {
+    // 직접 형식: { type, command }
+    if (typeof entry.command === 'string' && entry.command.includes('tenet')) return true;
+    // 래핑 형식: { matcher, hooks: [{ command }] }
+    const hooks = entry.hooks as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(hooks)) {
+      return hooks.some(h => typeof h.command === 'string' && h.command.includes('tenet'));
+    }
+    return false;
+  }
+
+  /** 올바른 hooks 스키마로 래핑하여 엔트리 생성 */
+  function makeHookEntry(command: string, timeout: number): Record<string, unknown> {
+    return {
+      matcher: '',
+      hooks: [{ type: 'command', command, timeout }],
+    };
+  }
+
+  // 기존 CH 훅 제거 (이전 잘못된 형식 포함)
+  function filterOutCH(arr: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+    return arr.filter(h => !isCHHook(h));
+  }
+
+  // UserPromptSubmit 훅
+  const promptHooks = filterOutCH(
+    (hooksConfig.UserPromptSubmit as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(keywordDetectorPath)) {
+    promptHooks.push(makeHookEntry(`node "${keywordDetectorPath}"`, 5000));
+  }
+  if (fs.existsSync(skillInjectorPath)) {
+    promptHooks.push(makeHookEntry(`node "${skillInjectorPath}"`, 3000));
+  }
+  if (fs.existsSync(contextGuardPath)) {
+    promptHooks.push(makeHookEntry(`node "${contextGuardPath}"`, 2000));
+  }
+  hooksConfig.UserPromptSubmit = promptHooks;
+
+  // SessionStart 훅
+  const sessionHooks = filterOutCH(
+    (hooksConfig.SessionStart as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(sessionRecoveryPath)) {
+    sessionHooks.push(makeHookEntry(`node "${sessionRecoveryPath}"`, 3000));
+  }
+  hooksConfig.SessionStart = sessionHooks;
+
+  // Stop 훅 (에러 감지 + context limit 경고)
+  const stopHooks = filterOutCH(
+    (hooksConfig.Stop as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(contextGuardPath)) {
+    stopHooks.push(makeHookEntry(`node "${contextGuardPath}"`, 3000));
+  }
+  hooksConfig.Stop = stopHooks;
+
+  // PreToolUse 훅 (위험 명령어 차단 + 모드 리마인더)
+  const preToolHooks = filterOutCH(
+    (hooksConfig.PreToolUse as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(preToolUsePath)) {
+    preToolHooks.push(makeHookEntry(`node "${preToolUsePath}"`, 3000));
+  }
+  hooksConfig.PreToolUse = preToolHooks;
+
+  // PostToolUse 훅 (파일 변경 추적 + 에러 감지)
+  const postToolHooks = filterOutCH(
+    (hooksConfig.PostToolUse as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(postToolUsePath)) {
+    postToolHooks.push(makeHookEntry(`node "${postToolUsePath}"`, 3000));
+  }
+  hooksConfig.PostToolUse = postToolHooks;
+
+  // SubagentStart 훅
+  const subagentStartHooks = filterOutCH(
+    (hooksConfig.SubagentStart as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(subagentTrackerPath)) {
+    subagentStartHooks.push(makeHookEntry(`node "${subagentTrackerPath}" start`, 2000));
+  }
+  hooksConfig.SubagentStart = subagentStartHooks;
+
+  // SubagentStop 훅
+  const subagentStopHooks = filterOutCH(
+    (hooksConfig.SubagentStop as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(subagentTrackerPath)) {
+    subagentStopHooks.push(makeHookEntry(`node "${subagentTrackerPath}" stop`, 2000));
+  }
+  hooksConfig.SubagentStop = subagentStopHooks;
+
+  // PreCompact 훅 (컨텍스트 압축 전 상태 보존)
+  const preCompactHooks = filterOutCH(
+    (hooksConfig.PreCompact as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(preCompactPath)) {
+    preCompactHooks.push(makeHookEntry(`node "${preCompactPath}"`, 3000));
+  }
+  hooksConfig.PreCompact = preCompactHooks;
+
+  // PermissionRequest 훅 (권한 요청 정책)
+  const permissionHooks = filterOutCH(
+    (hooksConfig.PermissionRequest as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(permissionHandlerPath)) {
+    permissionHooks.push(makeHookEntry(`node "${permissionHandlerPath}"`, 2000));
+  }
+  hooksConfig.PermissionRequest = permissionHooks;
+
+  // PostToolUseFailure 훅 (도구 실패 시 복구 안내)
+  const postToolFailureHooks = filterOutCH(
+    (hooksConfig.PostToolUseFailure as Array<Record<string, unknown>>) ?? []
+  );
+  if (fs.existsSync(postToolFailurePath)) {
+    postToolFailureHooks.push(makeHookEntry(`node "${postToolFailurePath}"`, 3000));
+  }
+  hooksConfig.PostToolUseFailure = postToolFailureHooks;
+
+  settings.hooks = hooksConfig;
+
+  try {
+    atomicWriteFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  } catch (err) {
+    // 쓰기 실패 시 백업에서 자동 복원
+    releaseLock();
+    rollbackSettings();
+    throw err;
+  }
+  releaseLock();
+}
+
+/** 콘텐츠의 SHA-256 해시 (첫 12자) */
+function contentHash(content: string): string {
+  return crypto.createHash('sha256').update(content).digest('hex').slice(0, 12);
+}
+
+/** 에이전트 해시 맵 경로 */
+const AGENT_HASHES_PATH = path.join(COMPOUND_HOME, 'state', 'agent-hashes.json');
+
+/** 에이전트 해시 맵 로드 */
+function loadAgentHashes(): Record<string, string> {
+  try {
+    if (fs.existsSync(AGENT_HASHES_PATH)) {
+      return JSON.parse(fs.readFileSync(AGENT_HASHES_PATH, 'utf-8'));
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+/** 에이전트 해시 맵 저장 */
+function saveAgentHashes(hashes: Record<string, string>): void {
+  try {
+    fs.mkdirSync(path.dirname(AGENT_HASHES_PATH), { recursive: true });
+    fs.writeFileSync(AGENT_HASHES_PATH, JSON.stringify(hashes, null, 2));
+  } catch { /* ignore */ }
+}
+
+/** 에이전트 정의 파일 설치 — 프로젝트 .claude/agents/ 에 복사 (해시 기반 보호) */
+function installAgents(cwd: string): void {
+  const pkgRoot = getPackageRoot();
+  const sourceDir = path.join(pkgRoot, 'agents');
+  const targetDir = path.join(cwd, '.claude', 'agents');
+
+  if (!fs.existsSync(sourceDir)) return;
+
+  fs.mkdirSync(targetDir, { recursive: true });
+
+  const hashes = loadAgentHashes();
+
+  try {
+    const files = fs.readdirSync(sourceDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      const src = path.join(sourceDir, file);
+      const dstName = `ch-${file}`;
+      const dst = path.join(targetDir, dstName);
+      const content = fs.readFileSync(src, 'utf-8');
+      const newHash = contentHash(content);
+
+      if (fs.existsSync(dst)) {
+        const existing = fs.readFileSync(dst, 'utf-8');
+        // 이미 최신이면 건너뛰기
+        if (existing === content) {
+          hashes[dstName] = newHash;
+          continue;
+        }
+        // 해시 기반 보호: 기존 파일의 해시가 기록과 다르면 사용자가 수정한 것
+        const existingHash = contentHash(existing);
+        const recordedHash = hashes[dstName];
+        if (recordedHash && existingHash !== recordedHash) {
+          // 사용자가 커스터마이즈 → 보호
+          debugLog('harness', `에이전트 파일 보호: ${file} (사용자 수정 감지, hash: ${existingHash} ≠ ${recordedHash})`);
+          continue;
+        }
+        // 마커 기반 폴백: 해시 기록이 없는 레거시 파일
+        if (!recordedHash && !existing.includes('<!-- tenet-managed -->')) {
+          debugLog('harness', `에이전트 파일 보호: ${file} (레거시 사용자 수정 감지)`);
+          continue;
+        }
+        // 해시 일치 또는 마커 있음 → 패키지 업데이트이므로 덮어쓰기
+      }
+
+      fs.writeFileSync(dst, content);
+      hashes[dstName] = newHash;
+    }
+    saveAgentHashes(hashes);
+  } catch (e) {
+    /* expected: 에이전트 디렉토리 미존재 또는 권한 없음 — 선택적 기능이므로 무시 */
+    debugLog('harness', '에이전트 설치 실패', e);
+  }
+}
+
+/** 프로젝트 .claude/rules/compound.md에 하네스 규칙 작성 (Claude Code 자동 로드) */
+function injectClaudeRules(cwd: string, rules: string): void {
+  const rulesDir = path.join(cwd, '.claude', 'rules');
+  const rulesPath = path.join(rulesDir, 'compound.md');
+
+  fs.mkdirSync(rulesDir, { recursive: true });
+  fs.writeFileSync(rulesPath, rules);
+
+  // 마이그레이션: 이전 위치(.claude/compound-rules.md) 파일 제거
+  const legacyPath = path.join(cwd, '.claude', 'compound-rules.md');
+  if (fs.existsSync(legacyPath)) {
+    try { fs.unlinkSync(legacyPath); } catch { /* ignore */ }
+  }
+
+  // 기존 CLAUDE.md에서 이전 마커 블록 제거 (마이그레이션)
+  const claudeMdPath = path.join(cwd, 'CLAUDE.md');
+  const marker = '<!-- tenet:start -->';
+  const endMarker = '<!-- tenet:end -->';
+
+  if (fs.existsSync(claudeMdPath)) {
+    const content = fs.readFileSync(claudeMdPath, 'utf-8');
+    if (content.includes(marker)) {
+      const regex = new RegExp(`\\n*${marker}[\\s\\S]*?${endMarker}\\n*`, 'g');
+      const cleaned = content.replace(regex, '\n').replace(/\n{3,}/g, '\n\n').trim();
+      fs.writeFileSync(claudeMdPath, cleaned ? `${cleaned}\n` : '');
+    }
+  }
+}
+
+/** 메인 하네스 준비 함수 */
+export async function prepareHarness(cwd: string): Promise<HarnessContext> {
+  try {
+    // 1. 디렉토리 구조 보장
+    ensureDirectories();
+
+    // 1.5. 오래된 세션 상태 파일 정리
+    cleanStaleStateFiles();
+
+    // 2. 기본 철학 초기화
+    initDefaultPhilosophy();
+
+    // 3. 철학 로드 (프로젝트별 우선, 글로벌 폴백)
+    const { philosophy, source: philosophySource } = loadPhilosophyForProject(cwd);
+    debugLog('harness', `철학 로드: "${philosophy.name}" (source: ${philosophySource})`);
+
+    // 4. 스코프 해석
+    const scope = resolveScope(cwd, philosophySource);
+
+    // 5. 모델 라우터 생성 (Philosophy + Preset + Signal 하이브리드)
+    const globalConfig = loadGlobalConfig();
+    const routingPreset = globalConfig.modelRouting as RoutingPreset | undefined;
+    const router = new ModelRouter(philosophy, routingPreset);
+    const modelRouting = router.getTable();
+
+    // 6. 컨텍스트 구성
+    const inTmux = !!process.env.TMUX;
+    const context: HarnessContext = {
+      philosophy, philosophySource, scope, cwd, inTmux,
+      modelRouting: Object.fromEntries(
+        Object.entries(modelRouting).map(([k, v]) => [k, v as string[]])
+      ),
+      signalRoutingEnabled: true,
+      routingPreset: routingPreset ?? 'default',
+    };
+
+    // 7. Claude Code 설정 주입 (환경변수 + 훅)
+    const env = buildEnv(context);
+    injectSettings(env);
+
+    // 8. 에이전트 설치
+    installAgents(cwd);
+
+    // 9. CLAUDE.md 규칙 주입 (라우팅 테이블 포함)
+    const rules = generateClaudeRules(context);
+    injectClaudeRules(cwd, rules);
+
+    // 10. tmux 바인딩 등록
+    if (inTmux) {
+      await registerTmuxBindings();
+    }
+
+    // 11. 세션 로그 시작
+    startSessionLog(context);
+
+    return context;
+  } catch (err) {
+    rollbackSettings();
+    throw err;
+  }
+}

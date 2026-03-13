@@ -1,0 +1,276 @@
+import { execFileSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { debugLog } from './logger.js';
+
+export type NotifyChannel = 'macos' | 'terminal' | 'discord' | 'telegram' | 'slack';
+
+interface NotifyOptions {
+  title: string;
+  message: string;
+  sound?: boolean;
+  channel?: NotifyChannel;
+}
+
+interface WebhookConfig {
+  enabled: boolean;
+  discord?: { webhook: string; tagList?: string };
+  telegram?: { botToken: string; chatId: string; tagList?: string };
+  slack?: { webhook: string; tagList?: string };
+}
+
+const NOTIFY_CONFIG_PATH = path.join(os.homedir(), '.compound', 'notify.json');
+
+/** 알림 설정 로드 */
+export function loadNotifyConfig(): WebhookConfig {
+  if (!fs.existsSync(NOTIFY_CONFIG_PATH)) {
+    return { enabled: false };
+  }
+  try {
+    return JSON.parse(fs.readFileSync(NOTIFY_CONFIG_PATH, 'utf-8'));
+  } catch (e) {
+    debugLog('notify', 'notify.json 파싱 실패', e);
+    return { enabled: false };
+  }
+}
+
+/** 알림 설정 저장 */
+export function saveNotifyConfig(config: WebhookConfig): void {
+  fs.mkdirSync(path.dirname(NOTIFY_CONFIG_PATH), { recursive: true });
+  fs.writeFileSync(NOTIFY_CONFIG_PATH, JSON.stringify(config, null, 2));
+}
+
+/** macOS 네이티브 알림 */
+function notifyMacOS(title: string, message: string, sound: boolean): boolean {
+  try {
+    const soundPart = sound ? 'sound name "default"' : '';
+    const script = `display notification "${escapeAppleScript(message)}" with title "${escapeAppleScript(title)}" ${soundPart}`;
+    execFileSync('osascript', ['-e', script], { stdio: 'ignore' });
+    return true;
+  } catch (e) {
+    debugLog('notify', 'macOS 알림 실패', e);
+    return false;
+  }
+}
+
+export function escapeAppleScript(str: string): string {
+  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/** 터미널 벨 알림 */
+function notifyTerminal(title: string, message: string): void {
+  process.stdout.write(`\x1b]0;[tenet] ${title}\x07`);
+  process.stdout.write('\x07');
+  console.log(`\n  [tenet] ${title}: ${message}\n`);
+}
+
+/** URL 스킴 검증 (HTTPS 필수, localhost 제외) */
+export function validateWebhookUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:') return true;
+    // localhost/127.0.0.1은 HTTP 허용 (개발용)
+    if (parsed.protocol === 'http:' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')) return true;
+    return false;
+  } catch (e) {
+    debugLog('notify', `URL 파싱 실패: ${url}`, e);
+    return false;
+  }
+}
+
+/** HTTP POST 헬퍼 (fetch API 사용, shell injection 방지) */
+async function postJSON(url: string, payload: unknown, timeoutMs = 10000): Promise<boolean> {
+  if (!validateWebhookUrl(url)) {
+    console.error(`[tenet] 안전하지 않은 URL: ${url} (HTTPS 필요)`);
+    return false;
+  }
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return true;
+  } catch (e) {
+    debugLog('notify', `웹훅 POST 실패: ${url}`, e);
+    return false;
+  }
+}
+
+/** Discord 웹훅 알림 */
+async function notifyDiscord(webhook: string, title: string, message: string, tagList?: string): Promise<boolean> {
+  const tags = tagList ? `\n${tagList}` : '';
+  return postJSON(webhook, {
+    embeds: [{
+      title: `[Tenet] ${title}`,
+      description: `${message}${tags}`,
+      color: 0x7C3AED,
+      timestamp: new Date().toISOString(),
+    }],
+  });
+}
+
+/** Telegram 봇 알림 */
+async function notifyTelegram(botToken: string, chatId: string, title: string, message: string, tagList?: string): Promise<boolean> {
+  const tags = tagList ? `\n${tagList}` : '';
+  const text = `*[Tenet] ${title}*\n${message}${tags}`;
+  return postJSON(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    chat_id: chatId,
+    text,
+    parse_mode: 'Markdown',
+  });
+}
+
+/** Slack 웹훅 알림 */
+async function notifySlack(webhook: string, title: string, message: string, tagList?: string): Promise<boolean> {
+  const tags = tagList ? `\n${tagList}` : '';
+  return postJSON(webhook, {
+    blocks: [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: `[Tenet] ${title}` },
+      },
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: `${message}${tags}` },
+      },
+    ],
+  });
+}
+
+/** 알림 전송 (모든 활성 채널로) */
+export async function notify(options: NotifyOptions): Promise<void> {
+  const channel = options.channel ?? detectChannel();
+
+  // 로컬 알림
+  switch (channel) {
+    case 'macos':
+      if (!notifyMacOS(options.title, options.message, options.sound ?? true)) {
+        notifyTerminal(options.title, options.message);
+      }
+      break;
+    case 'terminal':
+      notifyTerminal(options.title, options.message);
+      break;
+    default:
+      break;
+  }
+
+  // 웹훅 알림 (설정된 채널 모두, 병렬 전송)
+  const config = loadNotifyConfig();
+  if (!config.enabled) return;
+
+  const promises: Promise<boolean>[] = [];
+
+  if (config.discord?.webhook) {
+    promises.push(notifyDiscord(config.discord.webhook, options.title, options.message, config.discord.tagList));
+  }
+  if (config.telegram?.botToken && config.telegram?.chatId) {
+    promises.push(notifyTelegram(config.telegram.botToken, config.telegram.chatId, options.title, options.message, config.telegram.tagList));
+  }
+  if (config.slack?.webhook) {
+    promises.push(notifySlack(config.slack.webhook, options.title, options.message, config.slack.tagList));
+  }
+
+  await Promise.allSettled(promises);
+}
+
+export function detectChannel(): NotifyChannel {
+  if (process.platform === 'darwin') return 'macos';
+  return 'terminal';
+}
+
+/** CLI 핸들러: tenet notify */
+export async function handleNotify(args: string[]): Promise<void> {
+  // tenet notify config — 알림 설정
+  if (args[0] === 'config') {
+    await handleNotifyConfig(args.slice(1));
+    return;
+  }
+
+  if (args.length === 0) {
+    console.log('  사용법: tenet notify "메시지"');
+    console.log('  옵션:');
+    console.log('    --title "제목"     알림 제목 (기본: Tenet)');
+    console.log('    --no-sound         소리 없이');
+    console.log('');
+    console.log('  외부 알림 설정:');
+    console.log('    tenet notify config discord <webhook-url>');
+    console.log('    tenet notify config telegram <bot-token> <chat-id>');
+    console.log('    tenet notify config slack <webhook-url>');
+    console.log('    tenet notify config show');
+    console.log('    tenet notify config disable');
+    return;
+  }
+
+  const titleIdx = args.indexOf('--title');
+  const title = titleIdx !== -1 ? args[titleIdx + 1] : 'Tenet';
+  const noSound = args.includes('--no-sound');
+  const message = args.filter(a => !a.startsWith('--') && a !== title).join(' ');
+
+  await notify({ title, message: message || 'Done', sound: !noSound });
+}
+
+/** 알림 설정 CLI */
+async function handleNotifyConfig(args: string[]): Promise<void> {
+  const config = loadNotifyConfig();
+
+  if (args[0] === 'show' || args.length === 0) {
+    console.log('\n  [알림 설정]');
+    console.log(`  활성: ${config.enabled ? 'Yes' : 'No'}`);
+    if (config.discord?.webhook) {
+      console.log(`  Discord: ${config.discord.webhook.slice(0, 40)}...`);
+    }
+    if (config.telegram?.botToken) {
+      console.log(`  Telegram: bot=${config.telegram.botToken.slice(0, 10)}... chat=${config.telegram.chatId}`);
+    }
+    if (config.slack?.webhook) {
+      console.log(`  Slack: ${config.slack.webhook.slice(0, 40)}...`);
+    }
+    console.log();
+    return;
+  }
+
+  if (args[0] === 'disable') {
+    config.enabled = false;
+    saveNotifyConfig(config);
+    console.log('  알림 비활성화됨');
+    return;
+  }
+
+  if (args[0] === 'discord' && args[1]) {
+    if (!validateWebhookUrl(args[1])) {
+      console.error('  유효하지 않은 URL입니다. HTTPS URL을 입력하세요.');
+      return;
+    }
+    config.enabled = true;
+    config.discord = { webhook: args[1], tagList: args[2] };
+    saveNotifyConfig(config);
+    console.log('  Discord 웹훅 설정 완료');
+    return;
+  }
+
+  if (args[0] === 'telegram' && args[1] && args[2]) {
+    config.enabled = true;
+    config.telegram = { botToken: args[1], chatId: args[2], tagList: args[3] };
+    saveNotifyConfig(config);
+    console.log('  Telegram 봇 설정 완료');
+    return;
+  }
+
+  if (args[0] === 'slack' && args[1]) {
+    if (!validateWebhookUrl(args[1])) {
+      console.error('  유효하지 않은 URL입니다. HTTPS URL을 입력하세요.');
+      return;
+    }
+    config.enabled = true;
+    config.slack = { webhook: args[1], tagList: args[2] };
+    saveNotifyConfig(config);
+    console.log('  Slack 웹훅 설정 완료');
+    return;
+  }
+
+  console.log('  알 수 없는 설정 명령입니다. tenet notify config show 로 현재 설정을 확인하세요.');
+}

@@ -1,0 +1,35 @@
+---
+name: ultrawork
+description: Maximum parallelism burst mode for independent tasks
+triggers:
+  - "ultrawork"
+  - "ulw"
+  - "병렬처리"
+---
+
+<Purpose>
+Compound Harness Ultrawork — 최대 병렬성 버스트 모드.
+독립적인 작업을 동시에 Agent로 스폰하여 최대 속도로 처리합니다.
+</Purpose>
+
+<Execution_Policy>
+1. 작업을 독립적 단위로 분해
+2. 각 단위의 독립성 검증 (파일 충돌 없음)
+3. 모든 독립 단위를 동시에 Agent로 스폰
+4. 결과 수집 및 통합
+5. 충돌 해결 (있으면)
+6. 전체 빌드/테스트 검증
+</Execution_Policy>
+
+<Model_Routing>
+- 단순 수정 (타입 변경, 이름 변경 등): Haiku
+- 표준 구현 (함수 작성, 버그 수정 등): Sonnet
+- 복잡한 설계 (아키텍처, 리팩토링 등): Opus
+</Model_Routing>
+
+<Constraints>
+- 같은 파일을 수정하는 작업은 절대 병렬 실행하지 않음
+- 각 Agent는 자신의 담당 파일만 수정
+- Agent 간 의존성이 있으면 순차 실행으로 전환
+- 최대 동시 Agent 수: 5
+</Constraints>
