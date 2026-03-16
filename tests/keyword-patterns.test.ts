@@ -19,8 +19,8 @@ describe('keyword patterns', () => {
     expect(detectKeyword('autopilot 시작')?.keyword).toBe('autopilot');
   });
 
-  it('canceltenet를 감지한다', () => {
-    expect(detectKeyword('canceltenet')?.keyword).toBe('cancel');
+  it('canceltenetx를 감지한다', () => {
+    expect(detectKeyword('canceltenetx')?.keyword).toBe('cancel');
   });
 
   it('ulw를 ultrawork로 감지한다', () => {
@@ -50,7 +50,7 @@ describe('keyword patterns', () => {
 
   // cancel 우선순위
   it('cancel이 다른 키워드보다 우선한다', () => {
-    expect(detectKeyword('canceltenet ralph')?.keyword).toBe('cancel');
+    expect(detectKeyword('canceltenetx ralph')?.keyword).toBe('cancel');
   });
 
   // 대소문자 무관

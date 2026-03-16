@@ -2,7 +2,7 @@
 
 const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
 if (nodeVersion < 18) {
-  console.error('[Tenet] Node.js 18 이상이 필요합니다. 현재: ' + process.version);
+  console.error('[Tenetx] Node.js 18 이상이 필요합니다. 현재: ' + process.version);
   process.exit(1);
 }
 
@@ -211,15 +211,15 @@ const commands: Command[] = [
     category: 'command',
     handler: async (args) => {
       if (!args.includes('--plugin')) {
-        console.error('사용법: tenet install --plugin');
+        console.error('사용법: tenetx install --plugin');
         return;
       }
       const { installAsPlugin } = await import('./core/plugin-installer.js');
       const result = installAsPlugin();
       if (result.success) {
-        console.log(`[tenet] 플러그인 설치 완료: ${result.pluginDir}`);
+        console.log(`[tenetx] 플러그인 설치 완료: ${result.pluginDir}`);
       } else {
-        console.error(`[tenet] 플러그인 설치 실패: ${result.error}`);
+        console.error(`[tenetx] 플러그인 설치 실패: ${result.error}`);
         process.exit(1);
       }
     },
@@ -362,28 +362,28 @@ async function main() {
   ✓ 초기 설정 완료!
 
   다음 단계:
-    tenet init              프로젝트 타입 감지 → 맞춤 철학 생성
-    tenet init --team       팀 모드로 시작 (팀원과 철학 공유)
-    tenet philosophy show   현재 철학 확인
-    tenet doctor            환경 진단
+    tenetx init              프로젝트 타입 감지 → 맞춤 철학 생성
+    tenetx init --team       팀 모드로 시작 (팀원과 철학 공유)
+    tenetx philosophy show   현재 철학 확인
+    tenetx doctor            환경 진단
 
   더 알아보기: https://github.com/wooo-jin/tenetx
 `);
     }
 
-    console.log(`[tenet] Philosophy: ${context.philosophy.name}`);
-    console.log(`[tenet] Scope: ${context.scope.summary}`);
+    console.log(`[tenetx] Philosophy: ${context.philosophy.name}`);
+    console.log(`[tenetx] Scope: ${context.scope.summary}`);
     if (context.scope.team) {
-      console.log(`[tenet] Pack: ${context.scope.team.name} v${context.scope.team.version}`);
+      console.log(`[tenetx] Pack: ${context.scope.team.name} v${context.scope.team.version}`);
     }
     if (context.modelRouting) {
       const rt = context.modelRouting;
       const parts = Object.entries(rt)
         .filter(([, v]) => (v as string[]).length > 0)
         .map(([k, v]) => `${k}:${(v as string[]).length}`);
-      console.log(`[tenet] Routing: ${parts.join(' | ')}`);
+      console.log(`[tenetx] Routing: ${parts.join(' | ')}`);
     }
-    console.log('[tenet] Starting Claude Code...\n');
+    console.log('[tenetx] Starting Claude Code...\n');
 
     await spawnClaude(args, context);
   } catch (err) {
@@ -391,21 +391,21 @@ async function main() {
 
     // 사용자 친화적 에러 메시지 변환
     if (msg.includes('ENOENT') && msg.includes('claude')) {
-      console.error('\n  [tenet] Claude Code가 설치되어 있지 않습니다.');
+      console.error('\n  [tenetx] Claude Code가 설치되어 있지 않습니다.');
       console.error('  설치: https://docs.anthropic.com/en/docs/claude-code');
-      console.error('  확인: tenet doctor\n');
+      console.error('  확인: tenetx doctor\n');
     } else if (msg.includes('ENOENT') && msg.includes('git')) {
-      console.error('\n  [tenet] Git이 설치되어 있지 않습니다.');
+      console.error('\n  [tenetx] Git이 설치되어 있지 않습니다.');
       console.error('  설치: https://git-scm.com/downloads\n');
     } else if (msg.includes('ENOENT') && msg.includes('node')) {
-      console.error('\n  [tenet] Node.js 18 이상이 필요합니다.');
+      console.error('\n  [tenetx] Node.js 18 이상이 필요합니다.');
       console.error('  현재: ' + process.version + '\n');
     } else if (msg.includes('EACCES') || msg.includes('EPERM')) {
-      console.error('\n  [tenet] 권한이 부족합니다. sudo 또는 파일 권한을 확인하세요.');
+      console.error('\n  [tenetx] 권한이 부족합니다. sudo 또는 파일 권한을 확인하세요.');
       console.error('  상세: ' + msg + '\n');
     } else {
-      console.error('\n  [tenet] 오류:', msg);
-      console.error('  문제가 계속되면: tenet doctor 로 환경을 진단하세요.');
+      console.error('\n  [tenetx] 오류:', msg);
+      console.error('  문제가 계속되면: tenetx doctor 로 환경을 진단하세요.');
       console.error('  이슈: https://github.com/wooo-jin/tenetx/issues\n');
     }
     process.exit(1);
@@ -418,23 +418,23 @@ async function main() {
 
 function printHelp() {
   console.log(`
-  Tenet v1.0.0
+  Tenetx v1.0.0
   Philosophy-driven Claude Code harness
 
   Usage:
-    tenet                          Start Claude Code with harness
-    tenet "prompt"                 Start with a prompt
-    tenet --resume                 Resume previous session
+    tenetx                          Start Claude Code with harness
+    tenetx "prompt"                 Start with a prompt
+    tenetx --resume                 Resume previous session
 
   Modes:
-    tenet --autopilot (-a)         5단계 자율 실행 파이프라인
-    tenet --ralph (-r)             PRD 기반 완료 보장 + verify/fix loop
-    tenet --team (-t)              전문 에이전트 단계별 파이프라인
-    tenet --ultrawork (-u)         최대 병렬성 버스트
-    tenet --pipeline (-p)          순차 단계별 처리
-    tenet --ccg                    Claude-Codex-Gemini 3모델 합성
-    tenet --ralplan                합의 기반 설계 (Planner→Architect→Critic)
-    tenet --deep-interview         Socratic 요구사항 명확화
+    tenetx --autopilot (-a)         5단계 자율 실행 파이프라인
+    tenetx --ralph (-r)             PRD 기반 완료 보장 + verify/fix loop
+    tenetx --team (-t)              전문 에이전트 단계별 파이프라인
+    tenetx --ultrawork (-u)         최대 병렬성 버스트
+    tenetx --pipeline (-p)          순차 단계별 처리
+    tenetx --ccg                    Claude-Codex-Gemini 3모델 합성
+    tenetx --ralplan                합의 기반 설계 (Planner→Architect→Critic)
+    tenetx --deep-interview         Socratic 요구사항 명확화
 
   Magic Keywords (프롬프트 내):
     autopilot <task>            autopilot 모드 활성화
@@ -445,13 +445,13 @@ function printHelp() {
     ultrathink                  확장 추론 모드
     deepsearch                  코드베이스 심층 탐색
     tdd                         TDD 모드
-    canceltenet                    모든 모드 중단
+    canceltenetx                    모든 모드 중단
 
   Commands:`);
 
   for (const cmd of commands.filter((c) => c.category !== 'internal')) {
     const aliases = cmd.aliases ? ` (${cmd.aliases.join(', ')})` : '';
-    const nameWithAliases = `tenet ${cmd.name}${aliases}`;
+    const nameWithAliases = `tenetx ${cmd.name}${aliases}`;
     console.log(`    ${nameWithAliases.padEnd(38)}${cmd.description}`);
   }
 

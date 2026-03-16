@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — Keyword Detector Hook
+ * Tenetx — Keyword Detector Hook
  *
  * Claude Code UserPromptSubmit 훅으로 등록.
  * 사용자 프롬프트에서 매직 키워드를 감지하여 해당 스킬을 주입합니다.
@@ -50,7 +50,7 @@ export const KEYWORD_PATTERNS: Array<{
   skill?: string;
 }> = [
   // 취소
-  { pattern: /\b(canceltenet|stoptenet|cancel[- ]?compound)\b/i, keyword: 'cancel', type: 'cancel' },
+  { pattern: /\b(canceltenetx|stoptenetx|cancel[- ]?compound)\b/i, keyword: 'cancel', type: 'cancel' },
 
   // 핵심 모드 — "team"은 단독 사용 시 오탐 가능하므로 명시적 패턴만
   { pattern: /\bralph\b/i, keyword: 'ralph', type: 'skill', skill: 'ralph' },
@@ -137,7 +137,7 @@ function loadSkillContent(skillName: string): string | null {
     path.join(os.homedir(), '.compound', 'skills', `${skillName}.md`),
   ];
 
-  // tenet 패키지 내장 스킬
+  // tenetx 패키지 내장 스킬
   const pkgSkillPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '..', '..', 'skills', `${skillName}.md`
@@ -165,7 +165,7 @@ export function detectKeyword(prompt: string): KeywordMatch | null {
       const extractedPrompt = prompt.replace(new RegExp(`\\b${entry.keyword}\\b`, 'gi'), '').trim();
 
       if (entry.type === 'cancel') {
-        return { type: 'cancel', keyword: entry.keyword, message: '[Tenet] 모드가 중단되었습니다.' };
+        return { type: 'cancel', keyword: entry.keyword, message: '[Tenetx] 모드가 중단되었습니다.' };
       }
 
       if (entry.type === 'inject') {
@@ -236,7 +236,7 @@ export function getModelRecommendation(prompt: string, cwd?: string): string {
     const router = new ModelRouter(philosophy, routingPreset);
     const contextSignals = loadContextSignals();
     const result = router.route(prompt, contextSignals);
-    return `\n[Tenet] 권장 모델: **${result.tier}** (source: ${result.source}, category: ${result.category}${result.score ? `, score: ${result.score.total}` : ''})`;
+    return `\n[Tenetx] 권장 모델: **${result.tier}** (source: ${result.source}, category: ${result.category}${result.score ? `, score: ${result.score.total}` : ''})`;
   } catch {
     return '';
   }
@@ -302,7 +302,7 @@ async function main(): Promise<void> {
     } else {
       console.log(JSON.stringify({
         result: 'approve',
-        message: `[Tenet] ${match.keyword} 모드 활성화됨.${modelRec}\n\nUser request: ${match.prompt}`,
+        message: `[Tenetx] ${match.keyword} 모드 활성화됨.${modelRec}\n\nUser request: ${match.prompt}`,
       }));
     }
     return;

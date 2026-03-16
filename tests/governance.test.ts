@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 // vi.hoisted로 TEST_HOME 정의
 const { TEST_HOME } = vi.hoisted(() => ({
-  TEST_HOME: '/tmp/tenet-test-governance-home',
+  TEST_HOME: '/tmp/tenetx-test-governance-home',
 }));
 
 // node:os mock
@@ -25,7 +25,7 @@ import {
 const ME_DIR = path.join(TEST_HOME, '.compound', 'me');
 const SESSIONS_DIR = path.join(TEST_HOME, '.compound', 'sessions');
 const STATE_DIR = path.join(TEST_HOME, '.compound', 'state');
-const TMP_PROJECT = '/tmp/tenet-test-governance-project';
+const TMP_PROJECT = '/tmp/tenetx-test-governance-project';
 
 beforeEach(() => {
   fs.rmSync(TEST_HOME, { recursive: true, force: true });

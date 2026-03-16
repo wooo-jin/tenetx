@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: writer
 description: Technical writer — README, API docs, migration guides, inline comments

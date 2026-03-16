@@ -1,5 +1,5 @@
 /**
- * dashboard.ts -- Tenet TUI Dashboard
+ * dashboard.ts -- Tenetx TUI Dashboard
  *
  * Ink/React based terminal UI running inside a tmux pane.
  */
@@ -28,12 +28,12 @@ function findDashboardPane(): string | null {
 /** Toggle tmux dashboard pane open/close */
 export async function toggleDashboard(): Promise<void> {
   if (process.platform === 'win32') {
-    console.log('[tenet] 대시보드는 현재 Windows를 지원하지 않습니다.');
+    console.log('[tenetx] 대시보드는 현재 Windows를 지원하지 않습니다.');
     console.log('  WSL 또는 macOS/Linux에서 사용하세요.');
     return;
   }
   if (!process.env.TMUX) {
-    console.log('[tenet] tmux 세션에서만 대시보드를 사용할 수 있습니다.');
+    console.log('[tenetx] tmux 세션에서만 대시보드를 사용할 수 있습니다.');
     console.log('  설치: brew install tmux (macOS) / apt install tmux (Linux)');
     return;
   }
@@ -45,11 +45,11 @@ export async function toggleDashboard(): Promise<void> {
   } else {
     // Open new pane
     try {
-      execFileSync('tmux', ['split-window', '-h', '-l', '40%', 'tenet dashboard'], { stdio: 'ignore' });
+      execFileSync('tmux', ['split-window', '-h', '-l', '40%', 'tenetx dashboard'], { stdio: 'ignore' });
       execFileSync('tmux', ['select-pane', '-T', PANE_TITLE], { stdio: 'ignore' });
       execFileSync('tmux', ['last-pane'], { stdio: 'ignore' });
     } catch (err) {
-      console.error('[tenet] 대시보드 열기 실패:', err);
+      console.error('[tenetx] 대시보드 열기 실패:', err);
     }
   }
 }

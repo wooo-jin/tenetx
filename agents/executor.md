@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: executor
 description: Focused code implementation specialist

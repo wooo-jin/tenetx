@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: critic
 description: Final quality gate — plan/code verifier (READ-ONLY)

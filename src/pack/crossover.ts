@@ -34,16 +34,16 @@ function classifyFile(filePath: string): 'solution' | 'rule' {
 }
 
 /**
- * tenet pick — 팩의 솔루션/규칙을 개인(Me) 영역으로 복사
+ * tenetx pick — 팩의 솔루션/규칙을 개인(Me) 영역으로 복사
  * 자유롭게 가져올 수 있음 (리뷰 불필요)
  */
 export async function handlePick(args: string[]): Promise<void> {
   if (args.length === 0) {
-    console.log('  사용법: tenet pick <file> --from <pack>');
+    console.log('  사용법: tenetx pick <file> --from <pack>');
     console.log('  팩의 솔루션/규칙을 개인(Me) 영역으로 복사합니다.\n');
     console.log('  예시:');
-    console.log('    tenet pick api-error-handling --from emr');
-    console.log('    tenet pick convention-naming.md --from emr\n');
+    console.log('    tenetx pick api-error-handling --from emr');
+    console.log('    tenetx pick convention-naming.md --from emr\n');
     return;
   }
 
@@ -95,7 +95,7 @@ export async function handlePick(args: string[]): Promise<void> {
 }
 
 /**
- * tenet propose — compound에서 분류된 팀 규칙을 PR로 제안
+ * tenetx propose — compound에서 분류된 팀 규칙을 PR로 제안
  *
  * pack 연결 모드에 따라:
  * - github: 팩 레포에 PR 생성
@@ -112,7 +112,7 @@ export async function handlePropose(_args: string[]): Promise<void> {
 
   if (proposals.length === 0) {
     console.log('\n  제안할 팀 규칙이 없습니다.');
-    console.log('  먼저 tenet compound 로 인사이트를 추출하세요.\n');
+    console.log('  먼저 tenetx compound 로 인사이트를 추출하세요.\n');
     return;
   }
 
@@ -134,7 +134,7 @@ export async function handlePropose(_args: string[]): Promise<void> {
     // 개인 모드: 로컬 저장으로 폴백
     await proposeViaLocal(proposals, cwd);
     console.log('  팩이 연결되어 있지 않습니다. 로컬에 저장되었습니다.');
-    console.log('  팀 설정: tenet init --team\n');
+    console.log('  팀 설정: tenetx init --team\n');
     cleanProposals(proposalsDir);
     return;
   }

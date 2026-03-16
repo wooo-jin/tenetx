@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: test-engineer
 description: Test strategist — integration/E2E coverage, TDD, flaky test hardening

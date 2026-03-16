@@ -1,5 +1,5 @@
 /**
- * Tenet — Debug Logger
+ * Tenetx — Debug Logger
  *
  * COMPOUND_DEBUG=1 환경변수가 설정된 경우에만 stderr에 출력합니다.
  * 기본 동작에 영향을 주지 않습니다.

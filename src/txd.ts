@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * tenetx — tenet --dangerously-skip-permissions 의 단축 명령
+ * txd — tenetx --dangerously-skip-permissions 의 단축 명령
  * 모든 인자를 그대로 전달하되, --dangerously-skip-permissions 를 자동 주입
  */
 
@@ -17,12 +17,12 @@ import { prepareHarness, isFirstRun } from './core/harness.js';
 import { spawnClaude } from './core/spawn.js';
 
 async function main() {
-  // chx는 서브커맨드 없이 바로 Claude Code 실행 전용
+  // txd는 서브커맨드 없이 바로 Claude Code 실행 전용
   const firstRun = isFirstRun();
   if (firstRun) {
-    console.log('\n  Tenet — 환경을 처음 설정합니다.\n');
+    console.log('\n  Tenetx — 환경을 처음 설정합니다.\n');
     console.log('  ~/.compound/ 디렉토리와 기본 철학을 생성합니다.');
-    console.log('  이후 `tenet setup`으로 추가 설정을 완료할 수 있습니다.\n');
+    console.log('  이후 `tenetx setup`으로 추가 설정을 완료할 수 있습니다.\n');
   }
 
   const context = await prepareHarness(process.cwd());

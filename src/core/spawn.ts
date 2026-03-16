@@ -51,7 +51,7 @@ export async function spawnClaude(args: string[], context: HarnessContext): Prom
   const modeConfig = getModeConfig(mode);
 
   if (mode !== 'normal') {
-    console.log(`[tenet] Mode: ${modeConfig.description}`);
+    console.log(`[tenetx] Mode: ${modeConfig.description}`);
     // CLI 플래그로 모드가 선택된 경우 state에 기록 (session-recovery 훅 지원)
     persistModeState(mode);
   }
@@ -72,7 +72,7 @@ export async function spawnClaude(args: string[], context: HarnessContext): Prom
     // 솔루션 매칭 (knowledge-comes-to-you)
     const matches = matchSolutions(prompt, context.scope, context.cwd);
     if (matches.length > 0) {
-      console.log('[tenet] 관련 솔루션:');
+      console.log('[tenetx] 관련 솔루션:');
       for (const m of matches.slice(0, 3)) {
         const scopeLabel = m.scope === 'me' ? 'Me' : m.scope === 'team' ? 'Team' : 'Project';
         console.log(`  💡 [${scopeLabel}] ${m.name}: ${m.summary}`);

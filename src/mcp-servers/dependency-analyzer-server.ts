@@ -3,7 +3,7 @@ import { createMcpServer } from './shared/protocol.js';
 import { analyzeDependencies } from './dependency-analyzer.js';
 
 createMcpServer({
-  name: 'tenet-dependency-analyzer',
+  name: 'tenetx-dependency-analyzer',
   version: '1.0.0',
   tools: [
     {

@@ -1,5 +1,5 @@
 /**
- * Tenet — Signal Scorer
+ * Tenetx — Signal Scorer
  *
  * 신호 번들을 가중치 스코어링하여 모델 티어를 결정.
  * Philosophy의 선언적 라우팅이 최우선, 신호 스코어링은 동적 에스컬레이션용.

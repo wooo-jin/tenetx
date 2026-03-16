@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 createMcpServer({
-  name: 'tenet-test-runner',
+  name: 'tenetx-test-runner',
   version: '1.0.0',
   tools: [
     {

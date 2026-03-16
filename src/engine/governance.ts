@@ -339,7 +339,7 @@ export async function handleGovernance(args: string[]): Promise<void> {
   }
 
   if (trendOnly) {
-    console.log(`\n  ${BOLD}Tenet — 거버넌스 트렌드${RST}\n`);
+    console.log(`\n  ${BOLD}Tenetx — 거버넌스 트렌드${RST}\n`);
     if (report.trends.length === 0) {
       console.log('  트렌드 데이터가 없습니다.\n');
       return;
@@ -353,7 +353,7 @@ export async function handleGovernance(args: string[]): Promise<void> {
   }
 
   // 전체 리포트
-  console.log(`\n  ${BOLD}Tenet — Governance Report${RST}`);
+  console.log(`\n  ${BOLD}Tenetx — Governance Report${RST}`);
   console.log(`  Philosophy: ${report.philosophy}`);
 
   const overallColor = report.overallCompliance >= 80 ? GREEN : report.overallCompliance >= 50 ? YELLOW : RED;

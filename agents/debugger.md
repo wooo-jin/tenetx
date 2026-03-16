@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: debugger
 description: Root-cause debugger — isolates regressions and analyzes stack traces

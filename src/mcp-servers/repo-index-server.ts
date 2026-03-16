@@ -3,7 +3,7 @@ import { createMcpServer } from './shared/protocol.js';
 import { generateRepoIndex } from './repo-index.js';
 
 createMcpServer({
-  name: 'tenet-repo-index',
+  name: 'tenetx-repo-index',
   version: '1.0.0',
   tools: [
     {

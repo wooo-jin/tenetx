@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — PreToolUse: Rate Limiter Hook
+ * Tenetx — PreToolUse: Rate Limiter Hook
  *
  * MCP 도구 호출 빈도를 제한하여 남용을 방지합니다.
  * 기본 제한: 30회/분
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
   if (exceeded) {
     console.log(JSON.stringify({
       result: 'reject',
-      reason: `[Tenet] Rate limit exceeded (${count}/${DEFAULT_LIMIT}/min). Wait before retrying.`,
+      reason: `[Tenetx] Rate limit exceeded (${count}/${DEFAULT_LIMIT}/min). Wait before retrying.`,
     }));
     return;
   }

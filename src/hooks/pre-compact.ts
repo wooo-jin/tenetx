@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — PreCompact Hook
+ * Tenetx — PreCompact Hook
  *
  * 컨텍스트 압축(compaction) 전 상태 보존.
  * - 현재 활성 모드 상태 스냅샷
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
     if (snapshotPath) {
       console.log(JSON.stringify({
         result: 'approve',
-        message: `<compound-compact-info>\n[Tenet] Compaction 전 상태 스냅샷 저장됨: ${path.basename(snapshotPath)}\n활성 모드는 compaction 후에도 유지됩니다.\n</compound-compact-info>`,
+        message: `<compound-compact-info>\n[Tenetx] Compaction 전 상태 스냅샷 저장됨: ${path.basename(snapshotPath)}\n활성 모드는 compaction 후에도 유지됩니다.\n</compound-compact-info>`,
       }));
       return;
     }

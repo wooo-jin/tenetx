@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: performance-reviewer
 description: Performance auditor — hotspots, algorithmic complexity, memory/latency analysis (READ-ONLY)

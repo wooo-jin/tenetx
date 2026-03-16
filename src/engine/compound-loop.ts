@@ -191,7 +191,7 @@ export function cleanProposals(proposalsDir: string): void {
   }
 }
 
-/** CLI 핸들러: tenet compound */
+/** CLI 핸들러: tenetx compound */
 export async function handleCompound(args: string[]): Promise<void> {
   const cwd = process.cwd();
   const scope = resolveScope(cwd);
@@ -251,15 +251,15 @@ export async function handleCompound(args: string[]): Promise<void> {
 }
 
 async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolveScope>): Promise<void> {
-  console.log('\n  Tenet Compound — 오늘의 인사이트\n');
+  console.log('\n  Tenetx Compound — 오늘의 인사이트\n');
   console.log(`  Scope: ${scope.summary}`);
   console.log();
 
   // Non-interactive mode
   if (!process.stdin.isTTY) {
     console.log('  대화형 모드가 필요합니다. TTY 환경에서 실행하세요.');
-    console.log('  수동 추가: tenet compound --solution "제목" "내용"');
-    console.log('             tenet compound --rule "제목" "내용"\n');
+    console.log('  수동 추가: tenetx compound --solution "제목" "내용"');
+    console.log('             tenetx compound --rule "제목" "내용"\n');
     return;
   }
 
@@ -338,7 +338,7 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
   if (team.length > 0) {
     saveTeamProposals(team, cwd);
     console.log(`  ✓ 팀 규칙 후보 ${team.length}건 저장 (.compound/proposals/)`);
-    console.log('  → tenet propose 로 팀에 제안하세요.\n');
+    console.log('  → tenetx propose 로 팀에 제안하세요.\n');
   }
 
   rl.close();

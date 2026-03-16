@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "version": "1.0.0",
-  "author": "tenet",
+  "author": "tenetx",
   "description": "프론트엔드 개발을 위한 철학 팩 — 컴포넌트 분리, 접근성, 반응형, 성능 최적화",
   "principles": {
     "component-isolation": {

@@ -3,7 +3,7 @@ import { createMcpServer } from './shared/protocol.js';
 import { astSearch } from './ast-search.js';
 
 createMcpServer({
-  name: 'tenet-ast-search',
+  name: 'tenetx-ast-search',
   version: '1.0.0',
   tools: [
     {

@@ -1,11 +1,11 @@
 {
   "$schema": "https://claude.ai/schemas/claude-plugin.json",
-  "name": "tenet",
+  "name": "tenetx",
   "version": "0.2.0",
   "description": "Philosophy-driven Claude Code harness — 원칙 선언형 워크플로우 프레임워크",
   "author": "jang-ujin",
   "license": "MIT",
-  "homepage": "https://github.com/wooo-jin/tenet",
+  "homepage": "https://github.com/wooo-jin/tenetx",
   "keywords": [
     "claude-code",
     "harness",
@@ -102,7 +102,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "tenet status"
+    "command": "tenetx status"
   },
   "agents": "agents/",
   "skills": "skills/"

@@ -1,7 +1,7 @@
 {
   "name": "data",
   "version": "1.0.0",
-  "author": "tenet",
+  "author": "tenetx",
   "description": "데이터 엔지니어링을 위한 철학 팩 — 파이프라인 검증, 스키마 진화, 재현성, 테스트",
   "principles": {
     "pipeline-validation": {

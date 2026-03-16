@@ -1,5 +1,5 @@
 /**
- * Tenet Status Line
+ * Tenetx Status Line
  * Claude Code의 statusLine으로 등록되어 하단에 상시 표시
  * stdin으로 Claude Code 세션 데이터를 받아 모델/컨텍스트/하네스 정보를 함께 출력
  *

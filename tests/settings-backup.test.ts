@@ -4,15 +4,15 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 // 테스트용 임시 디렉토리 기반으로 모듈 상수를 재현
-const TEST_DIR = path.join(os.tmpdir(), 'tenet-test-settings-backup');
+const TEST_DIR = path.join(os.tmpdir(), 'tenetx-test-settings-backup');
 const TEST_SETTINGS_PATH = path.join(TEST_DIR, 'settings.json');
-const TEST_BACKUP_PATH = path.join(TEST_DIR, 'settings.json.tenet-backup');
+const TEST_BACKUP_PATH = path.join(TEST_DIR, 'settings.json.tenetx-backup');
 
 // 테스트 대상 로직을 임시 디렉토리 기준으로 인라인 구현
 // (실제 ~/.claude/를 건드리지 않기 위해)
 function injectSettingsTo(dir: string, env: Record<string, string>): void {
   const settingsPath = path.join(dir, 'settings.json');
-  const backupPath = path.join(dir, 'settings.json.tenet-backup');
+  const backupPath = path.join(dir, 'settings.json.tenetx-backup');
 
   fs.mkdirSync(dir, { recursive: true });
 
@@ -37,7 +37,7 @@ function injectSettingsTo(dir: string, env: Record<string, string>): void {
 
 function rollbackSettingsIn(dir: string): boolean {
   const settingsPath = path.join(dir, 'settings.json');
-  const backupPath = path.join(dir, 'settings.json.tenet-backup');
+  const backupPath = path.join(dir, 'settings.json.tenetx-backup');
 
   if (!fs.existsSync(backupPath)) return false;
   try {
@@ -58,7 +58,7 @@ afterEach(() => {
 });
 
 describe('injectSettings — 백업 생성', () => {
-  it('settings.json이 존재하면 .tenet-backup 파일이 생성된다', () => {
+  it('settings.json이 존재하면 .tenetx-backup 파일이 생성된다', () => {
     fs.writeFileSync(TEST_SETTINGS_PATH, JSON.stringify({ env: { FOO: 'bar' } }));
 
     injectSettingsTo(TEST_DIR, { NEW_VAR: '1' });
@@ -95,7 +95,7 @@ describe('injectSettings — 백업 생성', () => {
 });
 
 describe('rollbackSettings — 복원 동작', () => {
-  it('.tenet-backup이 있으면 settings.json을 복원하고 true를 반환한다', () => {
+  it('.tenetx-backup이 있으면 settings.json을 복원하고 true를 반환한다', () => {
     const originalContent = JSON.stringify({ env: { RESTORED: 'yes' } });
     fs.writeFileSync(TEST_BACKUP_PATH, originalContent);
     fs.writeFileSync(TEST_SETTINGS_PATH, JSON.stringify({ env: { CORRUPTED: 'data' } }));
@@ -108,7 +108,7 @@ describe('rollbackSettings — 복원 동작', () => {
     expect(restored.env.CORRUPTED).toBeUndefined();
   });
 
-  it('복원 후 .tenet-backup 파일은 삭제된다', () => {
+  it('복원 후 .tenetx-backup 파일은 삭제된다', () => {
     fs.writeFileSync(TEST_BACKUP_PATH, JSON.stringify({ env: {} }));
     fs.writeFileSync(TEST_SETTINGS_PATH, JSON.stringify({}));
 
@@ -117,7 +117,7 @@ describe('rollbackSettings — 복원 동작', () => {
     expect(fs.existsSync(TEST_BACKUP_PATH)).toBe(false);
   });
 
-  it('.tenet-backup이 없으면 false를 반환한다', () => {
+  it('.tenetx-backup이 없으면 false를 반환한다', () => {
     const result = rollbackSettingsIn(TEST_DIR);
     expect(result).toBe(false);
   });

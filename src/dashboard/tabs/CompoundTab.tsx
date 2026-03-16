@@ -42,9 +42,9 @@ export function CompoundTab({ data }: CompoundTabProps) {
       <Panel title="compound commands">
         <Text><Text color="cyan" bold>compound</Text> analyzes sessions and extracts knowledge.</Text>
         <Text> </Text>
-        <Text>  <Text color="green">tenet compound</Text><Text dimColor>        -- analyze current session</Text></Text>
-        <Text>  <Text color="green">tenet compound --all</Text><Text dimColor>  -- re-analyze all sessions</Text></Text>
-        <Text>  <Text color="green">tenet pack sync</Text><Text dimColor>       -- sync packs</Text></Text>
+        <Text>  <Text color="green">tenetx compound</Text><Text dimColor>        -- analyze current session</Text></Text>
+        <Text>  <Text color="green">tenetx compound --all</Text><Text dimColor>  -- re-analyze all sessions</Text></Text>
+        <Text>  <Text color="green">tenetx pack sync</Text><Text dimColor>       -- sync packs</Text></Text>
         <Text> </Text>
         <Text dimColor>Solutions saved to <Text color="yellow">~/.compound/me/solutions/</Text></Text>
         <Text dimColor>Rules saved to <Text color="yellow">~/.compound/me/rules/</Text></Text>

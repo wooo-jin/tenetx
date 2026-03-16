@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { loadPhilosophy, loadPhilosophyForProject, DEFAULT_PHILOSOPHY, initDefaultPhilosophy } from '../src/core/philosophy-loader.js';
 
-const TEST_DIR = path.join(os.tmpdir(), 'tenet-test-philosophy');
+const TEST_DIR = path.join(os.tmpdir(), 'tenetx-test-philosophy');
 const TEST_FILE = path.join(TEST_DIR, 'test-philosophy.json');
 
 beforeEach(() => {

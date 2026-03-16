@@ -10,7 +10,7 @@ import { checkMapFreshness, runGardeningLoop, formatGardeningResult } from '../s
 
 describe('verify-loop', () => {
   it('detectCommands — Node.js 프로젝트', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-verify-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-verify-'));
     try {
       fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
         scripts: { build: 'tsc', test: 'vitest run' },
@@ -27,7 +27,7 @@ describe('verify-loop', () => {
   });
 
   it('detectCommands — 빈 프로젝트', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-verify-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-verify-'));
     try {
       const cmds = detectCommands(tmpDir);
       expect(cmds.build).toBeUndefined();
@@ -38,7 +38,7 @@ describe('verify-loop', () => {
   });
 
   it('runVerifyLoop — 제약 없는 빈 프로젝트', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-verify-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-verify-'));
     try {
       const result = runVerifyLoop({ cwd: tmpDir });
       expect(result.loopName).toBe('verify');
@@ -112,7 +112,7 @@ describe('review-loop', () => {
   });
 
   it('runReviewLoop — 변경 없음', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-review-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-review-'));
     try {
       const result = runReviewLoop({ cwd: tmpDir, changedFiles: [] });
       expect(result.status).toBe('passed');
@@ -123,7 +123,7 @@ describe('review-loop', () => {
   });
 
   it('runReviewLoop — 파일 변경 제공', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-review-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-review-'));
     try {
       fs.writeFileSync(path.join(tmpDir, 'app.ts'), 'const x = 1;');
       const result = runReviewLoop({ cwd: tmpDir, changedFiles: ['app.ts'] });
@@ -152,7 +152,7 @@ describe('gardening-loop', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-garden-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-garden-'));
   });
 
   afterEach(() => {
@@ -206,7 +206,7 @@ describe('gardening-loop', () => {
     // 맵 없음 → partial
     expect(result.status).toBe('partial');
     expect(result.suggestions).toBeDefined();
-    expect(result.suggestions!.some(s => s.includes('tenet scan'))).toBe(true);
+    expect(result.suggestions!.some(s => s.includes('tenetx scan'))).toBe(true);
   });
 
   it('formatGardeningResult — 포맷', () => {

@@ -18,11 +18,11 @@ export async function handlePack(args: string[]): Promise<void> {
       case 'install': {
         const source = args[1];
         if (!source) {
-          console.log('  사용법: tenet pack install <github-url|owner/repo|path>');
+          console.log('  사용법: tenetx pack install <github-url|owner/repo|path>');
           console.log('  예시:');
-          console.log('    tenet pack install medistream/emr-pack');
-          console.log('    tenet pack install https://github.com/team/pack.git');
-          console.log('    tenet pack install ./local-pack');
+          console.log('    tenetx pack install medistream/emr-pack');
+          console.log('    tenetx pack install https://github.com/team/pack.git');
+          console.log('    tenetx pack install ./local-pack');
           return;
         }
         const name = args.includes('--name') ? args[args.indexOf('--name') + 1] : undefined;
@@ -55,7 +55,7 @@ export async function handlePack(args: string[]): Promise<void> {
       case 'init': {
         const name = args[1];
         if (!name) {
-          console.log('  사용법: tenet pack init <name>');
+          console.log('  사용법: tenetx pack init <name>');
           return;
         }
         initPack(name);
@@ -65,7 +65,7 @@ export async function handlePack(args: string[]): Promise<void> {
       }
 
       default:
-        console.log('  사용법: tenet pack <list|install|sync|init>');
+        console.log('  사용법: tenetx pack <list|install|sync|init>');
         console.log('    list              설치된 팩 목록');
         console.log('    install <source>  팩 설치 (GitHub, 로컬)');
         console.log('    sync [name]       팩 동기화 (전체 또는 지정)');
@@ -82,7 +82,7 @@ function listPacks(): void {
   console.log('\n  설치된 팩 목록\n');
 
   if (packs.length === 0) {
-    console.log('  팩이 없습니다. tenet pack install <source>로 설치하세요.\n');
+    console.log('  팩이 없습니다. tenetx pack install <source>로 설치하세요.\n');
     return;
   }
 

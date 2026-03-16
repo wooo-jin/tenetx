@@ -3,7 +3,7 @@ import { createMcpServer } from './shared/protocol.js';
 import { getRecentlyModified, getModificationSummary } from './file-watcher.js';
 
 createMcpServer({
-  name: 'tenet-file-watcher',
+  name: 'tenetx-file-watcher',
   version: '1.0.0',
   tools: [
     {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — PreToolUse Hook
+ * Tenetx — PreToolUse Hook
  *
  * 도구 실행 전 위험 명령어 차단 및 컨텍스트 리마인더 주입.
  * - rm -rf, git push --force 등 위험 패턴 감지
@@ -175,10 +175,10 @@ async function main(): Promise<void> {
     // graceful fail-close: 연속 실패 카운터 기반
     const failCount = getAndIncrementFailCount();
     if (failCount >= FAIL_CLOSE_THRESHOLD) {
-      console.log(JSON.stringify({ result: 'reject', reason: `[Tenet] PreToolUse: stdin 파싱 ${failCount}회 연속 실패 — 안전을 위해 차단합니다.` }));
+      console.log(JSON.stringify({ result: 'reject', reason: `[Tenetx] PreToolUse: stdin 파싱 ${failCount}회 연속 실패 — 안전을 위해 차단합니다.` }));
     } else {
       process.stderr.write(`[ch-hook] stdin 파싱 실패 (${failCount}/${FAIL_CLOSE_THRESHOLD}), approve로 통과\n`);
-      console.log(JSON.stringify({ result: 'approve', message: `[Tenet] ⚠ PreToolUse stdin 파싱 실패 (${failCount}/${FAIL_CLOSE_THRESHOLD})` }));
+      console.log(JSON.stringify({ result: 'approve', message: `[Tenetx] ⚠ PreToolUse stdin 파싱 실패 (${failCount}/${FAIL_CLOSE_THRESHOLD})` }));
     }
     return;
   }
@@ -193,14 +193,14 @@ async function main(): Promise<void> {
   if (check.action === 'block') {
     console.log(JSON.stringify({
       result: 'reject',
-      reason: `[Tenet] 위험 명령어 차단: ${check.description}\n명령어: ${check.command}`,
+      reason: `[Tenetx] 위험 명령어 차단: ${check.description}\n명령어: ${check.command}`,
     }));
     return;
   }
   if (check.action === 'warn') {
     console.log(JSON.stringify({
       result: 'approve',
-      message: `<compound-tool-warning>\n[Tenet] ⚠ 위험 명령어 감지: ${check.description}\n확인 후 진행하세요.\n</compound-tool-warning>`,
+      message: `<compound-tool-warning>\n[Tenetx] ⚠ 위험 명령어 감지: ${check.description}\n확인 후 진행하세요.\n</compound-tool-warning>`,
     }));
     return;
   }
@@ -221,5 +221,5 @@ async function main(): Promise<void> {
 main().catch((e) => {
   process.stderr.write('[ch-hook] ' + (e instanceof Error ? e.message : String(e)) + '\n');
   // fail-close: 예외 발생 시 안전하게 차단
-  console.log(JSON.stringify({ result: 'reject', reason: '[Tenet] PreToolUse: 내부 오류 — 안전을 위해 차단합니다.' }));
+  console.log(JSON.stringify({ result: 'reject', reason: '[Tenetx] PreToolUse: 내부 오류 — 안전을 위해 차단합니다.' }));
 });

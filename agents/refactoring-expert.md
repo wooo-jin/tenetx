@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: refactoring-expert
 description: Systematic refactoring specialist — tech debt reduction, clean code principles

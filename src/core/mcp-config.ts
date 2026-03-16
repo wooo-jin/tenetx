@@ -4,7 +4,7 @@
  * Claude Code settings.json의 mcpServers 섹션을 관리한다.
  * - 기본 MCP 서버 템플릿 제공 (filesystem, fetch, context7, playwright)
  * - 설정 생성 및 주입 (기존 설정과 병합, 덮어쓰기 없음)
- * - CLI 핸들러: tenet mcp list/add/remove/templates
+ * - CLI 핸들러: tenetx mcp list/add/remove/templates
  */
 
 import * as path from 'node:path';
@@ -121,10 +121,10 @@ export function listInstalledMcpServers(): Record<string, McpServerConfig> {
  * MCP CLI 핸들러
  *
  * 사용법:
- *   tenet mcp list                    — 설치된 MCP 서버 목록
- *   tenet mcp templates               — 사용 가능한 기본 템플릿 목록
- *   tenet mcp add <name> [<name>...]  — MCP 서버 추가 (템플릿 기준)
- *   tenet mcp remove <name>           — MCP 서버 제거
+ *   tenetx mcp list                    — 설치된 MCP 서버 목록
+ *   tenetx mcp templates               — 사용 가능한 기본 템플릿 목록
+ *   tenetx mcp add <name> [<name>...]  — MCP 서버 추가 (템플릿 기준)
+ *   tenetx mcp remove <name>           — MCP 서버 제거
  */
 export async function handleMcp(args: string[]): Promise<void> {
   const sub = args[0];
@@ -133,11 +133,11 @@ export async function handleMcp(args: string[]): Promise<void> {
     const installed = listInstalledMcpServers();
     const names = Object.keys(installed);
 
-    console.log('\n  Tenet — MCP Servers\n');
+    console.log('\n  Tenetx — MCP Servers\n');
 
     if (names.length === 0) {
       console.log('  설치된 MCP 서버가 없습니다.');
-      console.log('  `tenet mcp add <name>` 으로 추가하세요.\n');
+      console.log('  `tenetx mcp add <name>` 으로 추가하세요.\n');
     } else {
       console.log(`  설치된 서버 (${names.length}개):\n`);
       for (const name of names) {
@@ -155,7 +155,7 @@ export async function handleMcp(args: string[]): Promise<void> {
 
   if (sub === 'templates') {
     const templates = getDefaultMcpTemplates();
-    console.log('\n  Tenet — MCP Templates\n');
+    console.log('\n  Tenetx — MCP Templates\n');
     console.log(`  사용 가능한 기본 템플릿 (${Object.keys(templates).length}개):\n`);
     for (const [name, cfg] of Object.entries(templates)) {
       console.log(`    ${name}`);
@@ -169,8 +169,8 @@ export async function handleMcp(args: string[]): Promise<void> {
     const serverNames = args.slice(1);
     if (serverNames.length === 0) {
       console.error('  오류: 추가할 서버 이름을 지정하세요.');
-      console.error('  사용법: tenet mcp add <name> [<name>...]');
-      console.error('  템플릿 목록: tenet mcp templates');
+      console.error('  사용법: tenetx mcp add <name> [<name>...]');
+      console.error('  템플릿 목록: tenetx mcp templates');
       process.exit(1);
     }
 
@@ -184,7 +184,7 @@ export async function handleMcp(args: string[]): Promise<void> {
 
     injectMcpServers(configs);
 
-    console.log('\n  Tenet — MCP Add\n');
+    console.log('\n  Tenetx — MCP Add\n');
     for (const name of addedNames) {
       console.log(`  ✓ 추가됨: ${name}`);
     }
@@ -196,7 +196,7 @@ export async function handleMcp(args: string[]): Promise<void> {
     const serverName = args[1];
     if (!serverName) {
       console.error('  오류: 제거할 서버 이름을 지정하세요.');
-      console.error('  사용법: tenet mcp remove <name>');
+      console.error('  사용법: tenetx mcp remove <name>');
       process.exit(1);
     }
 
@@ -225,6 +225,6 @@ export async function handleMcp(args: string[]): Promise<void> {
 
   // 알 수 없는 서브커맨드
   console.error(`  오류: 알 수 없는 mcp 서브커맨드: "${sub}"`);
-  console.error('  사용법: tenet mcp [list|templates|add|remove]');
+  console.error('  사용법: tenetx mcp [list|templates|add|remove]');
   process.exit(1);
 }

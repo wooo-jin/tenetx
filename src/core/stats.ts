@@ -65,15 +65,15 @@ export async function handleStats(args: string[]): Promise<void> {
   }
 
   if (!fs.existsSync(SESSIONS_DIR)) {
-    console.log('\n  Tenet — 세션 통계\n');
+    console.log('\n  Tenetx — 세션 통계\n');
     console.log('  아직 기록된 세션이 없습니다.');
-    console.log('  tenet 명령어로 Claude Code를 실행하면 세션이 기록됩니다.\n');
+    console.log('  tenetx 명령어로 Claude Code를 실행하면 세션이 기록됩니다.\n');
     return;
   }
 
   const sessions = loadSessions(sinceMs);
 
-  console.log('\n  Tenet — 세션 통계\n');
+  console.log('\n  Tenetx — 세션 통계\n');
   console.log(`  기간: ${periodLabel}`);
   console.log(`  세션 수: ${sessions.length}`);
 

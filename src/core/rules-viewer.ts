@@ -1,5 +1,5 @@
 /**
- * tenet rules — 개인/팀 규칙 뷰어
+ * tenetx rules — 개인/팀 규칙 뷰어
  */
 
 import * as fs from 'node:fs';
@@ -28,13 +28,13 @@ export async function handleRules(args: string[]): Promise<void> {
   const cwd = process.cwd();
   const sub = args[0];
 
-  console.log(`\n  ${BOLD}Tenet — 규칙 뷰어${RST}\n`);
+  console.log(`\n  ${BOLD}Tenetx — 규칙 뷰어${RST}\n`);
 
   // 개인 규칙
   const personalRules = listMdFiles(ME_RULES);
   console.log(`  ${CYAN}개인 규칙${RST} (${personalRules.length}건) — ~/.compound/me/rules/`);
   if (personalRules.length === 0) {
-    console.log(`  ${DIM}없음. tenet compound 로 추출하세요.${RST}`);
+    console.log(`  ${DIM}없음. tenetx compound 로 추출하세요.${RST}`);
   } else {
     for (const r of personalRules) {
       console.log(`    • ${r.firstLine}`);
@@ -49,7 +49,7 @@ export async function handleRules(args: string[]): Promise<void> {
     const teamRules = listMdFiles(path.join(cwd, '.compound', 'rules'));
     console.log(`  ${YELLOW}팀 규칙${RST} (${teamRules.length}건) — .compound/rules/ (inline)`);
     if (teamRules.length === 0) {
-      console.log(`  ${DIM}없음. tenet compound → tenet propose 로 추가하세요.${RST}`);
+      console.log(`  ${DIM}없음. tenetx compound → tenetx propose 로 추가하세요.${RST}`);
     } else {
       for (const r of teamRules) {
         console.log(`    • ${r.firstLine}`);
@@ -59,14 +59,14 @@ export async function handleRules(args: string[]): Promise<void> {
     const packRules = listMdFiles(path.join(PACKS_DIR, packConfig.name, 'rules'));
     console.log(`  ${YELLOW}팀 규칙${RST} (${packRules.length}건) — pack:${packConfig.name}`);
     if (packRules.length === 0) {
-      console.log(`  ${DIM}tenet pack sync 후 확인하세요.${RST}`);
+      console.log(`  ${DIM}tenetx pack sync 후 확인하세요.${RST}`);
     } else {
       for (const r of packRules) {
         console.log(`    • ${r.firstLine}`);
       }
     }
   } else {
-    console.log(`  ${DIM}팀 규칙: 팩 미연결 (tenet init --team 으로 설정)${RST}`);
+    console.log(`  ${DIM}팀 규칙: 팩 미연결 (tenetx init --team 으로 설정)${RST}`);
   }
 
   // 상세 보기

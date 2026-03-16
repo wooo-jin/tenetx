@@ -1,5 +1,5 @@
 /**
- * Tenet — Signal Extractor
+ * Tenetx — Signal Extractor
  *
  * 프롬프트에서 3-layer 신호를 추출하여 모델 라우팅 스코어링에 사용.
  * Layer 1: 어휘 신호 (Lexical) — 키워드, 패턴 기반

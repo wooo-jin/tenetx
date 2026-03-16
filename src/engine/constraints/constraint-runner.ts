@@ -134,7 +134,7 @@ export function runConstraintsOnFile(
   };
 }
 
-/** 프로젝트 전체 스캔 (tenet scan --constraints 또는 CI용) */
+/** 프로젝트 전체 스캔 (tenetx scan --constraints 또는 CI용) */
 export function runConstraintsOnProject(
   cwd: string,
   files?: string[],

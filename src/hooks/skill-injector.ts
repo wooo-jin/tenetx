@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — Skill Injector Hook
+ * Tenetx — Skill Injector Hook
  *
  * Claude Code UserPromptSubmit 훅으로 등록.
  * 프롬프트와 매칭되는 학습된 스킬을 자동으로 컨텍스트에 주입합니다.

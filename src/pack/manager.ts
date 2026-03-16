@@ -24,7 +24,7 @@ export async function installPack(source: string, name?: string): Promise<PackMe
   const destDir = path.join(PACKS_DIR, packName);
 
   if (fs.existsSync(destDir)) {
-    throw new Error(`팩 '${packName}'이 이미 설치되어 있습니다. tenet pack sync ${packName}으로 업데이트하세요.`);
+    throw new Error(`팩 '${packName}'이 이미 설치되어 있습니다. tenetx pack sync ${packName}으로 업데이트하세요.`);
   }
 
   console.log(`  소스: ${remote.url} (${remote.type})`);

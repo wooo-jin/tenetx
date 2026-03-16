@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 // vi.hoisted로 TEST_HOME 정의
 const { TEST_HOME } = vi.hoisted(() => ({
-  TEST_HOME: '/tmp/tenet-test-ai-worker-home',
+  TEST_HOME: '/tmp/tenetx-test-ai-worker-home',
 }));
 
 // node:os mock

@@ -135,13 +135,13 @@ export function runGardeningLoop(options: GardeningLoopOptions): LoopResult {
     };
 
     if (!freshness.exists) {
-      step.message = '프로젝트 맵이 없습니다. `tenet scan`을 실행하세요.';
-      suggestions.push('`tenet scan`으로 프로젝트 맵을 생성하세요.');
+      step.message = '프로젝트 맵이 없습니다. `tenetx scan`을 실행하세요.';
+      suggestions.push('`tenetx scan`으로 프로젝트 맵을 생성하세요.');
       hasIssues = true;
     } else if (freshness.stale) {
       const hours = Math.round(freshness.ageHours);
       step.message = `맵이 오래되었습니다 (${hours}시간 경과, ${freshness.changedFilesSince}파일 변경)`;
-      suggestions.push('`tenet scan`으로 프로젝트 맵을 갱신하세요.');
+      suggestions.push('`tenetx scan`으로 프로젝트 맵을 갱신하세요.');
       hasIssues = true;
     } else {
       const hours = Math.round(freshness.ageHours);
@@ -178,12 +178,12 @@ export function runGardeningLoop(options: GardeningLoopOptions): LoopResult {
     const step: LoopStep = {
       name: 'constraints-config',
       status: 'skipped',
-      message: '제약 설정 없음 — `tenet scan --init-constraints`로 생성 가능',
+      message: '제약 설정 없음 — `tenetx scan --init-constraints`로 생성 가능',
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     };
     steps.push(step);
-    suggestions.push('`tenet scan --init-constraints`로 제약 규칙을 설정하세요.');
+    suggestions.push('`tenetx scan --init-constraints`로 제약 규칙을 설정하세요.');
   }
 
   const passedSteps = steps.filter(s => s.status === 'passed').length;

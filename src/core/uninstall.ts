@@ -27,7 +27,7 @@ function cleanSettings(): void {
   try {
     settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
   } catch {
-    console.error('[tenet] settings.json 파싱 실패 — 건너뜁니다.');
+    console.error('[tenetx] settings.json 파싱 실패 — 건너뜁니다.');
     return;
   }
 
@@ -42,8 +42,8 @@ function cleanSettings(): void {
     }
   }
 
-  // hooks에서 tenet 관련 엔트리 제거
-  const hookMarkers = ['tenet', 'compound-harness'];
+  // hooks에서 tenetx 관련 엔트리 제거
+  const hookMarkers = ['tenetx', 'compound-harness'];
   function isCHCommand(cmd: string): boolean {
     return hookMarkers.some(m => cmd.includes(m));
   }
@@ -76,9 +76,9 @@ function cleanSettings(): void {
     }
   }
 
-  // statusLine이 tenet status면 제거
+  // statusLine이 tenetx status면 제거
   const statusLine = settings.statusLine as Record<string, unknown> | undefined;
-  if (statusLine?.command === 'tenet status') {
+  if (statusLine?.command === 'tenetx status') {
     delete settings.statusLine;
   }
 
@@ -102,7 +102,7 @@ function cleanAgents(cwd: string): void {
     if (file.startsWith('ch-') && file.endsWith('.md')) {
       const filePath = path.join(agentsDir, file);
       const content = fs.readFileSync(filePath, 'utf-8');
-      if (!content.includes('<!-- tenet-managed -->')) {
+      if (!content.includes('<!-- tenetx-managed -->')) {
         // 사용자가 커스터마이즈한 파일 → 보존
         preserved++;
         continue;
@@ -123,7 +123,7 @@ function cleanAgents(cwd: string): void {
   }
 }
 
-/** .claude/rules/ 의 tenet 규칙 파일 및 레거시 compound-rules.md 제거 */
+/** .claude/rules/ 의 tenetx 규칙 파일 및 레거시 compound-rules.md 제거 */
 function cleanCompoundRules(cwd: string): void {
   const ruleFiles = [
     'security.md',
@@ -157,14 +157,14 @@ function cleanCompoundRules(cwd: string): void {
   }
 }
 
-/** CLAUDE.md에서 tenet 블록 제거 */
+/** CLAUDE.md에서 tenetx 블록 제거 */
 function cleanClaudeMd(cwd: string): void {
   const claudeMdPath = path.join(cwd, 'CLAUDE.md');
   if (!fs.existsSync(claudeMdPath)) return;
 
   const content = fs.readFileSync(claudeMdPath, 'utf-8');
-  const marker = '<!-- tenet:start -->';
-  const endMarker = '<!-- tenet:end -->';
+  const marker = '<!-- tenetx:start -->';
+  const endMarker = '<!-- tenetx:end -->';
 
   if (!content.includes(marker)) {
     console.log('  - CLAUDE.md에 CH 블록 없음');
@@ -177,20 +177,20 @@ function cleanClaudeMd(cwd: string): void {
   console.log('  ✓ CLAUDE.md에서 CH 블록 제거');
 }
 
-/** tenet uninstall 메인 */
+/** tenetx uninstall 메인 */
 export async function handleUninstall(cwd: string, options: { force?: boolean }): Promise<void> {
-  console.log('\n[tenet] Tenet 제거\n');
+  console.log('\n[tenetx] Tenetx 제거\n');
   console.log('다음 항목을 정리합니다:');
   console.log('  1. ~/.claude/settings.json에서 CH 환경변수/훅/statusLine 제거');
   console.log('  2. .claude/agents/ch-*.md 에이전트 파일 삭제');
   console.log('  3. .claude/rules/ 규칙 파일 삭제 (security, golden-principles, anti-pattern, routing, compound)');
-  console.log('  4. CLAUDE.md에서 tenet 블록 제거');
+  console.log('  4. CLAUDE.md에서 tenetx 블록 제거');
   console.log('');
   console.log('참고: ~/.compound/ 디렉토리는 보존됩니다 (수동 삭제: rm -rf ~/.compound)\n');
 
   if (!options.force) {
     if (!process.stdin.isTTY) {
-      console.error('[tenet] non-interactive 환경에서는 --force 플래그를 사용하세요.');
+      console.error('[tenetx] non-interactive 환경에서는 --force 플래그를 사용하세요.');
       process.exit(1);
     }
     const ok = await confirm('계속하시겠습니까?');
@@ -206,5 +206,5 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
   cleanCompoundRules(cwd);
   cleanClaudeMd(cwd);
 
-  console.log('\n[tenet] 제거 완료. Claude Code를 재시작하면 순수 상태로 동작합니다.\n');
+  console.log('\n[tenetx] 제거 완료. Claude Code를 재시작하면 순수 상태로 동작합니다.\n');
 }

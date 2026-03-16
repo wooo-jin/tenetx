@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: architect
 description: Strategic architecture advisor (READ-ONLY)

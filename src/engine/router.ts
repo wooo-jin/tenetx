@@ -14,7 +14,7 @@ const DEFAULT_ROUTING: Record<ModelTier, TaskCategory[]> = {
   opus: ['implement', 'architect', 'debug-complex'],
 };
 
-/** 프리셋 라우팅 테이블 (tenet setup에서 선택) */
+/** 프리셋 라우팅 테이블 (tenetx setup에서 선택) */
 export type RoutingPreset = 'default' | 'cost-saving' | 'max-quality';
 
 const PRESET_ROUTING: Record<RoutingPreset, Record<ModelTier, TaskCategory[]>> = {
@@ -80,7 +80,7 @@ export class ModelRouter {
 
   /**
    * @param philosophy 철학 객체
-   * @param preset 라우팅 프리셋 (tenet setup에서 선택). Philosophy 커스텀 라우팅이 최우선.
+   * @param preset 라우팅 프리셋 (tenetx setup에서 선택). Philosophy 커스텀 라우팅이 최우선.
    */
   constructor(philosophy: Philosophy, preset?: RoutingPreset) {
     const extracted = extractRouting(philosophy);

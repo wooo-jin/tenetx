@@ -72,7 +72,7 @@ describe('loadRegistry', () => {
     expect(reg.updatedAt).toBeDefined();
     // 기본 레지스트리 플러그인 중 하나가 포함되어 있어야 함
     const names = reg.plugins.map((p) => p.name);
-    expect(names).toContain('tenet-skill-tdd');
+    expect(names).toContain('tenetx-skill-tdd');
   });
 
   it('registry.json이 있으면 로컬 플러그인과 기본 레지스트리를 병합한다', async () => {
@@ -87,23 +87,23 @@ describe('loadRegistry', () => {
     // 로컬 플러그인 포함
     expect(reg.plugins.some((p) => p.name === 'test-plugin')).toBe(true);
     // 기본 레지스트리 플러그인도 포함
-    expect(reg.plugins.some((p) => p.name === 'tenet-skill-tdd')).toBe(true);
+    expect(reg.plugins.some((p) => p.name === 'tenetx-skill-tdd')).toBe(true);
   });
 
   it('로컬 플러그인이 기본 레지스트리 동일 이름보다 우선한다', async () => {
     const registry = {
-      plugins: [makeManifest({ name: 'tenet-skill-tdd', version: '9.9.9', description: '로컬 오버라이드' })],
+      plugins: [makeManifest({ name: 'tenetx-skill-tdd', version: '9.9.9', description: '로컬 오버라이드' })],
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
     fs.writeFileSync(path.join(PLUGINS_DIR, 'registry.json'), JSON.stringify(registry));
 
     const { loadRegistry } = await import('../src/core/marketplace.js');
     const reg = loadRegistry();
-    const tdd = reg.plugins.find((p) => p.name === 'tenet-skill-tdd');
+    const tdd = reg.plugins.find((p) => p.name === 'tenetx-skill-tdd');
     expect(tdd).toBeDefined();
     expect(tdd?.version).toBe('9.9.9');
     // 중복 없이 1개만
-    expect(reg.plugins.filter((p) => p.name === 'tenet-skill-tdd')).toHaveLength(1);
+    expect(reg.plugins.filter((p) => p.name === 'tenetx-skill-tdd')).toHaveLength(1);
   });
 
   it('registry.json이 깨진 JSON이면 기본 레지스트리만 반환한다', async () => {
@@ -112,7 +112,7 @@ describe('loadRegistry', () => {
     const { loadRegistry } = await import('../src/core/marketplace.js');
     const reg = loadRegistry();
     expect(reg.plugins.length).toBeGreaterThan(0);
-    expect(reg.plugins.some((p) => p.name === 'tenet-skill-tdd')).toBe(true);
+    expect(reg.plugins.some((p) => p.name === 'tenetx-skill-tdd')).toBe(true);
   });
 });
 
@@ -208,10 +208,10 @@ describe('searchPlugins', () => {
 
   it('registry 인자 없이 호출하면 기본 레지스트리에서도 검색된다', async () => {
     const { searchPlugins } = await import('../src/core/marketplace.js');
-    // 기본 레지스트리에 'tenet-skill-tdd' 가 있으므로 'tdd' 로 검색 가능
+    // 기본 레지스트리에 'tenetx-skill-tdd' 가 있으므로 'tdd' 로 검색 가능
     const results = searchPlugins('tdd');
     expect(results.length).toBeGreaterThan(0);
-    expect(results.some((p) => p.name === 'tenet-skill-tdd')).toBe(true);
+    expect(results.some((p) => p.name === 'tenetx-skill-tdd')).toBe(true);
   });
 });
 

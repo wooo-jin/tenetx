@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "author": "tenet",
+  "author": "tenetx",
   "description": "백엔드 개발을 위한 철학 팩 — API 설계, 데이터 무결성, 에러 처리, 로깅",
   "principles": {
     "api-contract-first": {

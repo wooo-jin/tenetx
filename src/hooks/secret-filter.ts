@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — PostToolUse: Secret Filter Hook
+ * Tenetx — PostToolUse: Secret Filter Hook
  *
  * 도구 실행 결과에서 API 키, 토큰, 비밀번호 등 민감 정보 노출을 감지합니다.
  * 차단하지 않고 경고 메시지만 출력합니다.
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     const names = secrets.map(s => s.name).join(', ');
     console.log(JSON.stringify({
       result: 'approve',
-      message: `<compound-security-warning>\n[Tenet] ⚠ 민감 정보 노출 감지: ${names}\n출력에 시크릿이 포함되어 있을 수 있습니다. 확인하세요.\n</compound-security-warning>`,
+      message: `<compound-security-warning>\n[Tenetx] ⚠ 민감 정보 노출 감지: ${names}\n출력에 시크릿이 포함되어 있을 수 있습니다. 확인하세요.\n</compound-security-warning>`,
     }));
     return;
   }

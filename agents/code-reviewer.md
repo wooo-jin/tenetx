@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: code-reviewer
 description: Code quality reviewer — logic flaws, maintainability, anti-patterns, SOLID (READ-ONLY)

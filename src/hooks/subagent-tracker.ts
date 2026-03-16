@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — SubagentStart/Stop Hook
+ * Tenetx — SubagentStart/Stop Hook
  *
  * 에이전트 생성/종료 추적.
  * - 활성 에이전트 수 모니터링
@@ -83,7 +83,7 @@ async function main(): Promise<void> {
     if (activeCount > MAX_CONCURRENT_AGENTS) {
       console.log(JSON.stringify({
         result: 'approve',
-        message: `<compound-tool-warning>\n[Tenet] ⚠ 활성 에이전트 ${activeCount}개 — 동시 실행이 많습니다. 리소스 사용에 주의하세요.\n</compound-tool-warning>`,
+        message: `<compound-tool-warning>\n[Tenetx] ⚠ 활성 에이전트 ${activeCount}개 — 동시 실행이 많습니다. 리소스 사용에 주의하세요.\n</compound-tool-warning>`,
       }));
       return;
     }

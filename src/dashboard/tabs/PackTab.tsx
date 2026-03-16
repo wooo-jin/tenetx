@@ -15,7 +15,7 @@ export function PackTab({ data }: PackTabProps) {
       <Panel title="pack list">
         <Text dimColor>No packs installed.</Text>
         <Text> </Text>
-        <Text><Text dimColor>Install: </Text><Text color="cyan">tenet pack install {'<source>'}</Text></Text>
+        <Text><Text dimColor>Install: </Text><Text color="cyan">tenetx pack install {'<source>'}</Text></Text>
       </Panel>
     );
   }

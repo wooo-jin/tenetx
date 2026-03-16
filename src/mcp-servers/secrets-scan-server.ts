@@ -3,7 +3,7 @@ import { createMcpServer } from './shared/protocol.js';
 import { scanForSecrets } from './secrets-scan.js';
 
 createMcpServer({
-  name: 'tenet-secrets-scan',
+  name: 'tenetx-secrets-scan',
   version: '1.0.0',
   tools: [
     {

@@ -1,11 +1,11 @@
 /**
- * tenet scan — 프로젝트 스캔 CLI
+ * tenetx scan — 프로젝트 스캔 CLI
  *
  * 프로젝트 구조 맵 생성 + 제약 검사 통합.
- * - tenet scan              → 프로젝트 맵 생성 + .compound/project-map.json 저장
- * - tenet scan --constraints → 아키텍처 제약 검사
- * - tenet scan --md          → Markdown 형식 출력
- * - tenet scan --init-constraints → 기본 constraints.json 생성
+ * - tenetx scan              → 프로젝트 맵 생성 + .compound/project-map.json 저장
+ * - tenetx scan --constraints → 아키텍처 제약 검사
+ * - tenetx scan --md          → Markdown 형식 출력
+ * - tenetx scan --init-constraints → 기본 constraints.json 생성
  */
 
 import * as fs from 'node:fs';
@@ -17,20 +17,20 @@ import { projectDir } from './paths.js';
 export async function handleScan(args: string[]): Promise<void> {
   const cwd = process.cwd();
 
-  // tenet scan --init-constraints
+  // tenetx scan --init-constraints
   if (args.includes('--init-constraints')) {
     initConstraints(cwd);
     return;
   }
 
-  // tenet scan --constraints
+  // tenetx scan --constraints
   if (args.includes('--constraints')) {
     runConstraints(cwd);
     return;
   }
 
   // 기본: 프로젝트 맵 생성
-  console.log('\n  Tenet — Project Scan\n');
+  console.log('\n  Tenetx — Project Scan\n');
   console.log(`  스캔 대상: ${cwd}\n`);
 
   const map = generateProjectMap({ cwd });
@@ -97,7 +97,7 @@ function initConstraints(cwd: string): void {
 function runConstraints(cwd: string): void {
   const configPath = constraintConfigPath(cwd);
   if (!fs.existsSync(configPath)) {
-    console.log('  제약 설정이 없습니다. `tenet scan --init-constraints`로 생성하세요.');
+    console.log('  제약 설정이 없습니다. `tenetx scan --init-constraints`로 생성하세요.');
     return;
   }
 

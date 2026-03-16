@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: analyst
 description: Requirements analyst — uncovers hidden constraints via Socratic inquiry

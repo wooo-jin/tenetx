@@ -1,5 +1,5 @@
 /**
- * Tenet — Unified Provider Abstraction
+ * Tenetx — Unified Provider Abstraction
  *
  * Claude CLI + Codex 2개 프로바이더를 통합 인터페이스로 추상화합니다.
  * - 비동기 호출 (진정한 병렬 실행 지원)

@@ -1,7 +1,7 @@
 {
   "name": "devops",
   "version": "1.0.0",
-  "author": "tenet",
+  "author": "tenetx",
   "description": "DevOps를 위한 철학 팩 — IaC, 관측성, 장애 복구, CI/CD",
   "principles": {
     "infrastructure-as-code": {

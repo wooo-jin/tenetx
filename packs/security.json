@@ -1,7 +1,7 @@
 {
   "name": "security",
   "version": "1.0.0",
-  "author": "tenet",
+  "author": "tenetx",
   "description": "보안을 위한 철학 팩 — OWASP, 최소 권한, 감사 추적, 암호화",
   "principles": {
     "owasp-awareness": {

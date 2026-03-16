@@ -28,7 +28,7 @@ function commandExists(cmd: string): boolean {
 }
 
 export async function runDoctor(): Promise<void> {
-  console.log('\n  Tenet — 환경 진단\n');
+  console.log('\n  Tenetx — 환경 진단\n');
 
   // 필수 도구
   console.log('  [도구]');

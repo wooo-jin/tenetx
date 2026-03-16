@@ -1,7 +1,7 @@
 /**
  * MCP Server Definition Types
  *
- * Tenet이 자체 제공하는 빌트인 MCP 서버의 정의 타입.
+ * Tenetx이 자체 제공하는 빌트인 MCP 서버의 정의 타입.
  */
 
 export interface McpServerDefinition {
@@ -10,7 +10,7 @@ export interface McpServerDefinition {
   command: string;
   args: string[];
   env?: Record<string, string>;
-  /** Built-in server that ships with tenet */
+  /** Built-in server that ships with tenetx */
   builtin: boolean;
 }
 

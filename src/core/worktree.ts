@@ -10,7 +10,7 @@
  * - createWorktree  : 옵션 기반 워크트리 생성
  * - removeWorktree  : 경로 또는 이름으로 워크트리 제거
  * - teleport        : 이슈/PR 번호 또는 브랜치명으로 워크트리 경로 반환
- * - handleWorktree  : CLI 핸들러 (`tenet worktree <create|list|remove|teleport>`)
+ * - handleWorktree  : CLI 핸들러 (`tenetx worktree <create|list|remove|teleport>`)
  */
 
 import * as fs from 'node:fs';
@@ -159,9 +159,9 @@ function ensureGitignoreEntry(repoRoot: string): void {
   if (fs.existsSync(gitignorePath)) {
     const content = fs.readFileSync(gitignorePath, 'utf-8');
     if (content.includes(entry)) return;
-    fs.appendFileSync(gitignorePath, `\n# Tenet worktrees\n${entry}\n`);
+    fs.appendFileSync(gitignorePath, `\n# Tenetx worktrees\n${entry}\n`);
   } else {
-    fs.writeFileSync(gitignorePath, `# Tenet worktrees\n${entry}\n`);
+    fs.writeFileSync(gitignorePath, `# Tenetx worktrees\n${entry}\n`);
   }
 }
 
@@ -312,7 +312,7 @@ export function teleport(cwd: string, identifier: string): string | null {
 // ─── CLI 핸들러 ──────────────────────────────────────────────
 
 /**
- * `tenet worktree <subcommand> [args]` CLI 핸들러
+ * `tenetx worktree <subcommand> [args]` CLI 핸들러
  *
  * 서브커맨드:
  * - list                        : 현재 워크트리 목록 출력
@@ -388,7 +388,7 @@ export async function handleWorktree(args: string[]): Promise<void> {
       const force = args.includes('--force') || args.includes('-f');
       const target = args.filter((a) => !a.startsWith('-'))[1];
       if (!target) {
-        console.error('  사용법: tenet worktree remove <경로-또는-이름> [--force|-f]');
+        console.error('  사용법: tenetx worktree remove <경로-또는-이름> [--force|-f]');
         process.exitCode = 1;
         return;
       }
@@ -409,7 +409,7 @@ export async function handleWorktree(args: string[]): Promise<void> {
       }
       const identifier = args[1];
       if (!identifier) {
-        console.error('  사용법: tenet worktree teleport <이슈번호-또는-브랜치명>');
+        console.error('  사용법: tenetx worktree teleport <이슈번호-또는-브랜치명>');
         process.exitCode = 1;
         return;
       }
@@ -433,18 +433,18 @@ export async function handleWorktree(args: string[]): Promise<void> {
 
 function printHelp(): void {
   console.log(`
-  tenet worktree — Git 멀티 워크트리 관리
+  tenetx worktree — Git 멀티 워크트리 관리
 
   사용법:
-    tenet worktree list
-    tenet worktree create [--branch <브랜치>] [--issue <번호>] [--base <기준브랜치>] [--name <이름>]
-    tenet worktree remove <경로-또는-이름>
-    tenet worktree teleport <이슈번호-또는-브랜치명>
+    tenetx worktree list
+    tenetx worktree create [--branch <브랜치>] [--issue <번호>] [--base <기준브랜치>] [--name <이름>]
+    tenetx worktree remove <경로-또는-이름>
+    tenetx worktree teleport <이슈번호-또는-브랜치명>
 
   예시:
-    tenet worktree create --issue 42
-    tenet worktree create --branch hotfix/login --base main
-    tenet worktree teleport 42
-    tenet worktree remove feature-42
+    tenetx worktree create --issue 42
+    tenetx worktree create --branch hotfix/login --base main
+    tenetx worktree teleport 42
+    tenetx worktree remove feature-42
   `);
 }

@@ -126,7 +126,7 @@ describe('buildEnv', () => {
   });
 
   it('프로젝트 맵이 있으면 COMPOUND_PROJECT_MAP 환경변수 설정', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-env-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-env-'));
     try {
       const compoundDir = path.join(tmpDir, '.compound');
       fs.mkdirSync(compoundDir, { recursive: true });
@@ -151,7 +151,7 @@ describe('buildEnv', () => {
 
 describe('generateClaudeRules — 프로젝트 맵 주입', () => {
   it('프로젝트 맵이 있으면 구조 섹션을 포함한다', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-rules-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-rules-'));
     try {
       const compoundDir = path.join(tmpDir, '.compound');
       fs.mkdirSync(compoundDir, { recursive: true });

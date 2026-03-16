@@ -24,7 +24,7 @@ import {
 // ─── 헬퍼: 임시 git 저장소 생성 ──────────────────────────────
 
 function makeTempGitRepo(): string {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-worktree-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-worktree-'));
   execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
   execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'pipe' });
   execSync('git config user.name "Test"', { cwd: tmpDir, stdio: 'pipe' });
@@ -54,7 +54,7 @@ describe('isGitRepo', () => {
   });
 
   it('git 저장소가 아닌 디렉토리에서 false를 반환한다', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-non-git-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-non-git-'));
     try {
       expect(isGitRepo(tmpDir)).toBe(false);
     } finally {
@@ -63,7 +63,7 @@ describe('isGitRepo', () => {
   });
 
   it('존재하지 않는 경로에서 false를 반환한다 (에러 없이 처리)', () => {
-    expect(isGitRepo('/tmp/definitely-not-exist-tenet-xyz')).toBe(false);
+    expect(isGitRepo('/tmp/definitely-not-exist-tenetx-xyz')).toBe(false);
   });
 });
 
@@ -83,7 +83,7 @@ describe('getWorktrees', () => {
   });
 
   it('git 저장소가 아니면 빈 배열을 반환한다', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-non-git-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-non-git-'));
     try {
       const trees = getWorktrees(tmpDir);
       expect(trees).toEqual([]);
@@ -247,7 +247,7 @@ describe('removeWorktree', () => {
   });
 
   it('git 저장소가 아니면 실패를 반환한다', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-non-git-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-non-git-'));
     try {
       const result = removeWorktree(tmpDir, '/some/path');
       expect(result.success).toBe(false);
@@ -297,7 +297,7 @@ describe('teleport', () => {
   });
 
   it('git 저장소가 아니면 null을 반환한다', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-non-git-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-non-git-'));
     try {
       const result = teleport(tmpDir, '123');
       expect(result).toBeNull();

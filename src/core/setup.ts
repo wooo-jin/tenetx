@@ -47,9 +47,9 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
     initDefaultPhilosophy();
     config.modelRouting = config.modelRouting ?? 'default';
     saveGlobalConfig(config);
-    console.log('[tenet] 기본값으로 초기 설정 완료 (non-interactive)');
+    console.log('[tenetx] 기본값으로 초기 설정 완료 (non-interactive)');
     console.log('  ✓ 디렉토리 생성, 기본 철학, 라우팅: default');
-    console.log('  대화형 설정: tenet setup (TTY 환경에서)');
+    console.log('  대화형 설정: tenetx setup (TTY 환경에서)');
     return;
   }
 
@@ -58,7 +58,7 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
 
   console.log(`
   ╔══════════════════════════════════════╗
-  ║     Tenet — 초기 설정     ║
+  ║     Tenetx — 초기 설정     ║
   ╚══════════════════════════════════════╝
 `);
 
@@ -151,11 +151,11 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
         console.log('  [!] 철학 생성에 실패했습니다. 기본 철학을 사용합니다.\n');
       }
     } else {
-      console.log('  → 기본 철학 사용 (나중에 tenet philosophy edit 으로 수정 가능)\n');
+      console.log('  → 기본 철학 사용 (나중에 tenetx philosophy edit 으로 수정 가능)\n');
     }
   } else {
     console.log('  Claude Code 대화 히스토리가 없습니다.');
-    console.log('  기본 철학으로 시작합니다. 사용 후 tenet setup 을 다시 실행하면');
+    console.log('  기본 철학으로 시작합니다. 사용 후 tenetx setup 을 다시 실행하면');
     console.log('  그때의 히스토리를 기반으로 철학을 생성할 수 있습니다.\n');
   }
 
@@ -185,21 +185,21 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
   if (wantNotify) {
     await setupNotifications(rl);
   } else {
-    console.log('  → 건너뜀 (나중에 tenet notify config 으로 설정 가능)\n');
+    console.log('  → 건너뜀 (나중에 tenetx notify config 으로 설정 가능)\n');
   }
 
   // ─── Step 5: 권한 모드 ───
   console.log('  ── 5/5. 권한 모드 ──');
   console.log('  --dangerously-skip-permissions 를 기본으로 사용하면');
   console.log('  매번 도구 실행 승인 없이 자율적으로 동작합니다.');
-  console.log('  (tenet 대신 tenetx 명령어로도 동일하게 사용 가능)\n');
+  console.log('  (tenetx 대신 tenetx 명령어로도 동일하게 사용 가능)\n');
 
-  const skipPerms = await promptYesNo(rl, '  tenet 실행 시 항상 권한 건너뛰기를 기본으로 할까요?', false);
+  const skipPerms = await promptYesNo(rl, '  tenetx 실행 시 항상 권한 건너뛰기를 기본으로 할까요?', false);
   config.dangerouslySkipPermissions = skipPerms;
   if (skipPerms) {
-    console.log('  ✓ tenet 실행 시 자동으로 --dangerously-skip-permissions 적용\n');
+    console.log('  ✓ tenetx 실행 시 자동으로 --dangerously-skip-permissions 적용\n');
   } else {
-    console.log('  ✓ 기본 권한 모드 (필요시 chx 사용)\n');
+    console.log('  ✓ 기본 권한 모드 (필요시 txd 사용)\n');
   }
 
   // ─── 저장 ───
@@ -209,13 +209,13 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
   console.log('  설정 완료!');
   console.log();
   console.log('  시작하기:');
-  console.log('    tenet              Claude Code 실행');
+  console.log('    tenetx              Claude Code 실행');
   if (!skipPerms) {
-    console.log('    chx             권한 건너뛰기 모드로 실행');
+    console.log('    txd             권한 건너뛰기 모드로 실행');
   }
-  console.log('    tenet philosophy   철학 확인/편집');
-  console.log('    tenet doctor       환경 진단');
-  console.log('    tenet setup        이 설정 다시 실행');
+  console.log('    tenetx philosophy   철학 확인/편집');
+  console.log('    tenetx doctor       환경 진단');
+  console.log('    tenetx setup        이 설정 다시 실행');
   console.log();
 
   rl.close();
@@ -241,7 +241,7 @@ async function setupNotifications(rl: readline.Interface): Promise<void> {
         saveNotifyConfig(notifyConfig);
         console.log('  ✓ Discord 알림 설정 완료\n');
       } else {
-        console.log('  ✗ 유효하지 않은 URL (HTTPS 필요). 나중에 tenet notify config discord <url> 로 설정하세요.\n');
+        console.log('  ✗ 유효하지 않은 URL (HTTPS 필요). 나중에 tenetx notify config discord <url> 로 설정하세요.\n');
       }
       break;
     }
@@ -252,7 +252,7 @@ async function setupNotifications(rl: readline.Interface): Promise<void> {
         saveNotifyConfig(notifyConfig);
         console.log('  ✓ Slack 알림 설정 완료\n');
       } else {
-        console.log('  ✗ 유효하지 않은 URL (HTTPS 필요). 나중에 tenet notify config slack <url> 로 설정하세요.\n');
+        console.log('  ✗ 유효하지 않은 URL (HTTPS 필요). 나중에 tenetx notify config slack <url> 로 설정하세요.\n');
       }
       break;
     }
@@ -264,14 +264,14 @@ async function setupNotifications(rl: readline.Interface): Promise<void> {
         saveNotifyConfig(notifyConfig);
         console.log('  ✓ Telegram 알림 설정 완료\n');
       } else {
-        console.log('  ✗ 필수 값이 비어 있습니다. 나중에 tenet notify config telegram <token> <chatId> 로 설정하세요.\n');
+        console.log('  ✗ 필수 값이 비어 있습니다. 나중에 tenetx notify config telegram <token> <chatId> 로 설정하세요.\n');
       }
       break;
     }
   }
 }
 
-/** 프로젝트별 철학 설정 (tenet setup --project) */
+/** 프로젝트별 철학 설정 (tenetx setup --project) */
 export async function runProjectSetup(cwd: string, options?: { pack?: string; extends?: string; yes?: boolean }): Promise<void> {
   // non-interactive: --pack, --extends, 또는 --yes로 바로 생성
   if (options?.pack || options?.extends || options?.yes) {
@@ -291,10 +291,10 @@ export async function runProjectSetup(cwd: string, options?: { pack?: string; ex
         principles: {} as Record<string, { belief: string; generates: Array<string | Record<string, string>> }>,
       };
       fs.writeFileSync(philosophyPath, JSON.stringify(philosophy, null, 2));
-      console.log(`[tenet] 중앙 관리 프로젝트 철학 생성 (extends: ${extendsValue})`);
+      console.log(`[tenetx] 중앙 관리 프로젝트 철학 생성 (extends: ${extendsValue})`);
       console.log(`  → 팩 "${packName}"의 철학을 베이스로 사용합니다.`);
       console.log(`  → 프로젝트별 오버라이드: ${philosophyPath} 의 principles에 추가`);
-      console.log(`  → 동기화: tenet philosophy sync`);
+      console.log(`  → 동기화: tenetx philosophy sync`);
     } else if (options.pack) {
       // 복사 모드: 팩 내용을 직접 복사 (소규모 팀)
       const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -303,13 +303,13 @@ export async function runProjectSetup(cwd: string, options?: { pack?: string; ex
 
       if (fs.existsSync(packPath)) {
         fs.copyFileSync(packPath, philosophyPath);
-        console.log(`[tenet] 팩 "${options.pack}" 기반 프로젝트 철학 생성 (독립 복사)`);
+        console.log(`[tenetx] 팩 "${options.pack}" 기반 프로젝트 철학 생성 (독립 복사)`);
       } else if (fs.existsSync(globalPackPath)) {
         fs.copyFileSync(globalPackPath, philosophyPath);
-        console.log(`[tenet] 글로벌 팩 "${options.pack}" 기반 프로젝트 철학 생성 (독립 복사)`);
+        console.log(`[tenetx] 글로벌 팩 "${options.pack}" 기반 프로젝트 철학 생성 (독립 복사)`);
       } else {
         const available = ['frontend', 'backend', 'devops', 'security', 'data'];
-        console.error(`[tenet] 팩 "${options.pack}"을 찾을 수 없습니다.`);
+        console.error(`[tenetx] 팩 "${options.pack}"을 찾을 수 없습니다.`);
         console.error(`  사용 가능: ${available.join(', ')}`);
         process.exit(1);
       }
@@ -318,7 +318,7 @@ export async function runProjectSetup(cwd: string, options?: { pack?: string; ex
       const philosophy = JSON.parse(JSON.stringify(DEFAULT_PHILOSOPHY));
       philosophy.name = path.basename(cwd);
       fs.writeFileSync(philosophyPath, JSON.stringify(philosophy, null, 2));
-      console.log(`[tenet] 기본 프로젝트 철학 생성: ${philosophyPath}`);
+      console.log(`[tenetx] 기본 프로젝트 철학 생성: ${philosophyPath}`);
     }
     console.log('  팀원에게 공유: git add .compound/philosophy.json && git commit');
     return;
@@ -330,7 +330,7 @@ export async function runProjectSetup(cwd: string, options?: { pack?: string; ex
 
   console.log(`
   ╔══════════════════════════════════════════╗
-  ║   Tenet — 프로젝트 철학 설정  ║
+  ║   Tenetx — 프로젝트 철학 설정  ║
   ╚══════════════════════════════════════════╝
 `);
   console.log(`  프로젝트: ${cwd}\n`);
@@ -436,7 +436,7 @@ export async function runProjectSetup(cwd: string, options?: { pack?: string; ex
   console.log(`    이름: "${philosophy.name}"`);
   console.log(`    원칙: ${Object.keys(philosophy.principles).length}개`);
   console.log();
-  console.log('  이 프로젝트에서 chx 실행 시 프로젝트 철학이 우선 적용됩니다.');
+  console.log('  이 프로젝트에서 txd 실행 시 프로젝트 철학이 우선 적용됩니다.');
   console.log('  직접 편집: vi ' + philosophyPath);
   console.log();
 

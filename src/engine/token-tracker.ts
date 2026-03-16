@@ -1,5 +1,5 @@
 /**
- * Tenet — Token & Cost Tracker
+ * Tenetx — Token & Cost Tracker
  *
  * 도구 호출 시 토큰 사용량을 근사 추적하고 모델별 비용을 추정합니다.
  * PostToolUse 훅에서 호출되어 세션별 누적 데이터를 기록합니다.

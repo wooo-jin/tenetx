@@ -1,5 +1,5 @@
 /**
- * tenet init — 원커맨드 프로젝트 초기화
+ * tenetx init — 원커맨드 프로젝트 초기화
  *
  * 프로젝트 타입을 자동 감지하여 적절한 철학 팩을 추천하고,
  * 철학 파일 생성 + .gitignore 업데이트까지 한 번에 처리합니다.
@@ -196,7 +196,7 @@ export async function handleInit(args: string[]): Promise<void> {
   const detection = detectProjectType(cwd);
   const projectName = path.basename(cwd);
 
-  console.log(`\n  Tenet Init — ${projectName}\n`);
+  console.log(`\n  Tenetx Init — ${projectName}\n`);
   console.log(`  프로젝트 타입: ${detection.type} (신뢰도 ${detection.confidence}%)`);
   console.log(`  감지 신호:`);
   for (const sig of detection.signals.slice(0, 5)) {
@@ -213,7 +213,7 @@ export async function handleInit(args: string[]): Promise<void> {
     });
     rl.close();
     if (answer.trim().toLowerCase() === 'n') {
-      console.log('  취소됨. 직접 설정: tenet setup --project\n');
+      console.log('  취소됨. 직접 설정: tenetx setup --project\n');
       return;
     }
   }
@@ -270,7 +270,7 @@ export async function handleInit(args: string[]): Promise<void> {
       };
       savePackConfig(cwd, config);
       console.log(`  ✓ 팩 설정: github (${packRepo})`);
-      console.log('  팩 동기화: tenet harness 실행 시 자동 동기화됩니다.');
+      console.log('  팩 동기화: tenetx harness 실행 시 자동 동기화됩니다.');
     } else {
       // 인라인 모드 (이 레포가 팩)
       const config: PackConnection = {
@@ -286,11 +286,11 @@ export async function handleInit(args: string[]): Promise<void> {
   console.log('');
   console.log('  다음 단계:');
   if (isTeam) {
-    console.log('    git add .compound/ && git commit -m "chore: add tenet team config"');
+    console.log('    git add .compound/ && git commit -m "chore: add tenetx team config"');
   } else {
-    console.log('    git add .compound/philosophy.json && git commit -m "chore: add tenet philosophy"');
+    console.log('    git add .compound/philosophy.json && git commit -m "chore: add tenetx philosophy"');
   }
-  console.log('    tenet philosophy show     # 철학 확인');
-  console.log('    tenet philosophy edit     # 커스터마이즈');
+  console.log('    tenetx philosophy show     # 철학 확인');
+  console.log('    tenetx philosophy edit     # 커스터마이즈');
   console.log('');
 }

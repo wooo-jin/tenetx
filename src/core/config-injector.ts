@@ -72,7 +72,7 @@ function loadProjectMapSummary(cwd: string): string | null {
 /** 보안 관련 규칙 생성 */
 export function generateSecurityRules(context: HarnessContext): string {
   const lines: string[] = [
-    '# Tenet — 보안 규칙',
+    '# Tenetx — 보안 규칙',
     `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
     '',
     '## 위험 명령어 경고',
@@ -108,7 +108,7 @@ export function generateSecurityRules(context: HarnessContext): string {
 /** 핵심 원칙 규칙 생성 (philosophy.generates에서 추출) */
 export function generateGoldenPrinciples(context: HarnessContext): string {
   const lines: string[] = [
-    '# Tenet — 핵심 원칙',
+    '# Tenetx — 핵심 원칙',
     `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
     `# Scope: ${context.scope.summary}`,
     '',
@@ -135,7 +135,7 @@ export function generateGoldenPrinciples(context: HarnessContext): string {
 /** 안티패턴 감지 규칙 생성 */
 export function generateAntiPatternRules(): string {
   const lines: string[] = [
-    '# Tenet — 안티패턴 감지',
+    '# Tenetx — 안티패턴 감지',
     '',
     '## 반복 수정 경고',
     '- 동일 파일을 3회 이상 수정 시 즉시 중단 → 전체 구조 재설계 필요',
@@ -158,7 +158,7 @@ export function generateAntiPatternRules(): string {
 /** 모델 라우팅 테이블 규칙 생성 */
 export function generateRoutingRules(context: HarnessContext): string {
   const lines: string[] = [
-    '# Tenet — 모델 라우팅',
+    '# Tenetx — 모델 라우팅',
     '',
   ];
 
@@ -192,7 +192,7 @@ export function generateRoutingRules(context: HarnessContext): string {
 /** compound loop 규칙 생성 (축소) */
 export function generateCompoundRules(context: HarnessContext): string {
   const lines: string[] = [
-    '# Tenet — Compound Loop',
+    '# Tenetx — Compound Loop',
     `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
     '',
   ];
@@ -256,7 +256,7 @@ export async function registerTmuxBindings(): Promise<void> {
   try {
     // prefix + T = 대시보드 토글 (Ctrl+B → Shift+T)
     // D는 detach와 혼동될 수 있으므로 T(enet) 사용
-    execSync('tmux bind-key T run-shell "tenet toggle-dashboard"', { stdio: 'ignore' });
+    execSync('tmux bind-key T run-shell "tenetx toggle-dashboard"', { stdio: 'ignore' });
   } catch (e) {
     debugLog('config-injector', 'tmux 키바인딩 등록 실패', e);
   }

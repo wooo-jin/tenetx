@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: planner
 description: Strategic planning with interview-based requirement gathering

@@ -13,7 +13,7 @@ function parsePhilosophyFile(content: string): Record<string, unknown> {
 const DEFAULT_PHILOSOPHY: Philosophy = {
   name: 'default',
   version: '1.0.0',
-  author: 'tenet',
+  author: 'tenetx',
   description: 'Default philosophy',
   principles: {
     'understand-before-act': {

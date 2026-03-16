@@ -75,7 +75,7 @@ export function App() {
     <Box flexDirection="column" height={termHeight}>
       {/* Header */}
       <Box marginBottom={1}>
-        <Text bold color="cyan"> Tenet v{VERSION} </Text>
+        <Text bold color="cyan"> Tenetx v{VERSION} </Text>
         <Text dimColor> | {dateStr} {timeStr} | 15s auto-refresh</Text>
       </Box>
 

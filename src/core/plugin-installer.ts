@@ -1,12 +1,12 @@
 /**
- * Tenet — Plugin Format Installer
+ * Tenetx — Plugin Format Installer
  *
  * .claude-plugin 표준 포맷 기반 설치를 지원합니다.
- * `tenet install --plugin` 또는 자동 감지로 플러그인 모드 활성화.
+ * `tenetx install --plugin` 또는 자동 감지로 플러그인 모드 활성화.
  *
  * 설치 흐름:
  * 1. plugin.json 로드
- * 2. ~/.claude/plugins/tenet/ 에 플러그인 등록
+ * 2. ~/.claude/plugins/tenetx/ 에 플러그인 등록
  * 3. settings.json에 플러그인 참조 추가
  */
 
@@ -18,7 +18,7 @@ import { debugLog } from './logger.js';
 
 const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 const PLUGINS_DIR = path.join(CLAUDE_DIR, 'plugins');
-const PLUGIN_NAME = 'tenet';
+const PLUGIN_NAME = 'tenetx';
 
 function getPackageRoot(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');

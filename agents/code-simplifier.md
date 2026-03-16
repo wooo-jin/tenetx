@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: code-simplifier
 description: Code simplification and complexity reduction specialist

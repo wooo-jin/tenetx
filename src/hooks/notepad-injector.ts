@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Tenet — Notepad Injector Hook
+ * Tenetx — Notepad Injector Hook
  *
  * Claude Code UserPromptSubmit 훅으로 등록.
  * notepad.md에 저장된 영구 컨텍스트를 사용자 프롬프트 앞에 자동 주입합니다.
  *
  * compaction(컨텍스트 압축) 후에도 notepad의 내용은 매 프롬프트마다
- * <tenet-notepad> 태그로 재주입되어 컨텍스트에서 사라지지 않습니다.
+ * <tenetx-notepad> 태그로 재주입되어 컨텍스트에서 사라지지 않습니다.
  *
  * stdin:  JSON { prompt: string, ... }
  * stdout: JSON { result: "approve", message?: string }
@@ -44,8 +44,8 @@ async function main(): Promise<void> {
   }
 
   // 태그 이스케이프: notepad 내용 내의 닫는 태그를 안전하게 처리
-  const safeContent = notepadContent.trim().replace(/<\/tenet-notepad>/g, '&lt;/tenet-notepad&gt;');
-  const injection = `<tenet-notepad>\n${safeContent}\n</tenet-notepad>`;
+  const safeContent = notepadContent.trim().replace(/<\/tenetx-notepad>/g, '&lt;/tenetx-notepad&gt;');
+  const injection = `<tenetx-notepad>\n${safeContent}\n</tenetx-notepad>`;
 
   console.log(JSON.stringify({
     result: 'approve',

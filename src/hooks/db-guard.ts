@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — PreToolUse: DB Guard Hook
+ * Tenetx — PreToolUse: DB Guard Hook
  *
  * Bash 도구 실행 전 위험한 SQL 명령어를 감지하여 차단 또는 경고합니다.
  */
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   if (!data) {
     const failCount = getAndIncrementFailCount();
     if (failCount >= FAIL_CLOSE_THRESHOLD) {
-      console.log(JSON.stringify({ result: 'reject', reason: `[Tenet] DB Guard: stdin 파싱 ${failCount}회 연속 실패 — 안전을 위해 차단합니다.` }));
+      console.log(JSON.stringify({ result: 'reject', reason: `[Tenetx] DB Guard: stdin 파싱 ${failCount}회 연속 실패 — 안전을 위해 차단합니다.` }));
     } else {
       process.stderr.write(`[ch-hook] db-guard stdin 파싱 실패 (${failCount}/${FAIL_CLOSE_THRESHOLD})\n`);
       console.log(JSON.stringify({ result: 'approve' }));
@@ -102,14 +102,14 @@ async function main(): Promise<void> {
   if (check.action === 'block') {
     console.log(JSON.stringify({
       result: 'reject',
-      reason: `[Tenet] 위험 SQL 차단: ${check.description}`,
+      reason: `[Tenetx] 위험 SQL 차단: ${check.description}`,
     }));
     return;
   }
   if (check.action === 'warn') {
     console.log(JSON.stringify({
       result: 'approve',
-      message: `<compound-sql-warning>\n[Tenet] ⚠ 위험 SQL 감지: ${check.description}\n확인 후 진행하세요.\n</compound-sql-warning>`,
+      message: `<compound-sql-warning>\n[Tenetx] ⚠ 위험 SQL 감지: ${check.description}\n확인 후 진행하세요.\n</compound-sql-warning>`,
     }));
     return;
   }
@@ -119,5 +119,5 @@ async function main(): Promise<void> {
 
 main().catch((e) => {
   process.stderr.write('[ch-hook] ' + (e instanceof Error ? e.message : String(e)) + '\n');
-  console.log(JSON.stringify({ result: 'reject', reason: '[Tenet] DB Guard: 내부 오류 — 안전을 위해 차단합니다.' }));
+  console.log(JSON.stringify({ result: 'reject', reason: '[Tenetx] DB Guard: 내부 오류 — 안전을 위해 차단합니다.' }));
 });

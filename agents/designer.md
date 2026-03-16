@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: designer
 description: UI/UX designer — component architecture, accessibility, responsive design

@@ -1,5 +1,5 @@
 /**
- * Tenet — Event Gateway
+ * Tenetx — Event Gateway
  *
  * 세션 이벤트를 외부 webhook으로 포워딩합니다.
  * Fire-and-forget 방식으로 실패 시 세션에 영향을 주지 않습니다.
@@ -90,14 +90,14 @@ export async function handleGateway(args: string[]): Promise<void> {
     const gwConfig = loadGatewayConfig();
     if (!gwConfig) {
       console.log('  Gateway가 설정되지 않았거나 비활성화 상태입니다.');
-      console.log('  설정: tenet gateway config <url>');
+      console.log('  설정: tenetx gateway config <url>');
       return;
     }
     console.log(`  테스트 이벤트 전송 중... (${gwConfig.url})`);
     const testEvent: GatewayEvent = {
       type: 'session-start',
       timestamp: new Date().toISOString(),
-      payload: { test: true, source: 'tenet gateway test' },
+      payload: { test: true, source: 'tenetx gateway test' },
     };
     const ok = await forwardEvent(testEvent);
     if (ok) {
@@ -119,7 +119,7 @@ export async function handleGateway(args: string[]): Promise<void> {
   }
 
   // help
-  console.log('  사용법: tenet gateway <command>');
+  console.log('  사용법: tenetx gateway <command>');
   console.log('');
   console.log('  Commands:');
   console.log('    config <url>     Gateway webhook URL 설정');

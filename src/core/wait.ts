@@ -1,25 +1,25 @@
 import { notify } from './notify.js';
 
 /**
- * tenet wait — Rate limit 대기
+ * tenetx wait — Rate limit 대기
  * Claude Code가 rate limit에 걸렸을 때 지정 시간 대기 후 알림
  */
 export async function handleWait(args: string[]): Promise<void> {
   if (args.length === 0 || args[0] === '--help') {
-    console.log('  사용법: tenet wait <minutes>');
+    console.log('  사용법: tenetx wait <minutes>');
     console.log('  옵션:');
     console.log('    --notify          완료 시 알림 (기본: on)');
     console.log('    --no-notify       알림 끄기');
     console.log('    --then "command"  대기 후 실행할 명령\n');
     console.log('  예시:');
-    console.log('    tenet wait 5           5분 대기 후 알림');
-    console.log('    tenet wait 10 --then "tenet"  10분 후 tenet 실행\n');
+    console.log('    tenetx wait 5           5분 대기 후 알림');
+    console.log('    tenetx wait 10 --then "tenetx"  10분 후 tenetx 실행\n');
     return;
   }
 
   const minutes = parseFloat(args[0]);
   if (isNaN(minutes) || minutes <= 0) {
-    console.log('  유효한 분 수를 입력하세요. (예: tenet wait 5)');
+    console.log('  유효한 분 수를 입력하세요. (예: tenetx wait 5)');
     return;
   }
 
@@ -53,7 +53,7 @@ export async function handleWait(args: string[]): Promise<void> {
   // 알림
   if (!noNotify) {
     await notify({
-      title: 'Tenet',
+      title: 'Tenetx',
       message: `${minutes}분 대기 완료. Rate limit이 해제되었을 수 있습니다.`,
       sound: true,
     });

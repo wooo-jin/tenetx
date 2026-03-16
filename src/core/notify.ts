@@ -109,9 +109,9 @@ export function escapeAppleScript(str: string): string {
 
 /** 터미널 벨 알림 */
 function notifyTerminal(title: string, message: string): void {
-  process.stdout.write(`\x1b]0;[tenet] ${title}\x07`);
+  process.stdout.write(`\x1b]0;[tenetx] ${title}\x07`);
   process.stdout.write('\x07');
-  console.log(`\n  [tenet] ${title}: ${message}\n`);
+  console.log(`\n  [tenetx] ${title}: ${message}\n`);
 }
 
 /** URL 스킴 검증 (HTTPS 필수, localhost 제외) */
@@ -131,7 +131,7 @@ export function validateWebhookUrl(url: string): boolean {
 /** HTTP POST 헬퍼 (fetch API 사용, shell injection 방지) */
 async function postJSON(url: string, payload: unknown, timeoutMs = 10000): Promise<boolean> {
   if (!validateWebhookUrl(url)) {
-    console.error(`[tenet] 안전하지 않은 URL: ${url} (HTTPS 필요)`);
+    console.error(`[tenetx] 안전하지 않은 URL: ${url} (HTTPS 필요)`);
     return false;
   }
   try {
@@ -153,7 +153,7 @@ async function notifyDiscord(webhook: string, title: string, message: string, ta
   const tags = tagList ? `\n${tagList}` : '';
   return postJSON(webhook, {
     embeds: [{
-      title: `[Tenet] ${title}`,
+      title: `[Tenetx] ${title}`,
       description: `${message}${tags}`,
       color: 0x7C3AED,
       timestamp: new Date().toISOString(),
@@ -164,7 +164,7 @@ async function notifyDiscord(webhook: string, title: string, message: string, ta
 /** Telegram 봇 알림 */
 async function notifyTelegram(botToken: string, chatId: string, title: string, message: string, tagList?: string): Promise<boolean> {
   const tags = tagList ? `\n${tagList}` : '';
-  const text = `*[Tenet] ${title}*\n${message}${tags}`;
+  const text = `*[Tenetx] ${title}*\n${message}${tags}`;
   return postJSON(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     chat_id: chatId,
     text,
@@ -179,7 +179,7 @@ async function notifySlack(webhook: string, title: string, message: string, tagL
     blocks: [
       {
         type: 'header',
-        text: { type: 'plain_text', text: `[Tenet] ${title}` },
+        text: { type: 'plain_text', text: `[Tenetx] ${title}` },
       },
       {
         type: 'section',
@@ -231,31 +231,31 @@ export function detectChannel(): NotifyChannel {
   return 'terminal';
 }
 
-/** CLI 핸들러: tenet notify */
+/** CLI 핸들러: tenetx notify */
 export async function handleNotify(args: string[]): Promise<void> {
-  // tenet notify config — 알림 설정
+  // tenetx notify config — 알림 설정
   if (args[0] === 'config') {
     await handleNotifyConfig(args.slice(1));
     return;
   }
 
   if (args.length === 0) {
-    console.log('  사용법: tenet notify "메시지"');
+    console.log('  사용법: tenetx notify "메시지"');
     console.log('  옵션:');
-    console.log('    --title "제목"     알림 제목 (기본: Tenet)');
+    console.log('    --title "제목"     알림 제목 (기본: Tenetx)');
     console.log('    --no-sound         소리 없이');
     console.log('');
     console.log('  외부 알림 설정:');
-    console.log('    tenet notify config discord <webhook-url>');
-    console.log('    tenet notify config telegram <bot-token> <chat-id>');
-    console.log('    tenet notify config slack <webhook-url>');
-    console.log('    tenet notify config show');
-    console.log('    tenet notify config disable');
+    console.log('    tenetx notify config discord <webhook-url>');
+    console.log('    tenetx notify config telegram <bot-token> <chat-id>');
+    console.log('    tenetx notify config slack <webhook-url>');
+    console.log('    tenetx notify config show');
+    console.log('    tenetx notify config disable');
     return;
   }
 
   const titleIdx = args.indexOf('--title');
-  const title = titleIdx !== -1 ? args[titleIdx + 1] : 'Tenet';
+  const title = titleIdx !== -1 ? args[titleIdx + 1] : 'Tenetx';
   const noSound = args.includes('--no-sound');
   const message = args.filter(a => !a.startsWith('--') && a !== title).join(' ');
 
@@ -321,5 +321,5 @@ async function handleNotifyConfig(args: string[]): Promise<void> {
     return;
   }
 
-  console.log('  알 수 없는 설정 명령입니다. tenet notify config show 로 현재 설정을 확인하세요.');
+  console.log('  알 수 없는 설정 명령입니다. tenetx notify config show 로 현재 설정을 확인하세요.');
 }

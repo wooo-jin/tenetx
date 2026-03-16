@@ -52,11 +52,11 @@ export async function handlePhilosophy(args: string[]): Promise<void> {
       console.log(`  프로젝트 철학: ${projectPath}`);
     } else {
       console.log(`  글로벌 철학: ${ME_PHILOSOPHY}`);
-      console.log(`  프로젝트별 철학을 만들려면: tenet setup --project`);
+      console.log(`  프로젝트별 철학을 만들려면: tenetx setup --project`);
     }
     console.log(`  편집기로 열어주세요: $EDITOR <경로>`);
   } else {
-    console.log('  사용법: tenet philosophy <show|edit|sync>');
+    console.log('  사용법: tenetx philosophy <show|edit|sync>');
     console.log('');
     console.log('  show          현재 철학 표시 (extends 시 병합 결과)');
     console.log('  edit          철학 파일 경로 안내');

@@ -102,7 +102,7 @@ export async function spawnWorker(
 
   if (isTmuxAvailable()) {
     // tmux 모드: 새 pane에서 실행 (execFileSync로 명령 인젝션 방지)
-    const paneName = `tenet-worker-${id}`;
+    const paneName = `tenetx-worker-${id}`;
     try {
       // 워커 스크립트를 셸에 넘기지 않고, 출력 리다이렉션을 위해 sh -c 사용하되
       // 인자를 환경변수로 전달하여 인젝션 방지
@@ -263,7 +263,7 @@ export async function handleWorker(args: string[]): Promise<void> {
   if (sub === 'spawn') {
     const type = args[1] as AIWorker['type'];
     if (!type || !['gemini', 'codex', 'claude'].includes(type)) {
-      console.error('  사용법: tenet worker spawn <gemini|codex|claude> "prompt"');
+      console.error('  사용법: tenetx worker spawn <gemini|codex|claude> "prompt"');
       process.exit(1);
     }
     const prompt = args.slice(2).join(' ');
@@ -281,11 +281,11 @@ export async function handleWorker(args: string[]): Promise<void> {
 
   if (sub === 'list' || !sub) {
     const workers = listWorkers();
-    console.log('\n  Tenet — AI Workers\n');
+    console.log('\n  Tenetx — AI Workers\n');
 
     if (workers.length === 0) {
       console.log('  활성 워커가 없습니다.');
-      console.log(`  ${DIM}tenet worker spawn <gemini|codex|claude> "prompt"${RST}\n`);
+      console.log(`  ${DIM}tenetx worker spawn <gemini|codex|claude> "prompt"${RST}\n`);
       return;
     }
 
@@ -306,7 +306,7 @@ export async function handleWorker(args: string[]): Promise<void> {
   if (sub === 'kill') {
     const id = args[1];
     if (!id) {
-      console.error('  사용법: tenet worker kill <id>');
+      console.error('  사용법: tenetx worker kill <id>');
       process.exit(1);
     }
     const success = killWorker(id);
@@ -322,7 +322,7 @@ export async function handleWorker(args: string[]): Promise<void> {
   if (sub === 'output') {
     const id = args[1];
     if (!id) {
-      console.error('  사용법: tenet worker output <id>');
+      console.error('  사용법: tenetx worker output <id>');
       process.exit(1);
     }
     const output = getWorkerOutput(id);
@@ -335,6 +335,6 @@ export async function handleWorker(args: string[]): Promise<void> {
     return;
   }
 
-  console.error('  사용법: tenet worker <spawn|list|kill|output>');
+  console.error('  사용법: tenetx worker <spawn|list|kill|output>');
   process.exit(1);
 }

@@ -8,7 +8,7 @@ describe('map-generator', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-map-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-map-'));
   });
 
   afterEach(() => {
@@ -116,7 +116,7 @@ const fs = require('node:fs');
 
 describe('formatMapAsMarkdown', () => {
   it('Markdown 출력 포맷', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenet-md-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-md-'));
     try {
       fs.mkdirSync(path.join(tmpDir, 'src'));
       fs.writeFileSync(path.join(tmpDir, 'src', 'index.ts'), 'export const x = 1;\n'.repeat(50));

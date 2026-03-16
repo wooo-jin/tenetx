@@ -1,5 +1,5 @@
 /**
- * tenet proposals — 대기 중인 팀 규칙 제안 목록
+ * tenetx proposals — 대기 중인 팀 규칙 제안 목록
  *
  * pack.json의 type에 따라:
  * - github: gh pr list로 열린 compound PR 표시
@@ -23,7 +23,7 @@ export async function handleProposals(_args: string[]): Promise<void> {
   const cwd = process.cwd();
   const packConfig = loadPackConfig(cwd);
 
-  console.log(`\n  ${BOLD}Tenet — 팀 규칙 제안${RST}\n`);
+  console.log(`\n  ${BOLD}Tenetx — 팀 규칙 제안${RST}\n`);
 
   if (!packConfig) {
     // 개인 모드: 로컬 proposals만 확인
@@ -31,14 +31,14 @@ export async function handleProposals(_args: string[]): Promise<void> {
     const proposals = loadProposals(proposalsDir);
     if (proposals.length === 0) {
       console.log('  대기 중인 제안이 없습니다.');
-      console.log(`  ${DIM}tenet compound 로 인사이트를 추출하세요.${RST}\n`);
+      console.log(`  ${DIM}tenetx compound 로 인사이트를 추출하세요.${RST}\n`);
     } else {
       console.log(`  로컬 제안 ${proposals.length}건 (팀 미연결)\n`);
       for (const p of proposals) {
         console.log(`  • ${p.title}`);
         if (p.content) console.log(`    ${DIM}${p.content.slice(0, 80)}${RST}`);
       }
-      console.log(`\n  ${DIM}팀 연결: tenet init --team${RST}\n`);
+      console.log(`\n  ${DIM}팀 연결: tenetx init --team${RST}\n`);
     }
     return;
   }
@@ -64,7 +64,7 @@ export async function handleProposals(_args: string[]): Promise<void> {
 
       if (prs.length === 0) {
         console.log('  대기 중인 제안 PR이 없습니다.');
-        console.log(`  ${DIM}tenet compound → tenet propose 로 제안하세요.${RST}\n`);
+        console.log(`  ${DIM}tenetx compound → tenetx propose 로 제안하세요.${RST}\n`);
       } else {
         console.log(`  대기 중인 제안 ${YELLOW}${prs.length}${RST}건:\n`);
         for (const pr of prs) {
@@ -95,7 +95,7 @@ function showLocalProposals(cwd: string): void {
 
   if (proposals.length === 0) {
     console.log('  대기 중인 로컬 제안이 없습니다.');
-    console.log(`  ${DIM}tenet compound 로 인사이트를 추출하세요.${RST}\n`);
+    console.log(`  ${DIM}tenetx compound 로 인사이트를 추출하세요.${RST}\n`);
     return;
   }
 
@@ -105,5 +105,5 @@ function showLocalProposals(cwd: string): void {
     console.log(`  ${icon} ${BOLD}${p.title}${RST}`);
     if (p.content) console.log(`    ${DIM}${p.content.slice(0, 80)}${RST}`);
   }
-  console.log(`\n  ${DIM}tenet propose 로 팀에 제안하세요.${RST}\n`);
+  console.log(`\n  ${DIM}tenetx propose 로 팀에 제안하세요.${RST}\n`);
 }

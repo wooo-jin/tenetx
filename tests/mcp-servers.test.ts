@@ -14,7 +14,7 @@ import { analyzeDependencies } from '../src/mcp-servers/dependency-analyzer.js';
 import { createMcpServer } from '../src/mcp-servers/shared/protocol.js';
 import type { McpTool } from '../src/mcp-servers/shared/protocol.js';
 
-const TMP_DIR = path.join(os.tmpdir(), 'tenet-mcp-servers-test');
+const TMP_DIR = path.join(os.tmpdir(), 'tenetx-mcp-servers-test');
 
 beforeEach(() => {
   fs.rmSync(TMP_DIR, { recursive: true, force: true });

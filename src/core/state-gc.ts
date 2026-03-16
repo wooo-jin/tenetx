@@ -1,5 +1,5 @@
 /**
- * Tenet — State Directory GC
+ * Tenetx — State Directory GC
  *
  * ~/.compound/state/ 내 세션별 파일 중 오래된 것을 정리합니다.
  * 기존 token-tracker의 cleanStaleUsageFiles 패턴을 확장하여

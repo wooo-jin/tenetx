@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: qa-tester
 description: QA tester — interactive validation, manual test scenarios, reproduction steps

@@ -15,7 +15,7 @@
   "description": "Philosophy-driven Claude Code harness — 원칙 선언형 워크플로우 프레임워크",
   "keywords": [
     "claude-code",
-    "tenet",
+    "tenetx",
     "philosophy",
     "compound-engineering",
     "workflow",
@@ -30,8 +30,8 @@
   },
   "type": "module",
   "bin": {
-    "tenet": "./dist/cli.js",
-    "tenetx": "./dist/chx.js"
+    "tenetx": "./dist/cli.js",
+    "txd": "./dist/txd.js"
   },
   "files": [
     "dist/",

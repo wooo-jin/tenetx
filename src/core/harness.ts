@@ -24,7 +24,7 @@ import {
   rollbackSettings,
 } from './settings-lock.js';
 
-/** tenet 패키지 루트 */
+/** tenetx 패키지 루트 */
 function getPackageRoot(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 }
@@ -78,7 +78,7 @@ function injectSettings(env: Record<string, string>): void {
   // statusLine
   settings.statusLine = {
     type: 'command',
-    command: 'tenet status',
+    command: 'tenetx status',
   };
 
   // 훅 주입: Claude Code hooks 시스템에 등록
@@ -102,10 +102,10 @@ function injectSettings(env: Record<string, string>): void {
   const dbGuardPath = path.join(pkgRoot, 'dist', 'hooks', 'db-guard.js');
   const rateLimiterPath = path.join(pkgRoot, 'dist', 'hooks', 'rate-limiter.js');
 
-  /** tenet 훅인지 판별 (matcher 래핑 여부 무관) */
+  /** tenetx 훅인지 판별 (matcher 래핑 여부 무관) */
   function isCHHook(entry: Record<string, unknown>): boolean {
     // 패키지 dist/hooks 경로를 포함하는 커맨드인지 확인
-    const hookMarkers = ['tenet', 'compound-harness', pkgRoot];
+    const hookMarkers = ['tenetx', 'compound-harness', pkgRoot];
     function matchesMarker(cmd: string): boolean {
       return hookMarkers.some(m => cmd.includes(m));
     }
@@ -309,7 +309,7 @@ function installAgents(cwd: string): void {
           continue;
         }
         // 마커 기반 폴백: 해시 기록이 없는 레거시 파일
-        if (!recordedHash && !existing.includes('<!-- tenet-managed -->')) {
+        if (!recordedHash && !existing.includes('<!-- tenetx-managed -->')) {
           debugLog('harness', `에이전트 파일 보호: ${file} (레거시 사용자 수정 감지)`);
           continue;
         }
@@ -344,8 +344,8 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
 
   // 기존 CLAUDE.md에서 이전 마커 블록 제거 (마이그레이션)
   const claudeMdPath = path.join(cwd, 'CLAUDE.md');
-  const marker = '<!-- tenet:start -->';
-  const endMarker = '<!-- tenet:end -->';
+  const marker = '<!-- tenetx:start -->';
+  const endMarker = '<!-- tenetx:end -->';
 
   if (fs.existsSync(claudeMdPath)) {
     const content = fs.readFileSync(claudeMdPath, 'utf-8');
@@ -357,11 +357,11 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
   }
 }
 
-/** tenet 생성 파일을 .gitignore에 등록 (팀 사용 시 충돌 방지) */
+/** tenetx 생성 파일을 .gitignore에 등록 (팀 사용 시 충돌 방지) */
 function ensureGitignore(cwd: string): void {
   const gitignorePath = path.join(cwd, '.gitignore');
-  const tenetEntries = [
-    '# Tenet (auto-generated, do not commit)',
+  const tenetxEntries = [
+    '# Tenetx (auto-generated, do not commit)',
     '.claude/agents/ch-*.md',
     '.claude/rules/security.md',
     '.claude/rules/golden-principles.md',
@@ -380,7 +380,7 @@ function ensureGitignore(cwd: string): void {
       // 이미 등록되어 있으면 스킵
       if (content.includes(marker)) return;
     }
-    const newContent = content.trimEnd() + '\n\n' + tenetEntries.join('\n') + '\n';
+    const newContent = content.trimEnd() + '\n\n' + tenetxEntries.join('\n') + '\n';
     fs.writeFileSync(gitignorePath, newContent);
   } catch {
     // .gitignore 쓰기 실패는 무시 (권한 등)
@@ -439,7 +439,7 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
       await registerTmuxBindings();
     }
 
-    // 11. .gitignore에 tenet 생성 파일 등록 (팀 충돌 방지)
+    // 11. .gitignore에 tenetx 생성 파일 등록 (팀 충돌 방지)
     ensureGitignore(cwd);
 
     // 12. 팩 auto-sync (github 연결 시)

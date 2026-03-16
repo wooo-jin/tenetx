@@ -21,7 +21,7 @@
 Tenetx is a **philosophy-driven harness** for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Instead of tweaking dozens of config files, you declare your engineering principles — and Tenetx generates hooks, model routing, alerts, agents, and skills automatically.
 
 ```
-$ claude                        $ tenet
+$ claude                        $ tenetx
 │                                │
 │ Default Claude Code            │ Tenetx runs first
 │ Generic settings               │  ├── Load philosophy.yaml
@@ -58,16 +58,16 @@ $ claude                        $ tenet
 npm install -g tenetx
 
 # Initial setup — 3 questions, 30 seconds
-tenet setup
+tenetx setup
 
 # Run Claude Code with your philosophy applied
-tenet
+tenetx
 ```
 
 ### As a Claude Code Plugin
 
 ```bash
-tenet install --plugin
+tenetx install --plugin
 ```
 
 ---
@@ -124,37 +124,37 @@ Five principles automatically generate hooks, alerts, routing rules, and compoun
 ### Personal Developer
 
 ```bash
-tenet setup                    # Accept defaults
-tenet                          # Run with your philosophy
+tenetx setup                    # Accept defaults
+tenetx                          # Run with your philosophy
 # End of session
-tenet compound                 # Extract patterns for reuse
+tenetx compound                 # Extract patterns for reuse
 ```
 
 ### Small Team (5-10 people)
 
 ```bash
 # Team lead
-tenet init --team --yes        # Auto-detect + create .compound/pack.json
-git add .compound/ && git commit -m "chore: add tenet team pack"
+tenetx init --team --yes        # Auto-detect + create .compound/pack.json
+git add .compound/ && git commit -m "chore: add tenetx team pack"
 
 # Teammates
-git pull && tenet              # Auto-loads team philosophy
+git pull && tenetx              # Auto-loads team philosophy
 
 # End of day
-tenet compound                 # Extract insights → auto-classify (personal/team)
-tenet propose                  # Create proposal for team knowledge
-tenet proposals                # Team lead reviews + merges
+tenetx compound                 # Extract insights → auto-classify (personal/team)
+tenetx propose                  # Create proposal for team knowledge
+tenetx proposals                # Team lead reviews + merges
 ```
 
 ### Large Organization
 
 ```bash
 # Setup
-tenet init --team --pack-repo org/tenet-pack-emr --yes
-tenet init --extends           # Or use extends for central management
+tenetx init --team --pack-repo org/tenetx-pack-emr --yes
+tenetx init --extends           # Or use extends for central management
 
 # Daily
-tenet                          # Auto-pulls + syncs latest team rules
+tenetx                          # Auto-pulls + syncs latest team rules
 ```
 
 ---
@@ -164,10 +164,10 @@ tenet                          # Auto-pulls + syncs latest team rules
 ### Basic Commands
 
 ```bash
-tenet                              # Start with harness applied
-tenet "Refactor the chart API"     # Start with a prompt
-tenet --resume                     # Resume previous session
-tenet --offline                    # Run without network
+tenetx                              # Start with harness applied
+tenetx "Refactor the chart API"     # Start with a prompt
+tenetx --resume                     # Resume previous session
+tenetx --offline                    # Run without network
 ```
 
 ### Execution Modes (9 modes, 11 skills)
@@ -187,10 +187,10 @@ Each mode maps to a philosophical principle:
 | | **tdd** | Test-driven development mode |
 
 ```bash
-tenet --autopilot "Build user authentication"
-tenet --ralph "Complete the payment integration"
-tenet --team "Redesign the dashboard"
-tenet deep-interview "What's the core problem here?"
+tenetx --autopilot "Build user authentication"
+tenetx --ralph "Complete the payment integration"
+tenetx --team "Redesign the dashboard"
+tenetx deep-interview "What's the core problem here?"
 ```
 
 ### Magic Keywords
@@ -206,7 +206,7 @@ ultrathink               Extended reasoning
 deepsearch               Deep codebase search
 ccg                      3-model cross-validation
 deep-interview           Socratic clarification
-canceltenet              Cancel all active modes
+canceltenetx              Cancel all active modes
 ```
 
 ### Model Routing (16-Signal Scoring)
@@ -243,26 +243,26 @@ Knowledge lives in three scopes and grows over time:
 
 ```bash
 # Install a team knowledge pack
-tenet pack install https://github.com/your-org/pack-backend
+tenetx pack install https://github.com/your-org/pack-backend
 
 # Sync latest knowledge
-tenet pack sync
+tenetx pack sync
 
 # Cherry-pick a solution to your personal collection
-tenet pick api-caching --from backend
+tenetx pick api-caching --from backend
 
 # Propose a personal pattern to the team
-tenet propose retry-pattern --to backend
+tenetx propose retry-pattern --to backend
 
 # View pack contents
-tenet pack list
+tenetx pack list
 ```
 
 **Pack inheritance**: Use `extends` in philosophy.yaml to inherit another pack's rules:
 
 ```yaml
 extends:
-  - github: https://github.com/your-org/tenet-pack-core
+  - github: https://github.com/your-org/tenetx-pack-core
   - local: ~/mycompany-standards
 ```
 
@@ -271,7 +271,7 @@ extends:
 After meaningful work, extract and accumulate insights:
 
 ```bash
-tenet compound
+tenetx compound
 ```
 
 This analyzes your session and extracts:
@@ -285,7 +285,7 @@ Extracted knowledge is auto-classified as personal or team-worthy.
 ### Governance Dashboard
 
 ```bash
-tenet dashboard
+tenetx dashboard
 ```
 
 View real-time agent activity, skill usage, model routing, session costs, and team proposal activity.
@@ -298,54 +298,54 @@ View real-time agent activity, skill usage, model routing, session costs, and te
 
 | Command | Purpose |
 |---------|---------|
-| `tenet` | Start with harness applied |
-| `tenet setup` | Initial setup |
-| `tenet setup --project` | Project-specific philosophy |
-| `tenet --resume` | Resume previous session |
-| `tenet init --team` | Initialize team pack (in repo) |
+| `tenetx` | Start with harness applied |
+| `tenetx setup` | Initial setup |
+| `tenetx setup --project` | Project-specific philosophy |
+| `tenetx --resume` | Resume previous session |
+| `tenetx init --team` | Initialize team pack (in repo) |
 
 ### Philosophy & Configuration
 
 | Command | Purpose |
 |---------|---------|
-| `tenet philosophy show` | Display current philosophy |
-| `tenet philosophy edit` | Edit philosophy.yaml |
-| `tenet philosophy validate` | Validate syntax |
-| `tenet init --extends` | Use pack inheritance |
+| `tenetx philosophy show` | Display current philosophy |
+| `tenetx philosophy edit` | Edit philosophy.yaml |
+| `tenetx philosophy validate` | Validate syntax |
+| `tenetx init --extends` | Use pack inheritance |
 
 ### Knowledge Management
 
 | Command | Purpose |
 |---------|---------|
-| `tenet pack install <url>` | Install knowledge pack |
-| `tenet pack sync` | Sync latest knowledge |
-| `tenet pack list` | List installed packs |
-| `tenet pick <pattern> --from <pack>` | Cherry-pick solution |
-| `tenet propose <pattern> --to <pack>` | Propose team knowledge |
-| `tenet proposals` | Review pending proposals |
-| `tenet compound` | Extract session insights |
+| `tenetx pack install <url>` | Install knowledge pack |
+| `tenetx pack sync` | Sync latest knowledge |
+| `tenetx pack list` | List installed packs |
+| `tenetx pick <pattern> --from <pack>` | Cherry-pick solution |
+| `tenetx propose <pattern> --to <pack>` | Propose team knowledge |
+| `tenetx proposals` | Review pending proposals |
+| `tenetx compound` | Extract session insights |
 
 ### Tools & Utilities
 
 | Command | Purpose |
 |---------|---------|
-| `tenet ask "question"` | Multi-provider question |
-| `tenet scan` | Project structure scan |
-| `tenet verify` | Auto verification loop |
-| `tenet stats [--week]` | Session statistics |
-| `tenet dashboard` | Governance dashboard |
-| `tenet doctor` | Environment diagnostics |
-| `tenet notify "message"` | Send notification (Discord/Slack/Telegram) |
-| `tenet install --plugin` | Install as Claude Code plugin |
-| `tenet uninstall` | Uninstall |
-| `tenet help` | Full help |
+| `tenetx ask "question"` | Multi-provider question |
+| `tenetx scan` | Project structure scan |
+| `tenetx verify` | Auto verification loop |
+| `tenetx stats [--week]` | Session statistics |
+| `tenetx dashboard` | Governance dashboard |
+| `tenetx doctor` | Environment diagnostics |
+| `tenetx notify "message"` | Send notification (Discord/Slack/Telegram) |
+| `tenetx install --plugin` | Install as Claude Code plugin |
+| `tenetx uninstall` | Uninstall |
+| `tenetx help` | Full help |
 
 ---
 
 ## Architecture
 
 <p align="center">
-  <img src="assets/architecture.svg" alt="Tenet Architecture" width="100%"/>
+  <img src="assets/architecture.svg" alt="Tenetx Architecture" width="100%"/>
 </p>
 
 ### Layer 0: Philosophy (WHY)
@@ -415,7 +415,7 @@ security-review
 ## How It Works
 
 ```
-tenet "Refactor the chart API"
+tenetx "Refactor the chart API"
   │
   ├── 1. Load philosophy.yaml
   │      └── 5+ principles → hooks, routing, alerts, compound rules
@@ -445,10 +445,10 @@ tenet "Refactor the chart API"
 
 ```bash
 # Team lead initializes repo-wide philosophy
-tenet init --team --yes
+tenetx init --team --yes
 
 # Creates .compound/pack.json, philosophy.yaml, and .compound/rules.yaml
-git add .compound/ && git commit -m "chore: add tenet team pack"
+git add .compound/ && git commit -m "chore: add tenetx team pack"
 ```
 
 ### Day 1-N: Daily Use
@@ -456,24 +456,24 @@ git add .compound/ && git commit -m "chore: add tenet team pack"
 ```bash
 # Teammate syncs and runs
 git pull
-tenet "Fix the search bug"
+tenetx "Fix the search bug"
 
 # At end of session
-tenet compound                 # Extracts: patterns, solutions, rules, golden prompts
+tenetx compound                 # Extracts: patterns, solutions, rules, golden prompts
 ```
 
 ### Day 1-N: Knowledge Sharing
 
 ```bash
 # Personal solution → team proposal
-tenet propose caching-strategy --to core-pack
+tenetx propose caching-strategy --to core-pack
 
 # Team lead reviews proposals
-tenet proposals               # UI shows: proposed rules, suggested hooks, confidence scores
+tenetx proposals               # UI shows: proposed rules, suggested hooks, confidence scores
 # (approve/reject interface)
 
 # Latest knowledge auto-syncs
-tenet pack sync
+tenetx pack sync
 ```
 
 ---
@@ -491,8 +491,8 @@ Tenetx includes 5 starter philosophy packs:
 Load any as a starting point:
 
 ```bash
-tenet init --yes                         # Auto-detect project type
-tenet setup --project --pack backend     # Or choose explicitly
+tenetx init --yes                         # Auto-detect project type
+tenetx setup --project --pack backend     # Or choose explicitly
 ```
 
 ---

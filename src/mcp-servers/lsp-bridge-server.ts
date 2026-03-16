@@ -3,7 +3,7 @@ import { createMcpServer } from './shared/protocol.js';
 import { detectLanguageServer } from './lsp-bridge.js';
 
 createMcpServer({
-  name: 'tenet-lsp-bridge',
+  name: 'tenetx-lsp-bridge',
   version: '1.0.0',
   tools: [
     {

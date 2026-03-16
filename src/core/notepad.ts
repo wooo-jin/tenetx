@@ -1,5 +1,5 @@
 /**
- * Tenet — Notepad 코어 모듈
+ * Tenetx — Notepad 코어 모듈
  *
  * .compound/notepad.md 파일을 관리합니다.
  * compaction(컨텍스트 압축)에서 살아남는 영구 컨텍스트 노트 저장소로,
@@ -52,7 +52,7 @@ export function clearNotepad(cwd: string): void {
 }
 
 /**
- * CLI 핸들러: `tenet notepad <show|add|edit|clear>`
+ * CLI 핸들러: `tenetx notepad <show|add|edit|clear>`
  *
  * - show: 현재 notepad 내용 출력
  * - add "내용": 타임스탬프와 함께 항목 추가
@@ -73,7 +73,7 @@ export async function handleNotepad(args: string[]): Promise<void> {
   } else if (subcommand === 'add') {
     const entry = args.slice(1).join(' ');
     if (!entry) {
-      console.error('  사용법: tenet notepad add "추가할 내용"');
+      console.error('  사용법: tenetx notepad add "추가할 내용"');
       process.exit(1);
     }
     appendToNotepad(cwd, entry);
@@ -86,6 +86,6 @@ export async function handleNotepad(args: string[]): Promise<void> {
     clearNotepad(cwd);
     console.log('  notepad가 초기화되었습니다.');
   } else {
-    console.log('  사용법: tenet notepad <show|add|edit|clear>');
+    console.log('  사용법: tenetx notepad <show|add|edit|clear>');
   }
 }

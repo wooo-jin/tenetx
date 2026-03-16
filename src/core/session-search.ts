@@ -1,9 +1,9 @@
 /**
- * tenet session — 세션 로그 검색/재사용
+ * tenetx session — 세션 로그 검색/재사용
  *
- * - tenet session search "query"   → 과거 세션에서 키워드 검색
- * - tenet session list [--week]    → 최근 세션 목록
- * - tenet session show <id>        → 세션 상세 보기
+ * - tenetx session search "query"   → 과거 세션에서 키워드 검색
+ * - tenetx session list [--week]    → 최근 세션 목록
+ * - tenetx session show <id>        → 세션 상세 보기
  */
 
 import * as fs from 'node:fs';
@@ -111,7 +111,7 @@ export async function handleSession(args: string[]): Promise<void> {
   if (sub === 'search') {
     const query = args.slice(1).filter(a => !a.startsWith('--')).join(' ');
     if (!query) {
-      console.log('  사용법: tenet session search "검색어"');
+      console.log('  사용법: tenetx session search "검색어"');
       console.log('  옵션: --project <path> --json');
       return;
     }
@@ -140,7 +140,7 @@ export async function handleSession(args: string[]): Promise<void> {
   if (sub === 'show') {
     const idOrDate = args[1];
     if (!idOrDate) {
-      console.log('  사용법: tenet session show <session-id 또는 날짜>');
+      console.log('  사용법: tenetx session show <session-id 또는 날짜>');
       return;
     }
 

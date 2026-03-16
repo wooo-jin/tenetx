@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 // vi.mock보다 먼저 실행되어야 하는 변수: vi.hoisted로 정의
 const { TEST_HOME } = vi.hoisted(() => ({
-  TEST_HOME: '/tmp/tenet-test-harness-home',
+  TEST_HOME: '/tmp/tenetx-test-harness-home',
 }));
 
 // node:os mock — homedir()을 임시 디렉토리로 교체
@@ -22,7 +22,7 @@ import { isFirstRun, rollbackSettings, prepareHarness } from '../src/core/harnes
 // harness.ts의 모듈 레벨 상수와 동일한 경로 계산
 const TEST_CLAUDE_DIR = path.join(TEST_HOME, '.claude');
 const TEST_SETTINGS_PATH = path.join(TEST_CLAUDE_DIR, 'settings.json');
-const TEST_BACKUP_PATH = path.join(TEST_CLAUDE_DIR, 'settings.json.tenet-backup');
+const TEST_BACKUP_PATH = path.join(TEST_CLAUDE_DIR, 'settings.json.tenetx-backup');
 const TEST_LOCK_PATH = path.join(TEST_CLAUDE_DIR, 'settings.json.lock');
 const TEST_COMPOUND_HOME = path.join(TEST_HOME, '.compound');
 const TEST_CWD = path.join(TEST_HOME, 'test-project');
@@ -69,16 +69,16 @@ describe('rollbackSettings()', () => {
     fs.rmSync(TEST_HOME, { recursive: true, force: true });
   });
 
-  it('.tenet-backup 파일이 없으면 false를 반환한다', () => {
+  it('.tenetx-backup 파일이 없으면 false를 반환한다', () => {
     expect(rollbackSettings()).toBe(false);
   });
 
-  it('.tenet-backup 파일이 있으면 true를 반환한다', () => {
+  it('.tenetx-backup 파일이 있으면 true를 반환한다', () => {
     fs.writeFileSync(TEST_BACKUP_PATH, JSON.stringify({ env: { RESTORED: 'yes' } }));
     expect(rollbackSettings()).toBe(true);
   });
 
-  it('.tenet-backup 내용이 settings.json으로 정확히 복원된다', () => {
+  it('.tenetx-backup 내용이 settings.json으로 정확히 복원된다', () => {
     const original = { env: { RESTORED: 'yes' } };
     fs.writeFileSync(TEST_BACKUP_PATH, JSON.stringify(original));
     fs.writeFileSync(TEST_SETTINGS_PATH, JSON.stringify({ env: { CORRUPTED: 'data' } }));
@@ -90,7 +90,7 @@ describe('rollbackSettings()', () => {
     expect(restored.env.CORRUPTED).toBeUndefined();
   });
 
-  it('복원 후 .tenet-backup 파일이 삭제된다', () => {
+  it('복원 후 .tenetx-backup 파일이 삭제된다', () => {
     fs.writeFileSync(TEST_BACKUP_PATH, JSON.stringify({ env: {} }));
 
     rollbackSettings();
@@ -155,11 +155,11 @@ describe('prepareHarness() integration', () => {
     const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
     expect(settings.statusLine).toEqual({
       type: 'command',
-      command: 'tenet status',
+      command: 'tenetx status',
     });
   });
 
-  it('settings.json.tenet-backup이 생성된다 (기존 settings가 있을 때)', async () => {
+  it('settings.json.tenetx-backup이 생성된다 (기존 settings가 있을 때)', async () => {
     // 기존 settings 생성
     fs.mkdirSync(TEST_CLAUDE_DIR, { recursive: true });
     const original = { env: { EXISTING: 'value' }, customKey: true };
@@ -203,7 +203,7 @@ describe('prepareHarness() integration', () => {
     const rulesPath = path.join(TEST_CWD, '.claude', 'rules', 'compound.md');
     expect(fs.existsSync(rulesPath)).toBe(true);
     const content = fs.readFileSync(rulesPath, 'utf-8');
-    expect(content).toContain('Tenet');
+    expect(content).toContain('Tenetx');
 
     // 레거시 경로에는 파일이 없어야 함
     const legacyPath = path.join(TEST_CWD, '.claude', 'compound-rules.md');
@@ -242,7 +242,7 @@ describe('prepareHarness() integration', () => {
     expect(parsed.env.COMPOUND_HARNESS).toBe('1');
   });
 
-  it('에이전트 파일에 tenet-managed 마커가 있으면 업데이트된다 (10E)', async () => {
+  it('에이전트 파일에 tenetx-managed 마커가 있으면 업데이트된다 (10E)', async () => {
     await prepareHarness(TEST_CWD);
 
     const agentsDir = path.join(TEST_CWD, '.claude', 'agents');
@@ -250,7 +250,7 @@ describe('prepareHarness() integration', () => {
       const files = fs.readdirSync(agentsDir).filter(f => f.startsWith('ch-'));
       for (const file of files) {
         const content = fs.readFileSync(path.join(agentsDir, file), 'utf-8');
-        expect(content).toContain('<!-- tenet-managed -->');
+        expect(content).toContain('<!-- tenetx-managed -->');
       }
     }
   });

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — PostToolUseFailure Hook
+ * Tenetx — PostToolUseFailure Hook
  *
  * 도구 실행 실패 시 자동 복구 안내 + 실패 패턴 분석.
  * - 반복 실패 감지 (같은 도구 3회 이상)
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
   if (failCount >= 3) {
     console.log(JSON.stringify({
       result: 'approve',
-      message: `<compound-failure-warning>\n[Tenet] ⚠ ${toolName} 도구가 세션 내 ${failCount}회 실패했습니다.\n복구 제안: ${suggestion}\n다른 접근 방식을 시도하거나, 문제를 분석한 후 재시도하세요.\n</compound-failure-warning>`,
+      message: `<compound-failure-warning>\n[Tenetx] ⚠ ${toolName} 도구가 세션 내 ${failCount}회 실패했습니다.\n복구 제안: ${suggestion}\n다른 접근 방식을 시도하거나, 문제를 분석한 후 재시도하세요.\n</compound-failure-warning>`,
     }));
     return;
   }
@@ -132,7 +132,7 @@ async function main(): Promise<void> {
   // 일반 실패 안내
   console.log(JSON.stringify({
     result: 'approve',
-    message: `<compound-failure-info>\n[Tenet] ${toolName} 실패 (${failCount}회). ${suggestion}\n</compound-failure-info>`,
+    message: `<compound-failure-info>\n[Tenetx] ${toolName} 실패 (${failCount}회). ${suggestion}\n</compound-failure-info>`,
   }));
 }
 

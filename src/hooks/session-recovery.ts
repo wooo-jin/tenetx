@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tenet — Session Recovery Hook
+ * Tenetx — Session Recovery Hook
  *
  * Claude Code SessionStart 훅으로 등록.
  * 이전 세션에서 활성화된 지속 모드(ralph, autopilot, ultrawork)의
@@ -65,7 +65,7 @@ async function main(): Promise<void> {
         (state.prompt ? `\n원래 요청: ${state.prompt}` : '') +
         (state.stage ? `\n현재 단계: ${state.stage}` : '') +
         (state.completedSteps?.length ? `\n완료된 단계: ${state.completedSteps.join(', ')}` : '') +
-        `\n\n이전 작업을 이어서 진행하세요. 중단하려면 "canceltenet"를 입력하세요.` +
+        `\n\n이전 작업을 이어서 진행하세요. 중단하려면 "canceltenetx"를 입력하세요.` +
         `\n</compound-recovery>`
       );
     } catch (e) {
@@ -81,7 +81,7 @@ async function main(): Promise<void> {
       recoveryMessages.push(
         `<compound-pending>` +
         `\n이전 세션(${pending.promptCount ?? '?'}회 프롬프트)에서 compound loop가 예약되었습니다.` +
-        `\n\`tenet compound\`를 실행하여 패턴/솔루션을 추출하세요.` +
+        `\n\`tenetx compound\`를 실행하여 패턴/솔루션을 추출하세요.` +
         `\n</compound-pending>`
       );
       // 마커 삭제 (한 번만 안내)

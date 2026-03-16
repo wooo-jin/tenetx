@@ -10,7 +10,7 @@ import {
   type ProviderResponse,
 } from '../engine/provider.js';
 
-/** CLI 핸들러: tenet ask */
+/** CLI 핸들러: tenetx ask */
 export async function handleAsk(args: string[]): Promise<void> {
   if (args.length === 0) {
     printAskHelp();
@@ -108,14 +108,14 @@ export async function handleAsk(args: string[]): Promise<void> {
   }
 }
 
-/** CLI 핸들러: tenet providers */
+/** CLI 핸들러: tenetx providers */
 export async function handleProviders(args: string[]): Promise<void> {
   const sub = args[0];
 
   if (sub === 'enable' || sub === 'disable') {
     const name = args[1] as ProviderName;
     if (!name || (name !== 'claude' && name !== 'codex')) {
-      console.log(`  사용법: tenet providers ${sub} <claude|codex>`);
+      console.log(`  사용법: tenetx providers ${sub} <claude|codex>`);
       return;
     }
     const configs = loadProviderConfigs();
@@ -134,7 +134,7 @@ export async function handleProviders(args: string[]): Promise<void> {
     const name = args[1] as ProviderName;
     const model = args[2];
     if (!name || !model) {
-      console.log('  사용법: tenet providers model <claude|codex> <model-name>');
+      console.log('  사용법: tenetx providers model <claude|codex> <model-name>');
       return;
     }
     const configs = loadProviderConfigs();
@@ -152,7 +152,7 @@ export async function handleProviders(args: string[]): Promise<void> {
   if (sub === 'auth') {
     const mode = args[1] as 'oauth' | 'cli' | 'apikey';
     if (!mode || !['oauth', 'cli', 'apikey'].includes(mode)) {
-      console.log('  사용법: tenet providers auth <oauth|cli|apikey>');
+      console.log('  사용법: tenetx providers auth <oauth|cli|apikey>');
       console.log('    oauth   — ~/.codex/auth.json의 OAuth 토큰 사용 (기본)');
       console.log('    cli     — codex CLI 직접 호출');
       console.log('    apikey  — OPENAI_API_KEY 환경변수 사용');
@@ -177,7 +177,7 @@ export async function handleProviders(args: string[]): Promise<void> {
     const name = args[1] as ProviderName;
     const priority = parseInt(args[2], 10);
     if (!name || isNaN(priority)) {
-      console.log('  사용법: tenet providers priority <claude|codex> <number>');
+      console.log('  사용법: tenetx providers priority <claude|codex> <number>');
       return;
     }
     const configs = loadProviderConfigs();
@@ -207,7 +207,7 @@ const YELLOW = '\x1b[33m';
 
 function printProviderStatus(): void {
   const summary = getProviderSummary();
-  console.log('\n  Tenet — 프로바이더 현황\n');
+  console.log('\n  Tenetx — 프로바이더 현황\n');
 
   for (const p of summary) {
     const statusIcon = p.available ? `${GREEN}●${RST}` : `${RED}○${RST}`;
@@ -219,7 +219,7 @@ function printProviderStatus(): void {
     console.log(`  ${statusIcon} ${BOLD}${p.name}${RST} ${modelLabel} ${authLabel} ${enabledLabel} ${reason}`.trimEnd());
   }
 
-  console.log(`\n  ${DIM}관리: tenet providers <enable|disable|model|priority|auth> <provider> [value]${RST}\n`);
+  console.log(`\n  ${DIM}관리: tenetx providers <enable|disable|model|priority|auth> <provider> [value]${RST}\n`);
 }
 
 function printProviderResult(r: ProviderResponse): void {
@@ -262,7 +262,7 @@ function jaccardSimilarity(a: string, b: string): number {
 
 function printAskHelp(): void {
   console.log(`
-  사용법: tenet ask "질문"
+  사용법: tenetx ask "질문"
 
   옵션:
     --provider <claude|codex>  프로바이더 (기본: claude)
@@ -273,14 +273,14 @@ function printAskHelp(): void {
 
   Codex 인증 (기본: OAuth):
     1. codex login              — OAuth 로그인 (브라우저)
-    2. tenet providers auth oauth  — OAuth 토큰 사용 (기본)
-    3. tenet providers auth cli    — codex CLI 직접 호출
-    4. tenet providers auth apikey — OPENAI_API_KEY 환경변수
+    2. tenetx providers auth oauth  — OAuth 토큰 사용 (기본)
+    3. tenetx providers auth cli    — codex CLI 직접 호출
+    4. tenetx providers auth apikey — OPENAI_API_KEY 환경변수
 
   프로바이더 관리:
-    tenet providers                         상태 확인
-    tenet providers enable codex            Codex 활성화
-    tenet providers auth <oauth|cli|apikey> 인증 모드 변경
-    tenet providers model codex o4-mini     기본 모델 변경
+    tenetx providers                         상태 확인
+    tenetx providers enable codex            Codex 활성화
+    tenetx providers auth <oauth|cli|apikey> 인증 모드 변경
+    tenetx providers model codex o4-mini     기본 모델 변경
 `);
 }

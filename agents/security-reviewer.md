@@ -1,4 +1,4 @@
-<!-- tenet-managed -->
+<!-- tenetx-managed -->
 ---
 name: security-reviewer
 description: Security auditor — OWASP Top 10, secrets exposure, injection, auth flaws (READ-ONLY)

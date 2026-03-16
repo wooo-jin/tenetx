@@ -11,7 +11,7 @@ import { debugLog } from './logger.js';
 
 export const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 export const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
-export const SETTINGS_BACKUP_PATH = path.join(CLAUDE_DIR, 'settings.json.tenet-backup');
+export const SETTINGS_BACKUP_PATH = path.join(CLAUDE_DIR, 'settings.json.tenetx-backup');
 const SETTINGS_LOCK_PATH = path.join(CLAUDE_DIR, 'settings.json.lock');
 
 /** lockfile 획득 (최대 3초 대기, 100ms 간격 재시도) */
@@ -75,7 +75,7 @@ export function writeSettings(settings: Record<string, unknown>): void {
   }
 }
 
-/** settings.json.tenet-backup 파일에서 원본 복원 */
+/** settings.json.tenetx-backup 파일에서 원본 복원 */
 export function rollbackSettings(): boolean {
   if (!fs.existsSync(SETTINGS_BACKUP_PATH)) return false;
   acquireLock();

@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 createMcpServer({
-  name: 'tenet-python-repl',
+  name: 'tenetx-python-repl',
   version: '1.0.0',
   tools: [
     {

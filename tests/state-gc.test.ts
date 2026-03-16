@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const { TEST_HOME } = vi.hoisted(() => ({
-  TEST_HOME: '/tmp/tenet-test-state-gc',
+  TEST_HOME: '/tmp/tenetx-test-state-gc',
 }));
 
 vi.mock('node:os', async (importOriginal) => {

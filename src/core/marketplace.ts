@@ -1,12 +1,12 @@
 /**
- * Tenet — 플러그인 마켓플레이스
+ * Tenetx — 플러그인 마켓플레이스
  *
  * GitHub 기반 플러그인의 검색/설치/목록/제거를 지원합니다.
  * 로컬 레지스트리(~/.compound/plugins/registry.json)를 통해
  * 네트워크 없이도 기본 동작이 가능하며, GitHub URL을 직접 지정하면
  * git clone으로 설치합니다.
  *
- * CLI: `tenet marketplace search|install|list|remove`
+ * CLI: `tenetx marketplace search|install|list|remove`
  */
 
 import * as fs from 'node:fs';
@@ -69,44 +69,44 @@ function getInstalledPath(): string {
 /** 기본 내장 플러그인 레지스트리 — 로컬 registry.json이 없어도 검색 가능 */
 const DEFAULT_PLUGINS: PluginManifest[] = [
   {
-    name: 'tenet-skill-tdd',
+    name: 'tenetx-skill-tdd',
     version: '1.0.0',
     description: 'TDD 모드 스킬 — 테스트 주도 개발 워크플로우',
-    author: 'tenet-community',
+    author: 'tenetx-community',
     type: 'skill',
-    repository: 'https://github.com/tenet-community/skill-tdd',
+    repository: 'https://github.com/tenetx-community/skill-tdd',
   },
   {
-    name: 'tenet-skill-codebase-search',
+    name: 'tenetx-skill-codebase-search',
     version: '1.0.0',
     description: '코드베이스 심층 검색 스킬',
-    author: 'tenet-community',
+    author: 'tenetx-community',
     type: 'skill',
-    repository: 'https://github.com/tenet-community/skill-codebase-search',
+    repository: 'https://github.com/tenetx-community/skill-codebase-search',
   },
   {
-    name: 'tenet-agent-reviewer',
+    name: 'tenetx-agent-reviewer',
     version: '1.0.0',
     description: 'AI 코드 리뷰 에이전트',
-    author: 'tenet-community',
+    author: 'tenetx-community',
     type: 'agent',
-    repository: 'https://github.com/tenet-community/agent-reviewer',
+    repository: 'https://github.com/tenetx-community/agent-reviewer',
   },
   {
-    name: 'tenet-hook-auto-commit',
+    name: 'tenetx-hook-auto-commit',
     version: '1.0.0',
     description: '자동 커밋 훅 — PostToolUse 후 자동 커밋',
-    author: 'tenet-community',
+    author: 'tenetx-community',
     type: 'hook',
-    repository: 'https://github.com/tenet-community/hook-auto-commit',
+    repository: 'https://github.com/tenetx-community/hook-auto-commit',
   },
   {
-    name: 'tenet-pack-fullstack',
+    name: 'tenetx-pack-fullstack',
     version: '1.0.0',
     description: '풀스택 개발 팩 (React + Node.js)',
-    author: 'tenet-community',
+    author: 'tenetx-community',
     type: 'pack',
-    repository: 'https://github.com/tenet-community/pack-fullstack',
+    repository: 'https://github.com/tenetx-community/pack-fullstack',
   },
 ];
 
@@ -440,7 +440,7 @@ export function removePlugin(name: string, cwd: string = process.cwd()): { succe
 // ---------------------------------------------------------------------------
 
 /**
- * `tenet marketplace <subcommand>` CLI 진입점.
+ * `tenetx marketplace <subcommand>` CLI 진입점.
  *
  * 서브커맨드:
  * - search <query>     : 플러그인 검색
@@ -456,7 +456,7 @@ export async function handleMarketplace(args: string[]): Promise<void> {
     case 'search': {
       const query = args.slice(1).join(' ').trim();
       if (!query) {
-        console.error('[marketplace] 검색어를 입력해주세요. 예: tenet marketplace search "skill"');
+        console.error('[marketplace] 검색어를 입력해주세요. 예: tenetx marketplace search "skill"');
         process.exit(1);
       }
       const results = searchPlugins(query);
@@ -525,13 +525,13 @@ export async function handleMarketplace(args: string[]): Promise<void> {
 
     default: {
       console.log(`
-  Tenet Marketplace
+  Tenetx Marketplace
 
   Usage:
-    tenet marketplace search <query>     플러그인 검색
-    tenet marketplace install <name|url> 플러그인 설치 (GitHub URL 또는 이름)
-    tenet marketplace list               설치된 플러그인 목록
-    tenet marketplace remove <name>      플러그인 제거
+    tenetx marketplace search <query>     플러그인 검색
+    tenetx marketplace install <name|url> 플러그인 설치 (GitHub URL 또는 이름)
+    tenetx marketplace list               설치된 플러그인 목록
+    tenetx marketplace remove <name>      플러그인 제거
 `);
       break;
     }
