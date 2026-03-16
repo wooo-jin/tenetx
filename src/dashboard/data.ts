@@ -7,7 +7,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { debugLog } from '../core/logger.js';
 import { ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from '../core/paths.js';
 import { loadPhilosophy as loadPhilosophyCore } from '../core/philosophy-loader.js';
@@ -157,7 +157,7 @@ export type { Philosophy };
 
 export function getGitRemote(): string | null {
   try {
-    return execSync('git remote get-url origin 2>/dev/null', {
+    return execFileSync('git', ['remote', 'get-url', 'origin'], {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim() || null;

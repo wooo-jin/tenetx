@@ -175,7 +175,8 @@ export function checkProviderAvailability(config: ProviderConfig): { available: 
 
   if (config.name === 'claude') {
     try {
-      execFileSync('which', ['claude'], { encoding: 'utf-8', timeout: 3000 });
+      const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+      execFileSync(whichCmd, ['claude'], { encoding: 'utf-8', timeout: 3000 });
       return { available: true };
     } catch {
       return { available: false, reason: 'Claude CLI not found' };
@@ -187,7 +188,8 @@ export function checkProviderAvailability(config: ProviderConfig): { available: 
 
     if (mode === 'cli') {
       try {
-        execFileSync('which', ['codex'], { encoding: 'utf-8', timeout: 3000 });
+        const whichCmdCodex = process.platform === 'win32' ? 'where' : 'which';
+        execFileSync(whichCmdCodex, ['codex'], { encoding: 'utf-8', timeout: 3000 });
         return { available: true };
       } catch {
         return { available: false, reason: 'Codex CLI not found' };

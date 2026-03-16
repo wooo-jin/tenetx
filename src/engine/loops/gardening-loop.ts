@@ -34,13 +34,13 @@ export function checkMapFreshness(cwd: string): {
     // git으로 마지막 맵 생성 이후 변경 파일 수 확인
     let changedFilesSince = 0;
     try {
-      const { execSync } = require('node:child_process');
+      const { execFileSync } = require('node:child_process');
       const since = generatedAt.toISOString();
-      const output = execSync(
-        `git log --since="${since}" --name-only --pretty=format:"" 2>/dev/null | sort -u | wc -l`,
-        { cwd, encoding: 'utf-8', timeout: 5000 }
-      ).trim();
-      changedFilesSince = parseInt(output, 10) || 0;
+      const output = (execFileSync('git', [
+        'log', `--since=${since}`, '--name-only', '--pretty=format:',
+      ], { cwd, encoding: 'utf-8', timeout: 5000 }) as string).trim();
+      const uniqueFiles = new Set(output.split('\n').filter(Boolean));
+      changedFilesSince = uniqueFiles.size;
     } catch { /* git 없을 수 있음 */ }
 
     // 24시간 이상 또는 10개 이상 변경 시 stale

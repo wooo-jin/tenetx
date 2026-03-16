@@ -10,7 +10,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+// child_process는 getChangedFiles 내부에서 require()로 사용
 import { runConstraintsOnFile, constraintConfigPath } from '../constraints/constraint-runner.js';
 import type { LoopResult, LoopStep, ReviewLoopOptions } from './types.js';
 
@@ -31,12 +31,16 @@ export interface ReviewPoint {
 /** Git에서 변경된 파일 목록 추출 */
 export function getChangedFiles(cwd: string): ChangedFile[] {
   try {
-    // staged + unstaged 변경
-    const output = execSync('git diff --numstat HEAD 2>/dev/null || git diff --numstat --cached 2>/dev/null || echo ""', {
-      cwd,
-      encoding: 'utf-8',
-      timeout: 10_000,
-    }).trim();
+    // staged + unstaged 변경 (execFileSync로 인젝션 방지)
+    const { execFileSync } = require('node:child_process');
+    let output = '';
+    try {
+      output = (execFileSync('git', ['diff', '--numstat', 'HEAD'], { cwd, encoding: 'utf-8', timeout: 10_000 }) as string).trim();
+    } catch {
+      try {
+        output = (execFileSync('git', ['diff', '--numstat', '--cached'], { cwd, encoding: 'utf-8', timeout: 10_000 }) as string).trim();
+      } catch { /* no git */ }
+    }
 
     if (!output) return [];
 

@@ -9,7 +9,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { debugLog } from './logger.js';
 
 export type PackType = 'inline' | 'github' | 'local';
@@ -74,10 +74,9 @@ export async function syncGithubPack(
 
   try {
     // gh api로 최신 커밋 SHA 확인
-    const latestSha = execSync(
-      `gh api repos/${config.repo}/commits/HEAD --jq '.sha'`,
-      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-    ).trim();
+    const latestSha = execFileSync('gh', [
+      'api', `repos/${config.repo}/commits/HEAD`, '--jq', '.sha',
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 
     // 마지막 동기화와 비교
     if (config.lastSync === latestSha) {
@@ -93,17 +92,16 @@ export async function syncGithubPack(
 
     // rules 동기화
     try {
-      const rulesJson = execSync(
-        `gh api repos/${config.repo}/contents/rules --jq '.[].name'`,
-        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-      ).trim();
+      const rulesJson = execFileSync('gh', [
+        'api', `repos/${config.repo}/contents/rules`, '--jq', '.[].name',
+      ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 
       if (rulesJson) {
         for (const filename of rulesJson.split('\n').filter(Boolean)) {
-          const content = execSync(
-            `gh api repos/${config.repo}/contents/rules/${filename} --jq '.content' | base64 -d`,
-            { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-          );
+          const b64 = execFileSync('gh', [
+            'api', `repos/${config.repo}/contents/rules/${filename}`, '--jq', '.content',
+          ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+          const content = Buffer.from(b64, 'base64').toString('utf-8');
           fs.writeFileSync(path.join(rulesDir, filename), content);
           rulesUpdated++;
         }
@@ -114,17 +112,16 @@ export async function syncGithubPack(
 
     // solutions 동기화
     try {
-      const solutionsJson = execSync(
-        `gh api repos/${config.repo}/contents/solutions --jq '.[].name'`,
-        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-      ).trim();
+      const solutionsJson = execFileSync('gh', [
+        'api', `repos/${config.repo}/contents/solutions`, '--jq', '.[].name',
+      ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 
       if (solutionsJson) {
         for (const filename of solutionsJson.split('\n').filter(Boolean)) {
-          const content = execSync(
-            `gh api repos/${config.repo}/contents/solutions/${filename} --jq '.content' | base64 -d`,
-            { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-          );
+          const b64s = execFileSync('gh', [
+            'api', `repos/${config.repo}/contents/solutions/${filename}`, '--jq', '.content',
+          ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+          const content = Buffer.from(b64s, 'base64').toString('utf-8');
           fs.writeFileSync(path.join(solutionsDir, filename), content);
           solutionsUpdated++;
         }
