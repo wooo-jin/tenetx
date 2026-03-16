@@ -34,7 +34,7 @@
   </g>
 
   <!-- Title -->
-  <text x="200" y="95" font-family="'SF Mono', 'Fira Code', 'JetBrains Mono', monospace" font-size="52" font-weight="700" fill="#ffffff" letter-spacing="8">TENET</text>
+  <text x="200" y="95" font-family="'SF Mono', 'Fira Code', 'JetBrains Mono', monospace" font-size="52" font-weight="700" fill="#ffffff" letter-spacing="8">TENETX</text>
 
   <!-- Subtitle -->
   <text x="200" y="125" font-family="'Inter', 'Helvetica Neue', sans-serif" font-size="15" fill="#a78bfa" letter-spacing="3" opacity="0.9">PHILOSOPHY-DRIVEN CLAUDE CODE HARNESS</text>
