@@ -270,6 +270,15 @@ const commands: Command[] = [
     },
   },
   {
+    name: 'rules',
+    description: 'View personal and team rules',
+    category: 'command',
+    handler: async (args) => {
+      const { handleRules } = await import('./core/rules-viewer.js');
+      await handleRules(args);
+    },
+  },
+  {
     name: 'gateway',
     description: 'Event gateway (config <url>|test|disable)',
     category: 'command',
@@ -335,15 +344,31 @@ async function main() {
     // 최초 실행 감지: ~/.compound/ 없으면 웰컴 메시지 출력
     const firstRun = isFirstRun();
     if (firstRun) {
-      console.log('\n  Tenet — 환경을 처음 설정합니다.\n');
-      console.log('  ~/.compound/ 디렉토리와 기본 철학을 생성합니다.');
-      console.log('  이후 `tenet setup`으로 추가 설정을 완료할 수 있습니다.\n');
+      console.log(`
+  ╔══════════════════════════════════════════════╗
+  ║   Tenetx — 처음 오신 것을 환영합니다!       ║
+  ╚══════════════════════════════════════════════╝
+
+  Tenetx는 당신의 개발 철학을 Claude Code에 주입합니다.
+  원칙을 선언하면 훅, 모델 라우팅, 에이전트가 자동으로 구성됩니다.
+
+  지금 기본 환경을 설정합니다...`);
     }
 
     const context = await prepareHarness(process.cwd());
 
     if (firstRun) {
-      console.log('  [완료] 초기 설정이 완료되었습니다.\n');
+      console.log(`
+  ✓ 초기 설정 완료!
+
+  다음 단계:
+    tenet init              프로젝트 타입 감지 → 맞춤 철학 생성
+    tenet init --team       팀 모드로 시작 (팀원과 철학 공유)
+    tenet philosophy show   현재 철학 확인
+    tenet doctor            환경 진단
+
+  더 알아보기: https://github.com/wooo-jin/tenetx
+`);
     }
 
     console.log(`[tenet] Philosophy: ${context.philosophy.name}`);
@@ -362,7 +387,27 @@ async function main() {
 
     await spawnClaude(args, context);
   } catch (err) {
-    console.error('[tenet] Error:', err instanceof Error ? err.message : err);
+    const msg = err instanceof Error ? err.message : String(err);
+
+    // 사용자 친화적 에러 메시지 변환
+    if (msg.includes('ENOENT') && msg.includes('claude')) {
+      console.error('\n  [tenet] Claude Code가 설치되어 있지 않습니다.');
+      console.error('  설치: https://docs.anthropic.com/en/docs/claude-code');
+      console.error('  확인: tenet doctor\n');
+    } else if (msg.includes('ENOENT') && msg.includes('git')) {
+      console.error('\n  [tenet] Git이 설치되어 있지 않습니다.');
+      console.error('  설치: https://git-scm.com/downloads\n');
+    } else if (msg.includes('ENOENT') && msg.includes('node')) {
+      console.error('\n  [tenet] Node.js 18 이상이 필요합니다.');
+      console.error('  현재: ' + process.version + '\n');
+    } else if (msg.includes('EACCES') || msg.includes('EPERM')) {
+      console.error('\n  [tenet] 권한이 부족합니다. sudo 또는 파일 권한을 확인하세요.');
+      console.error('  상세: ' + msg + '\n');
+    } else {
+      console.error('\n  [tenet] 오류:', msg);
+      console.error('  문제가 계속되면: tenet doctor 로 환경을 진단하세요.');
+      console.error('  이슈: https://github.com/wooo-jin/tenetx/issues\n');
+    }
     process.exit(1);
   }
 }
@@ -422,7 +467,7 @@ function printHelp() {
 `);
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch(() => {
+  // main() 내부에서 이미 에러 처리됨
   process.exit(1);
 });
