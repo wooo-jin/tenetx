@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
-import { ME_PHILOSOPHY, ME_DIR, projectPhilosophyPath } from './paths.js';
+import * as path from 'node:path';
+import { ME_PHILOSOPHY, ME_DIR, PACKS_DIR, projectPhilosophyPath } from './paths.js';
 import type { Philosophy } from './types.js';
 import { debugLog } from './logger.js';
 
@@ -73,6 +74,7 @@ export function loadPhilosophy(philosophyPath?: string): Philosophy {
       version: (data.version as string) ?? '1.0.0',
       author: (data.author as string) ?? 'unknown',
       description: data.description as string | undefined,
+      extends: data.extends as string | undefined,
       principles: (data.principles as Record<string, unknown> ?? {}) as Philosophy['principles'],
     };
   } catch (e) {
@@ -88,8 +90,16 @@ export function loadPhilosophy(philosophyPath?: string): Philosophy {
 export function loadPhilosophyForProject(cwd: string): { philosophy: Philosophy; source: 'project' | 'global' | 'default' } {
   const projectPath = projectPhilosophyPath(cwd);
   if (fs.existsSync(projectPath)) {
-    const philosophy = loadPhilosophy(projectPath);
-    return { philosophy, source: 'project' };
+    const project = loadPhilosophy(projectPath);
+    // extends가 있으면 팩 철학과 병합
+    if (project.extends) {
+      const base = resolveBasePhilosophy(project.extends);
+      if (base) {
+        const merged = mergePhilosophies(base, project);
+        return { philosophy: merged, source: 'project' };
+      }
+    }
+    return { philosophy: project, source: 'project' };
   }
 
   if (fs.existsSync(ME_PHILOSOPHY)) {
@@ -106,6 +116,97 @@ export function initDefaultPhilosophy(): void {
 
   fs.mkdirSync(ME_DIR, { recursive: true });
   fs.writeFileSync(ME_PHILOSOPHY, JSON.stringify(DEFAULT_PHILOSOPHY, null, 2));
+}
+
+/**
+ * 팩에서 베이스 철학 로드 (extends 필드 해석)
+ * "pack:emr-standard" → ~/.compound/packs/emr-standard/philosophy.json
+ */
+export function resolveBasePhilosophy(extendsValue: string): Philosophy | null {
+  if (!extendsValue.startsWith('pack:')) return null;
+  const packName = extendsValue.slice(5);
+
+  // 1. 설치된 팩에서 찾기
+  const packPhilPath = path.join(PACKS_DIR, packName, 'philosophy.json');
+  if (fs.existsSync(packPhilPath)) {
+    return loadPhilosophy(packPhilPath);
+  }
+
+  // 2. 빌트인 팩에서 찾기 (패키지 내장)
+  const pkgRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+  const builtinPath = path.join(pkgRoot, 'packs', `${packName}.json`);
+  if (fs.existsSync(builtinPath)) {
+    return loadPhilosophy(builtinPath);
+  }
+
+  debugLog('philosophy-loader', `extends 팩 "${packName}" 찾을 수 없음`);
+  return null;
+}
+
+/**
+ * 베이스 철학 + 프로젝트 오버라이드 병합
+ * - 프로젝트의 principles가 베이스를 덮어씀 (같은 키)
+ * - 프로젝트에만 있는 principles는 추가
+ * - 베이스에만 있는 principles는 유지
+ */
+export function mergePhilosophies(base: Philosophy, override: Philosophy): Philosophy {
+  const merged: Philosophy = {
+    name: override.name || base.name,
+    version: override.version || base.version,
+    author: override.author || base.author,
+    description: override.description || base.description,
+    extends: override.extends,
+    principles: { ...base.principles },
+  };
+
+  // 오버라이드 principles 병합
+  for (const [key, principle] of Object.entries(override.principles)) {
+    if (merged.principles[key]) {
+      // 같은 키: 오버라이드의 belief 사용, generates는 합침 (중복 제거)
+      const basePrinciple = merged.principles[key];
+      const mergedGenerates = [...basePrinciple.generates];
+      for (const gen of principle.generates) {
+        const genStr = typeof gen === 'string' ? gen : JSON.stringify(gen);
+        const isDuplicate = mergedGenerates.some(
+          existing => (typeof existing === 'string' ? existing : JSON.stringify(existing)) === genStr
+        );
+        if (!isDuplicate) mergedGenerates.push(gen);
+      }
+      merged.principles[key] = {
+        belief: principle.belief || basePrinciple.belief,
+        generates: mergedGenerates,
+      };
+    } else {
+      // 새 키: 추가
+      merged.principles[key] = principle;
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * 철학 동기화 — extends 팩의 최신 버전으로 베이스 갱신
+ * 프로젝트 오버라이드는 유지하면서 베이스만 업데이트
+ */
+export function syncPhilosophy(cwd: string): { updated: boolean; philosophy: Philosophy; message: string } {
+  const projectPath = projectPhilosophyPath(cwd);
+  if (!fs.existsSync(projectPath)) {
+    return { updated: false, philosophy: DEFAULT_PHILOSOPHY, message: '프로젝트 철학 파일 없음' };
+  }
+
+  const project = loadPhilosophy(projectPath);
+  if (!project.extends) {
+    return { updated: false, philosophy: project, message: 'extends 없음 (로컬 전용)' };
+  }
+
+  const base = resolveBasePhilosophy(project.extends);
+  if (!base) {
+    return { updated: false, philosophy: project, message: `팩 "${project.extends}" 찾을 수 없음` };
+  }
+
+  const merged = mergePhilosophies(base, project);
+  return { updated: true, philosophy: merged, message: `"${project.extends}" 기반 동기화 완료` };
 }
 
 export { DEFAULT_PHILOSOPHY };

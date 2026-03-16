@@ -3,8 +3,57 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { debugLog } from './logger.js';
+import { loadGlobalConfig } from './global-config.js';
+import type { NotifyVerbosity } from './global-config.js';
 
 export type NotifyChannel = 'macos' | 'terminal' | 'discord' | 'telegram' | 'slack';
+
+// ── Notify Event + Verbosity ──
+
+export type NotifyEventType =
+  | 'session-start' | 'session-stop'
+  | 'mode-change' | 'cost-alert' | 'error'
+  | 'agent-call' | 'agent-done'
+  | 'hook-trigger';
+
+export interface NotifyEvent {
+  type: NotifyEventType;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
+/** 이벤트 타입별 허용 verbosity 레벨 */
+const VERBOSITY_MAP: Record<NotifyEventType, NotifyVerbosity[]> = {
+  'session-start': ['minimal', 'session', 'agent', 'verbose'],
+  'session-stop':  ['minimal', 'session', 'agent', 'verbose'],
+  'mode-change':   ['session', 'agent', 'verbose'],
+  'cost-alert':    ['session', 'agent', 'verbose'],
+  'error':         ['session', 'agent', 'verbose'],
+  'agent-call':    ['agent', 'verbose'],
+  'agent-done':    ['agent', 'verbose'],
+  'hook-trigger':  ['verbose'],
+};
+
+/** 이벤트가 현재 verbosity 레벨에서 알림되어야 하는지 판정 */
+export function shouldNotify(event: NotifyEvent, verbosity: NotifyVerbosity): boolean {
+  const allowed = VERBOSITY_MAP[event.type];
+  if (!allowed) return false;
+  return allowed.includes(verbosity);
+}
+
+/** Verbosity 기반 이벤트 알림 전송 */
+export async function notifyEvent(event: NotifyEvent): Promise<void> {
+  const config = loadGlobalConfig();
+  const verbosity = config.notifyVerbosity ?? 'session';
+
+  if (!shouldNotify(event, verbosity)) return;
+
+  await notify({
+    title: `[${event.type}]`,
+    message: event.message,
+    sound: event.type === 'error' || event.type === 'cost-alert',
+  });
+}
 
 interface NotifyOptions {
   title: string;

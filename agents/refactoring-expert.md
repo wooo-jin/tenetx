@@ -4,6 +4,7 @@ name: refactoring-expert
 description: Systematic refactoring specialist — tech debt reduction, clean code principles
 model: sonnet
 tier: MEDIUM
+lane: build
 tools:
   - Read
   - Edit

@@ -8,6 +8,8 @@ export interface Philosophy {
   version: string;
   author: string;
   description?: string;
+  /** 중앙 관리 팩에서 상속 (예: "pack:emr-standard") */
+  extends?: string;
   principles: Record<string, Principle>;
 }
 

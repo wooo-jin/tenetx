@@ -4,6 +4,7 @@ name: test-engineer
 description: Test strategist — integration/E2E coverage, TDD, flaky test hardening
 model: sonnet
 tier: MEDIUM
+lane: domain
 tools:
   - Read
   - Edit

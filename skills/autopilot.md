@@ -70,12 +70,12 @@ IF 요청이 명확하면 (파일 경로, 함수명, 에러 메시지 등 구체
 4. 모든 테스트 통과 확인
 
 ## Phase 4 — Validation (다각 검증)
-다음 관점으로 최종 검증 (Agent 병렬 실행 권장):
-1. **Architecture Review**: 아키텍처 일관성, 패턴 준수
-2. **Security Review**: OWASP Top 10, 시크릿 노출
-3. **Code Quality**: 로직 결함, 유지보수성
+REVIEW 레인 에이전트로 최종 검증 (병렬 실행 권장):
+1. **code-reviewer**: 로직 결함, 유지보수성, 패턴 준수
+2. **security-reviewer**: OWASP Top 10, 시크릿 노출
+3. **critic**: 아키텍처 일관성, 설계 검증
 
-각 검증에서 CRITICAL 이슈 발견 시 → Phase 2로 돌아가 수정
+각 검증에서 CRITICAL 이슈 발견 시 → Phase 2로 돌아가 수정 (BUILD 레인 재진입)
 
 ## Phase 5 — Cleanup (정리)
 1. .compound/state/autopilot-state.json 정리

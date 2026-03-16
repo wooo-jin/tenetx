@@ -65,18 +65,40 @@ Claude Code 네이티브 팀 API를 활용합니다.
 </Handoff_Protocol>
 
 <Agent_Routing>
-| 태스크 유형 | 에이전트 | 모델 |
-|------------|---------|------|
-| 탐색/검색 | explore | Haiku |
-| 계획/설계 | planner, architect | Opus |
-| 요구사항 | analyst | Opus |
-| 코드 구현 | executor | Sonnet |
-| 디버깅 | debugger | Sonnet |
-| 검증 | verifier | Sonnet |
-| 보안 | security-reviewer | Sonnet |
-| 코드 리뷰 | code-reviewer | Sonnet |
-| 비평 | critic | Opus |
-| 문서 | writer | Haiku |
+
+### Lane 기반 파이프라인
+에이전트는 3개 레인으로 구조화됩니다:
+
+**BUILD Lane** (순차 파이프라인):
+explore → analyst → planner → architect → debugger → executor → verifier → code-simplifier → refactoring-expert
+
+**REVIEW Lane** (병렬 검증):
+code-reviewer, security-reviewer, critic
+
+**DOMAIN Lane** (전문 영역):
+designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git-master
+
+### 모델 라우팅
+| 태스크 유형 | 에이전트 | 모델 | 레인 |
+|------------|---------|------|------|
+| 탐색/검색 | explore | Haiku | build |
+| 요구사항 | analyst | Opus | build |
+| 계획/설계 | planner, architect | Opus | build |
+| 디버깅 | debugger | Sonnet | build |
+| 코드 구현 | executor | Sonnet | build |
+| 검증 | verifier | Sonnet | build |
+| 단순화 | code-simplifier | Opus | build |
+| 리팩토링 | refactoring-expert | Sonnet | build |
+| 코드 리뷰 | code-reviewer | Sonnet | review |
+| 보안 | security-reviewer | Sonnet | review |
+| 비평 | critic | Opus | review |
+| UI/UX | designer | Sonnet | domain |
+| 테스트 | test-engineer | Sonnet | domain |
+| 문서 | writer | Haiku | domain |
+| QA | qa-tester | Sonnet | domain |
+| 성능 | performance-reviewer | Sonnet | domain |
+| 데이터 분석 | scientist | Sonnet | domain |
+| Git 관리 | git-master | Sonnet | domain |
 </Agent_Routing>
 
 <State_Management>

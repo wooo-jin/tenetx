@@ -2,7 +2,16 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { generateClaudeRules, buildEnv } from '../src/core/config-injector.js';
+import {
+  generateClaudeRules,
+  generateClaudeRuleFiles,
+  generateSecurityRules,
+  generateGoldenPrinciples,
+  generateAntiPatternRules,
+  generateRoutingRules,
+  generateCompoundRules,
+  buildEnv,
+} from '../src/core/config-injector.js';
 import type { HarnessContext } from '../src/core/types.js';
 
 const baseContext: HarnessContext = {
@@ -176,5 +185,107 @@ describe('generateClaudeRules — 프로젝트 맵 주입', () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('generateClaudeRuleFiles — 5개 분할', () => {
+  it('5개의 규칙 파일을 생성한다', () => {
+    const files = generateClaudeRuleFiles(baseContext);
+    expect(Object.keys(files)).toEqual([
+      'security.md',
+      'golden-principles.md',
+      'anti-pattern.md',
+      'routing.md',
+      'compound.md',
+    ]);
+  });
+
+  it('모든 파일이 비어있지 않다', () => {
+    const files = generateClaudeRuleFiles(baseContext);
+    for (const [name, content] of Object.entries(files)) {
+      expect(content.length, `${name} should not be empty`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('generateSecurityRules', () => {
+  it('보안 관련 키워드를 포함한다', () => {
+    const result = generateSecurityRules(baseContext);
+    expect(result).toContain('보안 규칙');
+    expect(result).toContain('위험 명령어');
+    expect(result).toContain('비밀키 보호');
+  });
+
+  it('철학에 alert가 있으면 보안 알림 섹션을 포함한다', () => {
+    const ctx: HarnessContext = {
+      ...baseContext,
+      philosophy: {
+        ...baseContext.philosophy,
+        principles: {
+          'safety-first': {
+            belief: 'safety is paramount',
+            generates: [
+              { alert: '위험한 명령어 감지됨' },
+              'normal rule',
+            ],
+          },
+        },
+      },
+    };
+    const result = generateSecurityRules(ctx);
+    expect(result).toContain('위험한 명령어 감지됨');
+  });
+});
+
+describe('generateGoldenPrinciples', () => {
+  it('철학 원칙의 belief를 포함한다', () => {
+    const result = generateGoldenPrinciples(baseContext);
+    expect(result).toContain('핵심 원칙');
+    expect(result).toContain('precision prevents mistakes');
+    expect(result).toContain('always verify before acting');
+  });
+});
+
+describe('generateAntiPatternRules', () => {
+  it('안티패턴 관련 규칙을 포함한다', () => {
+    const result = generateAntiPatternRules();
+    expect(result).toContain('안티패턴 감지');
+    expect(result).toContain('반복 수정 경고');
+    expect(result).toContain('에러 무시 경고');
+  });
+});
+
+describe('generateRoutingRules', () => {
+  it('라우팅이 있으면 모델 라우팅 테이블을 포함한다', () => {
+    const result = generateRoutingRules(contextWithRouting);
+    expect(result).toContain('에이전트 모델 라우팅');
+    expect(result).toContain('claude-opus-4-6');
+  });
+
+  it('라우팅이 없으면 미설정 메시지를 표시한다', () => {
+    const result = generateRoutingRules(baseContext);
+    expect(result).toContain('모델 라우팅 미설정');
+  });
+
+  it('signalRoutingEnabled가 true이면 에스컬레이션 섹션을 포함한다', () => {
+    const ctx: HarnessContext = {
+      ...contextWithRouting,
+      signalRoutingEnabled: true,
+    };
+    const result = generateRoutingRules(ctx);
+    expect(result).toContain('동적 모델 에스컬레이션');
+  });
+});
+
+describe('generateCompoundRules', () => {
+  it('Compound Loop 헤더를 포함한다', () => {
+    const result = generateCompoundRules(baseContext);
+    expect(result).toContain('Compound Loop');
+  });
+
+  it('team이 있으면 팩 정보를 포함한다', () => {
+    const result = generateCompoundRules(contextWithTeam);
+    expect(result).toContain('Pack: alpha-pack');
+    expect(result).toContain('5 solutions');
   });
 });

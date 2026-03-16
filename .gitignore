@@ -20,3 +20,13 @@ Thumbs.db
 # Environment
 .env
 .env.*
+
+# Tenet (auto-generated, do not commit)
+.claude/agents/ch-*.md
+.claude/rules/security.md
+.claude/rules/golden-principles.md
+.claude/rules/anti-pattern.md
+.claude/rules/routing.md
+.claude/rules/compound.md
+.compound/project-map.json
+.compound/notepad.md

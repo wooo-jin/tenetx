@@ -4,6 +4,7 @@ name: architect
 description: Strategic architecture advisor (READ-ONLY)
 model: opus
 tier: HIGH
+lane: build
 disallowedTools:
   - Write
   - Edit

@@ -37,6 +37,7 @@
     "dist/",
     "agents/",
     "skills/",
+    "packs/",
     "plugin.json",
     "README.md",
     "LICENSE"

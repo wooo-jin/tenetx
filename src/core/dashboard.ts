@@ -27,8 +27,14 @@ function findDashboardPane(): string | null {
 
 /** Toggle tmux dashboard pane open/close */
 export async function toggleDashboard(): Promise<void> {
+  if (process.platform === 'win32') {
+    console.log('[tenet] 대시보드는 현재 Windows를 지원하지 않습니다.');
+    console.log('  WSL 또는 macOS/Linux에서 사용하세요.');
+    return;
+  }
   if (!process.env.TMUX) {
     console.log('[tenet] tmux 세션에서만 대시보드를 사용할 수 있습니다.');
+    console.log('  설치: brew install tmux (macOS) / apt install tmux (Linux)');
     return;
   }
 

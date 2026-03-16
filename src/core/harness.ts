@@ -1,10 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { loadPhilosophyForProject, initDefaultPhilosophy } from './philosophy-loader.js';
 import { resolveScope } from './scope-resolver.js';
-import { generateClaudeRules, buildEnv, registerTmuxBindings } from './config-injector.js';
+import { generateClaudeRuleFiles, buildEnv, registerTmuxBindings } from './config-injector.js';
 import { COMPOUND_HOME, ME_DIR, ME_SOLUTIONS, ME_RULES, SESSIONS_DIR } from './paths.js';
 import { startSessionLog } from './session-logger.js';
 import { ModelRouter } from '../engine/router.js';
@@ -13,47 +12,16 @@ import type { HarnessContext } from './types.js';
 import { debugLog } from './logger.js';
 import { cleanStaleStateFiles } from './state-gc.js';
 import { loadGlobalConfig } from './global-config.js';
-
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
-const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
-const SETTINGS_BACKUP_PATH = path.join(CLAUDE_DIR, 'settings.json.tenet-backup');
-const SETTINGS_LOCK_PATH = path.join(CLAUDE_DIR, 'settings.json.lock');
-
-/** lockfile 획득 (최대 3초 대기, 100ms 간격 재시도) */
-function acquireLock(): void {
-  const maxWaitMs = 3000;
-  const intervalMs = 100;
-  const start = Date.now();
-
-  while (Date.now() - start < maxWaitMs) {
-    try {
-      fs.writeFileSync(SETTINGS_LOCK_PATH, String(process.pid), { flag: 'wx' });
-      return; // 성공
-    } catch {
-      // lock 파일이 이미 존재 — 대기 후 재시도
-      const elapsed = Date.now() - start;
-      if (elapsed + intervalMs >= maxWaitMs) break;
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, intervalMs);
-    }
-  }
-  // 타임아웃: stale lock일 수 있으므로 강제 획득
-  debugLog('harness', 'lockfile 타임아웃 — stale lock 강제 해제');
-  fs.writeFileSync(SETTINGS_LOCK_PATH, String(process.pid));
-}
-
-/** lockfile 해제 */
-function releaseLock(): void {
-  try {
-    fs.rmSync(SETTINGS_LOCK_PATH, { force: true });
-  } catch { /* 이미 없으면 무시 */ }
-}
-
-/** 임시파일에 쓴 후 rename으로 원자적 교체 */
-function atomicWriteFileSync(targetPath: string, data: string): void {
-  const tmpPath = `${targetPath}.tmp.${process.pid}`;
-  fs.writeFileSync(tmpPath, data);
-  fs.renameSync(tmpPath, targetPath);
-}
+import { autoSyncIfNeeded } from './pack-config.js';
+import {
+  CLAUDE_DIR,
+  SETTINGS_PATH,
+  SETTINGS_BACKUP_PATH,
+  acquireLock,
+  releaseLock,
+  atomicWriteFileSync,
+  rollbackSettings,
+} from './settings-lock.js';
 
 /** tenet 패키지 루트 */
 function getPackageRoot(): string {
@@ -86,21 +54,7 @@ function ensureDirectories(): void {
   }
 }
 
-/** settings.json.tenet-backup 파일에서 원본 복원 */
-export function rollbackSettings(): boolean {
-  if (!fs.existsSync(SETTINGS_BACKUP_PATH)) return false;
-  acquireLock();
-  try {
-    const backup = fs.readFileSync(SETTINGS_BACKUP_PATH, 'utf-8');
-    atomicWriteFileSync(SETTINGS_PATH, backup);
-    fs.rmSync(SETTINGS_BACKUP_PATH);
-    return true;
-  } catch {
-    return false;
-  } finally {
-    releaseLock();
-  }
-}
+export { rollbackSettings };
 
 /** Claude Code settings.json에 하네스 환경변수 + 훅 주입 */
 function injectSettings(env: Record<string, string>): void {
@@ -142,15 +96,24 @@ function injectSettings(env: Record<string, string>): void {
   const preCompactPath = path.join(pkgRoot, 'dist', 'hooks', 'pre-compact.js');
   const permissionHandlerPath = path.join(pkgRoot, 'dist', 'hooks', 'permission-handler.js');
   const postToolFailurePath = path.join(pkgRoot, 'dist', 'hooks', 'post-tool-failure.js');
+  const notepadInjectorPath = path.join(pkgRoot, 'dist', 'hooks', 'notepad-injector.js');
+  const secretFilterPath = path.join(pkgRoot, 'dist', 'hooks', 'secret-filter.js');
+  const dbGuardPath = path.join(pkgRoot, 'dist', 'hooks', 'db-guard.js');
+  const rateLimiterPath = path.join(pkgRoot, 'dist', 'hooks', 'rate-limiter.js');
 
   /** tenet 훅인지 판별 (matcher 래핑 여부 무관) */
   function isCHHook(entry: Record<string, unknown>): boolean {
+    // 패키지 dist/hooks 경로를 포함하는 커맨드인지 확인
+    const hookMarkers = ['tenet', 'compound-harness', pkgRoot];
+    function matchesMarker(cmd: string): boolean {
+      return hookMarkers.some(m => cmd.includes(m));
+    }
     // 직접 형식: { type, command }
-    if (typeof entry.command === 'string' && entry.command.includes('tenet')) return true;
+    if (typeof entry.command === 'string' && matchesMarker(entry.command)) return true;
     // 래핑 형식: { matcher, hooks: [{ command }] }
     const hooks = entry.hooks as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(hooks)) {
-      return hooks.some(h => typeof h.command === 'string' && h.command.includes('tenet'));
+      return hooks.some(h => typeof h.command === 'string' && matchesMarker(h.command));
     }
     return false;
   }
@@ -164,14 +127,16 @@ function injectSettings(env: Record<string, string>): void {
   }
 
   // 기존 CH 훅 제거 (이전 잘못된 형식 포함)
-  function filterOutCH(arr: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
-    return arr.filter(h => !isCHHook(h));
+  function ensureArray(val: unknown): Array<Record<string, unknown>> {
+    return Array.isArray(val) ? val : [];
+  }
+  function filterOutCH(arr: unknown): Array<Record<string, unknown>> {
+    return ensureArray(arr).filter(h => !isCHHook(h));
   }
 
   // UserPromptSubmit 훅
   const promptHooks = filterOutCH(
-    (hooksConfig.UserPromptSubmit as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.UserPromptSubmit);
   if (fs.existsSync(keywordDetectorPath)) {
     promptHooks.push(makeHookEntry(`node "${keywordDetectorPath}"`, 5000));
   }
@@ -181,12 +146,14 @@ function injectSettings(env: Record<string, string>): void {
   if (fs.existsSync(contextGuardPath)) {
     promptHooks.push(makeHookEntry(`node "${contextGuardPath}"`, 2000));
   }
+  if (fs.existsSync(notepadInjectorPath)) {
+    promptHooks.push(makeHookEntry(`node "${notepadInjectorPath}"`, 3000));
+  }
   hooksConfig.UserPromptSubmit = promptHooks;
 
   // SessionStart 훅
   const sessionHooks = filterOutCH(
-    (hooksConfig.SessionStart as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.SessionStart);
   if (fs.existsSync(sessionRecoveryPath)) {
     sessionHooks.push(makeHookEntry(`node "${sessionRecoveryPath}"`, 3000));
   }
@@ -194,35 +161,40 @@ function injectSettings(env: Record<string, string>): void {
 
   // Stop 훅 (에러 감지 + context limit 경고)
   const stopHooks = filterOutCH(
-    (hooksConfig.Stop as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.Stop);
   if (fs.existsSync(contextGuardPath)) {
     stopHooks.push(makeHookEntry(`node "${contextGuardPath}"`, 3000));
   }
   hooksConfig.Stop = stopHooks;
 
-  // PreToolUse 훅 (위험 명령어 차단 + 모드 리마인더)
+  // PreToolUse 훅 (위험 명령어 차단 + 모드 리마인더 + DB 가드 + 레이트 리미터)
   const preToolHooks = filterOutCH(
-    (hooksConfig.PreToolUse as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.PreToolUse);
   if (fs.existsSync(preToolUsePath)) {
     preToolHooks.push(makeHookEntry(`node "${preToolUsePath}"`, 3000));
   }
+  if (fs.existsSync(dbGuardPath)) {
+    preToolHooks.push(makeHookEntry(`node "${dbGuardPath}"`, 3000));
+  }
+  if (fs.existsSync(rateLimiterPath)) {
+    preToolHooks.push(makeHookEntry(`node "${rateLimiterPath}"`, 2000));
+  }
   hooksConfig.PreToolUse = preToolHooks;
 
-  // PostToolUse 훅 (파일 변경 추적 + 에러 감지)
+  // PostToolUse 훅 (파일 변경 추적 + 에러 감지 + 시크릿 필터)
   const postToolHooks = filterOutCH(
-    (hooksConfig.PostToolUse as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.PostToolUse);
   if (fs.existsSync(postToolUsePath)) {
     postToolHooks.push(makeHookEntry(`node "${postToolUsePath}"`, 3000));
+  }
+  if (fs.existsSync(secretFilterPath)) {
+    postToolHooks.push(makeHookEntry(`node "${secretFilterPath}"`, 3000));
   }
   hooksConfig.PostToolUse = postToolHooks;
 
   // SubagentStart 훅
   const subagentStartHooks = filterOutCH(
-    (hooksConfig.SubagentStart as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.SubagentStart);
   if (fs.existsSync(subagentTrackerPath)) {
     subagentStartHooks.push(makeHookEntry(`node "${subagentTrackerPath}" start`, 2000));
   }
@@ -230,8 +202,7 @@ function injectSettings(env: Record<string, string>): void {
 
   // SubagentStop 훅
   const subagentStopHooks = filterOutCH(
-    (hooksConfig.SubagentStop as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.SubagentStop);
   if (fs.existsSync(subagentTrackerPath)) {
     subagentStopHooks.push(makeHookEntry(`node "${subagentTrackerPath}" stop`, 2000));
   }
@@ -239,8 +210,7 @@ function injectSettings(env: Record<string, string>): void {
 
   // PreCompact 훅 (컨텍스트 압축 전 상태 보존)
   const preCompactHooks = filterOutCH(
-    (hooksConfig.PreCompact as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.PreCompact);
   if (fs.existsSync(preCompactPath)) {
     preCompactHooks.push(makeHookEntry(`node "${preCompactPath}"`, 3000));
   }
@@ -248,8 +218,7 @@ function injectSettings(env: Record<string, string>): void {
 
   // PermissionRequest 훅 (권한 요청 정책)
   const permissionHooks = filterOutCH(
-    (hooksConfig.PermissionRequest as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.PermissionRequest);
   if (fs.existsSync(permissionHandlerPath)) {
     permissionHooks.push(makeHookEntry(`node "${permissionHandlerPath}"`, 2000));
   }
@@ -257,8 +226,7 @@ function injectSettings(env: Record<string, string>): void {
 
   // PostToolUseFailure 훅 (도구 실패 시 복구 안내)
   const postToolFailureHooks = filterOutCH(
-    (hooksConfig.PostToolUseFailure as Array<Record<string, unknown>>) ?? []
-  );
+    hooksConfig.PostToolUseFailure);
   if (fs.existsSync(postToolFailurePath)) {
     postToolFailureHooks.push(makeHookEntry(`node "${postToolFailurePath}"`, 3000));
   }
@@ -270,11 +238,11 @@ function injectSettings(env: Record<string, string>): void {
     atomicWriteFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
   } catch (err) {
     // 쓰기 실패 시 백업에서 자동 복원
-    releaseLock();
     rollbackSettings();
     throw err;
+  } finally {
+    releaseLock();
   }
-  releaseLock();
 }
 
 /** 콘텐츠의 SHA-256 해시 (첫 12자) */
@@ -357,13 +325,15 @@ function installAgents(cwd: string): void {
   }
 }
 
-/** 프로젝트 .claude/rules/compound.md에 하네스 규칙 작성 (Claude Code 자동 로드) */
-function injectClaudeRules(cwd: string, rules: string): void {
+/** 프로젝트 .claude/rules/ 에 다중 하네스 규칙 파일 작성 (Claude Code 자동 로드) */
+function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): void {
   const rulesDir = path.join(cwd, '.claude', 'rules');
-  const rulesPath = path.join(rulesDir, 'compound.md');
-
   fs.mkdirSync(rulesDir, { recursive: true });
-  fs.writeFileSync(rulesPath, rules);
+
+  // 각 규칙 파일 작성
+  for (const [filename, content] of Object.entries(ruleFiles)) {
+    fs.writeFileSync(path.join(rulesDir, filename), content);
+  }
 
   // 마이그레이션: 이전 위치(.claude/compound-rules.md) 파일 제거
   const legacyPath = path.join(cwd, '.claude', 'compound-rules.md');
@@ -383,6 +353,36 @@ function injectClaudeRules(cwd: string, rules: string): void {
       const cleaned = content.replace(regex, '\n').replace(/\n{3,}/g, '\n\n').trim();
       fs.writeFileSync(claudeMdPath, cleaned ? `${cleaned}\n` : '');
     }
+  }
+}
+
+/** tenet 생성 파일을 .gitignore에 등록 (팀 사용 시 충돌 방지) */
+function ensureGitignore(cwd: string): void {
+  const gitignorePath = path.join(cwd, '.gitignore');
+  const tenetEntries = [
+    '# Tenet (auto-generated, do not commit)',
+    '.claude/agents/ch-*.md',
+    '.claude/rules/security.md',
+    '.claude/rules/golden-principles.md',
+    '.claude/rules/anti-pattern.md',
+    '.claude/rules/routing.md',
+    '.claude/rules/compound.md',
+    '.compound/project-map.json',
+    '.compound/notepad.md',
+  ];
+  const marker = '.claude/agents/ch-*.md';
+
+  try {
+    let content = '';
+    if (fs.existsSync(gitignorePath)) {
+      content = fs.readFileSync(gitignorePath, 'utf-8');
+      // 이미 등록되어 있으면 스킵
+      if (content.includes(marker)) return;
+    }
+    const newContent = content.trimEnd() + '\n\n' + tenetEntries.join('\n') + '\n';
+    fs.writeFileSync(gitignorePath, newContent);
+  } catch {
+    // .gitignore 쓰기 실패는 무시 (권한 등)
   }
 }
 
@@ -429,16 +429,25 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     // 8. 에이전트 설치
     installAgents(cwd);
 
-    // 9. CLAUDE.md 규칙 주입 (라우팅 테이블 포함)
-    const rules = generateClaudeRules(context);
-    injectClaudeRules(cwd, rules);
+    // 9. 규칙 파일 주입 (5개 분할)
+    const ruleFiles = generateClaudeRuleFiles(context);
+    injectClaudeRuleFiles(cwd, ruleFiles);
 
     // 10. tmux 바인딩 등록
     if (inTmux) {
       await registerTmuxBindings();
     }
 
-    // 11. 세션 로그 시작
+    // 11. .gitignore에 tenet 생성 파일 등록 (팀 충돌 방지)
+    ensureGitignore(cwd);
+
+    // 12. 팩 auto-sync (github 연결 시)
+    const syncMessage = await autoSyncIfNeeded(cwd);
+    if (syncMessage) {
+      debugLog('harness', syncMessage);
+    }
+
+    // 13. 세션 로그 시작
     startSessionLog(context);
 
     return context;

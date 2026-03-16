@@ -7,9 +7,10 @@ import { COMPOUND_HOME, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR
 /** ~/.claude/projects/ — Claude Code 세션 저장 경로 */
 const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
 
-function check(label: string, condition: boolean): void {
+function check(label: string, condition: boolean, hint?: string): void {
   const icon = condition ? '✓' : '✗';
-  console.log(`  ${icon} ${label}`);
+  const hintStr = !condition && hint ? ` — ${hint}` : '';
+  console.log(`  ${icon} ${label}${hintStr}`);
 }
 
 function exists(p: string): boolean {
@@ -33,6 +34,7 @@ export async function runDoctor(): Promise<void> {
   check('claude CLI', commandExists('claude'));
   check('tmux', commandExists('tmux'));
   check('git', commandExists('git'));
+  check('gh (GitHub CLI)', commandExists('gh'), '팀 PR 기능에 필요: brew install gh');
   console.log();
 
   // 디렉토리 구조

@@ -4,6 +4,7 @@ name: explore
 description: Fast codebase explorer — file/pattern search, structure mapping (READ-ONLY)
 model: haiku
 tier: LOW
+lane: build
 disallowedTools:
   - Write
   - Edit

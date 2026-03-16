@@ -4,6 +4,7 @@ name: writer
 description: Technical writer — README, API docs, migration guides, inline comments
 model: haiku
 tier: LOW
+lane: domain
 tools:
   - Read
   - Edit

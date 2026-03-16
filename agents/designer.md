@@ -4,6 +4,7 @@ name: designer
 description: UI/UX designer — component architecture, accessibility, responsive design
 model: sonnet
 tier: MEDIUM
+lane: domain
 tools:
   - Read
   - Edit

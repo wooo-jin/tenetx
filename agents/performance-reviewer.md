@@ -4,6 +4,7 @@ name: performance-reviewer
 description: Performance auditor — hotspots, algorithmic complexity, memory/latency analysis (READ-ONLY)
 model: sonnet
 tier: MEDIUM
+lane: domain
 disallowedTools:
   - Write
   - Edit

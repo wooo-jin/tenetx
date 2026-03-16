@@ -4,6 +4,7 @@ name: verifier
 description: Completion verifier — evidence collection, test adequacy, request-outcome mapping (READ-ONLY)
 model: sonnet
 tier: MEDIUM
+lane: build
 disallowedTools:
   - Write
   - Edit

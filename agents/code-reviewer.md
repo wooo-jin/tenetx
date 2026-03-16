@@ -4,6 +4,7 @@ name: code-reviewer
 description: Code quality reviewer — logic flaws, maintainability, anti-patterns, SOLID (READ-ONLY)
 model: sonnet
 tier: MEDIUM
+lane: review
 disallowedTools:
   - Write
   - Edit

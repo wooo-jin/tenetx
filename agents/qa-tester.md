@@ -4,6 +4,7 @@ name: qa-tester
 description: QA tester — interactive validation, manual test scenarios, reproduction steps
 model: sonnet
 tier: MEDIUM
+lane: domain
 tools:
   - Read
   - Bash

@@ -69,16 +69,51 @@ function loadProjectMapSummary(cwd: string): string | null {
   }
 }
 
-/** 철학에서 CLAUDE.md에 주입할 규칙 생성 */
-export function generateClaudeRules(context: HarnessContext): string {
+/** 보안 관련 규칙 생성 */
+export function generateSecurityRules(context: HarnessContext): string {
   const lines: string[] = [
-    '# Tenet — 자동 생성 규칙',
+    '# Tenet — 보안 규칙',
+    `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
+    '',
+    '## 위험 명령어 경고',
+    '- `rm -rf`, `git push --force`, `DROP TABLE` 등 파괴적 명령어 실행 전 반드시 확인',
+    '- 프로덕션 환경 접근 시 이중 확인 필수',
+    '',
+    '## 비밀키 보호',
+    '- `.env`, `credentials.json`, API 키 등 민감 정보를 커밋하지 않음',
+    '- 환경변수 또는 시크릿 매니저를 통해 관리',
+    '- 코드 리뷰 시 하드코딩된 시크릿 탐지',
+    '',
+  ];
+
+  // 철학에서 보안 관련 alert 추출
+  for (const [name, principle] of Object.entries(context.philosophy.principles)) {
+    const alerts = principle.generates.filter(
+      g => typeof g !== 'string' && g.alert
+    );
+    if (alerts.length > 0) {
+      lines.push(`## ${name} — 보안 알림`);
+      for (const gen of alerts) {
+        if (typeof gen !== 'string' && gen.alert) {
+          lines.push(`- ⚠ ${gen.alert}`);
+        }
+      }
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/** 핵심 원칙 규칙 생성 (philosophy.generates에서 추출) */
+export function generateGoldenPrinciples(context: HarnessContext): string {
+  const lines: string[] = [
+    '# Tenet — 핵심 원칙',
     `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
     `# Scope: ${context.scope.summary}`,
     '',
   ];
 
-  // 철학 원칙에서 규칙 추출
   for (const [name, principle] of Object.entries(context.philosophy.principles)) {
     lines.push(`## ${name}`);
     lines.push(`> ${principle.belief}`);
@@ -87,16 +122,46 @@ export function generateClaudeRules(context: HarnessContext): string {
     for (const gen of principle.generates) {
       if (typeof gen === 'string') {
         lines.push(`- ${gen}`);
-      } else if (gen.alert) {
-        lines.push(`- ⚠ ${gen.alert}`);
-      } else if (gen.routing) {
-        lines.push(`- 🔀 ${gen.routing}`);
+      } else if (gen.step) {
+        lines.push(`- 📋 ${gen.step}`);
       }
     }
     lines.push('');
   }
 
-  // 모델 라우팅 테이블
+  return lines.join('\n');
+}
+
+/** 안티패턴 감지 규칙 생성 */
+export function generateAntiPatternRules(): string {
+  const lines: string[] = [
+    '# Tenet — 안티패턴 감지',
+    '',
+    '## 반복 수정 경고',
+    '- 동일 파일을 3회 이상 수정 시 즉시 중단 → 전체 구조 재설계 필요',
+    '- 5회 이상 수정 시 반드시 Read로 현재 상태 확인 후 단일 Write로 교체',
+    '',
+    '## 에러 무시 경고',
+    '- 빈 catch 블록 금지 — 최소한 로깅 또는 재throw 필수',
+    '- eslint-disable, @ts-ignore 등 억제 주석 최소화',
+    '',
+    '## 과도한 복잡성 경고',
+    '- 단일 함수 50줄 초과 시 분리 검토',
+    '- 중첩 깊이 4단계 초과 시 early return 패턴 적용',
+    '- 불필요한 추상화 금지 — 현재 필요한 만큼만 구현',
+    '',
+  ];
+
+  return lines.join('\n');
+}
+
+/** 모델 라우팅 테이블 규칙 생성 */
+export function generateRoutingRules(context: HarnessContext): string {
+  const lines: string[] = [
+    '# Tenet — 모델 라우팅',
+    '',
+  ];
+
   if (context.modelRouting) {
     lines.push('## 에이전트 모델 라우팅');
     lines.push('작업 유형별 권장 모델 (focus-resources-on-judgment 원칙):');
@@ -107,7 +172,6 @@ export function generateClaudeRules(context: HarnessContext): string {
     }
     lines.push('');
 
-    // 신호 기반 동적 라우팅 안내
     if (context.signalRoutingEnabled) {
       lines.push('### 동적 모델 에스컬레이션');
       lines.push('위 테이블은 기본 라우팅이며, 프롬프트 복잡도에 따라 자동 에스컬레이션됩니다:');
@@ -117,9 +181,23 @@ export function generateClaudeRules(context: HarnessContext): string {
       lines.push('에이전트(Agent 도구) 호출 시 `model` 파라미터를 이 라우팅에 맞춰 지정하세요.');
       lines.push('');
     }
+  } else {
+    lines.push('모델 라우팅 미설정. 기본 라우팅을 사용합니다.');
+    lines.push('');
   }
 
-  // 프로젝트 맵 요약 주입 (Phase D: 에이전트 감각 확장)
+  return lines.join('\n');
+}
+
+/** compound loop 규칙 생성 (축소) */
+export function generateCompoundRules(context: HarnessContext): string {
+  const lines: string[] = [
+    '# Tenet — Compound Loop',
+    `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
+    '',
+  ];
+
+  // 프로젝트 맵 요약 주입
   const mapSummary = loadProjectMapSummary(context.cwd);
   if (mapSummary) {
     lines.push('## 프로젝트 구조 (자동 생성)');
@@ -155,13 +233,30 @@ export function generateClaudeRules(context: HarnessContext): string {
   return lines.join('\n');
 }
 
+/** 모든 규칙 파일을 생성하여 반환 */
+export function generateClaudeRuleFiles(context: HarnessContext): Record<string, string> {
+  return {
+    'security.md': generateSecurityRules(context),
+    'golden-principles.md': generateGoldenPrinciples(context),
+    'anti-pattern.md': generateAntiPatternRules(),
+    'routing.md': generateRoutingRules(context),
+    'compound.md': generateCompoundRules(context),
+  };
+}
+
+/** 하위 호환: 단일 규칙 문자열 생성 (기존 테스트 호환) */
+export function generateClaudeRules(context: HarnessContext): string {
+  const files = generateClaudeRuleFiles(context);
+  return Object.values(files).join('\n');
+}
+
 /** tmux 키바인딩 등록 */
 export async function registerTmuxBindings(): Promise<void> {
   const { execSync } = await import('node:child_process');
   try {
-    // prefix + D = 대시보드 토글 (Ctrl+B → D)
-    // Ctrl+D는 EOF 신호와 충돌하므로 대문자 D 사용
-    execSync('tmux bind-key D run-shell "tenet toggle-dashboard"', { stdio: 'ignore' });
+    // prefix + T = 대시보드 토글 (Ctrl+B → Shift+T)
+    // D는 detach와 혼동될 수 있으므로 T(enet) 사용
+    execSync('tmux bind-key T run-shell "tenet toggle-dashboard"', { stdio: 'ignore' });
   } catch (e) {
     debugLog('config-injector', 'tmux 키바인딩 등록 실패', e);
   }

@@ -4,6 +4,7 @@ name: planner
 description: Strategic planning with interview-based requirement gathering
 model: opus
 tier: HIGH
+lane: build
 ---
 
 <Agent_Prompt>

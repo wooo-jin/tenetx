@@ -4,6 +4,7 @@ name: debugger
 description: Root-cause debugger — isolates regressions and analyzes stack traces
 model: sonnet
 tier: MEDIUM
+lane: build
 tools:
   - Read
   - Bash

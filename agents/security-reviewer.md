@@ -4,6 +4,7 @@ name: security-reviewer
 description: Security auditor — OWASP Top 10, secrets exposure, injection, auth flaws (READ-ONLY)
 model: sonnet
 tier: MEDIUM
+lane: review
 disallowedTools:
   - Write
   - Edit

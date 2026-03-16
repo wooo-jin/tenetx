@@ -4,6 +4,7 @@ name: executor
 description: Focused code implementation specialist
 model: sonnet
 tier: MEDIUM
+lane: build
 tools:
   - Read
   - Edit

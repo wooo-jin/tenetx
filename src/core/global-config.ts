@@ -1,6 +1,15 @@
 import * as fs from 'node:fs';
 import { GLOBAL_CONFIG } from './paths.js';
 
+export type NotifyVerbosity = 'minimal' | 'session' | 'agent' | 'verbose';
+
+export interface GatewayConfig {
+  url: string;
+  headers?: Record<string, string>;
+  events?: string[];
+  enabled: boolean;
+}
+
 export interface GlobalConfig {
   /** 사용자 프로필 이름 */
   name?: string;
@@ -8,6 +17,10 @@ export interface GlobalConfig {
   dangerouslySkipPermissions?: boolean;
   /** 모델 라우팅 프리셋 */
   modelRouting?: 'default' | 'cost-saving' | 'max-quality';
+  /** 알림 상세도 */
+  notifyVerbosity?: NotifyVerbosity;
+  /** 이벤트 게이트웨이 설정 */
+  gateway?: GatewayConfig;
 }
 
 /** ~/.compound/config.json 로드 */

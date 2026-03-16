@@ -4,6 +4,7 @@ name: critic
 description: Final quality gate — plan/code verifier (READ-ONLY)
 model: opus
 tier: HIGH
+lane: review
 disallowedTools:
   - Write
   - Edit

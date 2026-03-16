@@ -1,10 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as readline from 'node:readline';
-
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
-const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
+import {
+  SETTINGS_PATH,
+  acquireLock,
+  releaseLock,
+  atomicWriteFileSync,
+} from './settings-lock.js';
 
 /** 사용자에게 y/n 확인 */
 function confirm(message: string): Promise<boolean> {
@@ -40,13 +42,28 @@ function cleanSettings(): void {
     }
   }
 
-  // hooks에서 tenet 포함 엔트리 제거
+  // hooks에서 tenet 관련 엔트리 제거
+  const hookMarkers = ['tenet', 'compound-harness'];
+  function isCHCommand(cmd: string): boolean {
+    return hookMarkers.some(m => cmd.includes(m));
+  }
+  function isCHHookEntry(entry: Record<string, unknown>): boolean {
+    // 직접 형식: { type, command }
+    if (typeof entry.command === 'string' && isCHCommand(entry.command)) return true;
+    // 래핑 형식: { matcher, hooks: [{ command }] }
+    const innerHooks = entry.hooks as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(innerHooks)) {
+      return innerHooks.some(h => typeof h.command === 'string' && isCHCommand(h.command));
+    }
+    return false;
+  }
+
   const hooks = settings.hooks as Record<string, unknown[]> | undefined;
   if (hooks) {
     for (const [hookType, entries] of Object.entries(hooks)) {
       if (!Array.isArray(entries)) continue;
       const filtered = entries.filter(
-        (h) => !(h as Record<string, unknown>).command?.toString().includes('tenet')
+        (h) => !isCHHookEntry(h as Record<string, unknown>)
       );
       if (filtered.length === 0) {
         delete hooks[hookType];
@@ -65,7 +82,12 @@ function cleanSettings(): void {
     delete settings.statusLine;
   }
 
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  acquireLock();
+  try {
+    atomicWriteFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  } finally {
+    releaseLock();
+  }
   console.log('  ✓ settings.json에서 CH 항목 제거');
 }
 
@@ -101,23 +123,37 @@ function cleanAgents(cwd: string): void {
   }
 }
 
-/** .claude/rules/compound.md 및 레거시 compound-rules.md 제거 */
+/** .claude/rules/ 의 tenet 규칙 파일 및 레거시 compound-rules.md 제거 */
 function cleanCompoundRules(cwd: string): void {
-  const paths = [
-    path.join(cwd, '.claude', 'rules', 'compound.md'),
-    path.join(cwd, '.claude', 'compound-rules.md'), // 레거시
+  const ruleFiles = [
+    'security.md',
+    'golden-principles.md',
+    'anti-pattern.md',
+    'routing.md',
+    'compound.md',
   ];
-  let removed = false;
-  for (const p of paths) {
+  const rulesDir = path.join(cwd, '.claude', 'rules');
+  let removedCount = 0;
+
+  for (const file of ruleFiles) {
+    const p = path.join(rulesDir, file);
     if (fs.existsSync(p)) {
       fs.unlinkSync(p);
-      removed = true;
+      removedCount++;
     }
   }
-  if (removed) {
-    console.log('  ✓ compound rules 파일 제거');
+
+  // 레거시 경로
+  const legacyPath = path.join(cwd, '.claude', 'compound-rules.md');
+  if (fs.existsSync(legacyPath)) {
+    fs.unlinkSync(legacyPath);
+    removedCount++;
+  }
+
+  if (removedCount > 0) {
+    console.log(`  ✓ ${removedCount}개 규칙 파일 제거`);
   } else {
-    console.log('  - compound rules 파일 없음');
+    console.log('  - 규칙 파일 없음');
   }
 }
 
@@ -147,7 +183,7 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
   console.log('다음 항목을 정리합니다:');
   console.log('  1. ~/.claude/settings.json에서 CH 환경변수/훅/statusLine 제거');
   console.log('  2. .claude/agents/ch-*.md 에이전트 파일 삭제');
-  console.log('  3. .claude/rules/compound.md 규칙 파일 삭제');
+  console.log('  3. .claude/rules/ 규칙 파일 삭제 (security, golden-principles, anti-pattern, routing, compound)');
   console.log('  4. CLAUDE.md에서 tenet 블록 제거');
   console.log('');
   console.log('참고: ~/.compound/ 디렉토리는 보존됩니다 (수동 삭제: rm -rf ~/.compound)\n');

@@ -35,7 +35,23 @@ async function promptYesNo(rl: readline.Interface, question: string, defaultYes 
   return trimmed === 'y' || trimmed === 'yes';
 }
 
-export async function runSetup(): Promise<void> {
+export async function runSetup(options?: { yes?: boolean }): Promise<void> {
+  const nonInteractive = options?.yes ?? !process.stdin.isTTY;
+
+  // non-interactive 모드: 모든 기본값으로 자동 설정
+  if (nonInteractive) {
+    const config = loadGlobalConfig();
+    const dirs = [COMPOUND_HOME, ME_DIR, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR];
+    for (const dir of dirs) fs.mkdirSync(dir, { recursive: true });
+    initDefaultPhilosophy();
+    config.modelRouting = config.modelRouting ?? 'default';
+    saveGlobalConfig(config);
+    console.log('[tenet] 기본값으로 초기 설정 완료 (non-interactive)');
+    console.log('  ✓ 디렉토리 생성, 기본 철학, 라우팅: default');
+    console.log('  대화형 설정: tenet setup (TTY 환경에서)');
+    return;
+  }
+
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const config = loadGlobalConfig();
 
@@ -255,7 +271,58 @@ async function setupNotifications(rl: readline.Interface): Promise<void> {
 }
 
 /** 프로젝트별 철학 설정 (tenet setup --project) */
-export async function runProjectSetup(cwd: string): Promise<void> {
+export async function runProjectSetup(cwd: string, options?: { pack?: string; extends?: string; yes?: boolean }): Promise<void> {
+  // non-interactive: --pack, --extends, 또는 --yes로 바로 생성
+  if (options?.pack || options?.extends || options?.yes) {
+    const projDir = path.join(cwd, '.compound');
+    const philosophyPath = projectPhilosophyPath(cwd);
+    fs.mkdirSync(projDir, { recursive: true });
+
+    if (options.extends) {
+      // 중앙 관리 모드: extends로 팩 참조 (대규모 팀)
+      const packName = options.extends.replace(/^pack:/, '');
+      const extendsValue = `pack:${packName}`;
+      const philosophy = {
+        name: path.basename(cwd),
+        version: '1.0.0',
+        author: 'project',
+        extends: extendsValue,
+        principles: {} as Record<string, { belief: string; generates: Array<string | Record<string, string>> }>,
+      };
+      fs.writeFileSync(philosophyPath, JSON.stringify(philosophy, null, 2));
+      console.log(`[tenet] 중앙 관리 프로젝트 철학 생성 (extends: ${extendsValue})`);
+      console.log(`  → 팩 "${packName}"의 철학을 베이스로 사용합니다.`);
+      console.log(`  → 프로젝트별 오버라이드: ${philosophyPath} 의 principles에 추가`);
+      console.log(`  → 동기화: tenet philosophy sync`);
+    } else if (options.pack) {
+      // 복사 모드: 팩 내용을 직접 복사 (소규모 팀)
+      const pkgRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+      const packPath = path.join(pkgRoot, 'packs', `${options.pack}.json`);
+      const globalPackPath = path.join(PACKS_DIR, options.pack, 'philosophy.json');
+
+      if (fs.existsSync(packPath)) {
+        fs.copyFileSync(packPath, philosophyPath);
+        console.log(`[tenet] 팩 "${options.pack}" 기반 프로젝트 철학 생성 (독립 복사)`);
+      } else if (fs.existsSync(globalPackPath)) {
+        fs.copyFileSync(globalPackPath, philosophyPath);
+        console.log(`[tenet] 글로벌 팩 "${options.pack}" 기반 프로젝트 철학 생성 (독립 복사)`);
+      } else {
+        const available = ['frontend', 'backend', 'devops', 'security', 'data'];
+        console.error(`[tenet] 팩 "${options.pack}"을 찾을 수 없습니다.`);
+        console.error(`  사용 가능: ${available.join(', ')}`);
+        process.exit(1);
+      }
+    } else {
+      // --yes: 기본 철학으로 생성
+      const philosophy = JSON.parse(JSON.stringify(DEFAULT_PHILOSOPHY));
+      philosophy.name = path.basename(cwd);
+      fs.writeFileSync(philosophyPath, JSON.stringify(philosophy, null, 2));
+      console.log(`[tenet] 기본 프로젝트 철학 생성: ${philosophyPath}`);
+    }
+    console.log('  팀원에게 공유: git add .compound/philosophy.json && git commit');
+    return;
+  }
+
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const projectDir = path.join(cwd, '.compound');
   const philosophyPath = projectPhilosophyPath(cwd);

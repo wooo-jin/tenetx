@@ -4,6 +4,7 @@ name: analyst
 description: Requirements analyst — uncovers hidden constraints via Socratic inquiry
 model: opus
 tier: HIGH
+lane: build
 disallowedTools:
   - Write
   - Edit

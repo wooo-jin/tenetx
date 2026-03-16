@@ -262,16 +262,15 @@ Domain knowledge organized in three scopes:
 
 Packs sync to GitHub, Google Drive, S3, or local directories.
 
-### Built-in Agents (16)
+### Built-in Agents (19, 3-Lane)
 
-Specialized agents installed automatically:
+Organized in three lanes for structured pipelines:
 
-```
-executor          architect         critic            planner
-analyst           debugger          designer          code-reviewer
-security-reviewer test-engineer     writer            qa-tester
-verifier          explore           refactoring-expert performance-reviewer
-```
+| Lane | Agents | Purpose |
+|------|--------|---------|
+| **BUILD** | explore → analyst → planner → architect → debugger → executor → verifier → code-simplifier → refactoring-expert | Exploration → Implementation → Verification |
+| **REVIEW** | code-reviewer, security-reviewer, critic | Quality assurance |
+| **DOMAIN** | designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git-master | Specialized expertise |
 
 ### Built-in Skills (11)
 
@@ -473,14 +472,13 @@ tenet compound
 | **Layer 1** | Engine (HOW) | 모드, 라우팅, 훅, 모니터링, Compound Loop |
 | **Layer 2** | Pack (KNOW) | Me / Team / Project 3스코프 지식 공유 |
 
-### 내장 에이전트 (16종)
+### 내장 에이전트 (19종, 3-Lane)
 
-```
-executor  architect  critic    planner   analyst   debugger
-designer  code-reviewer  security-reviewer  test-engineer
-writer    qa-tester  verifier  explore   refactoring-expert
-performance-reviewer
-```
+| 레인 | 에이전트 | 역할 |
+|------|---------|------|
+| **BUILD** | explore → analyst → planner → architect → debugger → executor → verifier → code-simplifier → refactoring-expert | 탐색 → 구현 → 검증 파이프라인 |
+| **REVIEW** | code-reviewer, security-reviewer, critic | 품질 보증 |
+| **DOMAIN** | designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git-master | 전문 역할 |
 
 ### 내장 스킬 (11종)
 
@@ -488,6 +486,74 @@ performance-reviewer
 autopilot  ralph  team  ultrawork  pipeline  ccg
 ralplan  deep-interview  tdd  code-review  security-review
 ```
+
+---
+
+## 8 Built-in MCP Servers
+
+Tenet ships with executable MCP servers (JSON-RPC 2.0 over stdio):
+
+```
+lsp-bridge          Language server detection
+ast-search          AST-based code structure search
+test-runner         Test framework detection & execution
+repo-index          Project structure indexing
+secrets-scan        Secret/token/key detection (with masking)
+python-repl         Python environment detection & execution
+file-watcher        Recently modified file tracking
+dependency-analyzer Package dependency analysis
+```
+
+---
+
+## Team Workflow
+
+### Small Team (pack in project repo)
+
+```bash
+# Team lead
+tenet init --team --yes       # Auto-detect + create pack.json
+git add .compound/ && git commit -m "chore: add tenet team config"
+
+# Teammate
+git pull && tenet             # Auto-loads team philosophy
+
+# End of day
+tenet compound                # Extract insights → personal/team auto-classify
+tenet propose                 # Create PR for team rules (or local fallback)
+
+# Team lead
+tenet proposals               # Review pending proposals
+```
+
+### Large Organization (separate pack repo)
+
+```bash
+# Setup
+tenet init --team --pack-repo org/tenet-pack-emr --yes
+tenet init --extends          # Or use extends for central management
+
+# Daily: auto-sync on tenet start
+tenet                         # → auto-pulls latest team rules
+tenet philosophy sync         # Manual sync + merge check
+```
+
+---
+
+## Acknowledgements
+
+Tenet draws significant inspiration from [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) by Yeachan Heo. The multi-agent orchestration patterns, magic keyword system, execution modes, and the overall vision of enhancing Claude Code through a harness layer were deeply influenced by OMC's pioneering work.
+
+Key concepts adapted from oh-my-claudecode:
+- Multi-agent orchestration with specialized roles
+- Execution modes (autopilot, ralph, team, ultrawork)
+- Magic keyword detection via hooks
+- tmux-based CLI workers for cross-AI integration
+- Session monitoring and notification systems
+
+Tenet differentiates itself through its **philosophy-driven approach** — declaring engineering principles that automatically generate workflows — and its **compound engineering loop** for continuous team knowledge accumulation.
+
+We also acknowledge [Claude Forge](https://github.com/sangrokjung/claude-forge) for its clean "oh-my-zsh for Claude Code" approach to pre-configured development suites.
 
 ---
 
