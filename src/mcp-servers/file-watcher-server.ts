@@ -4,7 +4,7 @@ import { getRecentlyModified, getModificationSummary } from './file-watcher.js';
 
 createMcpServer({
   name: 'tenet-file-watcher',
-  version: '0.2.0',
+  version: '1.0.0',
   tools: [
     {
       name: 'recent_files',

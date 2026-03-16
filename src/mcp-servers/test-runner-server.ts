@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 
 createMcpServer({
   name: 'tenet-test-runner',
-  version: '0.2.0',
+  version: '1.0.0',
   tools: [
     {
       name: 'detect_test_framework',

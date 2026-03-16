@@ -7,7 +7,7 @@ const execFileAsync = promisify(execFile);
 
 createMcpServer({
   name: 'tenet-python-repl',
-  version: '0.2.0',
+  version: '1.0.0',
   tools: [
     {
       name: 'detect_python',

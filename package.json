@@ -1,6 +1,6 @@
 {
-  "name": "tenet",
-  "version": "0.2.0",
+  "name": "tenetx",
+  "version": "1.0.0",
   "main": "dist/cli.js",
   "scripts": {
     "build": "tsc && cp src/hooks/dangerous-patterns.json dist/hooks/",

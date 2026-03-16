@@ -4,7 +4,7 @@ import { scanForSecrets } from './secrets-scan.js';
 
 createMcpServer({
   name: 'tenet-secrets-scan',
-  version: '0.2.0',
+  version: '1.0.0',
   tools: [
     {
       name: 'scan_secrets',

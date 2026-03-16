@@ -4,7 +4,7 @@ import { detectLanguageServer } from './lsp-bridge.js';
 
 createMcpServer({
   name: 'tenet-lsp-bridge',
-  version: '0.2.0',
+  version: '1.0.0',
   tools: [
     {
       name: 'detect_language_server',

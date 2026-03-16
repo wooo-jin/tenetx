@@ -48,7 +48,7 @@ $ claude                        $ tenet
 
 ```bash
 # Install globally
-npm install -g tenet
+npm install -g tenetx
 
 # Initial setup — 3 questions, 30 seconds
 tenet setup
@@ -350,7 +350,7 @@ $ claude                        $ tenet
 
 ```bash
 # 전역 설치
-npm install -g tenet
+npm install -g tenetx
 
 # 초기 설정 — 3가지 질문, 30초
 tenet setup

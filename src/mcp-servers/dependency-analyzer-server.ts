@@ -4,7 +4,7 @@ import { analyzeDependencies } from './dependency-analyzer.js';
 
 createMcpServer({
   name: 'tenet-dependency-analyzer',
-  version: '0.2.0',
+  version: '1.0.0',
   tools: [
     {
       name: 'analyze_dependencies',
