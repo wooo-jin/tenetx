@@ -7,6 +7,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { projectPhilosophyPath } from './paths.js';
 import { DEFAULT_PHILOSOPHY } from './philosophy-loader.js';
 import { savePackConfig, type PackConnection } from './pack-config.js';
@@ -221,7 +222,7 @@ export async function handleInit(args: string[]): Promise<void> {
   const projDir = path.join(cwd, '.compound');
   fs.mkdirSync(projDir, { recursive: true });
 
-  const pkgRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+  const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const packPath = path.join(pkgRoot, 'packs', `${detection.pack}.json`);
 
   if (extendsMode) {

@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ME_PHILOSOPHY, ME_DIR, PACKS_DIR, projectPhilosophyPath } from './paths.js';
 import type { Philosophy } from './types.js';
 import { debugLog } from './logger.js';
@@ -133,7 +134,7 @@ export function resolveBasePhilosophy(extendsValue: string): Philosophy | null {
   }
 
   // 2. 빌트인 팩에서 찾기 (패키지 내장)
-  const pkgRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+  const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const builtinPath = path.join(pkgRoot, 'packs', `${packName}.json`);
   if (fs.existsSync(builtinPath)) {
     return loadPhilosophy(builtinPath);

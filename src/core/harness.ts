@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as crypto from 'node:crypto';
 import { loadPhilosophyForProject, initDefaultPhilosophy } from './philosophy-loader.js';
 import { resolveScope } from './scope-resolver.js';
@@ -25,7 +26,7 @@ import {
 
 /** tenet 패키지 루트 */
 function getPackageRoot(): string {
-  return path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 }
 
 /** 최초 실행 여부: ~/.compound/ 디렉토리가 없으면 true */

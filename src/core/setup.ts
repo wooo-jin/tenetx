@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as readline from 'node:readline';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { COMPOUND_HOME, ME_DIR, ME_SOLUTIONS, ME_RULES, ME_PHILOSOPHY, PACKS_DIR, SESSIONS_DIR, projectPhilosophyPath } from './paths.js';
 import { initDefaultPhilosophy, loadPhilosophy, DEFAULT_PHILOSOPHY } from './philosophy-loader.js';
 import { loadGlobalConfig, saveGlobalConfig } from './global-config.js';
@@ -296,7 +297,7 @@ export async function runProjectSetup(cwd: string, options?: { pack?: string; ex
       console.log(`  → 동기화: tenet philosophy sync`);
     } else if (options.pack) {
       // 복사 모드: 팩 내용을 직접 복사 (소규모 팀)
-      const pkgRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+      const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
       const packPath = path.join(pkgRoot, 'packs', `${options.pack}.json`);
       const globalPackPath = path.join(PACKS_DIR, options.pack, 'philosophy.json');
 

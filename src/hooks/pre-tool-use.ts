@@ -9,6 +9,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
@@ -38,7 +39,7 @@ function loadDangerousPatterns(): DangerousPatternEntry[] {
 
   // 1. 패키지 내장 패턴 (dangerous-patterns.json)
   try {
-    const builtinPath = path.join(path.dirname(new URL(import.meta.url).pathname), 'dangerous-patterns.json');
+    const builtinPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'dangerous-patterns.json');
     const raw: Array<{ pattern: string; description: string; severity: string; flags?: string }> =
       JSON.parse(fs.readFileSync(builtinPath, 'utf-8'));
     for (const entry of raw) {

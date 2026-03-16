@@ -12,6 +12,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
 import { debugLog } from './logger.js';
 
@@ -20,7 +21,7 @@ const PLUGINS_DIR = path.join(CLAUDE_DIR, 'plugins');
 const PLUGIN_NAME = 'tenet';
 
 function getPackageRoot(): string {
-  return path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 }
 
 /** 플러그인 매니페스트 로드 */

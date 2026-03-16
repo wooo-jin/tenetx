@@ -39,7 +39,8 @@ export function detectPythonEnvironment(cwd: string): PythonEnvironment | null {
   let pythonBin: string | null = null;
   for (const bin of ['python3', 'python']) {
     try {
-      execSync(`which ${bin}`, { stdio: 'ignore' });
+      const checkCmd = process.platform === 'win32' ? `where ${bin}` : `which ${bin}`;
+      execSync(checkCmd, { stdio: 'ignore' });
       pythonBin = bin;
       break;
     } catch { /* 없으면 다음 시도 */ }

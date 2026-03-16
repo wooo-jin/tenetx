@@ -24,6 +24,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
@@ -152,7 +153,7 @@ function collectSkills(): SkillMeta[] {
   const seen = new Set<string>();
 
   // 패키지 내장 스킬 경로 (dist/../skills/)
-  const pkgSkillsDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'skills');
+  const pkgSkillsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills');
 
   // 우선순위: 프로젝트 > 개인 > 글로벌 > 패키지 내장
   const dirs = [

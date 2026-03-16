@@ -11,6 +11,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
@@ -138,7 +139,7 @@ function loadSkillContent(skillName: string): string | null {
 
   // tenet 패키지 내장 스킬
   const pkgSkillPath = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
+    path.dirname(fileURLToPath(import.meta.url)),
     '..', '..', 'skills', `${skillName}.md`
   );
   searchPaths.push(pkgSkillPath);
