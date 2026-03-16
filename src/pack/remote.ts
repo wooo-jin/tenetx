@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { PackMeta } from '../core/types.js';
@@ -43,7 +43,7 @@ export function cloneFromGitHub(url: string, destDir: string): void {
   const gitUrl = url.endsWith('.git') ? url : `${url}.git`;
 
   try {
-    execSync(`git clone --depth 1 ${gitUrl} "${destDir}"`, {
+    execFileSync('git', ['clone', '--depth', '1', gitUrl, destDir], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
   } catch (err) {
@@ -92,7 +92,7 @@ export function syncFromGitHub(url: string, destDir: string): void {
 
   // .git이 있으면 pull
   try {
-    execSync('git pull --ff-only', { cwd: destDir, stdio: ['pipe', 'pipe', 'pipe'] });
+    execFileSync('git', ['pull', '--ff-only'], { cwd: destDir, stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (err) {
     throw new Error(`Git pull 실패: ${(err as Error).message}`);
   }

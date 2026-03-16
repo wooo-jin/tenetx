@@ -4,7 +4,7 @@
  * Ink/React based terminal UI running inside a tmux pane.
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 
 const PANE_TITLE = 'compound-dashboard';
 
@@ -13,7 +13,7 @@ const PANE_TITLE = 'compound-dashboard';
 /** Find dashboard pane ID in current tmux session */
 function findDashboardPane(): string | null {
   try {
-    const output = execSync('tmux list-panes -F "#{pane_id}:#{pane_title}"', {
+    const output = execFileSync('tmux', ['list-panes', '-F', '#{pane_id}:#{pane_title}'], {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -41,13 +41,13 @@ export async function toggleDashboard(): Promise<void> {
   const existingPane = findDashboardPane();
   if (existingPane) {
     // Already open -> close
-    try { execSync(`tmux kill-pane -t ${existingPane}`, { stdio: 'ignore' }); } catch { /* expected: pane이 이미 닫혀있을 수 있음 */ }
+    try { execFileSync('tmux', ['kill-pane', '-t', existingPane], { stdio: 'ignore' }); } catch { /* expected: pane이 이미 닫혀있을 수 있음 */ }
   } else {
     // Open new pane
     try {
-      execSync(`tmux split-window -h -l 40% "tenet dashboard"`, { stdio: 'ignore' });
-      execSync(`tmux select-pane -T "${PANE_TITLE}"`, { stdio: 'ignore' });
-      execSync('tmux last-pane', { stdio: 'ignore' });
+      execFileSync('tmux', ['split-window', '-h', '-l', '40%', 'tenet dashboard'], { stdio: 'ignore' });
+      execFileSync('tmux', ['select-pane', '-T', PANE_TITLE], { stdio: 'ignore' });
+      execFileSync('tmux', ['last-pane'], { stdio: 'ignore' });
     } catch (err) {
       console.error('[tenet] 대시보드 열기 실패:', err);
     }
