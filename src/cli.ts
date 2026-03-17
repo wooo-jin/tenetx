@@ -371,10 +371,15 @@ async function main() {
 `);
     }
 
-    console.log(`[tenetx] Philosophy: ${context.philosophy.name}`);
+    console.log(`[tenetx] Philosophy: ${context.philosophy.name} (${context.philosophySource})`);
     console.log(`[tenetx] Scope: ${context.scope.summary}`);
     if (context.scope.team) {
-      console.log(`[tenetx] Pack: ${context.scope.team.name} v${context.scope.team.version}`);
+      const t = context.scope.team;
+      const assets: string[] = [];
+      if (t.ruleCount > 0) assets.push(`규칙 ${t.ruleCount}`);
+      if (t.solutionCount > 0) assets.push(`솔루션 ${t.solutionCount}`);
+      const assetStr = assets.length > 0 ? ` (${assets.join(', ')})` : '';
+      console.log(`[tenetx] Pack: ${t.name} v${t.version}${assetStr}`);
     }
     if (context.modelRouting) {
       const rt = context.modelRouting;

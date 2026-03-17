@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { ME_DIR, ME_SOLUTIONS, ME_RULES, PACKS_DIR, packLinkPath, projectDir, projectPhilosophyPath } from './paths.js';
 import type { ScopeInfo } from './types.js';
 import { debugLog } from './logger.js';
+import { loadPackConfigs } from './pack-config.js';
 
 /** 디렉토리 내 .md 파일 수 카운트 */
 function countFiles(dir: string, ext = '.md'): number {
@@ -57,9 +58,19 @@ export function resolveScope(cwd: string, philosophySource?: 'project' | 'global
   const meSolutions = countFiles(ME_SOLUTIONS);
   const meRules = countFiles(ME_RULES);
 
-  // Team
-  const packName = readPackLink(cwd);
+  // Team — pack.link (레거시) 또는 pack.json (현재) 에서 팩 탐색
+  let packName = readPackLink(cwd);
   let team: ScopeInfo['team'] = undefined;
+
+  // pack.link가 없으면 pack.json(loadPackConfigs)에서 첫 번째 팩 사용
+  if (!packName) {
+    try {
+      const connectedPacks = loadPackConfigs(cwd);
+      if (connectedPacks.length > 0) {
+        packName = connectedPacks[0].name;
+      }
+    } catch { /* pack-config 로드 실패 시 무시 */ }
+  }
 
   if (packName) {
     const packMeta = readPackMeta(packName);
