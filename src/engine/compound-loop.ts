@@ -196,7 +196,27 @@ export async function handleCompound(args: string[]): Promise<void> {
   const cwd = process.cwd();
   const scope = resolveScope(cwd);
 
-  if (args.length === 0) {
+  // --help 처리
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
+  사용법: tenetx compound [옵션]
+
+  옵션 없이 실행하면 대화형 모드로 인사이트를 수집합니다.
+
+  수동 추가:
+    tenetx compound --solution "제목" "내용"
+    tenetx compound --rule "제목" "내용"
+    tenetx compound --convention "제목" "내용"
+    tenetx compound --to team        팀 스코프로 저장
+`);
+    return;
+  }
+
+  // 인자가 없거나 알 수 없는 플래그만 있으면 대화형 모드
+  const knownFlags = ['--solution', '--rule', '--convention', '--pattern', '--to'];
+  const hasTypeFlag = knownFlags.some(f => args.includes(f));
+
+  if (args.length === 0 || !hasTypeFlag) {
     await interactiveCompound(cwd, scope);
     return;
   }
@@ -215,14 +235,16 @@ export async function handleCompound(args: string[]): Promise<void> {
     ? (args[args.indexOf('--to') + 1] === 'team' ? 'team' as const : 'me' as const)
     : 'me' as const;
 
-  // --solution/--rule 다음 인자들이 제목과 내용
+  // --solution/--rule 다음 인자들이 제목과 내용 (-- 접두사 인자 필터)
   const typeFlag = `--${type}`;
   const flagIdx = args.indexOf(typeFlag);
-  const title = args[flagIdx + 1];
-  const content = args.slice(flagIdx + 2).filter(a => !a.startsWith('--')).join(' ');
+  const positionalArgs = args.slice(flagIdx + 1).filter(a => !a.startsWith('--'));
+  const title = positionalArgs[0];
+  const content = positionalArgs.slice(1).join(' ');
 
   if (!title) {
     console.log('  제목이 필요합니다.');
+    console.log('  사용법: tenetx compound --solution "제목" "내용"');
     return;
   }
 
@@ -255,11 +277,15 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
   console.log(`  Scope: ${scope.summary}`);
   console.log();
 
-  // Non-interactive mode
+  // Non-interactive mode: 대화 없이 안내만 출력
   if (!process.stdin.isTTY) {
-    console.log('  대화형 모드가 필요합니다. TTY 환경에서 실행하세요.');
-    console.log('  수동 추가: tenetx compound --solution "제목" "내용"');
-    console.log('             tenetx compound --rule "제목" "내용"\n');
+    console.log('  비대화형 환경입니다. 수동 모드로 인사이트를 추가하세요.\n');
+    console.log('  사용법:');
+    console.log('    tenetx compound --solution "제목" "내용"');
+    console.log('    tenetx compound --rule "제목" "내용"');
+    console.log('    tenetx compound --convention "제목" "내용"');
+    console.log('    tenetx compound --to team          팀 스코프로 저장\n');
+    console.log('  대화형 모드: TTY 환경에서 tenetx compound 실행\n');
     return;
   }
 

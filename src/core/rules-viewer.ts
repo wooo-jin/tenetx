@@ -49,29 +49,39 @@ export async function handleRules(args: string[]): Promise<void> {
     console.log(`  ${DIM}팀 규칙: 팩 미연결 (tenetx init --team 으로 설정)${RST}`);
   } else {
     for (const pack of packs) {
+      // 규칙 디렉토리 후보 결정 (타입에 관계없이 모두 탐색)
+      const candidates: string[] = [];
+
       if (pack.type === 'inline') {
-        const teamRules = listMdFiles(path.join(cwd, '.compound', 'rules'));
-        console.log(`  ${YELLOW}팀 규칙${RST} (${teamRules.length}건) — .compound/rules/ (inline:${pack.name})`);
-        if (teamRules.length === 0) {
+        candidates.push(path.join(cwd, '.compound', 'rules'));
+      }
+
+      // 글로벌 팩 디렉토리 (~/.compound/packs/<name>/rules)
+      candidates.push(path.join(PACKS_DIR, pack.name, 'rules'));
+
+      // 프로젝트 내 네임스페이스 디렉토리
+      candidates.push(path.join(cwd, '.compound', 'packs', pack.name, 'rules'));
+
+      // local 팩의 경우 localPath도 확인
+      if (pack.type === 'local' && pack.localPath) {
+        candidates.push(path.join(pack.localPath, 'rules'));
+      }
+
+      // 존재하는 첫 번째 디렉토리 사용
+      const rulesDir = candidates.find(d => fs.existsSync(d));
+      const packRules = rulesDir ? listMdFiles(rulesDir) : [];
+      const label = pack.type === 'inline' ? `inline:${pack.name}` : `pack:${pack.name}`;
+
+      console.log(`  ${YELLOW}팩 규칙${RST} (${packRules.length}건) — ${label}`);
+      if (packRules.length === 0) {
+        if (pack.type === 'inline') {
           console.log(`  ${DIM}없음. tenetx compound → tenetx propose 로 추가하세요.${RST}`);
         } else {
-          for (const r of teamRules) {
-            console.log(`    • ${r.firstLine}`);
-          }
-        }
-      } else if (pack.type === 'github') {
-        // 팩별 네임스페이스 디렉토리 우선, 폴백으로 PACKS_DIR
-        const nsDir = path.join(cwd, '.compound', 'packs', pack.name, 'rules');
-        const legacyDir = path.join(PACKS_DIR, pack.name, 'rules');
-        const rulesDir = fs.existsSync(nsDir) ? nsDir : legacyDir;
-        const packRules = listMdFiles(rulesDir);
-        console.log(`  ${YELLOW}팩 규칙${RST} (${packRules.length}건) — pack:${pack.name}`);
-        if (packRules.length === 0) {
           console.log(`  ${DIM}tenetx pack sync 후 확인하세요.${RST}`);
-        } else {
-          for (const r of packRules) {
-            console.log(`    • ${r.firstLine}`);
-          }
+        }
+      } else {
+        for (const r of packRules) {
+          console.log(`    • ${r.firstLine}`);
         }
       }
       console.log();

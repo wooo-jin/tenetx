@@ -1,6 +1,34 @@
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { loadPhilosophyForProject, syncPhilosophy } from './philosophy-loader.js';
-import { ME_PHILOSOPHY, projectPhilosophyPath } from './paths.js';
+import { ME_PHILOSOPHY, projectPhilosophyPath, PACKS_DIR } from './paths.js';
+import { loadPackConfigs } from './pack-config.js';
+
+function printPhilosophy(philosophy: ReturnType<typeof loadPhilosophyForProject>['philosophy'], label: string): void {
+  console.log(`  ── ${label}: ${philosophy.name} v${philosophy.version ?? '1.0.0'} ──`);
+  if (philosophy.author) console.log(`  Author: ${philosophy.author}`);
+  if (philosophy.description) console.log(`  Description: ${philosophy.description}`);
+  console.log();
+
+  for (const [name, principle] of Object.entries(philosophy.principles)) {
+    console.log(`  ■ ${name}`);
+    console.log(`    "${principle.belief}"`);
+    for (const gen of principle.generates) {
+      if (typeof gen === 'string') {
+        console.log(`    → ${gen}`);
+      } else if (gen.alert) {
+        console.log(`    ⚠ ${gen.alert}`);
+      } else if (gen.routing) {
+        console.log(`    🔀 ${gen.routing}`);
+      } else if (gen.hook) {
+        console.log(`    🪝 ${gen.hook}`);
+      } else if (gen.step) {
+        console.log(`    📋 ${gen.step}`);
+      }
+    }
+    console.log();
+  }
+}
 
 export async function handlePhilosophy(args: string[]): Promise<void> {
   const subcommand = args[0] ?? 'show';
@@ -8,29 +36,33 @@ export async function handlePhilosophy(args: string[]): Promise<void> {
 
   if (subcommand === 'show') {
     const { philosophy, source } = loadPhilosophyForProject(cwd);
-    const sourceLabel = source === 'project' ? '(프로젝트)' : source === 'global' ? '(글로벌)' : '(기본값)';
-    console.log(`\n  Philosophy: ${philosophy.name} v${philosophy.version ?? '1.0.0'} ${sourceLabel}`);
-    if (philosophy.author) console.log(`  Author: ${philosophy.author}`);
-    if (philosophy.description) console.log(`  Description: ${philosophy.description}`);
-    console.log();
+    const sourceLabel = source === 'project' ? '프로젝트' : source === 'global' ? '글로벌' : '기본값';
 
-    for (const [name, principle] of Object.entries(philosophy.principles)) {
-      console.log(`  ■ ${name}`);
-      console.log(`    "${principle.belief}"`);
-      for (const gen of principle.generates) {
-        if (typeof gen === 'string') {
-          console.log(`    → ${gen}`);
-        } else if (gen.alert) {
-          console.log(`    ⚠ ${gen.alert}`);
-        } else if (gen.routing) {
-          console.log(`    🔀 ${gen.routing}`);
-        } else if (gen.hook) {
-          console.log(`    🪝 ${gen.hook}`);
-        } else if (gen.step) {
-          console.log(`    📋 ${gen.step}`);
+    console.log();
+    printPhilosophy(philosophy, sourceLabel);
+
+    // 연결된 팩의 철학도 표시
+    const packs = loadPackConfigs(cwd);
+    for (const pack of packs) {
+      const candidates = [
+        path.join(PACKS_DIR, pack.name, 'philosophy.json'),
+        path.join(cwd, '.compound', 'packs', pack.name, 'philosophy.json'),
+      ];
+      if (pack.type === 'local' && pack.localPath) {
+        candidates.push(path.join(pack.localPath, 'philosophy.json'));
+      }
+
+      for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+          try {
+            const packPhil = JSON.parse(fs.readFileSync(candidate, 'utf-8'));
+            if (packPhil.principles && Object.keys(packPhil.principles).length > 0) {
+              printPhilosophy(packPhil, `팩:${pack.name}`);
+            }
+          } catch { /* skip malformed */ }
+          break;
         }
       }
-      console.log();
     }
   } else if (subcommand === 'sync') {
     const result = syncPhilosophy(cwd);

@@ -26,6 +26,12 @@ import type { PackRequirement } from '../core/types.js';
 export async function handlePack(args: string[]): Promise<void> {
   const subcommand = args[0] ?? 'list';
 
+  // --help 처리
+  if (subcommand === '--help' || subcommand === '-h') {
+    printPackHelp();
+    return;
+  }
+
   try {
     switch (subcommand) {
       case 'list':
@@ -108,7 +114,8 @@ export async function handlePack(args: string[]): Promise<void> {
       }
 
       case 'init': {
-        const name = args[1];
+        // 첫 번째 비-플래그 인자가 이름
+        const name = args.slice(1).find(a => !a.startsWith('-'));
         if (!name) {
           console.log('  사용법: tenetx pack init <name> [--from-project] [--starter]');
           console.log('    --from-project    현재 프로젝트를 분석하여 AI 브리핑 생성');
@@ -133,18 +140,7 @@ export async function handlePack(args: string[]): Promise<void> {
       }
 
       default:
-        console.log('  사용법: tenetx pack <list|install|add|remove|connected|setup|lock|unlock|outdated|sync|init>');
-        console.log('    list              설치된 팩 목록');
-        console.log('    install <source>  팩 설치 (GitHub, 로컬)');
-        console.log('    add <name>        프로젝트에 팩 연결 (--repo, --type)');
-        console.log('    remove <name>     프로젝트에서 팩 연결 해제');
-        console.log('    connected         현재 프로젝트에 연결된 팩 목록');
-        console.log('    setup <source>    원클릭 셋업 (설치+연결+동기화+의존성 검사)');
-        console.log('    lock              팩 버전 고정 (pack.lock 생성, git 커밋 가능)');
-        console.log('    unlock            팩 버전 고정 해제');
-        console.log('    outdated          업데이트 가능한 팩 확인');
-        console.log('    sync [name]       팩 동기화 (전체 또는 지정)');
-        console.log('    init <name>       새 팩 생성');
+        printPackHelp();
     }
   } catch (err) {
     console.error(`  ✗ ${(err as Error).message}\n`);
@@ -154,7 +150,7 @@ export async function handlePack(args: string[]): Promise<void> {
 
 function handlePackAdd(args: string[]): void {
   const name = args[0];
-  if (!name) {
+  if (!name || name.startsWith('-')) {
     console.log('  사용법: tenetx pack add <name> [--repo <org/repo>] [--type <github|inline|local>] [--path <local-path>]');
     console.log('  예시:');
     console.log('    tenetx pack add saas-specs --repo team/saas-specs');
@@ -490,4 +486,19 @@ function listPacks(): void {
     console.log(`    ${parts.length > 0 ? parts.join(' · ') : '(자산 없음)'}`);
   }
   console.log();
+}
+
+function printPackHelp(): void {
+  console.log('  사용법: tenetx pack <list|install|add|remove|connected|setup|lock|unlock|outdated|sync|init>');
+  console.log('    list              설치된 팩 목록');
+  console.log('    install <source>  팩 설치 (GitHub, 로컬)');
+  console.log('    add <name>        프로젝트에 팩 연결 (--repo, --type)');
+  console.log('    remove <name>     프로젝트에서 팩 연결 해제');
+  console.log('    connected         현재 프로젝트에 연결된 팩 목록');
+  console.log('    setup <source>    원클릭 셋업 (설치+연결+동기화+의존성 검사)');
+  console.log('    lock              팩 버전 고정 (pack.lock 생성, git 커밋 가능)');
+  console.log('    unlock            팩 버전 고정 해제');
+  console.log('    outdated          업데이트 가능한 팩 확인');
+  console.log('    sync [name]       팩 동기화 (전체 또는 지정)');
+  console.log('    init <name>       새 팩 생성');
 }

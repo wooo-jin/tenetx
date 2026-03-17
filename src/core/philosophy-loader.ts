@@ -124,7 +124,11 @@ export function initDefaultPhilosophy(): void {
  * "pack:emr-standard" → ~/.compound/packs/emr-standard/philosophy.json
  */
 export function resolveBasePhilosophy(extendsValue: string): Philosophy | null {
-  if (!extendsValue.startsWith('pack:')) return null;
+  if (!extendsValue.startsWith('pack:')) {
+    console.warn(`  ⚠ extends 값은 "pack:" 접두사가 필요합니다. 현재: "${extendsValue}"`);
+    console.warn(`  올바른 형식: "extends": "pack:${extendsValue}"`);
+    return null;
+  }
   const packName = extendsValue.slice(5);
 
   // 1. 설치된 팩에서 찾기
