@@ -125,6 +125,53 @@ export async function runDoctor(): Promise<void> {
         const detail = p.type === 'github' ? p.repo : p.type;
         console.log(`    • ${p.name} (${detail})`);
       }
+
+      // 팩별 requires 검사
+      const { PACKS_DIR } = await import('./paths.js');
+      const { readPackMeta } = await import('../pack/remote.js');
+      let totalIssues = 0;
+      for (const p of packs) {
+        const packDir = path.join(PACKS_DIR, p.name);
+        const meta = readPackMeta(packDir);
+        if (meta?.requires) {
+          const req = meta.requires;
+          // MCP 서버 체크
+          if (req.mcpServers) {
+            for (const mcp of req.mcpServers) {
+              const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+              let found = false;
+              try {
+                if (exists(settingsPath)) {
+                  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+                  found = mcp.name in (settings.mcpServers ?? {});
+                }
+              } catch { /* ignore */ }
+              check(`  [${p.name}] MCP: ${mcp.name}`, found, mcp.installCmd ?? mcp.npm ?? '설치 필요');
+              if (!found) totalIssues++;
+            }
+          }
+          // CLI 도구 체크
+          if (req.tools) {
+            for (const tool of req.tools) {
+              const ok = commandExists(tool.name);
+              check(`  [${p.name}] CLI: ${tool.name}`, ok, tool.installCmd ?? '설치 필요');
+              if (!ok) totalIssues++;
+            }
+          }
+          // 환경변수 체크
+          if (req.envVars) {
+            for (const env of req.envVars) {
+              if (env.required === false) continue;
+              const ok = !!process.env[env.name];
+              check(`  [${p.name}] ENV: ${env.name}`, ok, env.description);
+              if (!ok) totalIssues++;
+            }
+          }
+        }
+      }
+      if (totalIssues > 0) {
+        console.log(`\n  ⚠ 미충족 의존성 ${totalIssues}건`);
+      }
     } else {
       console.log('  팩 미연결 (개인 모드)');
     }

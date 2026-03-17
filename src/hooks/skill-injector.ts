@@ -29,6 +29,8 @@ import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
+import { loadPackConfigs } from '../core/pack-config.js';
+import { PACKS_DIR } from '../core/paths.js';
 
 export interface SkillMeta {
   name: string;
@@ -155,9 +157,24 @@ function collectSkills(): SkillMeta[] {
   // 패키지 내장 스킬 경로 (dist/../skills/)
   const pkgSkillsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills');
 
-  // 우선순위: 프로젝트 > 개인 > 글로벌 > 패키지 내장
+  // 연결된 팩의 스킬 경로 수집
+  const packSkillDirs: string[] = [];
+  try {
+    const connectedPacks = loadPackConfigs(process.cwd());
+    for (const pack of connectedPacks) {
+      // 프로젝트 네임스페이스 우선, 글로벌 팩 폴백
+      const nsDir = path.join(process.cwd(), '.compound', 'packs', pack.name, 'skills');
+      const globalDir = path.join(PACKS_DIR, pack.name, 'skills');
+      packSkillDirs.push(fs.existsSync(nsDir) ? nsDir : globalDir);
+    }
+  } catch (e) {
+    debugLog('skill-injector', '팩 스킬 경로 수집 실패', e);
+  }
+
+  // 우선순위: 프로젝트 > 연결된 팩 > 개인 > 글로벌 > 패키지 내장
   const dirs = [
     path.join(process.cwd(), '.compound', 'skills'),
+    ...packSkillDirs,
     path.join(COMPOUND_HOME, 'me', 'skills'),
     path.join(COMPOUND_HOME, 'skills'),
     pkgSkillsDir,

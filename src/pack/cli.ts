@@ -1,3 +1,6 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { execSync } from 'node:child_process';
 import {
   installPack,
   syncPack,
@@ -12,6 +15,9 @@ import {
   type PackConnection,
   type PackType,
 } from '../core/pack-config.js';
+import { PACKS_DIR } from '../core/paths.js';
+import { readPackMeta } from './remote.js';
+import type { PackRequirement } from '../core/types.js';
 
 export async function handlePack(args: string[]): Promise<void> {
   const subcommand = args[0] ?? 'list';
@@ -62,6 +68,11 @@ export async function handlePack(args: string[]): Promise<void> {
         break;
       }
 
+      case 'setup': {
+        await handlePackSetup(args.slice(1));
+        break;
+      }
+
       case 'sync': {
         const packName = args[1];
         console.log('\n  팩 동기화\n');
@@ -87,12 +98,13 @@ export async function handlePack(args: string[]): Promise<void> {
       }
 
       default:
-        console.log('  사용법: tenetx pack <list|install|add|remove|connected|sync|init>');
+        console.log('  사용법: tenetx pack <list|install|add|remove|connected|setup|sync|init>');
         console.log('    list              설치된 팩 목록');
         console.log('    install <source>  팩 설치 (GitHub, 로컬)');
         console.log('    add <name>        프로젝트에 팩 연결 (--repo, --type)');
         console.log('    remove <name>     프로젝트에서 팩 연결 해제');
         console.log('    connected         현재 프로젝트에 연결된 팩 목록');
+        console.log('    setup <source>    원클릭 셋업 (설치+연결+동기화+의존성 검사)');
         console.log('    sync [name]       팩 동기화 (전체 또는 지정)');
         console.log('    init <name>       새 팩 생성');
     }
@@ -183,6 +195,159 @@ function listConnectedPacks(): void {
   console.log();
 }
 
+/** 원클릭 셋업: 설치 → 연결 → 동기화 → 의존성 검사 */
+async function handlePackSetup(args: string[]): Promise<void> {
+  const source = args[0];
+  if (!source) {
+    console.log('  사용법: tenetx pack setup <github-url|owner/repo|path>');
+    console.log('  예시:');
+    console.log('    tenetx pack setup medistream/emr-pack');
+    console.log('    tenetx pack setup ./local-pack');
+    console.log();
+    console.log('  이 명령은 다음을 자동으로 수행합니다:');
+    console.log('    1. 팩 설치 (없으면)');
+    console.log('    2. 현재 프로젝트에 연결');
+    console.log('    3. 동기화');
+    console.log('    4. 의존성(requires) 검사');
+    return;
+  }
+
+  const cwd = process.cwd();
+  const nameArg = args.includes('--name') ? args[args.indexOf('--name') + 1] : undefined;
+
+  // 1. 설치
+  console.log('\n  ━━ 팩 원클릭 셋업 ━━\n');
+  let packName: string;
+  let meta;
+  try {
+    console.log('  [1/4] 팩 설치...');
+    meta = await installPack(source, nameArg);
+    packName = meta.name;
+    console.log(`  ✓ ${packName} v${meta.version} 설치 완료`);
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg.includes('이미 설치')) {
+      // 이미 설치된 경우 이름 추출 후 계속
+      const { extractPackName } = await import('./remote.js');
+      packName = nameArg ?? extractPackName(source);
+      console.log(`  ✓ ${packName} 이미 설치됨 (동기화 진행)`);
+      try { await syncPack(packName); } catch { /* ignore */ }
+    } else {
+      throw err;
+    }
+  }
+
+  // 2. 프로젝트 연결
+  console.log('  [2/4] 프로젝트에 연결...');
+  const isGithub = source.includes('/');
+  const pack: PackConnection = {
+    type: isGithub ? 'github' : 'local',
+    name: packName,
+    repo: isGithub ? source : undefined,
+  };
+  addPack(cwd, pack);
+  const connected = loadPackConfigs(cwd);
+  console.log(`  ✓ 연결 완료 (총 ${connected.length}개 팩)`);
+
+  // 3. 동기화
+  console.log('  [3/4] 동기화...');
+  try {
+    await syncPack(packName);
+    console.log('  ✓ 동기화 완료');
+  } catch {
+    console.log('  ─ 동기화 건너뜀 (로컬 팩)');
+  }
+
+  // 4. 의존성 검사
+  console.log('  [4/4] 의존성 검사...');
+  const packDir = path.join(PACKS_DIR, packName);
+  const packMeta = readPackMeta(packDir);
+  if (packMeta?.requires) {
+    const issues = checkRequirements(packMeta.requires);
+    if (issues.length === 0) {
+      console.log('  ✓ 모든 의존성 충족');
+    } else {
+      console.log(`  ⚠ 미충족 의존성 ${issues.length}건:`);
+      for (const issue of issues) {
+        console.log(`    ✗ ${issue}`);
+      }
+    }
+  } else {
+    console.log('  ✓ 추가 의존성 없음');
+  }
+
+  // 자산 요약
+  if (meta?.provides || packMeta?.provides) {
+    const p = meta?.provides ?? packMeta?.provides ?? {};
+    const parts: string[] = [];
+    if (p.rules) parts.push(`규칙 ${p.rules}`);
+    if (p.solutions) parts.push(`솔루션 ${p.solutions}`);
+    if (p.skills) parts.push(`스킬 ${p.skills}`);
+    if (p.agents) parts.push(`에이전트 ${p.agents}`);
+    if (p.workflows) parts.push(`워크플로우 ${p.workflows}`);
+    if (parts.length > 0) {
+      console.log(`\n  자산: ${parts.join(' · ')}`);
+    }
+  }
+
+  console.log('\n  ✓ 셋업 완료! tenetx를 실행하면 팩이 자동 적용됩니다.\n');
+}
+
+/** 팩 requires 검사 */
+function checkRequirements(requires: PackRequirement): string[] {
+  const issues: string[] = [];
+
+  function commandExists(cmd: string): boolean {
+    try {
+      const check = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+      execSync(check, { stdio: 'pipe' });
+      return true;
+    } catch { return false; }
+  }
+
+  // MCP 서버 체크
+  if (requires.mcpServers) {
+    for (const mcp of requires.mcpServers) {
+      // settings.json에서 MCP 서버 등록 여부 확인
+      const settingsPath = path.join(process.env.HOME ?? '', '.claude', 'settings.json');
+      let found = false;
+      try {
+        if (fs.existsSync(settingsPath)) {
+          const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+          const mcpConfig = settings.mcpServers ?? {};
+          found = mcp.name in mcpConfig;
+        }
+      } catch { /* ignore */ }
+
+      if (!found) {
+        const hint = mcp.installCmd ?? mcp.npm ?? mcp.pip ?? '';
+        issues.push(`MCP 서버 '${mcp.name}' 미등록${hint ? ` — 설치: ${hint}` : ''}`);
+      }
+    }
+  }
+
+  // CLI 도구 체크
+  if (requires.tools) {
+    for (const tool of requires.tools) {
+      if (!commandExists(tool.name)) {
+        const hint = tool.installCmd ?? '';
+        issues.push(`CLI 도구 '${tool.name}' 미설치${hint ? ` — 설치: ${hint}` : ''}`);
+      }
+    }
+  }
+
+  // 환경변수 체크
+  if (requires.envVars) {
+    for (const env of requires.envVars) {
+      if (env.required !== false && !process.env[env.name]) {
+        issues.push(`환경변수 '${env.name}' 미설정${env.description ? ` — ${env.description}` : ''}`);
+      }
+    }
+  }
+
+  return issues;
+}
+
 function listPacks(): void {
   const packs = listInstalledPacks();
   console.log('\n  설치된 팩 목록\n');
@@ -195,10 +360,15 @@ function listPacks(): void {
   for (const { name, meta } of packs) {
     const version = meta?.version ?? '?';
     const remote = meta?.remote ? `(${meta.remote.type})` : '(local)';
-    const solutions = meta?.provides?.solutions ?? 0;
-    const rules = meta?.provides?.rules ?? 0;
+    const p = meta?.provides;
+    const parts: string[] = [];
+    if (p?.rules) parts.push(`규칙 ${p.rules}`);
+    if (p?.solutions) parts.push(`솔루션 ${p.solutions}`);
+    if (p?.skills) parts.push(`스킬 ${p.skills}`);
+    if (p?.agents) parts.push(`에이전트 ${p.agents}`);
+    if (p?.workflows) parts.push(`워크플로우 ${p.workflows}`);
     console.log(`  ■ ${name} v${version} ${remote}`);
-    console.log(`    솔루션 ${solutions} · 규칙 ${rules}`);
+    console.log(`    ${parts.length > 0 ? parts.join(' · ') : '(자산 없음)'}`);
   }
   console.log();
 }

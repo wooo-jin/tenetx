@@ -13,7 +13,9 @@ import type { HarnessContext } from './types.js';
 import { debugLog } from './logger.js';
 import { cleanStaleStateFiles } from './state-gc.js';
 import { loadGlobalConfig } from './global-config.js';
-import { autoSyncIfNeeded } from './pack-config.js';
+import { autoSyncIfNeeded, loadPackConfigs } from './pack-config.js';
+import { PACKS_DIR } from './paths.js';
+import { loadPackWorkflows, registerPackWorkflows } from '../engine/modes.js';
 import {
   CLAUDE_DIR,
   SETTINGS_PATH,
@@ -272,56 +274,89 @@ function saveAgentHashes(hashes: Record<string, string>): void {
   } catch { /* ignore */ }
 }
 
-/** 에이전트 정의 파일 설치 — 프로젝트 .claude/agents/ 에 복사 (해시 기반 보호) */
+/** 연결된 팩의 커스텀 워크플로우를 모드 시스템에 등록 */
+function loadAndRegisterPackWorkflows(cwd: string): void {
+  try {
+    const connectedPacks = loadPackConfigs(cwd);
+    for (const pack of connectedPacks) {
+      const nsDir = path.join(cwd, '.compound', 'packs', pack.name);
+      const globalDir = path.join(PACKS_DIR, pack.name);
+      const packDir = fs.existsSync(nsDir) ? nsDir : globalDir;
+      const workflows = loadPackWorkflows(packDir);
+      if (workflows.length > 0) {
+        registerPackWorkflows(workflows);
+        debugLog('harness', `팩 '${pack.name}'에서 워크플로우 ${workflows.length}개 등록`);
+      }
+    }
+  } catch (e) {
+    debugLog('harness', '팩 워크플로우 로드 실패', e);
+  }
+}
+
+/** 에이전트 소스 디렉토리에서 대상 디렉토리로 복사 (해시 기반 보호) */
+function installAgentsFromDir(
+  sourceDir: string,
+  targetDir: string,
+  prefix: string,
+  hashes: Record<string, string>,
+): void {
+  if (!fs.existsSync(sourceDir)) return;
+
+  const files = fs.readdirSync(sourceDir).filter(f => f.endsWith('.md'));
+  for (const file of files) {
+    const src = path.join(sourceDir, file);
+    const dstName = `${prefix}${file}`;
+    const dst = path.join(targetDir, dstName);
+    const content = fs.readFileSync(src, 'utf-8');
+    const newHash = contentHash(content);
+
+    if (fs.existsSync(dst)) {
+      const existing = fs.readFileSync(dst, 'utf-8');
+      if (existing === content) {
+        hashes[dstName] = newHash;
+        continue;
+      }
+      const existingHash = contentHash(existing);
+      const recordedHash = hashes[dstName];
+      if (recordedHash && existingHash !== recordedHash) {
+        debugLog('harness', `에이전트 파일 보호: ${dstName} (사용자 수정 감지)`);
+        continue;
+      }
+      if (!recordedHash && !existing.includes('<!-- tenetx-managed -->')) {
+        debugLog('harness', `에이전트 파일 보호: ${dstName} (레거시 사용자 수정 감지)`);
+        continue;
+      }
+    }
+
+    fs.writeFileSync(dst, content);
+    hashes[dstName] = newHash;
+  }
+}
+
+/** 에이전트 정의 파일 설치 — 패키지 내장 + 연결된 팩에서 프로젝트 .claude/agents/ 에 복사 */
 function installAgents(cwd: string): void {
   const pkgRoot = getPackageRoot();
-  const sourceDir = path.join(pkgRoot, 'agents');
   const targetDir = path.join(cwd, '.claude', 'agents');
-
-  if (!fs.existsSync(sourceDir)) return;
 
   fs.mkdirSync(targetDir, { recursive: true });
 
   const hashes = loadAgentHashes();
 
   try {
-    const files = fs.readdirSync(sourceDir).filter(f => f.endsWith('.md'));
-    for (const file of files) {
-      const src = path.join(sourceDir, file);
-      const dstName = `ch-${file}`;
-      const dst = path.join(targetDir, dstName);
-      const content = fs.readFileSync(src, 'utf-8');
-      const newHash = contentHash(content);
+    // 1. 패키지 내장 에이전트 (ch- 프리픽스)
+    installAgentsFromDir(path.join(pkgRoot, 'agents'), targetDir, 'ch-', hashes);
 
-      if (fs.existsSync(dst)) {
-        const existing = fs.readFileSync(dst, 'utf-8');
-        // 이미 최신이면 건너뛰기
-        if (existing === content) {
-          hashes[dstName] = newHash;
-          continue;
-        }
-        // 해시 기반 보호: 기존 파일의 해시가 기록과 다르면 사용자가 수정한 것
-        const existingHash = contentHash(existing);
-        const recordedHash = hashes[dstName];
-        if (recordedHash && existingHash !== recordedHash) {
-          // 사용자가 커스터마이즈 → 보호
-          debugLog('harness', `에이전트 파일 보호: ${file} (사용자 수정 감지, hash: ${existingHash} ≠ ${recordedHash})`);
-          continue;
-        }
-        // 마커 기반 폴백: 해시 기록이 없는 레거시 파일
-        if (!recordedHash && !existing.includes('<!-- tenetx-managed -->')) {
-          debugLog('harness', `에이전트 파일 보호: ${file} (레거시 사용자 수정 감지)`);
-          continue;
-        }
-        // 해시 일치 또는 마커 있음 → 패키지 업데이트이므로 덮어쓰기
-      }
-
-      fs.writeFileSync(dst, content);
-      hashes[dstName] = newHash;
+    // 2. 연결된 팩 에이전트 (pack-{name}- 프리픽스)
+    const connectedPacks = loadPackConfigs(cwd);
+    for (const pack of connectedPacks) {
+      const nsDir = path.join(cwd, '.compound', 'packs', pack.name, 'agents');
+      const globalDir = path.join(PACKS_DIR, pack.name, 'agents');
+      const agentDir = fs.existsSync(nsDir) ? nsDir : globalDir;
+      installAgentsFromDir(agentDir, targetDir, `pack-${pack.name}-`, hashes);
     }
+
     saveAgentHashes(hashes);
   } catch (e) {
-    /* expected: 에이전트 디렉토리 미존재 또는 권한 없음 — 선택적 기능이므로 무시 */
     debugLog('harness', '에이전트 설치 실패', e);
   }
 }
@@ -427,8 +462,9 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     const env = buildEnv(context);
     injectSettings(env);
 
-    // 8. 에이전트 설치
+    // 8. 에이전트 설치 + 팩 워크플로우 등록
     installAgents(cwd);
+    loadAndRegisterPackWorkflows(cwd);
 
     // 9. 규칙 파일 주입 (5개 분할)
     const ruleFiles = generateClaudeRuleFiles(context);
