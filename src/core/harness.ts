@@ -14,6 +14,7 @@ import { debugLog } from './logger.js';
 import { cleanStaleStateFiles } from './state-gc.js';
 import { loadGlobalConfig } from './global-config.js';
 import { autoSyncIfNeeded, loadPackConfigs } from './pack-config.js';
+import { checkSelfUpdate } from './version-check.js';
 import { PACKS_DIR } from './paths.js';
 import { loadPackWorkflows, registerPackWorkflows } from '../engine/modes.js';
 import {
@@ -600,7 +601,13 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
       }
     }
 
-    // 13. 세션 로그 시작
+    // 13. tenetx 자체 업데이트 알림
+    const selfUpdate = await checkSelfUpdate();
+    if (selfUpdate) {
+      console.error(`[tenetx] ${selfUpdate}`);
+    }
+
+    // 14. 세션 로그 시작
     startSessionLog(context);
 
     return context;
