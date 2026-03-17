@@ -81,7 +81,7 @@ const commands: Command[] = [
   },
   {
     name: 'pack',
-    description: 'Manage packs (install|sync|list)',
+    description: 'Manage packs (list|install|add|remove|connected|sync|init)',
     category: 'command',
     handler: async (args) => {
       const { handlePack } = await import('./pack/cli.js');
@@ -126,7 +126,7 @@ const commands: Command[] = [
   },
   {
     name: 'propose',
-    description: 'Propose insight to team (<src> --to <pack>)',
+    description: 'Propose insight to team [--pack <name>]',
     category: 'command',
     handler: async (args) => {
       const { handlePropose } = await import('./pack/crossover.js');
