@@ -159,14 +159,6 @@ export function initPack(name: string, dir?: string, options?: InitPackOptions):
     fs.mkdirSync(path.join(packDir, d), { recursive: true });
   }
 
-  const meta: PackMeta = {
-    name,
-    version: '0.1.0',
-    provides: { rules: 0, solutions: 0, skills: 0, agents: 0, workflows: 0, atoms: 0, manuals: 0 },
-  };
-
-  fs.writeFileSync(path.join(packDir, 'pack.json'), JSON.stringify(meta, null, 2));
-
   // --from-project: 프로젝트 분석 → _context.md 생성
   if (options?.fromProject) {
     generatePackContext({ cwd: options.fromProject, packDir, packName: name });
@@ -176,6 +168,23 @@ export function initPack(name: string, dir?: string, options?: InitPackOptions):
   if (options?.starter) {
     generateStarterTemplates(packDir);
   }
+
+  // pack.json은 마지막에 생성 (--starter 파일 반영을 위해)
+  const meta: PackMeta = {
+    name,
+    version: '0.1.0',
+    provides: {
+      rules: countFiles(path.join(packDir, 'rules')),
+      solutions: countFiles(path.join(packDir, 'solutions')),
+      skills: countFiles(path.join(packDir, 'skills')),
+      agents: countFiles(path.join(packDir, 'agents')),
+      workflows: countFiles(path.join(packDir, 'workflows'), '.json'),
+      atoms: countFiles(path.join(packDir, 'atoms')),
+      manuals: countFiles(path.join(packDir, 'manuals')),
+    },
+  };
+
+  fs.writeFileSync(path.join(packDir, 'pack.json'), JSON.stringify(meta, null, 2));
 }
 
 /** 설치된 팩 목록 */

@@ -47,10 +47,23 @@ export function detectProjectType(cwd: string): DetectionResult {
   const { deps, devDeps } = detectFromPackageJson(cwd);
   const allDeps = [...deps, ...devDeps];
 
-  // Frontend signals
+  // CLI/Tool detection — ink+react는 터미널 UI이므로 frontend가 아님
+  const cliLibs = ['ink', 'commander', 'yargs', 'meow', 'oclif', 'clipanion', 'cac', 'citty'];
+  const isCli = cliLibs.some(lib => allDeps.includes(lib));
+  if (isCli) {
+    backendScore += 15;
+    signals.push('cli: terminal tool detected');
+  }
+
+  // Frontend signals (ink+react 조합은 제외)
   const frontendLibs = ['react', 'vue', 'svelte', 'angular', 'next', 'nuxt', 'vite', '@angular/core', 'solid-js', 'preact'];
   for (const lib of frontendLibs) {
     if (allDeps.some(d => d === lib || d.startsWith(`@${lib}/`))) {
+      // react가 있어도 ink(터미널 UI)와 함께면 frontend 점수를 주지 않음
+      if (lib === 'react' && isCli) {
+        signals.push(`cli: react+ink (terminal UI, not frontend)`);
+        continue;
+      }
       frontendScore += 20;
       signals.push(`frontend: ${lib}`);
     }
@@ -202,7 +215,15 @@ export async function handleInit(args: string[]): Promise<void> {
   for (const sig of detection.signals.slice(0, 5)) {
     console.log(`    • ${sig}`);
   }
-  console.log(`  추천 팩: ${detection.pack}\n`);
+  console.log(`  추천 팩: ${detection.pack}`);
+
+  // 신뢰도 낮을 때 경고
+  if (detection.confidence < 30) {
+    console.log(`\n  ⚠ 신뢰도가 낮습니다 (${detection.confidence}%). 기본 철학을 사용합니다.`);
+    console.log(`  프로젝트에 맞는 팩을 직접 선택하려면: tenetx setup --project --pack <팩이름>`);
+    console.log(`  사용 가능한 팩: frontend, backend, devops, security, data`);
+  }
+  console.log();
 
   if (!isYes && process.stdin.isTTY) {
     // interactive: 확인
@@ -236,8 +257,8 @@ export async function handleInit(args: string[]): Promise<void> {
     };
     fs.writeFileSync(existingPath, JSON.stringify(philosophy, null, 2));
     console.log(`  ✓ 중앙 관리 철학 생성 (extends: pack:${detection.pack})`);
-  } else if (fs.existsSync(packPath)) {
-    // 독립 복사 모드
+  } else if (detection.confidence >= 30 && fs.existsSync(packPath)) {
+    // 독립 복사 모드 (신뢰도 30% 이상일 때만 팩 적용)
     const packContent = JSON.parse(fs.readFileSync(packPath, 'utf-8'));
     packContent.name = projectName;
     fs.writeFileSync(existingPath, JSON.stringify(packContent, null, 2));

@@ -324,6 +324,12 @@ function detectProjectName(cwd: string): string {
 function detectFramework(cwd: string, deps: ExternalDependency[]): string | undefined {
   const depNames = new Set(deps.map(d => d.name));
 
+  // CLI/Terminal UI tools (ink+react는 터미널 UI이므로 React 프레임워크가 아님)
+  const cliLibs = ['ink', 'commander', 'yargs', 'meow', 'oclif', 'clipanion', 'cac', 'citty'];
+  const isCli = cliLibs.some(lib => depNames.has(lib));
+  if (isCli && depNames.has('ink')) return 'Ink (Terminal UI)';
+  if (isCli) return undefined;  // CLI 도구는 프레임워크 없음으로 처리
+
   if (depNames.has('next')) return 'Next.js';
   if (depNames.has('nuxt')) return 'Nuxt';
   if (depNames.has('remix')) return 'Remix';
