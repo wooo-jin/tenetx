@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ME_RULES, PACKS_DIR } from './paths.js';
 import { projectDir } from './paths.js';
+import { loadPackConfigs } from './pack-config.js';
 import type { HarnessContext } from './types.js';
 import { debugLog } from './logger.js';
 import type { ProjectMap } from '../engine/knowledge/types.js';
@@ -215,8 +216,28 @@ export function generateCompoundRules(context: HarnessContext): string {
     lines.push('');
   }
 
-  // 팩 규칙 로드
-  if (context.scope.team) {
+  // 팩 규칙 로드 (복수 팩 지원)
+  const connectedPacks = loadPackConfigs(context.cwd);
+  if (connectedPacks.length > 0) {
+    for (const pack of connectedPacks) {
+      // 팩별 네임스페이스 디렉토리 → 레거시 디렉토리 폴백
+      const nsRulesDir = path.join(context.cwd, '.compound', 'packs', pack.name, 'rules');
+      const legacyRulesDir = path.join(PACKS_DIR, pack.name, 'rules');
+      const rulesDir = fs.existsSync(nsRulesDir) ? nsRulesDir : legacyRulesDir;
+      const packRules = loadRulesFromDir(rulesDir);
+
+      lines.push(`## Pack: ${pack.name}`);
+      if (packRules.length > 0) {
+        for (const rule of packRules) {
+          lines.push(`- ${rule}`);
+        }
+      } else {
+        lines.push('- (규칙 없음)');
+      }
+      lines.push('');
+    }
+  } else if (context.scope.team) {
+    // 하위 호환: 구 방식 scope.team 사용
     const packRulesDir = path.join(PACKS_DIR, context.scope.team.name, 'rules');
     const packRules = loadRulesFromDir(packRulesDir);
     lines.push(`## Pack: ${context.scope.team.name}`);

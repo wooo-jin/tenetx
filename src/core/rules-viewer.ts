@@ -5,7 +5,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ME_RULES, PACKS_DIR } from './paths.js';
-import { loadPackConfig } from './pack-config.js';
+import { loadPackConfigs } from './pack-config.js';
 
 const RST = '\x1b[0m';
 const BOLD = '\x1b[1m';
@@ -42,31 +42,40 @@ export async function handleRules(args: string[]): Promise<void> {
   }
 
   // 팀 규칙 (pack 연결 시)
-  const packConfig = loadPackConfig(cwd);
+  const packs = loadPackConfigs(cwd);
   console.log();
 
-  if (packConfig?.type === 'inline') {
-    const teamRules = listMdFiles(path.join(cwd, '.compound', 'rules'));
-    console.log(`  ${YELLOW}팀 규칙${RST} (${teamRules.length}건) — .compound/rules/ (inline)`);
-    if (teamRules.length === 0) {
-      console.log(`  ${DIM}없음. tenetx compound → tenetx propose 로 추가하세요.${RST}`);
-    } else {
-      for (const r of teamRules) {
-        console.log(`    • ${r.firstLine}`);
-      }
-    }
-  } else if (packConfig?.type === 'github') {
-    const packRules = listMdFiles(path.join(PACKS_DIR, packConfig.name, 'rules'));
-    console.log(`  ${YELLOW}팀 규칙${RST} (${packRules.length}건) — pack:${packConfig.name}`);
-    if (packRules.length === 0) {
-      console.log(`  ${DIM}tenetx pack sync 후 확인하세요.${RST}`);
-    } else {
-      for (const r of packRules) {
-        console.log(`    • ${r.firstLine}`);
-      }
-    }
-  } else {
+  if (packs.length === 0) {
     console.log(`  ${DIM}팀 규칙: 팩 미연결 (tenetx init --team 으로 설정)${RST}`);
+  } else {
+    for (const pack of packs) {
+      if (pack.type === 'inline') {
+        const teamRules = listMdFiles(path.join(cwd, '.compound', 'rules'));
+        console.log(`  ${YELLOW}팀 규칙${RST} (${teamRules.length}건) — .compound/rules/ (inline:${pack.name})`);
+        if (teamRules.length === 0) {
+          console.log(`  ${DIM}없음. tenetx compound → tenetx propose 로 추가하세요.${RST}`);
+        } else {
+          for (const r of teamRules) {
+            console.log(`    • ${r.firstLine}`);
+          }
+        }
+      } else if (pack.type === 'github') {
+        // 팩별 네임스페이스 디렉토리 우선, 폴백으로 PACKS_DIR
+        const nsDir = path.join(cwd, '.compound', 'packs', pack.name, 'rules');
+        const legacyDir = path.join(PACKS_DIR, pack.name, 'rules');
+        const rulesDir = fs.existsSync(nsDir) ? nsDir : legacyDir;
+        const packRules = listMdFiles(rulesDir);
+        console.log(`  ${YELLOW}팩 규칙${RST} (${packRules.length}건) — pack:${pack.name}`);
+        if (packRules.length === 0) {
+          console.log(`  ${DIM}tenetx pack sync 후 확인하세요.${RST}`);
+        } else {
+          for (const r of packRules) {
+            console.log(`    • ${r.firstLine}`);
+          }
+        }
+      }
+      console.log();
+    }
   }
 
   // 상세 보기

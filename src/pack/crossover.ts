@@ -103,8 +103,12 @@ export async function handlePick(args: string[]): Promise<void> {
  * - local: .compound/rules/ 에 직접 저장
  * - 미연결: 안내 메시지
  */
-export async function handlePropose(_args: string[]): Promise<void> {
+export async function handlePropose(args: string[]): Promise<void> {
   const cwd = process.cwd();
+
+  // --pack <name> 옵션 파싱
+  const packIdx = args.indexOf('--pack');
+  const targetPackName = packIdx !== -1 ? args[packIdx + 1] : undefined;
 
   // Load pending proposals from .compound/proposals/
   const proposalsDir = path.join(cwd, '.compound', 'proposals');
@@ -121,16 +125,16 @@ export async function handlePropose(_args: string[]): Promise<void> {
     console.log(`  • ${p.title}: ${p.content.slice(0, 60)}`);
   }
 
-  // Load pack config
-  let packConfig: PackConnection | null = null;
+  // Load pack configs (복수 팩 지원)
+  let packs: PackConnection[] = [];
   try {
-    const { loadPackConfig } = await import('../core/pack-config.js');
-    packConfig = loadPackConfig(cwd);
+    const { loadPackConfigs } = await import('../core/pack-config.js');
+    packs = loadPackConfigs(cwd);
   } catch {
     debugLog('crossover', 'pack-config 로드 실패, local 모드로 폴백');
   }
 
-  if (!packConfig) {
+  if (packs.length === 0) {
     // 개인 모드: 로컬 저장으로 폴백
     await proposeViaLocal(proposals, cwd);
     console.log('  팩이 연결되어 있지 않습니다. 로컬에 저장되었습니다.');
@@ -139,9 +143,38 @@ export async function handlePropose(_args: string[]): Promise<void> {
     return;
   }
 
-  switch (packConfig.type) {
+  // 대상 팩 결정: --pack 옵션이 있으면 해당 팩, 없으면 첫 번째 팩
+  let targetPack: PackConnection;
+  if (targetPackName) {
+    const found = packs.find(p => p.name === targetPackName);
+    if (!found) {
+      console.log(`\n  ✗ 팩 '${targetPackName}'이 연결되어 있지 않습니다.`);
+      console.log('  연결된 팩:');
+      for (const p of packs) {
+        console.log(`    • ${p.name} (${p.type})`);
+      }
+      console.log('  사용법: tenetx propose --pack <name>\n');
+      return;
+    }
+    targetPack = found;
+  } else if (packs.length > 1) {
+    // 복수 팩인데 --pack 미지정 → 안내 후 첫 번째 사용
+    console.log(`  연결된 팩이 ${packs.length}개입니다. 첫 번째 팩으로 제안합니다.`);
+    console.log(`  특정 팩 지정: tenetx propose --pack <name>`);
+    for (const p of packs) {
+      console.log(`    • ${p.name} (${p.type})`);
+    }
+    console.log();
+    targetPack = packs[0];
+  } else {
+    targetPack = packs[0];
+  }
+
+  console.log(`  대상 팩: ${targetPack.name} (${targetPack.type})\n`);
+
+  switch (targetPack.type) {
     case 'github': {
-      await proposeViaGithubPR(packConfig, proposals, cwd);
+      await proposeViaGithubPR(targetPack, proposals, cwd);
       break;
     }
     case 'inline': {
