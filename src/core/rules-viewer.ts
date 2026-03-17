@@ -67,9 +67,15 @@ export async function handleRules(args: string[]): Promise<void> {
         candidates.push(path.join(pack.localPath, 'rules'));
       }
 
-      // 존재하는 첫 번째 디렉토리 사용
-      const rulesDir = candidates.find(d => fs.existsSync(d));
-      const packRules = rulesDir ? listMdFiles(rulesDir) : [];
+      // 규칙 파일이 있는 디렉토리 사용 (빈 디렉토리 건너뜀)
+      let packRules: { name: string; firstLine: string }[] = [];
+      for (const candidate of candidates) {
+        const found = listMdFiles(candidate);
+        if (found.length > 0) {
+          packRules = found;
+          break;
+        }
+      }
       const label = pack.type === 'inline' ? `inline:${pack.name}` : `pack:${pack.name}`;
 
       console.log(`  ${YELLOW}팩 규칙${RST} (${packRules.length}건) — ${label}`);
