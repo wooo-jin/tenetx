@@ -411,6 +411,7 @@ function ensureGitignore(cwd: string): void {
     '.claude/rules/routing.md',
     '.claude/rules/compound.md',
     '.compound/project-map.json',
+    '.claude/commands/tenetx/',
     '.compound/notepad.md',
     '# pack.lock은 커밋 가능 (팀 버전 일관성)',
     '!.compound/pack.lock',
@@ -429,6 +430,101 @@ function ensureGitignore(cwd: string): void {
   } catch {
     // .gitignore 쓰기 실패는 무시 (권한 등)
   }
+}
+
+/** 스킬 파일을 슬래시 명령 형식으로 변환 */
+function buildCommandContent(skillContent: string, skillName: string): string {
+  const descMatch = skillContent.match(/description:\s*(.+)/);
+  const desc = descMatch?.[1]?.trim() ?? skillName;
+  return `# ${desc}\n\n<!-- tenetx-managed -->\n\nActivate Tenetx "${skillName}" mode for the task: $ARGUMENTS\n\n${skillContent}`;
+}
+
+/** tenetx-managed 파일만 안전하게 쓰기 (사용자 수정 보호) */
+function safeWriteCommand(cmdPath: string, content: string): boolean {
+  if (fs.existsSync(cmdPath)) {
+    const existing = fs.readFileSync(cmdPath, 'utf-8');
+    if (!existing.includes('<!-- tenetx-managed -->')) return false;
+  }
+  fs.writeFileSync(cmdPath, content);
+  return true;
+}
+
+/** tenetx-managed인데 현재 스킬 목록에 없는 파일 정리 */
+function cleanupStaleCommands(commandsDir: string, validFiles: Set<string>): number {
+  if (!fs.existsSync(commandsDir)) return 0;
+  let removed = 0;
+  for (const file of fs.readdirSync(commandsDir).filter(f => f.endsWith('.md'))) {
+    if (validFiles.has(file)) continue;
+    const filePath = path.join(commandsDir, file);
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      if (content.includes('<!-- tenetx-managed -->')) {
+        fs.unlinkSync(filePath);
+        removed++;
+      }
+    } catch { /* ignore */ }
+  }
+  return removed;
+}
+
+/** 스킬을 Claude Code 슬래시 명령(/tenetx:xxx)으로 설치 */
+function installSlashCommands(cwd: string): void {
+  const pkgRoot = getPackageRoot();
+  const skillsDir = path.join(pkgRoot, 'skills');
+  const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? '';
+
+  // 글로벌: ~/.claude/commands/tenetx/ (모든 프로젝트에서 /tenetx:xxx 사용 가능)
+  const globalCommandsDir = path.join(homeDir, '.claude', 'commands', 'tenetx');
+  // 프로젝트 로컬: <project>/.claude/commands/tenetx/ (프로젝트별 팩 스킬)
+  const localCommandsDir = path.join(cwd, '.claude', 'commands', 'tenetx');
+
+  if (!fs.existsSync(skillsDir)) return;
+  fs.mkdirSync(globalCommandsDir, { recursive: true });
+
+  // 1. 코어 스킬 → 글로벌 설치
+  const skills = fs.readdirSync(skillsDir).filter(f => f.endsWith('.md'));
+  const validGlobalFiles = new Set<string>();
+  let installed = 0;
+
+  for (const file of skills) {
+    validGlobalFiles.add(file);
+    const skillName = file.replace('.md', '');
+    const skillContent = fs.readFileSync(path.join(skillsDir, file), 'utf-8');
+    const cmdContent = buildCommandContent(skillContent, skillName);
+    if (safeWriteCommand(path.join(globalCommandsDir, file), cmdContent)) {
+      installed++;
+    }
+  }
+
+  // 2. 연결된 팩의 스킬 → 프로젝트 로컬 설치 (/tenetx:pack-{name}-{skill})
+  const validLocalFiles = new Set<string>();
+  try {
+    const connectedPacks = loadPackConfigs(cwd);
+    if (connectedPacks.length > 0) {
+      fs.mkdirSync(localCommandsDir, { recursive: true });
+    }
+    for (const pack of connectedPacks) {
+      const packSkillsDir = path.join(PACKS_DIR, pack.name, 'skills');
+      if (!fs.existsSync(packSkillsDir)) continue;
+      const packSkills = fs.readdirSync(packSkillsDir).filter(f => f.endsWith('.md'));
+      for (const file of packSkills) {
+        const fileName = `pack-${pack.name}-${file}`;
+        validLocalFiles.add(fileName);
+        const content = fs.readFileSync(path.join(packSkillsDir, file), 'utf-8');
+        const skillName = `${pack.name}/${file.replace('.md', '')}`;
+        const cmdContent = buildCommandContent(content, skillName);
+        if (safeWriteCommand(path.join(localCommandsDir, fileName), cmdContent)) {
+          installed++;
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  // 3. 삭제된 스킬 정리 (tenetx-managed 파일만)
+  const removedGlobal = cleanupStaleCommands(globalCommandsDir, validGlobalFiles);
+  const removedLocal = cleanupStaleCommands(localCommandsDir, validLocalFiles);
+
+  debugLog('harness', `슬래시 명령 설치: ${installed}개 설치, ${removedGlobal + removedLocal}개 정리`);
 }
 
 /** 메인 하네스 준비 함수 */
@@ -481,6 +577,9 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     // 9. 규칙 파일 주입 (5개 분할)
     const ruleFiles = generateClaudeRuleFiles(context);
     injectClaudeRuleFiles(cwd, ruleFiles);
+
+    // 9.5. 슬래시 명령 설치 (/project:autopilot 등)
+    installSlashCommands(cwd);
 
     // 10. tmux 바인딩 등록
     if (inTmux) {

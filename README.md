@@ -40,7 +40,7 @@ $ claude                        $ tenetx
 - **Philosophy-driven**: Declare beliefs, not configs. Workflows emerge automatically.
 - **Growth-oriented**: Compound engineering loop extracts patterns from every session.
 - **Team-aware**: Move knowledge (packs) between personal → team → org seamlessly.
-- **Production-ready**: 644 tests (100% pass), 19 agents in 3 lanes, 8 MCP servers, 16-signal model routing.
+- **Production-ready**: 654 tests (100% pass), 19 agents in 3 lanes, 8 MCP servers, 16-signal model routing.
 
 ---
 
@@ -541,14 +541,14 @@ tenetx setup --project --pack backend     # Or choose explicitly
 
 ## Statistics
 
-- **644 tests** across 36 test files (100% pass)
+- **654 tests** across 36 test files (100% pass)
 - **19 agents** in 3 lanes (BUILD 9, REVIEW 3, DOMAIN 7)
 - **11 skills** and 9 execution modes
 - **14 hooks**, 10 event types, 3 security hooks
 - **8 built-in MCP servers** (executable, JSON-RPC 2.0)
 - **16-signal model routing** (Haiku/Sonnet/Opus)
 - **5 sample philosophy packs** (startup, enterprise, research, content, platform)
-- **30+ CLI commands** (setup, philosophy, pack, compound, ask, scan, verify, stats, dashboard, doctor, notify, etc.)
+- **45+ CLI commands** (setup, philosophy, pack, compound, ask, scan, verify, stats, dashboard, doctor, notify, mcp, marketplace, session, worktree, etc.)
 
 ---
 

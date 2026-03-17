@@ -43,7 +43,7 @@ $ claude                        $ tenetx
 - **원칙 기반**: 설정이 아니라 신념을 선언하세요. 워크플로우는 자동으로 생성됩니다.
 - **성장 지향**: 모든 세션에서 패턴을 추출하는 복리 엔지니어링 루프.
 - **팀 인식**: 개인 → 팀 → 조직 간에 지식(팩)을 매끄럽게 이동.
-- **프로덕션 준비**: 644개 테스트(100% 통과), 3-lane 19개 에이전트, 8개 MCP 서버, 16-signal 모델 라우팅.
+- **프로덕션 준비**: 654개 테스트(100% 통과), 3-lane 19개 에이전트, 8개 MCP 서버, 16-signal 모델 라우팅.
 
 ---
 
@@ -544,14 +544,14 @@ tenetx setup --project --pack backend     # 또는 직접 선택
 
 ## 통계
 
-- **644개 테스트** (36개 테스트 파일, 100% 통과)
+- **654개 테스트** (36개 테스트 파일, 100% 통과)
 - **19개 에이전트** (3-lane: BUILD 9, REVIEW 3, DOMAIN 7)
 - **11개 스킬**과 9가지 실행 모드
 - **14개 훅**, 10가지 이벤트 타입, 3개 보안 훅
 - **8개 내장 MCP 서버** (실행 가능, JSON-RPC 2.0)
 - **16-signal 모델 라우팅** (Haiku/Sonnet/Opus)
 - **5개 샘플 철학 팩** (startup, enterprise, research, content, platform)
-- **30개 이상 CLI 명령어** (setup, philosophy, pack, compound, ask, scan, verify, stats, dashboard, doctor, notify 등)
+- **45개 이상 CLI 명령어** (setup, philosophy, pack, compound, ask, scan, verify, stats, dashboard, doctor, notify, mcp, marketplace, session, worktree 등)
 
 ---
 

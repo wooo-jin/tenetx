@@ -423,7 +423,7 @@ async function main() {
 
 function printHelp() {
   console.log(`
-  Tenetx v1.0.0
+  Tenetx v1.2.0
   Philosophy-driven Claude Code harness
 
   Usage:
