@@ -43,6 +43,105 @@ export function packConfigPath(cwd: string): string {
   return path.join(cwd, '.compound', 'pack.json');
 }
 
+// ── pack.lock ──
+
+/** 팩 잠금 엔트리 */
+export interface PackLockEntry {
+  /** 잠금된 커밋 SHA */
+  resolved: string;
+  /** 잠금 시점의 팩 버전 */
+  version?: string;
+  /** 잠금 시각 */
+  lockedAt: string;
+}
+
+/** pack.lock 파일 형식 */
+export interface PackLockFile {
+  lockVersion: 1;
+  packs: Record<string, PackLockEntry>;
+}
+
+/** .compound/pack.lock 경로 */
+export function packLockPath(cwd: string): string {
+  return path.join(cwd, '.compound', 'pack.lock');
+}
+
+/** pack.lock 로드 (없으면 null) */
+export function loadPackLock(cwd: string): PackLockFile | null {
+  const lockPath = packLockPath(cwd);
+  if (!fs.existsSync(lockPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(lockPath, 'utf-8')) as PackLockFile;
+  } catch { return null; }
+}
+
+/** pack.lock 저장 */
+export function savePackLock(cwd: string, lock: PackLockFile): void {
+  const lockPath = packLockPath(cwd);
+  fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+  fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+}
+
+/** 현재 연결된 github 팩들의 SHA를 스냅샷하여 pack.lock 생성/갱신 */
+export function lockPacks(cwd: string): { locked: string[]; skipped: string[] } {
+  const packs = loadPackConfigs(cwd);
+  const existing = loadPackLock(cwd) ?? { lockVersion: 1 as const, packs: {} };
+  const locked: string[] = [];
+  const skipped: string[] = [];
+
+  for (const pack of packs) {
+    if (pack.type === 'github' && pack.lastSync) {
+      existing.packs[pack.name] = {
+        resolved: pack.lastSync,
+        lockedAt: new Date().toISOString(),
+      };
+      locked.push(pack.name);
+    } else if (pack.type !== 'github') {
+      skipped.push(pack.name);
+    }
+  }
+
+  savePackLock(cwd, existing);
+  return { locked, skipped };
+}
+
+/** github 팩의 최신 SHA를 조회하여 lock과 비교, 업데이트 가능 팩 목록 반환 */
+export function checkPackUpdates(cwd: string): Array<{
+  name: string;
+  locked: string;
+  latest: string;
+  repo: string;
+}> {
+  const lock = loadPackLock(cwd);
+  const packs = loadPackConfigs(cwd);
+  const outdated: Array<{ name: string; locked: string; latest: string; repo: string }> = [];
+
+  for (const pack of packs) {
+    if (pack.type !== 'github' || !pack.repo) continue;
+    const entry = lock?.packs[pack.name];
+    if (!entry) continue;
+
+    try {
+      const latestSha = execFileSync('gh', [
+        'api', `repos/${pack.repo}/commits/HEAD`, '--jq', '.sha',
+      ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 }).trim();
+
+      if (latestSha !== entry.resolved) {
+        outdated.push({
+          name: pack.name,
+          locked: entry.resolved.slice(0, 7),
+          latest: latestSha.slice(0, 7),
+          repo: pack.repo,
+        });
+      }
+    } catch {
+      // 네트워크 오류 시 무시
+    }
+  }
+
+  return outdated;
+}
+
 /**
  * pack.json 원본 파싱 (하위 호환 포함)
  * - 새 형식: { packs: [...] }
@@ -213,11 +312,13 @@ export async function syncGithubPack(
   }
 }
 
-/** auto-sync: 마지막 sync로부터 1시간 이상이면 자동 동기화 (모든 github 팩 대상) */
+/** auto-sync: lock이 있으면 업데이트 알림만, 없으면 기존 동기화 */
 export async function autoSyncIfNeeded(cwd: string): Promise<string | null> {
   const packs = loadPackConfigs(cwd);
   const githubPacks = packs.filter(p => p.type === 'github');
   if (githubPacks.length === 0) return null;
+
+  const lock = loadPackLock(cwd);
 
   // pack.json mtime으로 1시간 체크
   const configPath = packConfigPath(cwd);
@@ -232,6 +333,18 @@ export async function autoSyncIfNeeded(cwd: string): Promise<string | null> {
   }
 
   const messages: string[] = [];
+
+  // lock이 있으면: 자동 sync하지 않고, 업데이트 가능 여부만 체크
+  if (lock && Object.keys(lock.packs).length > 0) {
+    const outdated = checkPackUpdates(cwd);
+    if (outdated.length > 0) {
+      const names = outdated.map(o => o.name).join(', ');
+      messages.push(`⬆ 팩 업데이트 가능: ${names} — tenetx pack sync 후 tenetx pack lock`);
+    }
+    return messages.length > 0 ? messages.join('\n') : null;
+  }
+
+  // lock이 없으면: 기존 자동 동기화 동작
   for (const pack of githubPacks) {
     const result = await syncGithubPack(pack, cwd);
     if (result.updated) {

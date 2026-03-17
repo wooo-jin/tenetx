@@ -12,6 +12,10 @@ import {
   addPack,
   removePack,
   loadPackConfigs,
+  lockPacks,
+  loadPackLock,
+  checkPackUpdates,
+  packLockPath,
   type PackConnection,
   type PackType,
 } from '../core/pack-config.js';
@@ -76,6 +80,21 @@ export async function handlePack(args: string[]): Promise<void> {
         break;
       }
 
+      case 'lock': {
+        handlePackLock();
+        break;
+      }
+
+      case 'unlock': {
+        handlePackUnlock();
+        break;
+      }
+
+      case 'outdated': {
+        handlePackOutdated();
+        break;
+      }
+
       case 'sync': {
         const packName = args[1];
         console.log('\n  팩 동기화\n');
@@ -101,13 +120,16 @@ export async function handlePack(args: string[]): Promise<void> {
       }
 
       default:
-        console.log('  사용법: tenetx pack <list|install|add|remove|connected|setup|sync|init>');
+        console.log('  사용법: tenetx pack <list|install|add|remove|connected|setup|lock|unlock|outdated|sync|init>');
         console.log('    list              설치된 팩 목록');
         console.log('    install <source>  팩 설치 (GitHub, 로컬)');
         console.log('    add <name>        프로젝트에 팩 연결 (--repo, --type)');
         console.log('    remove <name>     프로젝트에서 팩 연결 해제');
         console.log('    connected         현재 프로젝트에 연결된 팩 목록');
         console.log('    setup <source>    원클릭 셋업 (설치+연결+동기화+의존성 검사)');
+        console.log('    lock              팩 버전 고정 (pack.lock 생성, git 커밋 가능)');
+        console.log('    unlock            팩 버전 고정 해제');
+        console.log('    outdated          업데이트 가능한 팩 확인');
         console.log('    sync [name]       팩 동기화 (전체 또는 지정)');
         console.log('    init <name>       새 팩 생성');
     }
@@ -196,6 +218,70 @@ function listConnectedPacks(): void {
     console.log(`    ${pack.type} · ${sync}`);
   }
   console.log();
+}
+
+function handlePackLock(): void {
+  const cwd = process.cwd();
+  const { locked, skipped } = lockPacks(cwd);
+
+  console.log('\n  팩 버전 고정\n');
+  if (locked.length === 0) {
+    console.log('  고정할 github 팩이 없습니다.');
+    console.log('  (github 팩을 연결하고 sync한 후 실행하세요)\n');
+    return;
+  }
+
+  for (const name of locked) {
+    const lock = loadPackLock(cwd);
+    const entry = lock?.packs[name];
+    console.log(`  ✓ ${name} → ${entry?.resolved.slice(0, 7)}`);
+  }
+  if (skipped.length > 0) {
+    console.log(`  ─ 건너뜀 (비-github): ${skipped.join(', ')}`);
+  }
+
+  const lockPath = packLockPath(cwd);
+  console.log(`\n  pack.lock 생성됨: ${path.relative(cwd, lockPath)}`);
+  console.log('  이 파일을 git에 커밋하면 팀 전체가 동일한 팩 버전을 사용합니다.');
+  console.log('  업데이트: tenetx pack sync → tenetx pack lock\n');
+}
+
+function handlePackUnlock(): void {
+  const cwd = process.cwd();
+  const lockPath = packLockPath(cwd);
+
+  if (!fs.existsSync(lockPath)) {
+    console.log('\n  pack.lock이 없습니다. (이미 잠금 해제 상태)\n');
+    return;
+  }
+
+  fs.unlinkSync(lockPath);
+  console.log('\n  ✓ pack.lock 삭제됨 — 팩 자동 동기화가 재활성화됩니다.\n');
+}
+
+function handlePackOutdated(): void {
+  const cwd = process.cwd();
+  const lock = loadPackLock(cwd);
+
+  console.log('\n  팩 업데이트 확인\n');
+
+  if (!lock || Object.keys(lock.packs).length === 0) {
+    console.log('  pack.lock이 없습니다. tenetx pack lock으로 먼저 고정하세요.\n');
+    return;
+  }
+
+  const outdated = checkPackUpdates(cwd);
+
+  if (outdated.length === 0) {
+    console.log('  모든 팩이 최신 상태입니다.\n');
+    return;
+  }
+
+  for (const o of outdated) {
+    console.log(`  ⬆ ${o.name} (${o.repo})`);
+    console.log(`    현재: ${o.locked} → 최신: ${o.latest}`);
+  }
+  console.log(`\n  업데이트: tenetx pack sync → tenetx pack lock\n`);
 }
 
 /** 원클릭 셋업: 설치 → 연결 → 동기화 → 의존성 검사 */
