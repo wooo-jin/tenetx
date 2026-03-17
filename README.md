@@ -292,16 +292,18 @@ View real-time agent activity, skill usage, model routing, session costs, and te
 
 ---
 
-## All Commands (30+)
+## All Commands (45+)
 
 ### Core
 
 | Command | Purpose |
 |---------|---------|
 | `tenetx` | Start with harness applied |
-| `tenetx setup` | Initial setup |
-| `tenetx setup --project` | Project-specific philosophy |
+| `tenetx "prompt"` | Start with a prompt |
+| `tenetx setup` | Initial setup (global) |
+| `tenetx setup --project` | Project-specific philosophy (`--pack`, `--extends`, `--yes`) |
 | `tenetx --resume` | Resume previous session |
+| `tenetx init` | Auto-detect project type and initialize philosophy |
 | `tenetx init --team` | Initialize team pack (in repo) |
 
 ### Philosophy & Configuration
@@ -313,31 +315,71 @@ View real-time agent activity, skill usage, model routing, session costs, and te
 | `tenetx philosophy validate` | Validate syntax |
 | `tenetx init --extends` | Use pack inheritance |
 
-### Knowledge Management
+### Pack Management
 
 | Command | Purpose |
 |---------|---------|
-| `tenetx pack install <url>` | Install knowledge pack |
-| `tenetx pack sync` | Sync latest knowledge |
 | `tenetx pack list` | List installed packs |
-| `tenetx pick <pattern> --from <pack>` | Cherry-pick solution |
-| `tenetx propose <pattern> --to <pack>` | Propose team knowledge |
-| `tenetx proposals` | Review pending proposals |
-| `tenetx compound` | Extract session insights |
+| `tenetx pack install <source>` | Install pack (GitHub URL, `owner/repo`, local path) |
+| `tenetx pack sync [name]` | Sync all packs or a specific pack |
+| `tenetx pack init <name>` | Create new pack (`--from-project`, `--starter`) |
+| `tenetx pack add <name>` | Connect pack to project (`--repo`, `--type`, `--path`) |
+| `tenetx pack remove <name>` | Disconnect pack from project |
+| `tenetx pack connected` | List packs connected to current project |
+| `tenetx pack setup <source>` | One-click setup (install → connect → sync → dependency check) |
+| `tenetx pack lock` | Pin pack versions (creates `pack.lock`) |
+| `tenetx pack unlock` | Unpin pack versions (removes `pack.lock`) |
+| `tenetx pack outdated` | Check for available pack updates |
 
-### Tools & Utilities
+### Knowledge Sharing
 
 | Command | Purpose |
 |---------|---------|
-| `tenetx ask "question"` | Multi-provider question |
-| `tenetx scan` | Project structure scan |
-| `tenetx verify` | Auto verification loop |
+| `tenetx pick <pattern> --from <pack>` | Cherry-pick solution to personal collection |
+| `tenetx propose <pattern> --to <pack>` | Propose personal pattern to team |
+| `tenetx proposals` | Review pending team proposals |
+| `tenetx compound` | Extract session insights (personal/team auto-classification) |
+| `tenetx rules` | View personal and team rules |
+
+### AI & Providers
+
+| Command | Purpose |
+|---------|---------|
+| `tenetx ask "question"` | Multi-provider question (`--compare`, `--fallback`) |
+| `tenetx providers` | Manage AI providers (enable/disable/model/auth) |
+| `tenetx worker` | AI Workers (spawn/list/kill/output) |
+
+### Session & Monitoring
+
+| Command | Purpose |
+|---------|---------|
+| `tenetx status` | Print current status line |
 | `tenetx stats [--week]` | Session statistics |
+| `tenetx session` | Session management (search/list/show) |
 | `tenetx dashboard` | Governance dashboard |
+| `tenetx governance` | Governance report (`--json`, `--trend`) |
+| `tenetx gateway` | Event gateway (config/test/disable) |
+| `tenetx notepad` | Notepad (show/add/clear) |
+
+### Infrastructure
+
+| Command | Purpose |
+|---------|---------|
+| `tenetx mcp` | Manage MCP servers (list/templates/add/remove) |
+| `tenetx marketplace` | Plugin marketplace (search/install/list/remove) |
+| `tenetx worktree` | Git worktree management (list/create/remove/teleport) |
+| `tenetx scan` | Project structure scan (`--constraints`, `--md`) |
+| `tenetx verify` | Auto verification loop (build+test+constraints) |
+
+### Utilities
+
+| Command | Purpose |
+|---------|---------|
 | `tenetx doctor` | Environment diagnostics |
 | `tenetx notify "message"` | Send notification (Discord/Slack/Telegram) |
+| `tenetx wait <minutes>` | Rate limit wait + notify |
 | `tenetx install --plugin` | Install as Claude Code plugin |
-| `tenetx uninstall` | Uninstall |
+| `tenetx uninstall` | Uninstall (`--force`) |
 | `tenetx help` | Full help |
 
 ---

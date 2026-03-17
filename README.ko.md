@@ -295,16 +295,18 @@ tenetx dashboard
 
 ---
 
-## 모든 명령어 (30+)
+## 모든 명령어 (45+)
 
 ### 핵심
 
 | 명령어 | 목적 |
 |--------|------|
 | `tenetx` | 하네스 적용 후 시작 |
-| `tenetx setup` | 초기 설정 |
-| `tenetx setup --project` | 프로젝트별 원칙 |
+| `tenetx "프롬프트"` | 프롬프트와 함께 시작 |
+| `tenetx setup` | 초기 설정 (글로벌) |
+| `tenetx setup --project` | 프로젝트별 원칙 (`--pack`, `--extends`, `--yes`) |
 | `tenetx --resume` | 이전 세션 재개 |
+| `tenetx init` | 프로젝트 타입 자동 감지 → 맞춤 철학 생성 |
 | `tenetx init --team` | 팀 팩 초기화 (리포지토리) |
 
 ### 철학 & 설정
@@ -316,31 +318,71 @@ tenetx dashboard
 | `tenetx philosophy validate` | 문법 검증 |
 | `tenetx init --extends` | 팩 상속 사용 |
 
-### 지식 관리
+### 팩 관리
 
 | 명령어 | 목적 |
 |--------|------|
-| `tenetx pack install <url>` | 지식 팩 설치 |
-| `tenetx pack sync` | 최신 지식 동기화 |
 | `tenetx pack list` | 설치된 팩 목록 |
-| `tenetx pick <pattern> --from <pack>` | 솔루션 선택 |
-| `tenetx propose <pattern> --to <pack>` | 팀 지식 제안 |
-| `tenetx proposals` | 제안 검토 |
-| `tenetx compound` | 세션 인사이트 추출 |
+| `tenetx pack install <source>` | 팩 설치 (GitHub URL, `owner/repo`, 로컬 경로) |
+| `tenetx pack sync [name]` | 전체 또는 특정 팩 동기화 |
+| `tenetx pack init <name>` | 새 팩 생성 (`--from-project`, `--starter`) |
+| `tenetx pack add <name>` | 프로젝트에 팩 연결 (`--repo`, `--type`, `--path`) |
+| `tenetx pack remove <name>` | 프로젝트에서 팩 연결 해제 |
+| `tenetx pack connected` | 현재 프로젝트에 연결된 팩 목록 |
+| `tenetx pack setup <source>` | 원클릭 셋업 (설치→연결→동기화→의존성 검사) |
+| `tenetx pack lock` | 팩 버전 고정 (`pack.lock` 생성) |
+| `tenetx pack unlock` | 팩 버전 고정 해제 (`pack.lock` 삭제) |
+| `tenetx pack outdated` | 업데이트 가능한 팩 확인 |
 
-### 도구 & 유틸리티
+### 지식 공유
 
 | 명령어 | 목적 |
 |--------|------|
-| `tenetx ask "질문"` | 다중 제공자 질문 |
-| `tenetx scan` | 프로젝트 구조 스캔 |
-| `tenetx verify` | 자동 검증 루프 |
+| `tenetx pick <pattern> --from <pack>` | 솔루션을 개인 컬렉션으로 선택 |
+| `tenetx propose <pattern> --to <pack>` | 개인 패턴을 팀에 제안 |
+| `tenetx proposals` | 팀 제안 검토 |
+| `tenetx compound` | 세션 인사이트 추출 (개인/팀 자동 분류) |
+| `tenetx rules` | 개인 및 팀 규칙 조회 |
+
+### AI & 프로바이더
+
+| 명령어 | 목적 |
+|--------|------|
+| `tenetx ask "질문"` | 다중 제공자 질문 (`--compare`, `--fallback`) |
+| `tenetx providers` | AI 프로바이더 관리 (enable/disable/model/auth) |
+| `tenetx worker` | AI Workers (spawn/list/kill/output) |
+
+### 세션 & 모니터링
+
+| 명령어 | 목적 |
+|--------|------|
+| `tenetx status` | 현재 상태 라인 출력 |
 | `tenetx stats [--week]` | 세션 통계 |
+| `tenetx session` | 세션 관리 (search/list/show) |
 | `tenetx dashboard` | 거버넌스 대시보드 |
+| `tenetx governance` | 거버넌스 리포트 (`--json`, `--trend`) |
+| `tenetx gateway` | 이벤트 게이트웨이 (config/test/disable) |
+| `tenetx notepad` | 노트패드 (show/add/clear) |
+
+### 인프라
+
+| 명령어 | 목적 |
+|--------|------|
+| `tenetx mcp` | MCP 서버 관리 (list/templates/add/remove) |
+| `tenetx marketplace` | 플러그인 마켓플레이스 (search/install/list/remove) |
+| `tenetx worktree` | Git worktree 관리 (list/create/remove/teleport) |
+| `tenetx scan` | 프로젝트 구조 스캔 (`--constraints`, `--md`) |
+| `tenetx verify` | 자동 검증 루프 (build+test+constraints) |
+
+### 유틸리티
+
+| 명령어 | 목적 |
+|--------|------|
 | `tenetx doctor` | 환경 진단 |
 | `tenetx notify "메시지"` | 알림 전송 (Discord/Slack/Telegram) |
+| `tenetx wait <minutes>` | 레이트 리밋 대기 + 알림 |
 | `tenetx install --plugin` | Claude Code 플러그인 설치 |
-| `tenetx uninstall` | 제거 |
+| `tenetx uninstall` | 제거 (`--force`) |
 | `tenetx help` | 전체 도움말 |
 
 ---
