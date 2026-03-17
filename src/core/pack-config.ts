@@ -142,10 +142,11 @@ export async function syncGithubPack(
     return { updated: false, message: '팩이 github 타입이 아닙니다.' };
   }
 
-  // 팩별 네임스페이스: .compound/packs/{pack-name}/rules|solutions
+  // 팩별 네임스페이스: .compound/packs/{pack-name}/
   const packDir = path.join(cwd, '.compound', 'packs', config.name);
-  const rulesDir = path.join(packDir, 'rules');
-  const solutionsDir = path.join(packDir, 'solutions');
+
+  // 동기화 대상 디렉토리 (rules, solutions + skills, agents, workflows)
+  const syncDirs = ['rules', 'solutions', 'skills', 'agents', 'workflows'];
 
   try {
     // gh api로 최신 커밋 SHA 확인
@@ -159,50 +160,33 @@ export async function syncGithubPack(
     }
 
     // 디렉토리 생성
-    fs.mkdirSync(rulesDir, { recursive: true });
-    fs.mkdirSync(solutionsDir, { recursive: true });
-
-    let rulesUpdated = 0;
-    let solutionsUpdated = 0;
-
-    // rules 동기화
-    try {
-      const rulesJson = execFileSync('gh', [
-        'api', `repos/${config.repo}/contents/rules`, '--jq', '.[].name',
-      ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-
-      if (rulesJson) {
-        for (const filename of rulesJson.split('\n').filter(Boolean)) {
-          const b64 = execFileSync('gh', [
-            'api', `repos/${config.repo}/contents/rules/${filename}`, '--jq', '.content',
-          ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-          const content = Buffer.from(b64, 'base64').toString('utf-8');
-          fs.writeFileSync(path.join(rulesDir, filename), content);
-          rulesUpdated++;
-        }
-      }
-    } catch {
-      debugLog('pack-config', `[${config.name}] rules 디렉토리 동기화 실패 (없을 수 있음)`);
+    for (const dir of syncDirs) {
+      fs.mkdirSync(path.join(packDir, dir), { recursive: true });
     }
 
-    // solutions 동기화
-    try {
-      const solutionsJson = execFileSync('gh', [
-        'api', `repos/${config.repo}/contents/solutions`, '--jq', '.[].name',
-      ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const updateCounts: Record<string, number> = {};
 
-      if (solutionsJson) {
-        for (const filename of solutionsJson.split('\n').filter(Boolean)) {
-          const b64s = execFileSync('gh', [
-            'api', `repos/${config.repo}/contents/solutions/${filename}`, '--jq', '.content',
-          ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-          const content = Buffer.from(b64s, 'base64').toString('utf-8');
-          fs.writeFileSync(path.join(solutionsDir, filename), content);
-          solutionsUpdated++;
+    // 각 디렉토리 동기화
+    for (const dirName of syncDirs) {
+      updateCounts[dirName] = 0;
+      try {
+        const fileList = execFileSync('gh', [
+          'api', `repos/${config.repo}/contents/${dirName}`, '--jq', '.[].name',
+        ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+
+        if (fileList) {
+          for (const filename of fileList.split('\n').filter(Boolean)) {
+            const b64 = execFileSync('gh', [
+              'api', `repos/${config.repo}/contents/${dirName}/${filename}`, '--jq', '.content',
+            ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+            const content = Buffer.from(b64, 'base64').toString('utf-8');
+            fs.writeFileSync(path.join(packDir, dirName, filename), content);
+            updateCounts[dirName]++;
+          }
         }
+      } catch {
+        debugLog('pack-config', `[${config.name}] ${dirName} 디렉토리 동기화 실패 (없을 수 있음)`);
       }
-    } catch {
-      debugLog('pack-config', `[${config.name}] solutions 디렉토리 동기화 실패 (없을 수 있음)`);
     }
 
     // lastSync 업데이트 — 개별 팩의 lastSync만 갱신
@@ -214,9 +198,12 @@ export async function syncGithubPack(
       savePackConfigs(cwd, packs);
     }
 
-    const total = rulesUpdated + solutionsUpdated;
+    const total = Object.values(updateCounts).reduce((a, b) => a + b, 0);
+    const parts = Object.entries(updateCounts)
+      .filter(([, count]) => count > 0)
+      .map(([dir, count]) => `${dir} ${count}건`);
     const message = total > 0
-      ? `[${config.name}] 규칙 ${rulesUpdated}건, 솔루션 ${solutionsUpdated}건 업데이트됨`
+      ? `[${config.name}] ${parts.join(', ')} 업데이트됨`
       : `[${config.name}] 변경 사항 없음`;
 
     return { updated: total > 0, message };

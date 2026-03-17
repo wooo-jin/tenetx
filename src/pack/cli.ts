@@ -44,8 +44,11 @@ export async function handlePack(args: string[]): Promise<void> {
         console.log(`\n  ✓ ${meta.name} v${meta.version} 설치 완료`);
         if (meta.provides) {
           const parts: string[] = [];
-          if (meta.provides.solutions) parts.push(`솔루션 ${meta.provides.solutions}`);
           if (meta.provides.rules) parts.push(`규칙 ${meta.provides.rules}`);
+          if (meta.provides.solutions) parts.push(`솔루션 ${meta.provides.solutions}`);
+          if (meta.provides.skills) parts.push(`스킬 ${meta.provides.skills}`);
+          if (meta.provides.agents) parts.push(`에이전트 ${meta.provides.agents}`);
+          if (meta.provides.workflows) parts.push(`워크플로우 ${meta.provides.workflows}`);
           if (meta.provides.atoms) parts.push(`아톰 ${meta.provides.atoms}`);
           if (parts.length > 0) console.log(`  ${parts.join(' · ')}`);
         }
@@ -215,21 +218,23 @@ async function handlePackSetup(args: string[]): Promise<void> {
   const cwd = process.cwd();
   const nameArg = args.includes('--name') ? args[args.indexOf('--name') + 1] : undefined;
 
+  // installPack과 동일한 디렉토리명 결정 로직
+  const { extractPackName: extractName } = await import('./remote.js');
+  const dirName = nameArg ?? extractName(source);
+
   // 1. 설치
   console.log('\n  ━━ 팩 원클릭 셋업 ━━\n');
-  let packName: string;
+  let packName: string = dirName;
   let meta;
   try {
     console.log('  [1/4] 팩 설치...');
     meta = await installPack(source, nameArg);
-    packName = meta.name;
-    console.log(`  ✓ ${packName} v${meta.version} 설치 완료`);
+    packName = dirName; // 디렉토리명 기준 (meta.name과 다를 수 있음)
+    console.log(`  ✓ ${meta.name} v${meta.version} 설치 완료`);
   } catch (err) {
     const msg = (err as Error).message;
     if (msg.includes('이미 설치')) {
-      // 이미 설치된 경우 이름 추출 후 계속
-      const { extractPackName } = await import('./remote.js');
-      packName = nameArg ?? extractPackName(source);
+      meta = readPackMeta(path.join(PACKS_DIR, dirName)) ?? undefined;
       console.log(`  ✓ ${packName} 이미 설치됨 (동기화 진행)`);
       try { await syncPack(packName); } catch { /* ignore */ }
     } else {
@@ -260,7 +265,7 @@ async function handlePackSetup(args: string[]): Promise<void> {
 
   // 4. 의존성 검사
   console.log('  [4/4] 의존성 검사...');
-  const packDir = path.join(PACKS_DIR, packName);
+  const packDir = path.join(PACKS_DIR, dirName);
   const packMeta = readPackMeta(packDir);
   if (packMeta?.requires) {
     const issues = checkRequirements(packMeta.requires);

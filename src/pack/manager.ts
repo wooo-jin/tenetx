@@ -147,16 +147,14 @@ export async function syncAllPacks(): Promise<void> {
 export function initPack(name: string, dir?: string): void {
   const packDir = dir ?? path.join(PACKS_DIR, name);
   fs.mkdirSync(packDir, { recursive: true });
-  fs.mkdirSync(path.join(packDir, 'solutions'), { recursive: true });
-  fs.mkdirSync(path.join(packDir, 'rules'), { recursive: true });
-  fs.mkdirSync(path.join(packDir, 'skills'), { recursive: true });
-  fs.mkdirSync(path.join(packDir, 'agents'), { recursive: true });
-  fs.mkdirSync(path.join(packDir, 'workflows'), { recursive: true });
+  for (const dir of ['rules', 'solutions', 'skills', 'agents', 'workflows', 'atoms', 'manuals']) {
+    fs.mkdirSync(path.join(packDir, dir), { recursive: true });
+  }
 
   const meta: PackMeta = {
     name,
     version: '0.1.0',
-    provides: { solutions: 0, rules: 0, skills: 0, agents: 0, workflows: 0 },
+    provides: { rules: 0, solutions: 0, skills: 0, agents: 0, workflows: 0, atoms: 0, manuals: 0 },
   };
 
   fs.writeFileSync(path.join(packDir, 'pack.json'), JSON.stringify(meta, null, 2));

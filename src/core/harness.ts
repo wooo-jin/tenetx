@@ -284,8 +284,11 @@ function loadAndRegisterPackWorkflows(cwd: string): void {
       const packDir = fs.existsSync(nsDir) ? nsDir : globalDir;
       const workflows = loadPackWorkflows(packDir);
       if (workflows.length > 0) {
-        registerPackWorkflows(workflows);
+        const skipped = registerPackWorkflows(workflows);
         debugLog('harness', `팩 '${pack.name}'에서 워크플로우 ${workflows.length}개 등록`);
+        if (skipped.length > 0) {
+          debugLog('harness', `⚠ 팩 '${pack.name}' 워크플로우 이름 충돌로 무시됨: ${skipped.join(', ')}`);
+        }
       }
     }
   } catch (e) {

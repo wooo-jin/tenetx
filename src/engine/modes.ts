@@ -121,7 +121,7 @@ export function getModeConfig(mode: ExecutionMode): ModeConfig {
   return MODE_CONFIGS[mode];
 }
 
-/** CLI 인자에서 모드 파싱 */
+/** CLI 인자에서 모드 파싱 (내장 + 팩 워크플로우 동적 플래그) */
 export function parseMode(args: string[]): { mode: ExecutionMode; cleanArgs: string[] } {
   const modeFlags: Record<string, ExecutionMode> = {
     '--autopilot': 'autopilot',
@@ -139,6 +139,14 @@ export function parseMode(args: string[]): { mode: ExecutionMode; cleanArgs: str
     '-u': 'ultrawork',
     '-p': 'pipeline',
   };
+
+  // 동적 등록된 팩 워크플로우도 --{name} 플래그로 사용 가능
+  for (const key of Object.keys(MODE_CONFIGS)) {
+    const flag = `--${key}`;
+    if (!(flag in modeFlags)) {
+      modeFlags[flag] = key as ExecutionMode;
+    }
+  }
 
   let mode: ExecutionMode = 'normal';
   const cleanArgs: string[] = [];
@@ -186,12 +194,16 @@ export function loadPackWorkflows(packDir: string): ModeConfig[] {
 }
 
 /** 팩 워크플로우를 런타임 모드에 등록 */
-export function registerPackWorkflows(workflows: ModeConfig[]): void {
+export function registerPackWorkflows(workflows: ModeConfig[]): string[] {
+  const skipped: string[] = [];
   for (const wf of workflows) {
-    if (!(wf.name in MODE_CONFIGS)) {
+    if (wf.name in MODE_CONFIGS) {
+      skipped.push(wf.name);
+    } else {
       (MODE_CONFIGS as Record<string, ModeConfig>)[wf.name] = wf;
     }
   }
+  return skipped;
 }
 
 /** 모든 모드 목록 (내장 + 팩 워크플로우) */
