@@ -98,6 +98,41 @@ export async function runDoctor(): Promise<void> {
   }
   console.log();
 
+  // 프로젝트 팩 연결 상태
+  console.log('  [팩 연결]');
+  try {
+    const { loadPackConfigs, packConfigPath } = await import('./pack-config.js');
+    const packPath = packConfigPath(process.cwd());
+    if (exists(packPath)) {
+      // 구 형식 감지: packs 배열이 아닌 단일 객체
+      const raw = JSON.parse(fs.readFileSync(packPath, 'utf-8'));
+      const isLegacy = !Array.isArray(raw.packs) && raw.type && raw.name;
+      if (isLegacy) {
+        check('pack.json 형식', false, '구 형식 감지됨. 자동 마이그레이션하려면: tenetx doctor --migrate-packs');
+        // --migrate-packs 플래그 처리
+        if (process.argv.includes('--migrate-packs')) {
+          const packs = loadPackConfigs(process.cwd()); // 내부에서 자동 래핑
+          const { savePackConfigs } = await import('./pack-config.js');
+          savePackConfigs(process.cwd(), packs);
+          console.log(`    → 마이그레이션 완료: ${packs.length}개 팩을 새 형식으로 변환`);
+        }
+      } else {
+        check('pack.json 형식', true);
+      }
+      const packs = loadPackConfigs(process.cwd());
+      console.log(`  연결된 팩: ${packs.length}개`);
+      for (const p of packs) {
+        const detail = p.type === 'github' ? p.repo : p.type;
+        console.log(`    • ${p.name} (${detail})`);
+      }
+    } else {
+      console.log('  팩 미연결 (개인 모드)');
+    }
+  } catch {
+    console.log('  (팩 설정 확인 실패)');
+  }
+  console.log();
+
   // 현재 디렉토리 git 정보
   console.log('  [Git]');
   try {
