@@ -152,7 +152,7 @@ function scanSkills(dir: string): SkillMeta[] {
 /** 모든 스킬 소스에서 스킬 수집 */
 function collectSkills(): SkillMeta[] {
   const skills: SkillMeta[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, string>(); // name → source dir
 
   // 패키지 내장 스킬 경로 (dist/../skills/)
   const pkgSkillsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills');
@@ -180,12 +180,26 @@ function collectSkills(): SkillMeta[] {
     pkgSkillsDir,
   ];
 
+  const overrides: Array<{ name: string; winner: string; loser: string }> = [];
+
   for (const dir of dirs) {
     for (const skill of scanSkills(dir)) {
       if (!seen.has(skill.name)) {
-        seen.add(skill.name);
+        seen.set(skill.name, dir);
         skills.push(skill);
+      } else {
+        // 팩 스킬이 무시된 경우 기록
+        const winnerDir = seen.get(skill.name)!;
+        if (dir.includes('/packs/') || winnerDir.includes('/packs/')) {
+          overrides.push({ name: skill.name, winner: winnerDir, loser: dir });
+        }
       }
+    }
+  }
+
+  if (overrides.length > 0) {
+    for (const o of overrides) {
+      debugLog('skill-injector', `⚠ 스킬 '${o.name}' 오버라이드: ${path.basename(path.dirname(o.winner))} 우선, ${path.basename(path.dirname(o.loser))} 무시됨`);
     }
   }
 

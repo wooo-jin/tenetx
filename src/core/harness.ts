@@ -275,7 +275,8 @@ function saveAgentHashes(hashes: Record<string, string>): void {
 }
 
 /** 연결된 팩의 커스텀 워크플로우를 모드 시스템에 등록 */
-function loadAndRegisterPackWorkflows(cwd: string): void {
+function loadAndRegisterPackWorkflows(cwd: string): string[] {
+  const warnings: string[] = [];
   try {
     const connectedPacks = loadPackConfigs(cwd);
     for (const pack of connectedPacks) {
@@ -287,13 +288,15 @@ function loadAndRegisterPackWorkflows(cwd: string): void {
         const skipped = registerPackWorkflows(workflows);
         debugLog('harness', `팩 '${pack.name}'에서 워크플로우 ${workflows.length}개 등록`);
         if (skipped.length > 0) {
-          debugLog('harness', `⚠ 팩 '${pack.name}' 워크플로우 이름 충돌로 무시됨: ${skipped.join(', ')}`);
+          const msg = `⚠ 팩 '${pack.name}' 워크플로우 이름 충돌: ${skipped.join(', ')} (내장 모드 우선)`;
+          warnings.push(msg);
         }
       }
     }
   } catch (e) {
     debugLog('harness', '팩 워크플로우 로드 실패', e);
   }
+  return warnings;
 }
 
 /** 에이전트 소스 디렉토리에서 대상 디렉토리로 복사 (해시 기반 보호) */
@@ -401,6 +404,7 @@ function ensureGitignore(cwd: string): void {
   const tenetxEntries = [
     '# Tenetx (auto-generated, do not commit)',
     '.claude/agents/ch-*.md',
+    '.claude/agents/pack-*.md',
     '.claude/rules/security.md',
     '.claude/rules/golden-principles.md',
     '.claude/rules/anti-pattern.md',
@@ -408,6 +412,8 @@ function ensureGitignore(cwd: string): void {
     '.claude/rules/compound.md',
     '.compound/project-map.json',
     '.compound/notepad.md',
+    '# pack.lock은 커밋 가능 (팀 버전 일관성)',
+    '!.compound/pack.lock',
   ];
   const marker = '.claude/agents/ch-*.md';
 
@@ -467,7 +473,10 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
 
     // 8. 에이전트 설치 + 팩 워크플로우 등록
     installAgents(cwd);
-    loadAndRegisterPackWorkflows(cwd);
+    const workflowWarnings = loadAndRegisterPackWorkflows(cwd);
+    for (const w of workflowWarnings) {
+      console.error(`[tenetx] ${w}`);
+    }
 
     // 9. 규칙 파일 주입 (5개 분할)
     const ruleFiles = generateClaudeRuleFiles(context);
@@ -481,10 +490,15 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     // 11. .gitignore에 tenetx 생성 파일 등록 (팀 충돌 방지)
     ensureGitignore(cwd);
 
-    // 12. 팩 auto-sync (github 연결 시)
+    // 12. 팩 auto-sync (github 연결 시) + 업데이트 알림
     const syncMessage = await autoSyncIfNeeded(cwd);
     if (syncMessage) {
-      debugLog('harness', syncMessage);
+      // 업데이트 알림은 사용자에게 표시 (⬆ 표시가 있으면 알림)
+      if (syncMessage.includes('⬆')) {
+        console.error(`[tenetx] ${syncMessage}`);
+      } else {
+        debugLog('harness', syncMessage);
+      }
     }
 
     // 13. 세션 로그 시작
