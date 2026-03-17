@@ -12,6 +12,9 @@
  * deep-interview: Socratic 요구사항 명확화 (understand-before-act)
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
 export type ExecutionMode =
   | 'normal'
   | 'autopilot'
@@ -151,7 +154,47 @@ export function parseMode(args: string[]): { mode: ExecutionMode; cleanArgs: str
   return { mode, cleanArgs };
 }
 
-/** 모든 모드 목록 */
+/** 팩에서 커스텀 워크플로우 로드 */
+export function loadPackWorkflows(packDir: string): ModeConfig[] {
+  const workflowsDir = path.join(packDir, 'workflows');
+  if (!fs.existsSync(workflowsDir)) return [];
+
+  const workflows: ModeConfig[] = [];
+  try {
+    const files = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.json'));
+    for (const file of files) {
+      const raw = fs.readFileSync(path.join(workflowsDir, file), 'utf-8');
+      const def = JSON.parse(raw) as Partial<ModeConfig>;
+      if (!def.name || !def.description) continue;
+
+      workflows.push({
+        name: def.name as ExecutionMode,
+        description: def.description,
+        claudeArgs: def.claudeArgs ?? [],
+        envOverrides: {
+          COMPOUND_MODE: def.name,
+          ...(def.envOverrides ?? {}),
+        },
+        principle: def.principle ?? '-',
+        persistent: def.persistent ?? false,
+        composedOf: def.composedOf,
+      });
+    }
+  } catch { /* 워크플로우 로드 실패는 무시 */ }
+
+  return workflows;
+}
+
+/** 팩 워크플로우를 런타임 모드에 등록 */
+export function registerPackWorkflows(workflows: ModeConfig[]): void {
+  for (const wf of workflows) {
+    if (!(wf.name in MODE_CONFIGS)) {
+      (MODE_CONFIGS as Record<string, ModeConfig>)[wf.name] = wf;
+    }
+  }
+}
+
+/** 모든 모드 목록 (내장 + 팩 워크플로우) */
 export function listModes(): ModeConfig[] {
   return Object.values(MODE_CONFIGS);
 }

@@ -67,6 +67,9 @@ export async function installPack(source: string, name?: string): Promise<PackMe
     rules: countFiles(path.join(destDir, 'rules')),
     atoms: countFiles(path.join(destDir, 'atoms')),
     manuals: countFiles(path.join(destDir, 'manuals')),
+    skills: countFiles(path.join(destDir, 'skills')),
+    agents: countFiles(path.join(destDir, 'agents')),
+    workflows: countFiles(path.join(destDir, 'workflows'), '.json'),
   };
 
   fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
@@ -106,6 +109,9 @@ export async function syncPack(packName: string): Promise<void> {
     rules: countFiles(path.join(packDir, 'rules')),
     atoms: countFiles(path.join(packDir, 'atoms')),
     manuals: countFiles(path.join(packDir, 'manuals')),
+    skills: countFiles(path.join(packDir, 'skills')),
+    agents: countFiles(path.join(packDir, 'agents')),
+    workflows: countFiles(path.join(packDir, 'workflows'), '.json'),
   };
   fs.writeFileSync(path.join(packDir, 'pack.json'), JSON.stringify(updatedMeta, null, 2));
 
@@ -143,11 +149,14 @@ export function initPack(name: string, dir?: string): void {
   fs.mkdirSync(packDir, { recursive: true });
   fs.mkdirSync(path.join(packDir, 'solutions'), { recursive: true });
   fs.mkdirSync(path.join(packDir, 'rules'), { recursive: true });
+  fs.mkdirSync(path.join(packDir, 'skills'), { recursive: true });
+  fs.mkdirSync(path.join(packDir, 'agents'), { recursive: true });
+  fs.mkdirSync(path.join(packDir, 'workflows'), { recursive: true });
 
   const meta: PackMeta = {
     name,
     version: '0.1.0',
-    provides: { solutions: 0, rules: 0 },
+    provides: { solutions: 0, rules: 0, skills: 0, agents: 0, workflows: 0 },
   };
 
   fs.writeFileSync(path.join(packDir, 'pack.json'), JSON.stringify(meta, null, 2));

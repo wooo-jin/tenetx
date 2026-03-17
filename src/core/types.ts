@@ -13,6 +13,30 @@ export interface Philosophy {
   principles: Record<string, Principle>;
 }
 
+/** 팩이 요구하는 외부 의존성 */
+export interface PackRequirement {
+  /** MCP 서버 */
+  mcpServers?: Array<{
+    name: string;
+    installCmd?: string;
+    npm?: string;
+    pip?: string;
+    description?: string;
+  }>;
+  /** CLI 도구 */
+  tools?: Array<{
+    name: string;
+    installCmd?: string;
+    description?: string;
+  }>;
+  /** 환경변수 */
+  envVars?: Array<{
+    name: string;
+    description?: string;
+    required?: boolean;
+  }>;
+}
+
 export interface PackMeta {
   name: string;
   version: string;
@@ -26,7 +50,12 @@ export interface PackMeta {
     manuals?: number;
     solutions?: number;
     rules?: number;
+    skills?: number;
+    agents?: number;
+    workflows?: number;
   };
+  /** 팩이 요구하는 외부 의존성 */
+  requires?: PackRequirement;
 }
 
 export interface ScopeInfo {
