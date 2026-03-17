@@ -110,12 +110,25 @@ export async function handlePack(args: string[]): Promise<void> {
       case 'init': {
         const name = args[1];
         if (!name) {
-          console.log('  사용법: tenetx pack init <name>');
+          console.log('  사용법: tenetx pack init <name> [--from-project] [--starter]');
+          console.log('    --from-project    현재 프로젝트를 분석하여 AI 브리핑 생성');
+          console.log('    --starter         예제 규칙/스킬/워크플로우 포함');
           return;
         }
-        initPack(name);
+        const fromProject = args.includes('--from-project') ? process.cwd() : undefined;
+        const starter = args.includes('--starter');
+        initPack(name, undefined, { fromProject, starter });
         console.log(`\n  ✓ 팩 '${name}' 생성 완료`);
-        console.log(`  경로: ~/.compound/packs/${name}/\n`);
+        console.log(`  경로: ~/.compound/packs/${name}/`);
+        if (fromProject) {
+          console.log(`  _context.md 생성됨 — AI가 이 컨텍스트를 읽고 팩을 채울 수 있습니다.`);
+        }
+        if (starter) {
+          console.log(`  스타터 템플릿 포함됨 — 팀에 맞게 수정하세요.`);
+        }
+        console.log(`\n  다음 단계:`);
+        console.log(`    1. tenetx를 실행하고 "팩 채워줘"라고 말하면 AI가 도와줍니다.`);
+        console.log(`    2. 또는 직접 ~/.compound/packs/${name}/ 파일을 편집하세요.\n`);
         break;
       }
 

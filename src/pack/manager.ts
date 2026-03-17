@@ -10,6 +10,7 @@ import {
   readPackMeta,
   extractPackName,
 } from './remote.js';
+import { generatePackContext, generateStarterTemplates } from './pack-generator.js';
 
 /** 팩 디렉토리 초기화 */
 function ensurePacksDir(): void {
@@ -143,12 +144,19 @@ export async function syncAllPacks(): Promise<void> {
   }
 }
 
+export interface InitPackOptions {
+  /** 프로젝트 분석 기반 컨텍스트 생성 */
+  fromProject?: string;  // cwd 경로
+  /** 스타터 템플릿 포함 */
+  starter?: boolean;
+}
+
 /** 팩 초기화 (새 팩 생성) */
-export function initPack(name: string, dir?: string): void {
+export function initPack(name: string, dir?: string, options?: InitPackOptions): void {
   const packDir = dir ?? path.join(PACKS_DIR, name);
   fs.mkdirSync(packDir, { recursive: true });
-  for (const dir of ['rules', 'solutions', 'skills', 'agents', 'workflows', 'atoms', 'manuals']) {
-    fs.mkdirSync(path.join(packDir, dir), { recursive: true });
+  for (const d of ['rules', 'solutions', 'skills', 'agents', 'workflows', 'atoms', 'manuals']) {
+    fs.mkdirSync(path.join(packDir, d), { recursive: true });
   }
 
   const meta: PackMeta = {
@@ -158,6 +166,16 @@ export function initPack(name: string, dir?: string): void {
   };
 
   fs.writeFileSync(path.join(packDir, 'pack.json'), JSON.stringify(meta, null, 2));
+
+  // --from-project: 프로젝트 분석 → _context.md 생성
+  if (options?.fromProject) {
+    generatePackContext({ cwd: options.fromProject, packDir, packName: name });
+  }
+
+  // --starter: 예제 템플릿 포함
+  if (options?.starter) {
+    generateStarterTemplates(packDir);
+  }
 }
 
 /** 설치된 팩 목록 */
