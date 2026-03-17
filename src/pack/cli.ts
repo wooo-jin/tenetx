@@ -353,10 +353,25 @@ async function handlePackSetup(args: string[]): Promise<void> {
   const connected = loadPackConfigs(cwd);
   console.log(`  ✓ 연결 완료 (총 ${connected.length}개 팩)`);
 
-  // 3. 동기화
+  // 3. 동기화 + lastSync 기록
   console.log('  [3/4] 동기화...');
   try {
     await syncPack(packName);
+    // github 팩이면 lastSync SHA를 프로젝트 PackConnection에 기록 (pack lock에 필요)
+    if (isGithub) {
+      try {
+        const sha = execSync(`gh api repos/${source}/commits/HEAD --jq .sha`, {
+          encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000,
+        }).trim();
+        const { savePackConfigs } = await import('../core/pack-config.js');
+        const packs = loadPackConfigs(cwd);
+        const idx = packs.findIndex(p => p.name === packName);
+        if (idx >= 0) {
+          packs[idx].lastSync = sha;
+          savePackConfigs(cwd, packs);
+        }
+      } catch { /* SHA 조회 실패 시 무시 */ }
+    }
     console.log('  ✓ 동기화 완료');
   } catch {
     console.log('  ─ 동기화 건너뜀 (로컬 팩)');

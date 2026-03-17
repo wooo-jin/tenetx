@@ -363,6 +363,30 @@ tenetx pack add my-team-pack --repo org/my-team-pack
 tenetx pack sync my-team-pack
 ```
 
+### 팩 버전 고정 (팀 일관성)
+
+```bash
+# 현재 팩 SHA를 pack.lock에 고정
+tenetx pack lock
+
+# pack.lock을 git에 커밋 → 팀 전체가 동일 버전 사용
+git add .compound/pack.lock
+git commit -m "Lock pack versions"
+
+# 업데이트 가능 팩 확인
+tenetx pack outdated
+
+# 업데이트 적용
+tenetx pack sync
+tenetx pack lock  # 새 SHA로 재고정
+git add .compound/pack.lock && git commit
+
+# 잠금 해제 (자동 동기화 재활성화)
+tenetx pack unlock
+```
+
+`pack.lock`이 있으면 `tenetx` 시작 시 자동 동기화가 억제되고, 대신 "업데이트 가능" 알림만 표시됩니다.
+
 ## 설계 원칙
 
 ### 1. 한 팩에 하나의 관심사
