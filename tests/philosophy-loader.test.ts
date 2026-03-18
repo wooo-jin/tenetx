@@ -112,7 +112,9 @@ describe('loadPhilosophyForProject', () => {
 
     const { philosophy, source } = loadPhilosophyForProject(PROJECT_DIR);
     expect(source).toBe('global');
-    expect(philosophy.name).toBe('default');
+    // 글로벌 철학은 사용자가 커스터마이즈할 수 있으므로 이름이 존재하는지만 확인
+    expect(typeof philosophy.name).toBe('string');
+    expect(philosophy.name.length).toBeGreaterThan(0);
   });
 
   it('프로젝트/글로벌 모두 없으면 source=default로 반환한다', () => {
