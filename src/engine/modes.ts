@@ -24,7 +24,8 @@ export type ExecutionMode =
   | 'pipeline'
   | 'ccg'
   | 'ralplan'
-  | 'deep-interview';
+  | 'deep-interview'
+  | 'ecomode';
 
 export interface ModeConfig {
   name: ExecutionMode;
@@ -114,6 +115,14 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     principle: 'understand-before-act',
     persistent: false,
   },
+  ecomode: {
+    name: 'ecomode',
+    description: '토큰 절약 모드 (Haiku 우선, 간결한 응답)',
+    claudeArgs: ['--model', 'claude-haiku-4-5-20251001'],
+    envOverrides: { COMPOUND_MODE: 'ecomode', COMPOUND_ECO: '1' },
+    principle: 'focus-resources-on-judgment',
+    persistent: false,
+  },
 };
 
 /** 모드별 설정 반환 */
@@ -133,11 +142,13 @@ export function parseMode(args: string[]): { mode: ExecutionMode; cleanArgs: str
     '--ralplan': 'ralplan',
     '--deep-interview': 'deep-interview',
     '--normal': 'normal',
+    '--eco': 'ecomode',
     '-a': 'autopilot',
     '-r': 'ralph',
     '-t': 'team',
     '-u': 'ultrawork',
     '-p': 'pipeline',
+    '-e': 'ecomode',
   };
 
   // 동적 등록된 팩 워크플로우도 --{name} 플래그로 사용 가능

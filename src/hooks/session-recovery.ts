@@ -14,6 +14,67 @@ import { debugLog } from '../core/logger.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
+export interface Checkpoint {
+  sessionId: string;
+  mode: string;
+  modifiedFiles: string[];
+  lastToolCall: string;
+  toolCallCount: number;
+  timestamp: string;
+  cwd: string;
+}
+
+/** 체크포인트 저장 */
+export function saveCheckpoint(data: Checkpoint): void {
+  try {
+    fs.mkdirSync(STATE_DIR, { recursive: true });
+    const filePath = path.join(STATE_DIR, `checkpoint-${data.sessionId}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(data));
+  } catch (e) {
+    debugLog('session-recovery', '체크포인트 저장 실패', e);
+  }
+}
+
+/** 체크포인트 로드 */
+export function loadCheckpoint(sessionId: string): Checkpoint | null {
+  try {
+    const filePath = path.join(STATE_DIR, `checkpoint-${sessionId}.json`);
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Checkpoint;
+    }
+  } catch (e) {
+    debugLog('session-recovery', '체크포인트 로드 실패', e);
+  }
+  return null;
+}
+
+/** 오래된 체크포인트 삭제 */
+export function cleanStaleCheckpoints(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
+  let cleaned = 0;
+  try {
+    if (!fs.existsSync(STATE_DIR)) return 0;
+    const files = fs.readdirSync(STATE_DIR).filter(f => f.startsWith('checkpoint-') && f.endsWith('.json'));
+    const now = Date.now();
+    for (const file of files) {
+      const filePath = path.join(STATE_DIR, file);
+      try {
+        const data: Checkpoint = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        const age = now - new Date(data.timestamp).getTime();
+        if (age > maxAgeMs) {
+          fs.unlinkSync(filePath);
+          cleaned++;
+        }
+      } catch {
+        // 파싱 실패한 파일도 정리
+        try { fs.unlinkSync(filePath); cleaned++; } catch { /* ignore */ }
+      }
+    }
+  } catch (e) {
+    debugLog('session-recovery', '스테일 체크포인트 정리 실패', e);
+  }
+  return cleaned;
+}
+
 interface ModeState {
   active: boolean;
   startedAt: string;
@@ -71,6 +132,34 @@ async function main(): Promise<void> {
     } catch (e) {
       debugLog('session-recovery', `상태 파일 파싱 실패`, e);
     }
+  }
+
+  // 미완료 체크포인트 감지
+  try {
+    const checkpointFiles = fs.readdirSync(STATE_DIR)
+      .filter(f => f.startsWith('checkpoint-') && f.endsWith('.json'));
+    for (const file of checkpointFiles) {
+      try {
+        const cp: Checkpoint = JSON.parse(fs.readFileSync(path.join(STATE_DIR, file), 'utf-8'));
+        const age = Date.now() - new Date(cp.timestamp).getTime();
+        if (age > 24 * 60 * 60 * 1000) {
+          fs.unlinkSync(path.join(STATE_DIR, file));
+          continue;
+        }
+        const elapsedMin = Math.round(age / 60000);
+        recoveryMessages.push(
+          `<compound-checkpoint session="${cp.sessionId}">` +
+          `\n미완료 체크포인트 발견 (${elapsedMin}분 전)` +
+          `\n- 수정 파일: ${cp.modifiedFiles.length}개` +
+          `\n- 도구 호출: ${cp.toolCallCount}회` +
+          `\n- 마지막 도구: ${cp.lastToolCall}` +
+          `\n- 작업 디렉토리: ${cp.cwd}` +
+          `\n</compound-checkpoint>`
+        );
+      } catch { /* 개별 파일 파싱 실패 무시 */ }
+    }
+  } catch (e) {
+    debugLog('session-recovery', '체크포인트 스캔 실패', e);
   }
 
   // pending-compound 마커 확인 (이전 세션에서 compound loop 필요 표시)

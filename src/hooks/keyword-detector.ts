@@ -63,6 +63,7 @@ export const KEYWORD_PATTERNS: Array<{
   { pattern: /\bralplan\b/i, keyword: 'ralplan', type: 'skill', skill: 'ralplan' },
   { pattern: /\bdeep[- ]?interview\b/i, keyword: 'deep-interview', type: 'skill', skill: 'deep-interview' },
   { pattern: /\bpipeline[- ]?mode\b/i, keyword: 'pipeline', type: 'skill', skill: 'pipeline' },
+  { pattern: /\b(eco(?:mode)?|절약|비용\s*절약)\b/i, keyword: 'ecomode', type: 'skill', skill: 'ecomode' },
 
   // 인젝션 모드
   { pattern: /\bultrathink\b/i, keyword: 'ultrathink', type: 'inject' },
@@ -70,6 +71,13 @@ export const KEYWORD_PATTERNS: Array<{
   { pattern: /(?:^|\s)tdd(?:\s+(?:모드|mode|방식|으로|해|해줘|시작|적용)|\s*$)/im, keyword: 'tdd', type: 'inject' },
   { pattern: /(?:code[- ]?review|코드\s*리뷰)\s*(?:해|해줘|시작|해봐|부탁|mode|모드)/i, keyword: 'code-review', type: 'inject' },
   { pattern: /(?:security[- ]?review|보안\s*리뷰|보안\s*검토)\s*(?:해|해줘|시작|해봐|부탁|mode|모드)/i, keyword: 'security-review', type: 'inject' },
+
+  // 실용 스킬
+  { pattern: /\bgit[- ]?master\b/i, keyword: 'git-master', type: 'inject' },
+  { pattern: /\b(benchmark|벤치마크|성능\s*측정)\b/i, keyword: 'benchmark', type: 'inject' },
+  { pattern: /\b(migrate|마이그레이션|업그레이드)\b/i, keyword: 'migrate', type: 'inject' },
+  { pattern: /\b(debug[- ]?detective|디버그\s*탐정|체계적\s*디버깅)\b/i, keyword: 'debug-detective', type: 'inject' },
+  { pattern: /\b(refactor(?:ing)?|리팩토링|리팩터|코드\s*정리)\b/i, keyword: 'refactor', type: 'inject' },
 ];
 
 // ── 인젝션 메시지 ──
@@ -125,6 +133,67 @@ Check for OWASP Top 10 and common vulnerabilities:
 8. Unsafe deserialization
 Rate each finding: CRITICAL / HIGH / MEDIUM / LOW
 </compound-security-review>`,
+
+  'git-master': `<compound-git-master>
+GIT MASTER MODE ACTIVATED.
+Apply atomic commit strategy and clean history management:
+1. One commit = one logical change (atomic)
+2. Follow Conventional Commits: feat/fix/refactor/docs/chore(<scope>): <subject>
+3. Use interactive rebase (git rebase -i) to clean up WIP commits before pushing
+4. Never force-push to shared branches (main, develop)
+5. Use git bisect for systematic bug hunt across commits
+Commit message format: <type>(<scope>): <subject> — imperative, 50 chars max
+</compound-git-master>`,
+
+  benchmark: `<compound-benchmark>
+BENCHMARK MODE ACTIVATED.
+Measure performance with statistical rigor:
+1. Collect baseline metrics FIRST (before any changes)
+2. Run minimum 30 iterations (skip first 5 as warmup)
+3. Calculate: avg, p95, p99, min, max
+4. Measure: execution time (performance.now()), memory (process.memoryUsage()), bundle size
+5. Output before/after comparison table with delta percentages
+6. Use same environment for both measurements to ensure validity
+</compound-benchmark>`,
+
+  migrate: `<compound-migrate>
+MIGRATION MODE ACTIVATED.
+Follow the 5-phase safe migration workflow:
+1. ANALYZE: Document current state, identify breaking changes, map affected files
+2. PLAN: Decompose into atomic steps, define rollback triggers (error rate > N%)
+3. BACKUP: Create DB dump + git tag as restore point before any changes
+4. EXECUTE: Apply Expand-Contract pattern for zero-downtime DB changes
+5. VERIFY: Run E2E tests, check data integrity, validate performance regression
+Rollback criteria: error rate spike, latency > 2x baseline, data inconsistency
+</compound-migrate>`,
+
+  'debug-detective': `<compound-debug-detective>
+DEBUG DETECTIVE MODE ACTIVATED.
+Follow the Reproduce → Isolate → Fix → Verify loop:
+1. REPRODUCE: Document exact conditions, input, expected vs actual, reproduction rate
+2. ISOLATE: Classify error type (runtime/type/logic/async), use git bisect for regression
+3. FIX: Address root cause (not symptoms), minimize change scope
+4. VERIFY: Add regression test, confirm fix in staging before production
+Error classification:
+- Runtime: TypeError/ReferenceError → trace stack
+- Logic: wrong output → add intermediate logging
+- Async: race condition → check Promise chain, event ordering
+Never guess — always reproduce first.
+</compound-debug-detective>`,
+
+  refactor: `<compound-refactor>
+REFACTOR MODE ACTIVATED.
+Safe refactoring with test-first approach:
+1. SECURE TESTS: Characterization tests for untested code before touching anything
+2. IDENTIFY SMELLS: Long functions (>50 lines), duplication, deep nesting (>3), magic numbers
+3. APPLY SOLID: Single responsibility, Open-closed, Liskov, Interface segregation, Dependency inversion
+4. REFACTOR CATALOG: Extract Method, Move Method, Replace Conditional with Polymorphism
+5. VERIFY: Run full test suite after each refactoring step
+Rules:
+- Never mix refactoring + feature changes in the same commit
+- One refactoring pattern per commit
+- Keep tests green at all times
+</compound-refactor>`,
 };
 
 // ── 스킬 파일 로드 ──

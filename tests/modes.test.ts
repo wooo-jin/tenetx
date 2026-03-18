@@ -103,9 +103,9 @@ describe('modes', () => {
   });
 
   describe('listModes', () => {
-    it('9개 모드를 반환한다', () => {
+    it('10개 모드를 반환한다', () => {
       const modes = listModes();
-      expect(modes.length).toBe(9);
+      expect(modes.length).toBe(10);
     });
 
     it('모든 모드 이름이 유니크하다', () => {

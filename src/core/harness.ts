@@ -90,6 +90,7 @@ function injectSettings(env: Record<string, string>): void {
   const hooksConfig = settings.hooks as Record<string, unknown[]> ?? {};
 
   // dist 경로의 훅 스크립트
+  const intentClassifierPath = path.join(pkgRoot, 'dist', 'hooks', 'intent-classifier.js');
   const keywordDetectorPath = path.join(pkgRoot, 'dist', 'hooks', 'keyword-detector.js');
   const skillInjectorPath = path.join(pkgRoot, 'dist', 'hooks', 'skill-injector.js');
   const sessionRecoveryPath = path.join(pkgRoot, 'dist', 'hooks', 'session-recovery.js');
@@ -105,6 +106,7 @@ function injectSettings(env: Record<string, string>): void {
   const dbGuardPath = path.join(pkgRoot, 'dist', 'hooks', 'db-guard.js');
   const rateLimiterPath = path.join(pkgRoot, 'dist', 'hooks', 'rate-limiter.js');
   const solutionInjectorPath = path.join(pkgRoot, 'dist', 'hooks', 'solution-injector.js');
+  const slopDetectorPath = path.join(pkgRoot, 'dist', 'hooks', 'slop-detector.js');
 
   /** tenetx 훅인지 판별 (matcher 래핑 여부 무관) */
   function isCHHook(entry: Record<string, unknown>): boolean {
@@ -142,6 +144,9 @@ function injectSettings(env: Record<string, string>): void {
   // UserPromptSubmit 훅
   const promptHooks = filterOutCH(
     hooksConfig.UserPromptSubmit);
+  if (fs.existsSync(intentClassifierPath)) {
+    promptHooks.push(makeHookEntry(`node "${intentClassifierPath}"`, 3000));
+  }
   if (fs.existsSync(keywordDetectorPath)) {
     promptHooks.push(makeHookEntry(`node "${keywordDetectorPath}"`, 5000));
   }
@@ -197,6 +202,9 @@ function injectSettings(env: Record<string, string>): void {
   }
   if (fs.existsSync(secretFilterPath)) {
     postToolHooks.push(makeHookEntry(`node "${secretFilterPath}"`, 3000));
+  }
+  if (fs.existsSync(slopDetectorPath)) {
+    postToolHooks.push(makeHookEntry(`node "${slopDetectorPath}"`, 3000));
   }
   hooksConfig.PostToolUse = postToolHooks;
 

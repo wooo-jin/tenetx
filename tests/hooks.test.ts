@@ -372,7 +372,7 @@ describe('pre-tool-use extended patterns (10G)', () => {
 
 describe('post-tool-use trackModifiedFile (10F)', () => {
   it('파일 수정 횟수를 정확히 추적한다', () => {
-    const state = { sessionId: 'test', files: {} };
+    const state = { sessionId: 'test', files: {}, toolCallCount: 0 };
     const { count } = trackModifiedFile(state, '/src/app.ts', 'Edit');
     expect(count).toBe(1);
     const { count: count2 } = trackModifiedFile(state, '/src/app.ts', 'Edit');
@@ -380,7 +380,7 @@ describe('post-tool-use trackModifiedFile (10F)', () => {
   });
 
   it('5회 이상 수정 시 카운트가 정확하다', () => {
-    const state = { sessionId: 'test', files: {} };
+    const state = { sessionId: 'test', files: {}, toolCallCount: 0 };
     for (let i = 0; i < 4; i++) {
       trackModifiedFile(state, '/src/app.ts', 'Write');
     }
@@ -389,7 +389,7 @@ describe('post-tool-use trackModifiedFile (10F)', () => {
   });
 
   it('서로 다른 파일은 독립적으로 추적된다', () => {
-    const state = { sessionId: 'test', files: {} };
+    const state = { sessionId: 'test', files: {}, toolCallCount: 0 };
     trackModifiedFile(state, '/a.ts', 'Edit');
     trackModifiedFile(state, '/a.ts', 'Edit');
     trackModifiedFile(state, '/b.ts', 'Write');
@@ -398,7 +398,7 @@ describe('post-tool-use trackModifiedFile (10F)', () => {
   });
 
   it('tool 이름이 올바르게 기록된다', () => {
-    const state = { sessionId: 'test', files: {} };
+    const state = { sessionId: 'test', files: {}, toolCallCount: 0 };
     trackModifiedFile(state, '/c.ts', 'Write');
     trackModifiedFile(state, '/c.ts', 'Edit');
     expect(state.files['/c.ts'].tool).toBe('Edit'); // 마지막 도구

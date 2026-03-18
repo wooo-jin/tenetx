@@ -14,6 +14,7 @@ import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles } from '../engine/token-tracker.js';
 import { runConstraintsOnFile, formatViolations } from '../engine/constraints/constraint-runner.js';
+import { saveCheckpoint } from './session-recovery.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -32,6 +33,7 @@ interface PostToolInput {
 interface ModifiedFilesState {
   sessionId: string;
   files: Record<string, { count: number; lastModified: string; tool: string }>;
+  toolCallCount: number;
 }
 
 /** 세션별 파일 경로 */
@@ -47,7 +49,7 @@ function loadModifiedFiles(sessionId: string): ModifiedFilesState {
       return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     }
   } catch { /* ignore */ }
-  return { sessionId, files: {} };
+  return { sessionId, files: {}, toolCallCount: 0 };
 }
 
 /** 수정된 파일 목록 저장 */
@@ -120,8 +122,30 @@ async function main(): Promise<void> {
   const toolResponse = data.tool_response ?? data.toolOutput ?? '';
   const sessionId = data.session_id ?? 'default';
 
-  // 토큰/비용 추적 (모든 도구 호출)
+  // 도구 호출 카운터 추적 + 체크포인트
+  const modState = loadModifiedFiles(sessionId);
+  modState.toolCallCount = (modState.toolCallCount ?? 0) + 1;
+
   const messages: string[] = [];
+
+  // 5번째 도구 호출마다 체크포인트 자동 저장
+  if (modState.toolCallCount % 5 === 0) {
+    try {
+      saveCheckpoint({
+        sessionId,
+        mode: 'active',
+        modifiedFiles: Object.keys(modState.files),
+        lastToolCall: toolName,
+        toolCallCount: modState.toolCallCount,
+        timestamp: new Date().toISOString(),
+        cwd: data.cwd ?? process.env.COMPOUND_CWD ?? process.cwd(),
+      });
+    } catch (e) {
+      debugLog('post-tool-use', '체크포인트 저장 실패', e);
+    }
+  }
+
+  // 토큰/비용 추적 (모든 도구 호출)
   try {
     const inputStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput);
     const usage = recordToolUsage(sessionId, inputStr.length, toolResponse.length, data.model_id);
@@ -144,9 +168,7 @@ async function main(): Promise<void> {
     const filePath = (toolInput.file_path as string) ?? (toolInput.filePath as string) ?? '';
     if (filePath) {
       try {
-        const state = loadModifiedFiles(sessionId);
-        const { count } = trackModifiedFile(state, filePath, toolName);
-        saveModifiedFiles(state);
+        const { count } = trackModifiedFile(modState, filePath, toolName);
 
         // 같은 파일 5회 이상 수정 시 경고
         if (count >= 5) {
@@ -179,6 +201,9 @@ async function main(): Promise<void> {
       messages.push(`<compound-tool-info>\n[Tenetx] 실행 결과에 "${errorMatch.description}" 패턴 감지됨. 확인이 필요할 수 있습니다.\n</compound-tool-info>`);
     }
   }
+
+  // 상태 저장 (toolCallCount 포함)
+  saveModifiedFiles(modState);
 
   // 수집된 메시지를 합성하여 출력
   if (messages.length > 0) {
