@@ -82,10 +82,11 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
 
   // ─── Step 2: 개발 철학 생성 ───
   console.log('  ── 2/5. 개발 철학 ──');
-  console.log('  Claude Code 대화 히스토리를 분석하여');
-  console.log('  당신의 개발 스타일에 맞는 철학을 자동 생성합니다.\n');
+  console.log('  Claude Code 대화 히스토리를 전체 분석하여');
+  console.log('  당신의 개발 스타일에 맞는 철학을 자동 생성합니다.');
+  console.log('  (메시지가 많을수록 정확한 철학이 생성됩니다)\n');
 
-  const messages = sampleUserHistory(80);
+  const messages = sampleUserHistory();
   if (messages.length > 0) {
     console.log(`  ${messages.length}개의 대화 메시지를 발견했습니다.`);
     const wantGenerate = await promptYesNo(rl, '  AI가 분석하여 철학을 생성할까요?', true);

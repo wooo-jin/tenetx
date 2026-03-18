@@ -104,6 +104,7 @@ function injectSettings(env: Record<string, string>): void {
   const secretFilterPath = path.join(pkgRoot, 'dist', 'hooks', 'secret-filter.js');
   const dbGuardPath = path.join(pkgRoot, 'dist', 'hooks', 'db-guard.js');
   const rateLimiterPath = path.join(pkgRoot, 'dist', 'hooks', 'rate-limiter.js');
+  const solutionInjectorPath = path.join(pkgRoot, 'dist', 'hooks', 'solution-injector.js');
 
   /** tenetx 훅인지 판별 (matcher 래핑 여부 무관) */
   function isCHHook(entry: Record<string, unknown>): boolean {
@@ -152,6 +153,9 @@ function injectSettings(env: Record<string, string>): void {
   }
   if (fs.existsSync(notepadInjectorPath)) {
     promptHooks.push(makeHookEntry(`node "${notepadInjectorPath}"`, 3000));
+  }
+  if (fs.existsSync(solutionInjectorPath)) {
+    promptHooks.push(makeHookEntry(`node "${solutionInjectorPath}"`, 3000));
   }
   hooksConfig.UserPromptSubmit = promptHooks;
 

@@ -138,14 +138,6 @@ function slugify(text: string): string {
     .slice(0, 60);
 }
 
-/** 개인 규칙으로 저장 */
-function savePersonalRule(insight: CompoundInsight): void {
-  fs.mkdirSync(ME_RULES, { recursive: true });
-  const filename = `${insight.id}.md`;
-  const content = `# ${insight.title}\n\n${insight.content}\n`;
-  fs.writeFileSync(path.join(ME_RULES, filename), content);
-}
-
 /** 팀 제안으로 저장 (.compound/proposals/) */
 export function saveTeamProposals(insights: CompoundInsight[], cwd: string): void {
   const proposalsDir = path.join(cwd, '.compound', 'proposals');
@@ -303,11 +295,14 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
     if (!title.trim()) break;
 
     const content = await prompt('      내용: ');
+    const typeChoiceStr = await prompt('      유형 (1=솔루션 2=규칙 3=컨벤션 4=패턴) [1]: ');
+    const typeMap = { '1': 'solution', '2': 'rule', '3': 'convention', '4': 'pattern' } as const;
+    const insightType = typeMap[typeChoiceStr.trim() as keyof typeof typeMap] ?? 'solution';
     const { classification, reason } = classifyInsight(title, content);
 
     const insight: CompoundInsight = {
       id: `c-${Date.now()}-${idx}`,
-      type: 'pattern',
+      type: insightType,
       title: title.trim(),
       content: content.trim(),
       classification,
@@ -348,16 +343,14 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
     }
   }
 
-  // Save
+  // Save — runCompoundLoop을 통해 타입별 올바른 경로에 저장
   const personal = insights.filter(i => i.classification === 'personal');
   const team = insights.filter(i => i.classification === 'team');
 
-  // Save personal to ~/.compound/me/rules/
-  for (const ins of personal) {
-    savePersonalRule(ins);
-  }
   if (personal.length > 0) {
-    console.log(`\n  ✓ 개인 규칙 ${personal.length}건 저장`);
+    const result = await runCompoundLoop(cwd, personal);
+    for (const s of result.saved) console.log(`\n  ✓ 저장: ${s}`);
+    for (const s of result.skipped) console.log(`  ─ 건너뜀: ${s}`);
   }
 
   // Save team to .compound/proposals/ (for later propose)

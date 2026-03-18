@@ -6,9 +6,16 @@ if (nodeVersion < 18) {
   process.exit(1);
 }
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { prepareHarness, isFirstRun } from './core/harness.js';
 import { toggleDashboard, runDashboard } from './core/dashboard.js';
 import { spawnClaude } from './core/spawn.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const pkgJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf-8'));
+const PKG_VERSION: string = pkgJson.version ?? '0.0.0';
 
 const args = process.argv.slice(2);
 
@@ -423,7 +430,7 @@ async function main() {
 
 function printHelp() {
   console.log(`
-  Tenetx v1.2.0
+  Tenetx v${PKG_VERSION}
   Philosophy-driven Claude Code harness
 
   Usage:

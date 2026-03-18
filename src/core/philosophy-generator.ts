@@ -32,7 +32,7 @@ function extractUserMessages(jsonlPath: string): string[] {
 }
 
 /** 모든 프로젝트의 대화에서 user 메시지 샘플링 */
-export function sampleUserHistory(maxMessages = 100): string[] {
+export function sampleUserHistory(maxMessages = 500): string[] {
   if (!fs.existsSync(CLAUDE_PROJECTS_DIR)) return [];
 
   const allMessages: Array<{ text: string; mtime: number }> = [];
@@ -50,7 +50,7 @@ export function sampleUserHistory(maxMessages = 100): string[] {
           mtime: fs.statSync(path.join(projectDir, f)).mtimeMs,
         }))
         .sort((a, b) => b.mtime - a.mtime)
-        .slice(0, 5); // 프로젝트당 최근 5개 세션
+        ; // 모든 세션을 분석 — 철학 생성에는 충분한 데이터가 필요
 
       for (const session of sessions) {
         const msgs = extractUserMessages(session.path);
