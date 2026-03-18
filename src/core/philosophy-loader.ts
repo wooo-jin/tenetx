@@ -124,12 +124,13 @@ export function initDefaultPhilosophy(): void {
  * "pack:emr-standard" → ~/.compound/packs/emr-standard/philosophy.json
  */
 export function resolveBasePhilosophy(extendsValue: string): Philosophy | null {
-  if (!extendsValue.startsWith('pack:')) {
-    console.warn(`  ⚠ extends 값은 "pack:" 접두사가 필요합니다. 현재: "${extendsValue}"`);
-    console.warn(`  올바른 형식: "extends": "pack:${extendsValue}"`);
-    return null;
+  let normalized = extendsValue;
+  if (!normalized.startsWith('pack:')) {
+    // 자동 보정: "relentless-quality-forge" → "pack:relentless-quality-forge"
+    normalized = `pack:${normalized}`;
+    debugLog('philosophy-loader', `extends 자동 보정: "${extendsValue}" → "${normalized}"`);
   }
-  const packName = extendsValue.slice(5);
+  const packName = normalized.slice(5);
 
   // 1. 설치된 팩에서 찾기
   const packPhilPath = path.join(PACKS_DIR, packName, 'philosophy.json');

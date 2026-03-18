@@ -106,6 +106,41 @@ designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git
 핸드오프: ~/.compound/handoffs/{stage}.md
 </State_Management>
 
+<Codex_Delegation>
+## Codex 팀원 위임 (tmux 패널 분할)
+
+독립적인 태스크가 있고 tmux 환경이면, Codex를 별도 패널에 스폰하여 병렬 작업할 수 있습니다.
+
+### 사용 조건
+- tmux 세션 안에서 실행 중
+- `codex` CLI 설치 + 인증 완료 (`codex login`)
+
+### 자동 분배
+team-exec 단계에서 태스크를 분해한 후, 각 태스크의 특성을 분석하여 자동 분배합니다:
+
+**Claude 우선 (판단 필요):**
+- 아키텍처/설계, 리팩토링, 보안, 마이그레이션, 디버깅, API 설계, 코드 리뷰
+
+**Codex 우선 (실행 중심):**
+- 테스트 작성, 반복 패턴 적용, CRUD 구현, 타입 추가, 에러 핸들링 추가, 코드 변환
+
+### 위임 방법
+```bash
+# 단일 작업 위임
+tenetx codex-spawn "src/payment/ 디렉토리에 결제 검증 로직 구현. 기존 패턴은 src/auth/를 참고."
+
+# 모델 지정
+tenetx codex-spawn --model o3 "복잡한 알고리즘 구현"
+```
+
+### 위임 기준
+- ✅ 위임 적합: 독립 디렉토리/파일, 명확한 스펙, Claude와 파일 충돌 없음
+- ❌ 위임 부적합: 같은 파일 수정, Claude 작업에 의존, 아키텍처 결정 필요
+
+### 결과 통합
+Codex 패널 완료 후 `git diff`로 변경사항 확인하여 team-verify에서 함께 검증합니다.
+</Codex_Delegation>
+
 <Arguments>
 ## 사용법
 `/tenetx:team {작업 설명}`

@@ -168,6 +168,16 @@ const commands: Command[] = [
     },
   },
   {
+    name: 'codex-spawn',
+    aliases: ['codex'],
+    description: 'Codex를 tmux 패널에 팀원으로 스폰',
+    category: 'command',
+    handler: async (args) => {
+      const { handleCodexSpawn } = await import('./core/codex-spawn.js');
+      await handleCodexSpawn(args);
+    },
+  },
+  {
     name: 'providers',
     description: 'Manage providers (enable/disable/model/auth)',
     category: 'command',

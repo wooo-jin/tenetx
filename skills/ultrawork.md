@@ -34,6 +34,21 @@ Compound Harness Ultrawork — 최대 병렬성 버스트 모드.
 - 최대 동시 Agent 수: 5
 </Constraints>
 
+<Codex_Delegation>
+## Codex 병렬 스폰
+
+tmux 환경에서 독립 작업을 Codex에 위임하여 진정한 병렬 실행이 가능합니다.
+Claude의 Agent는 같은 프로세스 내 병렬이지만, Codex는 별도 프로세스로 완전히 독립 실행됩니다.
+
+```bash
+# Codex에 작업 위임 (tmux 패널 자동 분할)
+tenetx codex-spawn "src/services/ 내 모든 파일에 에러 핸들링 추가"
+```
+
+Claude는 나머지 작업을 계속 진행하고, Codex가 완료되면 결과를 통합합니다.
+**주의**: 같은 파일을 수정하는 작업은 절대 Codex에 위임하지 마세요.
+</Codex_Delegation>
+
 <Arguments>
 ## 사용법
 `/tenetx:ultrawork {병렬 처리할 작업 목록}`
