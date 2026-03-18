@@ -229,13 +229,13 @@ describe('provider', () => {
     expect(configs.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('기본 설정은 claude와 codex만 포함', async () => {
+  it('기본 설정은 claude, codex, gemini 포함', async () => {
     const { loadProviderConfigs } = await import('../src/engine/provider.js');
     const configs = loadProviderConfigs();
     const names = configs.map(c => c.name);
     expect(names).toContain('claude');
     expect(names).toContain('codex');
-    expect(names).not.toContain('gemini');
+    expect(names).toContain('gemini');
     expect(names).not.toContain('openai');
   });
 

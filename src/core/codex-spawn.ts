@@ -23,6 +23,10 @@ export interface CodexSpawnResult {
   success: boolean;
   paneId?: string;
   error?: string;
+  /** 출력 캡처 파일 경로 (captureOutput 옵션 사용 시) */
+  outputPath?: string;
+  /** 완료 마커 파일 경로 (완료 감지용) */
+  markerPath?: string;
 }
 
 interface CodexSpawnState {
@@ -76,6 +80,10 @@ export function spawnCodexPane(
     split?: 'horizontal' | 'vertical';
     sizePercent?: number;
     model?: string;
+    /** true면 Codex 출력을 파일로 캡처 (CCG 합성용) */
+    captureOutput?: boolean;
+    /** 캡처 완료 후 패널 자동 닫기 대기 시간 (초, 기본 3) */
+    autoCloseDelay?: number;
   } = {},
 ): CodexSpawnResult {
   const {
@@ -83,6 +91,8 @@ export function spawnCodexPane(
     split = 'horizontal',
     sizePercent = 50,
     model,
+    captureOutput = false,
+    autoCloseDelay = 3,
   } = options;
 
   // 사전 조건 확인
@@ -97,26 +107,37 @@ export function spawnCodexPane(
 
   // Codex 명령어 구성
   const escapedTask = task.replace(/'/g, "'\\''");
-  const modelArg = model ? ` -c model="${model}"` : '';
-  const codexCmd = `codex exec --full-auto${modelArg} '${escapedTask}'`;
+  const modelArg = model ? ` -m ${model}` : '';
 
   // 완료 마커 파일 (Codex 완료 감지용)
   const markerId = `codex-${Date.now()}`;
   const markerPath = path.join(STATE_DIR, `${markerId}.done`);
 
+  // 출력 캡처 파일 (CCG용) — Codex 네이티브 -o 옵션 사용
+  const outputPath = captureOutput
+    ? path.join(STATE_DIR, `${markerId}.output.md`)
+    : undefined;
+
+  const outputArg = outputPath ? ` -o '${outputPath}'` : '';
+  const codexCmd = `codex exec --full-auto${modelArg}${outputArg} '${escapedTask}'`;
+
   // tmux 패널에서 실행할 전체 명령어
-  // Codex 실행 → 완료 시 마커 생성 → 3초 대기 후 패널 닫기
-  const fullCmd = [
+  const cmdParts = [
     `cd '${cwd.replace(/'/g, "'\\''")}'`,
     `echo '\\033[1;36m[tenetx] Codex 팀원 시작\\033[0m'`,
     `echo '\\033[0;33m작업: ${escapedTask.slice(0, 100)}\\033[0m'`,
     `echo '---'`,
     codexCmd,
+  ];
+
+  cmdParts.push(
     `echo '\\n\\033[1;32m[tenetx] Codex 작업 완료\\033[0m'`,
     `touch '${markerPath}'`,
-    `echo '3초 후 패널을 닫습니다...'`,
-    `sleep 3`,
-  ].join(' && ');
+    `echo '${autoCloseDelay}초 후 패널을 닫습니다...'`,
+    `sleep ${autoCloseDelay}`,
+  );
+
+  const fullCmd = cmdParts.join(' && ');
 
   // tmux split
   const splitFlag = split === 'horizontal' ? '-h' : '-v';
@@ -128,12 +149,12 @@ export function spawnCodexPane(
     ).trim();
 
     const paneId = result;
-    debugLog('codex-spawn', `Codex 패널 스폰: ${paneId}, 작업: ${task.slice(0, 50)}`);
+    debugLog('codex-spawn', `Codex 패널 스폰: ${paneId}, 작업: ${task.slice(0, 50)}${captureOutput ? ' [캡처 모드]' : ''}`);
 
     // 상태 저장
     saveSpawnState(paneId, task, cwd);
 
-    return { success: true, paneId };
+    return { success: true, paneId, outputPath, markerPath };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     debugLog('codex-spawn', `tmux split 실패: ${msg}`);
@@ -215,6 +236,49 @@ export function getActiveCodexPanes(): CodexSpawnState['spawns'] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Codex 스폰 완료를 대기하고 캡처된 출력을 반환
+ * CCG 합성 모드에서 사용
+ *
+ * @param markerPath - 완료 마커 파일 경로
+ * @param outputPath - 출력 캡처 파일 경로
+ * @param timeoutMs - 최대 대기 시간 (기본 120초)
+ * @returns 캡처된 출력 내용, 타임아웃 시 null
+ */
+export async function waitForCodexOutput(
+  markerPath: string,
+  outputPath: string,
+  timeoutMs = 120_000,
+): Promise<string | null> {
+  const startTime = Date.now();
+  const pollInterval = 2000; // 2초 간격
+
+  while (Date.now() - startTime < timeoutMs) {
+    if (fs.existsSync(markerPath)) {
+      // 완료됨 — 출력 파일 읽기
+      try {
+        if (fs.existsSync(outputPath)) {
+          return fs.readFileSync(outputPath, 'utf-8');
+        }
+        return '(출력 파일 없음)';
+      } catch (e) {
+        debugLog('codex-spawn', `출력 파일 읽기 실패: ${e instanceof Error ? e.message : String(e)}`);
+        return null;
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+
+  debugLog('codex-spawn', `Codex 완료 대기 타임아웃 (${timeoutMs}ms)`);
+  // 타임아웃이어도 부분 출력 반환 시도
+  if (fs.existsSync(outputPath)) {
+    try {
+      return fs.readFileSync(outputPath, 'utf-8') + '\n\n(⚠ 타임아웃 — 부분 출력)';
+    } catch { /* ignore */ }
+  }
+  return null;
 }
 
 // ── CLI 핸들러 ──

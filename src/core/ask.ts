@@ -89,7 +89,7 @@ export async function handleAsk(args: string[]): Promise<void> {
 
   if (!config) {
     console.error(`  ✗ 지원하지 않는 프로바이더: ${targetProvider}`);
-    console.log('  지원: claude, codex');
+    console.log('  지원: claude, codex, gemini');
     return process.exit(1);
   }
 
@@ -114,8 +114,8 @@ export async function handleProviders(args: string[]): Promise<void> {
 
   if (sub === 'enable' || sub === 'disable') {
     const name = args[1] as ProviderName;
-    if (!name || (name !== 'claude' && name !== 'codex')) {
-      console.log(`  사용법: tenetx providers ${sub} <claude|codex>`);
+    if (!name || (name !== 'claude' && name !== 'codex' && name !== 'gemini')) {
+      console.log(`  사용법: tenetx providers ${sub} <claude|codex|gemini>`);
       return;
     }
     const configs = loadProviderConfigs();
@@ -134,7 +134,7 @@ export async function handleProviders(args: string[]): Promise<void> {
     const name = args[1] as ProviderName;
     const model = args[2];
     if (!name || !model) {
-      console.log('  사용법: tenetx providers model <claude|codex> <model-name>');
+      console.log('  사용법: tenetx providers model <claude|codex|gemini> <model-name>');
       return;
     }
     const configs = loadProviderConfigs();
@@ -177,7 +177,7 @@ export async function handleProviders(args: string[]): Promise<void> {
     const name = args[1] as ProviderName;
     const priority = parseInt(args[2], 10);
     if (!name || isNaN(priority)) {
-      console.log('  사용법: tenetx providers priority <claude|codex> <number>');
+      console.log('  사용법: tenetx providers priority <claude|codex|gemini> <number>');
       return;
     }
     const configs = loadProviderConfigs();
@@ -265,7 +265,7 @@ function printAskHelp(): void {
   사용법: tenetx ask "질문"
 
   옵션:
-    --provider <claude|codex>  프로바이더 (기본: claude)
+    --provider <claude|codex|gemini>  프로바이더 (기본: claude)
     --model <model-name>        모델 지정
     --all                       모든 가용 프로바이더에 동시 질문
     --compare                   병렬 질문 + 비교 분석
@@ -277,10 +277,15 @@ function printAskHelp(): void {
     3. tenetx providers auth cli    — codex CLI 직접 호출
     4. tenetx providers auth apikey — OPENAI_API_KEY 환경변수
 
+  Gemini 인증:
+    GEMINI_API_KEY 환경변수 설정 필요
+
   프로바이더 관리:
     tenetx providers                         상태 확인
     tenetx providers enable codex            Codex 활성화
+    tenetx providers enable gemini           Gemini 활성화
     tenetx providers auth <oauth|cli|apikey> 인증 모드 변경
     tenetx providers model codex o4-mini     기본 모델 변경
+    tenetx providers model gemini gemini-2.5-pro  Gemini 모델 변경
 `);
 }

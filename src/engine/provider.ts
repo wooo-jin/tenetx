@@ -37,7 +37,7 @@ export function classifyHttpStatus(status: number): 'no-retry' | 'retry-with-bac
   return 'retry'; // 기타
 }
 
-export type ProviderName = 'claude' | 'codex';
+export type ProviderName = 'claude' | 'codex' | 'gemini';
 
 /** Codex 인증 방식 */
 export type CodexAuthMode = 'oauth' | 'cli' | 'apikey';
@@ -74,6 +74,7 @@ class NonRetryableError extends Error {
 const DEFAULT_CONFIGS: ProviderConfig[] = [
   { name: 'claude', enabled: true, defaultModel: 'claude-sonnet-4-6', maxRetries: 2, timeoutMs: 60000, priority: 1 },
   { name: 'codex', enabled: false, authMode: 'oauth', defaultModel: 'o4-mini', maxRetries: 2, timeoutMs: 60000, priority: 2 },
+  { name: 'gemini', enabled: false, apiKey: 'GEMINI_API_KEY', defaultModel: 'gemini-2.5-flash', maxRetries: 2, timeoutMs: 60000, priority: 3 },
 ];
 
 // ── Codex OAuth 토큰 관리 ──
@@ -143,7 +144,7 @@ export function loadProviderConfigs(): ProviderConfig[] {
             }
             return c;
           })
-          .filter((c: ProviderConfig) => c.name === 'claude' || c.name === 'codex');
+          .filter((c: ProviderConfig) => c.name === 'claude' || c.name === 'codex' || c.name === 'gemini');
       }
     }
   } catch (e) {
@@ -209,6 +210,14 @@ export function checkProviderAvailability(config: ProviderConfig): { available: 
       }
       return { available: true };
     }
+  }
+
+  if (config.name === 'gemini') {
+    const key = resolveApiKey(config.apiKey);
+    if (!key) {
+      return { available: false, reason: `API key not set (${config.apiKey ?? 'GEMINI_API_KEY'})` };
+    }
+    return { available: true };
   }
 
   return { available: false, reason: 'unknown provider' };
@@ -280,6 +289,10 @@ async function executeProviderCall(
       return callClaude(prompt, model, timeout);
     case 'codex':
       return callCodex(config, prompt, model, timeout);
+    case 'gemini':
+      return callGemini(config, prompt, model, timeout);
+    default:
+      throw new Error(`알 수 없는 프로바이더: ${config.name}`);
   }
 }
 
@@ -318,17 +331,32 @@ async function callCodex(config: ProviderConfig, prompt: string, model: string, 
   return callOpenAIApi(prompt, model, timeout, token);
 }
 
-/** Codex CLI 비동기 호출 (claude CLI와 동일 패턴) */
+/** Codex CLI 비동기 호출 (exec 서브커맨드 + -o로 출력 캡처) */
 async function callCodexCli(prompt: string, model: string, timeout: number): Promise<string> {
-  const args = ['-q', prompt, ...(model ? ['--model', model] : [])];
+  const tmpOut = path.join(os.tmpdir(), `codex-out-${Date.now()}.txt`);
+  const args = [
+    'exec',
+    '--full-auto',
+    '-o', tmpOut,
+    ...(model ? ['-m', model] : []),
+    prompt,
+  ];
   try {
-    const { stdout } = await execFileAsync('codex', args, {
+    await execFileAsync('codex', args, {
       encoding: 'utf-8',
       timeout,
       maxBuffer: 2 * 1024 * 1024,
     });
-    return stdout.trim();
+    // -o 옵션으로 마지막 메시지를 파일에 기록
+    if (fs.existsSync(tmpOut)) {
+      const content = fs.readFileSync(tmpOut, 'utf-8').trim();
+      fs.unlinkSync(tmpOut);
+      return content;
+    }
+    return '(Codex 출력 없음)';
   } catch (e) {
+    // 임시 파일 정리
+    try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
     throw new Error(`codex CLI: ${(e as Error).message}`);
   }
 }
@@ -371,6 +399,47 @@ async function callOpenAIApi(prompt: string, model: string, timeout: number, bea
 
   const json = await res.json() as { choices?: { message?: { content?: string } }[] };
   return json.choices?.[0]?.message?.content ?? '응답 없음';
+}
+
+/** Google Gemini API 호출 */
+async function callGemini(config: ProviderConfig, prompt: string, model: string, timeout: number): Promise<string> {
+  const apiKey = resolveApiKey(config.apiKey);
+  if (!apiKey) {
+    throw new NonRetryableError('Gemini API 키가 설정되지 않았습니다.');
+  }
+
+  const targetModel = model || config.defaultModel || 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+    }),
+    signal: AbortSignal.timeout(timeout),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    const msg = `Gemini API ${res.status}: ${text.slice(0, 200)}`;
+
+    if (res.status === 401 || res.status === 403) {
+      throw new NonRetryableError(msg);
+    }
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get('retry-after') ?? '', 10);
+      if (retryAfter > 0) {
+        await sleep(retryAfter * 1000);
+      }
+    }
+    throw new Error(msg);
+  }
+
+  const json = await res.json() as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  return json.candidates?.[0]?.content?.parts?.[0]?.text ?? '응답 없음';
 }
 
 function sleep(ms: number): Promise<void> {
@@ -456,7 +525,7 @@ export function getProviderSummary(): Array<{
       available,
       reason,
       model: c.defaultModel ?? '',
-      authMode: c.name === 'codex' ? (c.authMode ?? 'oauth') : undefined,
+      authMode: c.name === 'codex' ? (c.authMode ?? 'oauth') : c.name === 'gemini' ? ('apikey' as CodexAuthMode) : undefined,
     };
   });
 }
