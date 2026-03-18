@@ -115,25 +115,57 @@ function extractRateLimitsFromStdin(stdin: StdinData): UsageLimits | null {
   return null;
 }
 
-/** macOS Keychain에서 Claude Code OAuth 토큰 획득 */
-async function getClaudeOAuthToken(): Promise<string | null> {
-  if (process.platform !== 'darwin') return null;
+/** 크리덴셜 JSON에서 OAuth 토큰 추출 */
+function extractOAuthToken(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw) as {
+      accessToken?: string;
+      claudeAiOauth?: { accessToken?: string };
+    };
+    const creds = parsed.claudeAiOauth ?? parsed;
+    return creds.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** macOS Keychain에서 크리덴셜 읽기 */
+async function getTokenFromKeychain(): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(
       'security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'],
       { timeout: 2000, encoding: 'utf8' },
     );
-    const raw = stdout.trim();
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as {
-      accessToken?: string;
-      claudeAiOauth?: { accessToken?: string };
-    };
-    // 두 가지 형식 모두 지원
-    return parsed.claudeAiOauth?.accessToken ?? parsed.accessToken ?? null;
+    return extractOAuthToken(stdout.trim());
   } catch {
     return null;
   }
+}
+
+/** 파일 기반 크리덴셜 읽기 (~/.claude/.credentials.json) */
+function getTokenFromFile(): string | null {
+  try {
+    const credPath = path.join(os.homedir(), '.claude', '.credentials.json');
+    if (!fs.existsSync(credPath)) return null;
+    const raw = fs.readFileSync(credPath, 'utf-8').trim();
+    return extractOAuthToken(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** 크로스 플랫폼 Claude Code OAuth 토큰 획득
+ *  macOS: Keychain → 파일 폴백
+ *  Linux/Windows: 파일 기반 (~/.claude/.credentials.json)
+ */
+async function getClaudeOAuthToken(): Promise<string | null> {
+  // macOS: Keychain 우선
+  if (process.platform === 'darwin') {
+    const token = await getTokenFromKeychain();
+    if (token) return token;
+  }
+  // 모든 플랫폼: 파일 기반 폴백
+  return getTokenFromFile();
 }
 
 /** OAuth API에서 사용량 조회 (비공식 엔드포인트) */
