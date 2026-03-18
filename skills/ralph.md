@@ -111,3 +111,19 @@ P0 → P1 → P2 순서로:
 }
 ```
 </State_Management>
+
+<Arguments>
+## 사용법
+`/tenetx:ralph {작업 설명}`
+
+### 예시
+- `/tenetx:ralph 로그인 기능 구현해줘`
+- `/tenetx:ralph 결제 모듈 리팩토링 --no-prd`
+- `/tenetx:ralph 사용자 대시보드 페이지 만들어줘`
+
+### 옵션
+- `--no-prd`: PRD 생성 건너뛰고 바로 실행
+- 인자 없이 실행 시 현재 컨텍스트에서 작업 요청을 질문합니다
+</Arguments>
+
+$ARGUMENTS

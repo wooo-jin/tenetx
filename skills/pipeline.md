@@ -34,3 +34,19 @@ Stage N: {title}
   Verify: {검증 기준}
 ```
 </Stage_Format>
+
+<Arguments>
+## 사용법
+`/tenetx:pipeline {작업 설명 또는 단계 목록}`
+
+### 예시
+- `/tenetx:pipeline DB 스키마 변경 → 마이그레이션 스크립트 → API 수정 → 테스트`
+- `/tenetx:pipeline 레거시 코드를 TypeScript로 단계별 전환`
+- `/tenetx:pipeline 1단계: 분석, 2단계: 인터페이스 설계, 3단계: 구현`
+
+### 인자
+- 단계를 직접 명시하면 해당 순서대로 실행
+- 단계 없이 작업만 설명하면 자동으로 단계를 분해합니다
+</Arguments>
+
+$ARGUMENTS

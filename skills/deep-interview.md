@@ -93,3 +93,19 @@ Deep Interview 완료 후:
 - ralph: PRD 생성 시 스펙 참조
 - ralplan: Planner의 입력으로 사용
 </Integration>
+
+<Arguments>
+## 사용법
+`/tenetx:deep-interview {명확화할 요구사항}`
+
+### 예시
+- `/tenetx:deep-interview 알림 시스템 만들어줘`
+- `/tenetx:deep-interview 관리자 페이지가 필요해`
+- `/tenetx:deep-interview 성능 개선하고 싶어`
+
+### 인자
+- 모호한 요구사항일수록 이 스킬이 효과적
+- 이미 구체적인 스펙이 있으면 autopilot이나 ralph를 직접 사용하는 게 나음
+</Arguments>
+
+$ARGUMENTS

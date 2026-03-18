@@ -49,3 +49,20 @@ triggers:
 - 문제 지적 시 해결 방안도 함께 제시합니다
 - 잘된 부분도 언급하여 균형 잡힌 피드백을 제공합니다
 </Policy>
+
+<Arguments>
+## 사용법
+`/tenetx:code-review {리뷰 대상}`
+
+### 예시
+- `/tenetx:code-review` (기본: 최근 변경사항 리뷰)
+- `/tenetx:code-review src/auth/login.ts`
+- `/tenetx:code-review 최근 3개 커밋`
+- `/tenetx:code-review PR #42`
+
+### 인자
+- 파일 경로, 커밋 범위, PR 번호 등을 지정
+- 인자 없으면 `git diff`로 변경사항을 자동 감지
+</Arguments>
+
+$ARGUMENTS

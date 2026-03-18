@@ -105,3 +105,19 @@ REVIEW 레인 에이전트로 최종 검증 (병렬 실행 권장):
 2. 변경 파일 목록 + diff 요약
 3. `ch compound` 실행 제안 (인사이트 축적)
 </Completion_Signal>
+
+<Arguments>
+## 사용법
+`/tenetx:autopilot {작업 설명}`
+
+### 예시
+- `/tenetx:autopilot API 엔드포인트에 페이지네이션 추가`
+- `/tenetx:autopilot 검색 기능을 Elasticsearch로 마이그레이션`
+- `/tenetx:autopilot 이 컴포넌트를 접근성 기준에 맞게 리팩토링`
+
+### 인자
+- 작업 설명이 구체적일수록 Phase 0(모호→명확)을 건너뛰어 빠릅니다
+- 파일 경로, 함수명, 에러 메시지 등을 포함하면 더 정확합니다
+</Arguments>
+
+$ARGUMENTS

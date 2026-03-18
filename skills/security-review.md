@@ -53,3 +53,20 @@ triggers:
 - False positive를 최소화하되, 의심스러운 패턴은 빠짐없이 보고
 - 보안 수정은 기능 동작에 영향을 주지 않도록 주의
 </Policy>
+
+<Arguments>
+## 사용법
+`/tenetx:security-review {점검 대상}`
+
+### 예시
+- `/tenetx:security-review` (기본: 전체 프로젝트)
+- `/tenetx:security-review src/api/`
+- `/tenetx:security-review 인증 관련 코드만 집중 점검`
+- `/tenetx:security-review 최근 변경사항의 보안 영향 분석`
+
+### 인자
+- 디렉토리, 파일, 또는 관심 영역을 지정
+- 인자 없으면 프로젝트 전체를 점검
+</Arguments>
+
+$ARGUMENTS

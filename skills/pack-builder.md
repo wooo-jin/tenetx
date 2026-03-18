@@ -117,3 +117,19 @@ triggers:
 }
 ```
 </Reference>
+
+<Arguments>
+## 사용법
+`/tenetx:pack-builder {팩 이름 또는 작업}`
+
+### 예시
+- `/tenetx:pack-builder emr-frontend` (기존 팩 편집)
+- `/tenetx:pack-builder 새로운 백엔드 팩 만들어줘`
+- `/tenetx:pack-builder 현재 프로젝트 기반으로 팩 채워줘`
+
+### 인자
+- 팩 이름을 지정하면 해당 팩을 편집
+- 없으면 대화를 통해 새 팩 생성 가이드
+</Arguments>
+
+$ARGUMENTS

@@ -66,3 +66,19 @@ Agent: critic (Opus, 읽기 전용)
 
 강제 실행: force: ralplan 또는 ! ralplan
 </Gate_Check>
+
+<Arguments>
+## 사용법
+`/tenetx:ralplan {설계가 필요한 작업}`
+
+### 예시
+- `/tenetx:ralplan 멀티테넌트 인증 시스템 설계`
+- `/tenetx:ralplan DB 스키마를 v2로 마이그레이션 계획`
+- `/tenetx:ralplan 결제 API 보안 아키텍처 --deliberate`
+
+### 옵션
+- `--deliberate`: 고위험 모드 강제 (pre-mortem + 확장 테스트 플랜)
+- `force: ralplan` 또는 `! ralplan`: 명확한 요청에도 강제 실행
+</Arguments>
+
+$ARGUMENTS

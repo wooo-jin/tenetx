@@ -105,3 +105,19 @@ designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git
 상태 파일: ~/.compound/state/team-state.json
 핸드오프: ~/.compound/handoffs/{stage}.md
 </State_Management>
+
+<Arguments>
+## 사용법
+`/tenetx:team {작업 설명}`
+
+### 예시
+- `/tenetx:team 사용자 프로필 페이지 전체 구현 (API + UI + 테스트)`
+- `/tenetx:team 인증 시스템을 JWT에서 세션 기반으로 전환`
+- `/tenetx:team 이 PR의 모든 리뷰 피드백 반영해줘`
+
+### 인자
+- 여러 분야(API, UI, 테스트 등)에 걸친 작업일수록 효과적
+- 단일 파일 수정 같은 작업에는 오버킬 — 직접 요청이 나음
+</Arguments>
+
+$ARGUMENTS

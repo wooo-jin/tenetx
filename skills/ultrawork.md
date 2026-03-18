@@ -33,3 +33,19 @@ Compound Harness Ultrawork — 최대 병렬성 버스트 모드.
 - Agent 간 의존성이 있으면 순차 실행으로 전환
 - 최대 동시 Agent 수: 5
 </Constraints>
+
+<Arguments>
+## 사용법
+`/tenetx:ultrawork {병렬 처리할 작업 목록}`
+
+### 예시
+- `/tenetx:ultrawork 모든 API 엔드포인트에 입력 검증 추가`
+- `/tenetx:ultrawork 10개 컴포넌트의 className을 tailwind로 전환`
+- `/tenetx:ultrawork 각 서비스 파일에 에러 핸들링 추가: auth.ts, payment.ts, user.ts`
+
+### 인자
+- 독립적인 파일/작업을 나열하면 최대 병렬로 실행
+- 파일 간 의존성이 있으면 자동으로 순차 전환
+</Arguments>
+
+$ARGUMENTS
