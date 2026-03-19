@@ -30,34 +30,74 @@ tenetx providers
   - tmux X 또는 Codex CLI 없음 → `ch ask --provider codex` (OpenAI API 폴백)
 - **Gemini**: `ch ask --provider gemini` (Google AI API, GEMINI_API_KEY 필요)
 
-## Step 2 — 병렬 질의 실행
+## Step 2 — 작업 분해 및 팀 시작
 
-### 2a. Claude 응답 (현재 세션)
-현재 세션에서 직접 사용자 질문에 대한 응답을 생성합니다.
-`.compound/artifacts/ccg/claude-{timestamp}.md`에 저장합니다.
+요청을 역할별로 분해합니다:
+- **Codex 태스크**: 코드 분석, 아키텍처 리뷰, 백엔드 로직, 보안 검토, 테스트 전략
+- **Gemini 태스크**: UI/UX 설계, 문서화, 비주얼 분석, 대용량 컨텍스트 파일 리뷰
+- **합성 태스크**: Claude가 결과를 종합 (항상 Claude가 직접 처리)
 
-### 2b. Codex 응답 (에이전트 스폰 또는 API 폴백)
+짧은 `teamName` 슬러그를 선택합니다 (예: `ccg-auth-review`).
 
-**tmux 환경일 때** (우선):
-```bash
-# Codex를 tmux 패널에 자율 에이전트로 스폰 (출력 캡처 모드)
-tenetx codex-spawn --model o4-mini "사용자 질문"
-# → 출력이 ~/.compound/state/codex-{ts}.output.md에 자동 캡처됨
-# → 완료 마커: ~/.compound/state/codex-{ts}.done
+### 2a. tmux 팀 오케스트레이션 (우선, tmux 환경)
+
 ```
-스폰된 Codex가 **독립적으로 사고하고 코드를 분석**합니다.
-완료될 때까지 대기 후 캡처 파일을 읽습니다.
+mcp__team__tenetx_run_team_start({
+  "teamName": "ccg-{slug}",
+  "agentTypes": ["codex", "gemini"],
+  "tasks": [
+    {"subject": "Codex task: ...", "description": "분석 작업 전체 설명..."},
+    {"subject": "Gemini task: ...", "description": "디자인/UI 작업 전체 설명..."}
+  ],
+  "cwd": "{cwd}",
+  "timeoutSeconds": 300
+})
+```
 
-**tmux가 아닐 때** (폴백):
+반환값: `{ "jobId": "tenetx-...", "pid": 12345, "message": "Team started in background..." }`
+
+### 2b. 완료 대기
+
+```
+mcp__team__tenetx_run_team_wait({
+  "job_id": "{jobId}",
+  "timeout_ms": 60000
+})
+```
+
+> **타임아웃 가이드**: 기본값 `60000` (60초). 타임아웃 발생 시 워커는 계속 실행됩니다.
+> 대기를 계속하려면 `tenetx_run_team_wait`를 재호출하고,
+> **취소하려면** `tenetx_run_team_cleanup`을 호출합니다:
+> ```
+> mcp__team__tenetx_run_team_cleanup({ "job_id": "{jobId}" })
+> ```
+
+완료 시 반환:
+```json
+{
+  "status": "completed|failed|timeout",
+  "result": {
+    "taskResults": [
+      {"taskId": "1", "status": "completed", "summary": "..."},
+      {"taskId": "2", "status": "completed", "summary": "..."}
+    ]
+  }
+}
+```
+
+### 2c. 비tmux 환경 — API 폴백
+
+**tmux가 아닐 때**:
+
 ```bash
+# Codex: API 단발 질의
 ch ask --provider codex "사용자 질문"
-```
-OpenAI API로 단발 질의합니다. 에이전트 수준의 깊이는 없지만 응답은 받을 수 있습니다.
 
-### 2c. Gemini 응답 (API)
-```bash
+# Gemini: API 질의
 ch ask --provider gemini "사용자 질문"
 ```
+
+> OpenAI/Google API로 단발 질의합니다. 에이전트 수준의 깊이는 없지만 응답은 받을 수 있습니다.
 
 ## Step 3 — 응답 수집 및 합성
 
@@ -96,15 +136,25 @@ Claude가 수집된 응답을 분석:
 
 <Fallback>
 프로바이더 가용성에 따라 자동 폴백:
-- 3개 모두 가용 → 완전한 3-모델 합성
+- 3개 모두 가용 → 완전한 3-모델 합성 (tmux 팀 오케스트레이션)
 - 2개 가용 → 2-모델 비교 합성
 - 1개만 가용 → 단일 응답으로 진행 (합성 불가 안내)
 
-Codex 특별 폴백:
-- tmux + Codex CLI → 자율 에이전트 스폰 (최고 품질)
-- tmux 없음 + Codex CLI → `codex -q` 단발 질의
-- Codex CLI 없음 + OAuth/API 키 → OpenAI API 직접 호출
-- 모두 불가 → Codex 건너뛰기
+Codex 4단계 폴백 (tenetx 고유):
+1. tmux + Codex CLI → `tenetx_run_team_start`로 tmux 팀에 에이전트 스폰 (최고 품질)
+2. tmux O + Codex CLI → `tenetx codex-spawn --model o4-mini` 직접 스폰
+3. tmux 없음 + Codex CLI → `codex -q` 단발 질의
+4. Codex CLI 없음 + OAuth/API 키 → OpenAI API 직접 호출
+5. 모두 불가 → Codex 건너뛰기, Claude Task 에이전트 대체:
+   ```
+   Task(subagent_type="tenetx:executor", model="sonnet", ...)  # 분석 태스크
+   Task(subagent_type="tenetx:designer", model="sonnet", ...)  # 디자인 태스크
+   ```
+
+CLI 미설치 시 출력:
+```
+[CCG] Codex/Gemini CLI not found. Falling back to Claude-only execution.
+```
 </Fallback>
 
 <Arguments>
