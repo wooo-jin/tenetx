@@ -53,24 +53,24 @@ autopilot (자율 실행 파이프라인)
 
 | 티어 | 모델 | 에이전트 서브타입 | 적합한 작업 |
 |------|------|------------------|-------------|
-| LOW | Haiku | `tenetx:executor-low` | 단순 수정 — 타입 변경, 이름 변경, 누락된 익스포트 추가 |
-| MEDIUM | Sonnet | `tenetx:executor` | 표준 구현 — 함수 작성, 버그 수정, 테스트 추가 |
-| HIGH | Opus | `tenetx:executor-high` | 복잡한 설계 — 아키텍처 분석, 대형 리팩토링 |
+| LOW | Haiku | `executor` + `model="haiku"` | 단순 수정 — 타입 변경, 이름 변경, 누락된 익스포트 추가 |
+| MEDIUM | Sonnet | `executor` + `model="sonnet"` | 표준 구현 — 함수 작성, 버그 수정, 테스트 추가 |
+| HIGH | Opus | `executor` + `model="opus"` | 복잡한 설계 — 아키텍처 분석, 대형 리팩토링 |
 
 ### Tool_Usage 예시
 
 ```
 # 단순 변경 (LOW)
-Task(subagent_type="tenetx:executor-low", model="haiku", prompt="Config 인터페이스의 누락된 타입 익스포트 추가")
+Task(subagent_type="tenetx:executor", model="haiku", prompt="Config 인터페이스의 누락된 타입 익스포트 추가")
 
 # 표준 구현 (MEDIUM)
 Task(subagent_type="tenetx:executor", model="sonnet", prompt="/api/users 엔드포인트 검증 로직 구현")
 
 # 복잡한 분석 (HIGH)
-Task(subagent_type="tenetx:executor-high", model="opus", prompt="인증 미들웨어 전체 보안 감사")
+Task(subagent_type="tenetx:executor", model="opus", prompt="인증 미들웨어 전체 보안 감사")
 ```
 
-> Opus는 단순 수정에 과도한 비용입니다. 세미콜론 추가 같은 작업에는 `executor-low` + Haiku를 사용하세요.
+> Opus는 단순 수정에 과도한 비용입니다. 세미콜론 추가 같은 작업에는 `executor` + `model="haiku"`를 사용하세요.
 
 ### background 실행 기준
 - `run_in_background: true` — 패키지 설치, 빌드, 테스트 스위트 (~30초 이상)

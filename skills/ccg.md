@@ -42,48 +42,28 @@ tenetx providers
 ### 2a. tmux 팀 오케스트레이션 (우선, tmux 환경)
 
 ```
-mcp__team__tenetx_run_team_start({
-  "teamName": "ccg-{slug}",
-  "agentTypes": ["codex", "gemini"],
-  "tasks": [
-    {"subject": "Codex task: ...", "description": "분석 작업 전체 설명..."},
-    {"subject": "Gemini task: ...", "description": "디자인/UI 작업 전체 설명..."}
-  ],
-  "cwd": "{cwd}",
-  "timeoutSeconds": 300
-})
+# 팀 생성
+TeamCreate(name="ccg-{slug}", description="CCG 교차 검증")
+
+# Codex 태스크: tenetx codex-spawn으로 별도 프로세스 스폰 (기존 Codex_Delegation 패턴)
+tenetx codex-spawn "분석 작업 전체 설명..."
+
+# Gemini 태스크: Claude Task 에이전트로 위임
+TaskCreate(team="ccg-{slug}", agent="executor", model="sonnet", prompt="디자인/UI 작업 전체 설명...")
 ```
 
-반환값: `{ "jobId": "tenetx-...", "pid": 12345, "message": "Team started in background..." }`
-
-### 2b. 완료 대기
+### 2b. 결과 수집 및 정리
 
 ```
-mcp__team__tenetx_run_team_wait({
-  "job_id": "{jobId}",
-  "timeout_ms": 60000
-})
+# 태스크 결과 확인
+TaskOutput(task_id="...")
+
+# 팀 정리
+TeamDelete(team="ccg-{slug}")
 ```
 
-> **타임아웃 가이드**: 기본값 `60000` (60초). 타임아웃 발생 시 워커는 계속 실행됩니다.
-> 대기를 계속하려면 `tenetx_run_team_wait`를 재호출하고,
-> **취소하려면** `tenetx_run_team_cleanup`을 호출합니다:
-> ```
-> mcp__team__tenetx_run_team_cleanup({ "job_id": "{jobId}" })
-> ```
-
-완료 시 반환:
-```json
-{
-  "status": "completed|failed|timeout",
-  "result": {
-    "taskResults": [
-      {"taskId": "1", "status": "completed", "summary": "..."},
-      {"taskId": "2", "status": "completed", "summary": "..."}
-    ]
-  }
-}
-```
+> **타임아웃 가이드**: TaskOutput 호출로 결과를 폴링합니다.
+> **취소 시** TeamDelete로 팀을 삭제하고 codex-spawn 프로세스는 tmux 패널에서 종료합니다.
 
 ### 2c. 비tmux 환경 — API 폴백
 
@@ -141,7 +121,7 @@ Claude가 수집된 응답을 분석:
 - 1개만 가용 → 단일 응답으로 진행 (합성 불가 안내)
 
 Codex 4단계 폴백 (tenetx 고유):
-1. tmux + Codex CLI → `tenetx_run_team_start`로 tmux 팀에 에이전트 스폰 (최고 품질)
+1. tmux + Codex CLI → `TeamCreate` + `tenetx codex-spawn`으로 tmux 팀에 에이전트 스폰 (최고 품질)
 2. tmux O + Codex CLI → `tenetx codex-spawn --model o4-mini` 직접 스폰
 3. tmux 없음 + Codex CLI → `codex -q` 단발 질의
 4. Codex CLI 없음 + OAuth/API 키 → OpenAI API 직접 호출

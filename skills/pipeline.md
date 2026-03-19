@@ -34,8 +34,8 @@ explore -> architect -> executor
 
 ```
 explore -> {
-  if "복잡한 리팩토링" -> architect -> executor-high
-  if "단순 변경" -> executor-low
+  if "복잡한 리팩토링" -> architect -> executor:opus
+  if "단순 변경" -> executor:haiku
   if "UI 작업" -> designer -> executor
 }
 ```
@@ -126,7 +126,7 @@ parallel(explore, document-specialist) -> architect -> executor
 **단계:**
 1. `explore` — 모든 사용처 및 의존성 검색
 2. `architect-medium` — 리팩토링 전략 설계
-3. `executor-high` — 리팩토링 실행
+3. `executor:opus` — 리팩토링 실행
 4. `qa-tester` — 회귀 없음 검증
 
 **사용처:** 아키텍처 변경, API 재설계
@@ -172,9 +172,9 @@ parallel(explore, document-specialist) -> architect -> executor
 ### 분기 구조
 ```
 /tenetx:pipeline explore -> (
-  complexity:high -> architect:opus -> executor-high:opus
+  complexity:high -> architect:opus -> executor:opus
   complexity:medium -> executor:sonnet
-  complexity:low -> executor-low:haiku
+  complexity:low -> executor:haiku
 ) "보고된 이슈 수정"
 ```
 
@@ -201,7 +201,7 @@ repeat_until(tests_pass) {
 
 ```
 explore -> {
-  if files_found > 5 -> architect:opus -> executor-high:opus
+  if files_found > 5 -> architect:opus -> executor:opus
   if files_found <= 5 -> executor:sonnet
 }
 ```
@@ -294,7 +294,7 @@ Stage N: {제목}
 
 **패턴 1: 상위 티어 폴백**
 ```
-executor-low -> on-error -> executor:sonnet
+executor:haiku -> on-error -> executor:sonnet
 ```
 
 실패 시 더 강력한 모델의 에이전트로 에스컬레이션.
