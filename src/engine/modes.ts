@@ -14,6 +14,14 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { debugLog } from '../core/logger.js';
+
+/**
+ * Ecomode에서 사용할 Haiku 모델 ID.
+ * 모델 출시 시 여기만 업데이트하면 됨.
+ * 최종 업데이트: 2026-03-19 (claude-haiku-4-5-20251001)
+ */
+const ECO_MODEL_ID = 'claude-haiku-4-5-20251001';
 
 export type ExecutionMode =
   | 'normal'
@@ -118,12 +126,15 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   ecomode: {
     name: 'ecomode',
     description: '토큰 절약 모드 (Haiku 우선, 간결한 응답)',
-    claudeArgs: ['--model', 'claude-haiku-4-5-20251001'],
+    claudeArgs: ['--model', ECO_MODEL_ID],
     envOverrides: { COMPOUND_MODE: 'ecomode', COMPOUND_ECO: '1' },
     principle: 'focus-resources-on-judgment',
     persistent: false,
   },
 };
+
+/** 내장 모드 이름 집합 — 팩 충돌 감지 기준선 */
+const BUILTIN_MODE_NAMES = new Set<string>(Object.keys(MODE_CONFIGS));
 
 /** 모드별 설정 반환 */
 export function getModeConfig(mode: ExecutionMode): ModeConfig {
@@ -179,9 +190,9 @@ export function loadPackWorkflows(packDir: string): ModeConfig[] {
   if (!fs.existsSync(workflowsDir)) return [];
 
   const workflows: ModeConfig[] = [];
-  try {
-    const files = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.json'));
-    for (const file of files) {
+  const files = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.json'));
+  for (const file of files) {
+    try {
       const raw = fs.readFileSync(path.join(workflowsDir, file), 'utf-8');
       const def = JSON.parse(raw) as Partial<ModeConfig>;
       if (!def.name || !def.description) continue;
@@ -198,8 +209,8 @@ export function loadPackWorkflows(packDir: string): ModeConfig[] {
         persistent: def.persistent ?? false,
         composedOf: def.composedOf,
       });
-    }
-  } catch { /* 워크플로우 로드 실패는 무시 */ }
+    } catch { /* 개별 워크플로우 파일 로드 실패는 무시하고 다음 파일 계속 처리 */ }
+  }
 
   return workflows;
 }
@@ -208,8 +219,14 @@ export function loadPackWorkflows(packDir: string): ModeConfig[] {
 export function registerPackWorkflows(workflows: ModeConfig[]): string[] {
   const skipped: string[] = [];
   for (const wf of workflows) {
-    if (wf.name in MODE_CONFIGS) {
+    if (BUILTIN_MODE_NAMES.has(wf.name)) {
+      // 내장 모드와 충돌 — 등록 스킵
       skipped.push(wf.name);
+      debugLog('modes', `팩 워크플로우 "${wf.name}" 내장 모드와 충돌 — 스킵`);
+    } else if (wf.name in MODE_CONFIGS) {
+      // 팩 간 충돌 — 먼저 등록된 팩이 승리하므로 경고 출력
+      skipped.push(wf.name);
+      debugLog('modes', `[경고] 팩 워크플로우 이름 충돌: "${wf.name}" — 이미 다른 팩이 등록함. 먼저 등록된 팩이 우선합니다.`);
     } else {
       (MODE_CONFIGS as Record<string, ModeConfig>)[wf.name] = wf;
     }
@@ -220,4 +237,109 @@ export function registerPackWorkflows(workflows: ModeConfig[]): string[] {
 /** 모든 모드 목록 (내장 + 팩 워크플로우) */
 export function listModes(): ModeConfig[] {
   return Object.values(MODE_CONFIGS);
+}
+
+/**
+ * composedOf를 재귀적으로 병합한 유효 모드 설정을 반환합니다.
+ *
+ * 병합 규칙:
+ * - claudeArgs: 하위 모드 → 상위 모드 순서로 연결 (상위가 뒤에서 오버라이드)
+ * - envOverrides: 하위 모드 → 상위 모드 순서로 Object.assign (상위 우선)
+ * - persistent: 하나라도 true면 true
+ * - description: "[합성] 원본설명 (포함: 하위모드1, 하위모드2)" 형태로 표시
+ * - composedOf: 원본 유지 (참조용)
+ *
+ * 순환 참조 방지를 위해 visited set을 사용합니다.
+ */
+export function getEffectiveModeConfig(mode: ExecutionMode): ModeConfig {
+  const base = MODE_CONFIGS[mode];
+  if (!base) {
+    throw new Error(`Unknown mode: ${mode}`);
+  }
+  if (!base.composedOf || base.composedOf.length === 0) {
+    return { ...base };
+  }
+
+  const visited = new Set<string>();
+  const resolved = resolveComposed(base, visited);
+  return resolved;
+}
+
+function resolveComposed(config: ModeConfig, visited: Set<string>): ModeConfig {
+  visited.add(config.name);
+
+  if (!config.composedOf || config.composedOf.length === 0) {
+    return { ...config };
+  }
+
+  // 하위 모드들을 재귀적으로 resolve
+  let mergedClaudeArgs: string[] = [];
+  let mergedEnvOverrides: Record<string, string> = {};
+  let mergedPersistent = false;
+  const includedNames: string[] = [];
+
+  for (const childName of config.composedOf) {
+    if (visited.has(childName)) continue; // 순환 참조 방지
+
+    const childConfig = MODE_CONFIGS[childName as ExecutionMode];
+    if (!childConfig) continue;
+
+    const resolved = resolveComposed(childConfig, visited);
+    mergedClaudeArgs = [...mergedClaudeArgs, ...resolved.claudeArgs];
+    mergedEnvOverrides = { ...mergedEnvOverrides, ...resolved.envOverrides };
+    if (resolved.persistent) mergedPersistent = true;
+    includedNames.push(childName);
+  }
+
+  // 상위 모드가 하위를 오버라이드
+  const effectiveClaudeArgs = [...mergedClaudeArgs, ...config.claudeArgs];
+  const effectiveEnvOverrides = { ...mergedEnvOverrides, ...config.envOverrides };
+  const effectivePersistent = config.persistent || mergedPersistent;
+
+  const composedLabel = includedNames.length > 0
+    ? ` (포함: ${includedNames.join(', ')})`
+    : '';
+
+  return {
+    name: config.name,
+    description: `[합성] ${config.description}${composedLabel}`,
+    claudeArgs: deduplicateArgs(effectiveClaudeArgs),
+    envOverrides: effectiveEnvOverrides,
+    principle: config.principle,
+    persistent: effectivePersistent,
+    composedOf: config.composedOf,
+  };
+}
+
+/** claudeArgs에서 동일 플래그의 중복을 제거 (뒤에 오는 값이 우선) */
+function deduplicateArgs(args: string[]): string[] {
+  const flagMap = new Map<string, string | null>();
+  const result: string[] = [];
+
+  let i = 0;
+  while (i < args.length) {
+    if (args[i].startsWith('--')) {
+      const flag = args[i];
+      // 다음 인자가 값인지 확인 (다음 인자가 --로 시작하지 않으면 값)
+      if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+        flagMap.set(flag, args[i + 1]);
+        i += 2;
+      } else {
+        flagMap.set(flag, null);
+        i += 1;
+      }
+    } else {
+      result.push(args[i]);
+      i += 1;
+    }
+  }
+
+  // flag 순서 유지하며 재구성
+  const flagResult: string[] = [];
+  for (const [flag, value] of flagMap) {
+    flagResult.push(flag);
+    if (value !== null) flagResult.push(value);
+  }
+
+  return [...flagResult, ...result];
 }

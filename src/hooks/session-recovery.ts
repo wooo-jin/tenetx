@@ -35,12 +35,39 @@ export function saveCheckpoint(data: Checkpoint): void {
   }
 }
 
+/** Checkpoint 구조 검증 */
+function isValidCheckpoint(data: unknown): data is Checkpoint {
+  if (typeof data !== 'object' || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.sessionId === 'string' &&
+    typeof d.timestamp === 'string' &&
+    typeof d.mode === 'string' &&
+    typeof d.cwd === 'string' &&
+    Array.isArray(d.modifiedFiles) &&
+    typeof d.lastToolCall === 'string' &&
+    typeof d.toolCallCount === 'number'
+  );
+}
+
+/** ModeState 구조 검증 */
+function isValidModeState(data: unknown): data is ModeState {
+  if (typeof data !== 'object' || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return typeof d.active === 'boolean' && typeof d.startedAt === 'string';
+}
+
 /** 체크포인트 로드 */
 export function loadCheckpoint(sessionId: string): Checkpoint | null {
   try {
     const filePath = path.join(STATE_DIR, `checkpoint-${sessionId}.json`);
     if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Checkpoint;
+      const data: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      if (!isValidCheckpoint(data)) {
+        debugLog('session-recovery', '체크포인트 구조 검증 실패', { sessionId });
+        return null;
+      }
+      return data;
     }
   } catch (e) {
     debugLog('session-recovery', '체크포인트 로드 실패', e);
@@ -58,8 +85,13 @@ export function cleanStaleCheckpoints(maxAgeMs: number = 24 * 60 * 60 * 1000): n
     for (const file of files) {
       const filePath = path.join(STATE_DIR, file);
       try {
-        const data: Checkpoint = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-        const age = now - new Date(data.timestamp).getTime();
+        const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        if (!isValidCheckpoint(parsed)) {
+          // 구조 검증 실패한 파일도 정리
+          try { fs.unlinkSync(filePath); cleaned++; } catch { /* ignore */ }
+          continue;
+        }
+        const age = now - new Date(parsed.timestamp).getTime();
         if (age > maxAgeMs) {
           fs.unlinkSync(filePath);
           cleaned++;
@@ -107,7 +139,12 @@ async function main(): Promise<void> {
     if (!fs.existsSync(statePath)) continue;
 
     try {
-      const state: ModeState = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+      const parsed: unknown = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+      if (!isValidModeState(parsed)) {
+        debugLog('session-recovery', `상태 파일 구조 검증 실패: ${mode}`);
+        continue;
+      }
+      const state: ModeState = parsed;
       if (!state.active) continue;
 
       // 24시간 이상 경과한 상태는 만료
@@ -140,7 +177,12 @@ async function main(): Promise<void> {
       .filter(f => f.startsWith('checkpoint-') && f.endsWith('.json'));
     for (const file of checkpointFiles) {
       try {
-        const cp: Checkpoint = JSON.parse(fs.readFileSync(path.join(STATE_DIR, file), 'utf-8'));
+        const parsedCp: unknown = JSON.parse(fs.readFileSync(path.join(STATE_DIR, file), 'utf-8'));
+        if (!isValidCheckpoint(parsedCp)) {
+          debugLog('session-recovery', `체크포인트 파일 구조 검증 실패: ${file}`);
+          continue;
+        }
+        const cp: Checkpoint = parsedCp;
         const age = Date.now() - new Date(cp.timestamp).getTime();
         if (age > 24 * 60 * 60 * 1000) {
           fs.unlinkSync(path.join(STATE_DIR, file));
@@ -190,10 +232,13 @@ async function main(): Promise<void> {
 
       if (handoffs.length > 0) {
         const latest = handoffs[handoffs.length - 1];
-        const content = fs.readFileSync(path.join(handoffDir, latest), 'utf-8');
+        const latestPath = path.join(handoffDir, latest);
+        const content = fs.readFileSync(latestPath, 'utf-8');
         recoveryMessages.push(
           `<compound-handoff file="${latest}">\n${content}\n</compound-handoff>`
         );
+        // 마커 삭제 (한 번만 안내 — pending-compound.json과 동일 패턴)
+        try { fs.unlinkSync(latestPath); } catch (e) { debugLog('session-recovery', 'handoff 파일 삭제 실패', e); }
       }
     } catch (e) { debugLog('session-recovery', 'handoff 파일 읽기 실패', e); }
   }

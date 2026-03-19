@@ -46,13 +46,14 @@ export function checkDangerousSql(
     ? toolInput
     : (toolInput.command as string ?? '');
 
+  // 주석 제거 후 SQL에 대해 패턴 매칭 (주석 안 키워드 오차단 방지)
+  const sqlWithoutComments = command
+    .replace(/--[^\n]*/g, '')           // 라인 주석 제거
+    .replace(/\/\*[\s\S]*?\*\//g, '');  // 블록 주석 제거
+
   for (const { pattern, description, severity } of DANGEROUS_SQL_PATTERNS) {
-    if (pattern.test(command)) {
+    if (pattern.test(sqlWithoutComments)) {
       // DELETE/UPDATE — SQL 본문에서 WHERE 절이 있으면 통과
-      // 주석(-- WHERE, /* WHERE */) 내 WHERE는 제외
-      const sqlWithoutComments = command
-        .replace(/--[^\n]*/g, '')           // 라인 주석 제거
-        .replace(/\/\*[\s\S]*?\*\//g, '');  // 블록 주석 제거
       if (/DELETE\s+FROM/i.test(sqlWithoutComments) && /\bWHERE\s+/i.test(sqlWithoutComments)) continue;
       if (/UPDATE\s+\w+\s+SET/i.test(sqlWithoutComments) && /\bWHERE\s+/i.test(sqlWithoutComments)) continue;
       return { action: severity, description };

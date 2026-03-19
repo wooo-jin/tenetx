@@ -1,3 +1,14 @@
+/**
+ * @experimental — 설계 완료, 프로덕션 미연결
+ *
+ * 이 모듈은 에이전트를 lane(build/review/domain)별로 분류하고
+ * 파이프라인 순서를 정의합니다. 현재 src/ 내 어떤 프로덕션 코드에서도
+ * import하지 않으며, 테스트만 존재합니다.
+ *
+ * 향후 team/pipeline 모드에서 에이전트 자동 라우팅 시 연결 예정.
+ * 연결 시 src/core/spawn.ts 또는 src/engine/modes.ts에서 import하세요.
+ */
+
 export type AgentLane = 'build' | 'review' | 'domain';
 
 export interface LaneDefinition {

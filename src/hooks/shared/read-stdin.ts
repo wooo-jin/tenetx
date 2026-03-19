@@ -19,7 +19,9 @@ export async function readStdinJSON<T = Record<string, unknown>>(timeoutMs = 300
       }
     }, timeoutMs);
 
-    process.stdin.on('data', (chunk: Buffer) => chunks.push(chunk));
+    process.stdin.on('data', (chunk: Buffer | string) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
     process.stdin.on('end', () => {
       if (!settled) { settled = true; clearTimeout(timeout); resolve(Buffer.concat(chunks).toString('utf-8')); }
     });

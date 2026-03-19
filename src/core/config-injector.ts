@@ -273,11 +273,11 @@ export function generateClaudeRules(context: HarnessContext): string {
 
 /** tmux 키바인딩 등록 */
 export async function registerTmuxBindings(): Promise<void> {
-  const { execSync } = await import('node:child_process');
+  const { execFileSync } = await import('node:child_process');
   try {
     // prefix + T = 대시보드 토글 (Ctrl+B → Shift+T)
     // D는 detach와 혼동될 수 있으므로 T(enet) 사용
-    execSync('tmux bind-key T run-shell "tenetx toggle-dashboard"', { stdio: 'ignore' });
+    execFileSync('tmux', ['bind-key', 'T', 'run-shell', 'tenetx toggle-dashboard'], { stdio: 'ignore' });
   } catch (e) {
     debugLog('config-injector', 'tmux 키바인딩 등록 실패', e);
   }

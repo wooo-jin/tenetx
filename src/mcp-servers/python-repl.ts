@@ -6,7 +6,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import type { McpServerDefinition } from './types.js';
 
 export const PYTHON_REPL_DEFINITION: McpServerDefinition = {
@@ -39,8 +39,8 @@ export function detectPythonEnvironment(cwd: string): PythonEnvironment | null {
   let pythonBin: string | null = null;
   for (const bin of ['python3', 'python']) {
     try {
-      const checkCmd = process.platform === 'win32' ? `where ${bin}` : `which ${bin}`;
-      execSync(checkCmd, { stdio: 'ignore' });
+      const checker = process.platform === 'win32' ? 'where' : 'which';
+      execFileSync(checker, [bin], { stdio: 'ignore' });
       pythonBin = bin;
       break;
     } catch { /* 없으면 다음 시도 */ }

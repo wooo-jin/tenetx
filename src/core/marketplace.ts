@@ -267,7 +267,11 @@ function readManifestFromDir(destDir: string, repoUrl: string): PluginManifest {
   const packageJsonPath = path.join(destDir, 'package.json');
 
   if (fs.existsSync(pluginJsonPath)) {
-    return JSON.parse(fs.readFileSync(pluginJsonPath, 'utf-8')) as PluginManifest;
+    const raw = JSON.parse(fs.readFileSync(pluginJsonPath, 'utf-8')) as Record<string, unknown>;
+    if (typeof raw.name !== 'string' || typeof raw.version !== 'string' || typeof raw.type !== 'string') {
+      throw new Error(`plugin.json 필수 필드(name, version, type) 누락: ${pluginJsonPath}`);
+    }
+    return raw as unknown as PluginManifest;
   }
   if (fs.existsSync(packageJsonPath)) {
     const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) as Record<string, unknown>;
@@ -421,8 +425,10 @@ export function removePlugin(name: string, cwd: string = process.cwd()): { succe
     for (const link of linksToCheck) {
       try {
         const stat = fs.lstatSync(link);
-        if (stat.isSymbolicLink() || stat.isDirectory()) {
+        if (stat.isSymbolicLink()) {
           fs.unlinkSync(link);
+        } else if (stat.isDirectory()) {
+          fs.rmSync(link, { recursive: true });
         }
       } catch { /* 링크가 없는 경우 무시 */ }
     }

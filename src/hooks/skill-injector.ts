@@ -31,6 +31,14 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { PACKS_DIR } from '../core/paths.js';
+import { KEYWORD_PATTERNS } from './keyword-detector.js';
+
+/** keyword-detector가 처리하는 스킬 이름 집합 (이중 주입 방지) */
+const KEYWORD_DETECTOR_SKILL_NAMES: Set<string> = new Set(
+  KEYWORD_PATTERNS
+    .filter(p => p.skill != null)
+    .map(p => p.skill!)
+);
 
 export interface SkillMeta {
   name: string;
@@ -206,12 +214,15 @@ function collectSkills(): SkillMeta[] {
   return skills;
 }
 
-/** 프롬프트와 스킬 트리거 매칭 (sanitized 텍스트에서만) */
+/** 프롬프트와 스킬 트리거 매칭 (sanitized 텍스트에서만)
+ *  keyword-detector가 이미 처리하는 스킬은 제외하여 이중 주입을 방지합니다. */
 export function matchSkills(prompt: string, skills: SkillMeta[]): SkillMeta[] {
   const sanitized = sanitizeForDetection(prompt);
   const lower = sanitized.toLowerCase();
   return skills.filter(skill => {
     if (skill.triggers.length === 0) return false;
+    // keyword-detector가 처리하는 스킬은 skill-injector에서 주입하지 않음
+    if (KEYWORD_DETECTOR_SKILL_NAMES.has(skill.name)) return false;
     return skill.triggers.some(trigger =>
       lower.includes(trigger.toLowerCase())
     );

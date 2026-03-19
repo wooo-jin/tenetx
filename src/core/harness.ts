@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as crypto from 'node:crypto';
@@ -78,11 +79,18 @@ function injectSettings(env: Record<string, string>): void {
   const existingEnv = (settings.env as Record<string, string>) ?? {};
   settings.env = { ...existingEnv, ...env };
 
-  // statusLine
-  settings.statusLine = {
-    type: 'command',
-    command: 'tenetx status',
-  };
+  // statusLine: 기존에 tenetx 관련이 아닌 사용자 커스텀 값이 있으면 덮어쓰지 않음
+  const existingStatusLine = settings.statusLine as { type?: string; command?: string } | undefined;
+  const isTenetxStatusLine =
+    !existingStatusLine ||
+    (typeof existingStatusLine.command === 'string' &&
+      existingStatusLine.command.startsWith('tenetx'));
+  if (isTenetxStatusLine) {
+    settings.statusLine = {
+      type: 'command',
+      command: 'tenetx status',
+    };
+  }
 
   // 훅 주입: Claude Code hooks 시스템에 등록
   // hooks 스키마: { "EventName": [{ "matcher": "...", "hooks": [{ "type": "command", ... }] }] }
@@ -484,7 +492,7 @@ function cleanupStaleCommands(commandsDir: string, validFiles: Set<string>): num
 function installSlashCommands(cwd: string): void {
   const pkgRoot = getPackageRoot();
   const skillsDir = path.join(pkgRoot, 'skills');
-  const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? '';
+  const homeDir = os.homedir();
 
   // 글로벌: ~/.claude/commands/tenetx/ (모든 프로젝트에서 /tenetx:xxx 사용 가능)
   const globalCommandsDir = path.join(homeDir, '.claude', 'commands', 'tenetx');

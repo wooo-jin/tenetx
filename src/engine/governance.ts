@@ -222,7 +222,7 @@ function loadReportHistory(): ReportHistoryEntry[] {
           fs.readFileSync(path.join(GOVERNANCE_DIR, file), 'utf-8'),
         );
         const date = raw.generatedAt?.slice(0, 10) ?? file.slice(0, 10);
-        const totalViolations = (raw.principles ?? []).reduce(
+        const totalViolations = (Array.isArray(raw.principles) ? raw.principles : []).reduce(
           (sum: number, p: PrincipleReport) => sum + p.violations.length,
           0,
         );

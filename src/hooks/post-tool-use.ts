@@ -148,7 +148,7 @@ async function main(): Promise<void> {
   // 토큰/비용 추적 (모든 도구 호출)
   try {
     const inputStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput);
-    const usage = recordToolUsage(sessionId, inputStr.length, toolResponse.length, data.model_id);
+    const usage = recordToolUsage(sessionId, inputStr, toolResponse, data.model_id);
 
     // 100회마다 오래된 usage 파일 정리 (매 호출 I/O 방지)
     if (usage.toolCalls % 100 === 0) cleanStaleUsageFiles();

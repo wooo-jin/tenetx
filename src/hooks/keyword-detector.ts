@@ -20,6 +20,8 @@ import { ModelRouter } from '../engine/router.js';
 import type { RoutingPreset } from '../engine/router.js';
 import { loadPhilosophyForProject } from '../core/philosophy-loader.js';
 import { loadGlobalConfig } from '../core/global-config.js';
+import { loadPackConfigs } from '../core/pack-config.js';
+import { PACKS_DIR } from '../core/paths.js';
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
@@ -63,7 +65,7 @@ export const KEYWORD_PATTERNS: Array<{
   { pattern: /\bralplan\b/i, keyword: 'ralplan', type: 'skill', skill: 'ralplan' },
   { pattern: /\bdeep[- ]?interview\b/i, keyword: 'deep-interview', type: 'skill', skill: 'deep-interview' },
   { pattern: /\bpipeline[- ]?mode\b/i, keyword: 'pipeline', type: 'skill', skill: 'pipeline' },
-  { pattern: /\b(eco(?:mode)?|절약|비용\s*절약)\b/i, keyword: 'ecomode', type: 'skill', skill: 'ecomode' },
+  { pattern: /\b(ecomode|에코\s*모드|토큰\s*절약)\b/i, keyword: 'ecomode', type: 'skill', skill: 'ecomode' },
 
   // 인젝션 모드
   { pattern: /\bultrathink\b/i, keyword: 'ultrathink', type: 'inject' },
@@ -75,9 +77,9 @@ export const KEYWORD_PATTERNS: Array<{
   // 실용 스킬
   { pattern: /\bgit[- ]?master\b/i, keyword: 'git-master', type: 'inject' },
   { pattern: /\b(benchmark|벤치마크|성능\s*측정)\b/i, keyword: 'benchmark', type: 'inject' },
-  { pattern: /\b(migrate|마이그레이션|업그레이드)\b/i, keyword: 'migrate', type: 'inject' },
+  { pattern: /\b(migrate|마이그레이션)\b/i, keyword: 'migrate', type: 'inject' },
   { pattern: /\b(debug[- ]?detective|디버그\s*탐정|체계적\s*디버깅)\b/i, keyword: 'debug-detective', type: 'inject' },
-  { pattern: /\b(refactor(?:ing)?|리팩토링|리팩터|코드\s*정리)\b/i, keyword: 'refactor', type: 'inject' },
+  { pattern: /\b(refactor(?:ing)?|리팩토링|리팩터)\b/i, keyword: 'refactor', type: 'inject' },
 ];
 
 // ── 인젝션 메시지 ──
@@ -199,12 +201,27 @@ Rules:
 // ── 스킬 파일 로드 ──
 
 function loadSkillContent(skillName: string): string | null {
-  // 스킬 파일 검색 순서: 프로젝트 > 글로벌
+  // 스킬 파일 검색 순서: 프로젝트 > 연결된 팩 > 글로벌 팩 > 글로벌 > 패키지 내장
   const searchPaths = [
     path.join(process.cwd(), '.compound', 'skills', `${skillName}.md`),
     path.join(process.cwd(), 'skills', `${skillName}.md`),
-    path.join(os.homedir(), '.compound', 'skills', `${skillName}.md`),
   ];
+
+  // 연결된 팩의 스킬 경로 수집 (skill-injector의 collectSkills와 동일한 방식)
+  try {
+    const connectedPacks = loadPackConfigs(process.cwd());
+    for (const pack of connectedPacks) {
+      // 프로젝트 네임스페이스 우선, 글로벌 팩 폴백
+      const nsPath = path.join(process.cwd(), '.compound', 'packs', pack.name, 'skills', `${skillName}.md`);
+      const globalPath = path.join(PACKS_DIR, pack.name, 'skills', `${skillName}.md`);
+      searchPaths.push(nsPath, globalPath);
+    }
+  } catch {
+    // 팩 설정 로드 실패 시 무시
+  }
+
+  // 글로벌 스킬 경로
+  searchPaths.push(path.join(os.homedir(), '.compound', 'skills', `${skillName}.md`));
 
   // tenetx 패키지 내장 스킬
   const pkgSkillPath = path.resolve(
@@ -230,8 +247,10 @@ export function detectKeyword(prompt: string): KeywordMatch | null {
 
   for (const entry of KEYWORD_PATTERNS) {
     if (entry.pattern.test(lower)) {
-      // 원본 프롬프트에서 키워드만 제거 (entry.keyword는 단순 문자열이므로 안전)
-      const extractedPrompt = prompt.replace(new RegExp(`\\b${entry.keyword}\\b`, 'gi'), '').trim();
+      // entry.keyword의 RegExp 특수문자를 이스케이프하여 안전하게 사용
+      const escapedKeyword = entry.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // g 플래그 제거: 첫 번째 매치만 제거하여 코드블록 내 동일 키워드 보존
+      const extractedPrompt = prompt.replace(new RegExp(`\\b${escapedKeyword}\\b`, 'i'), '').trim();
 
       if (entry.type === 'cancel') {
         return { type: 'cancel', keyword: entry.keyword, message: '[Tenetx] 모드가 중단되었습니다.' };

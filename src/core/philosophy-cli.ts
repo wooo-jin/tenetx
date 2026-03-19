@@ -21,7 +21,7 @@ function printPhilosophy(philosophy: ReturnType<typeof loadPhilosophyForProject>
       } else if (gen.routing) {
         console.log(`    🔀 ${gen.routing}`);
       } else if (gen.hook) {
-        console.log(`    🪝 ${gen.hook}`);
+        console.log(`    🪝 ${gen.hook} (미구현)`);
       } else if (gen.step) {
         console.log(`    📋 ${gen.step}`);
       }

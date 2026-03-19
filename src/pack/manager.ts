@@ -136,7 +136,7 @@ export async function syncAllPacks(): Promise<void> {
       try {
         await syncPack(pack.name);
       } catch (err) {
-        console.error(`  ✗ ${pack.name}: ${(err as Error).message}`);
+        console.error(`  ✗ ${pack.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else {
       console.log(`  ─ ${pack.name}: 로컬 전용 (skip)`);

@@ -9,7 +9,7 @@
  *   - tenetx codex-spawn "작업 설명" 으로 직접 스폰
  */
 
-import { execSync, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -105,10 +105,6 @@ export function spawnCodexPane(
     return { success: false, error: codexCheck.reason };
   }
 
-  // Codex 명령어 구성
-  const escapedTask = task.replace(/'/g, "'\\''");
-  const modelArg = model ? ` -m ${model}` : '';
-
   // 완료 마커 파일 (Codex 완료 감지용)
   const markerId = `codex-${Date.now()}`;
   const markerPath = path.join(STATE_DIR, `${markerId}.done`);
@@ -118,33 +114,42 @@ export function spawnCodexPane(
     ? path.join(STATE_DIR, `${markerId}.output.md`)
     : undefined;
 
-  const outputArg = outputPath ? ` -o '${outputPath}'` : '';
-  const codexCmd = `codex exec --full-auto${modelArg}${outputArg} '${escapedTask}'`;
+  // Codex 명령어 인자 배열 구성 (셸 보간 없이 직접 전달)
+  const codexArgs: string[] = ['exec', '--full-auto'];
+  if (model) {
+    codexArgs.push('-m', model);
+  }
+  if (outputPath) {
+    codexArgs.push('-o', outputPath);
+  }
+  codexArgs.push(task);
 
-  // tmux 패널에서 실행할 전체 명령어
-  const cmdParts = [
+  // tmux 패널에서 실행할 sh -c 스크립트
+  // task는 codexArgs 배열에 별도 인자로 이미 포함되므로
+  // 스크립트 내에서는 TENETX_TASK 환경변수를 통해 안전하게 표시
+  const taskPreview = task.slice(0, 100).replace(/\\/g, '\\\\').replace(/'/g, "'\\''");
+  const codexArgsSh = codexArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ');
+  const fullCmd = [
     `cd '${cwd.replace(/'/g, "'\\''")}'`,
-    `echo '\\033[1;36m[tenetx] Codex 팀원 시작\\033[0m'`,
-    `echo '\\033[0;33m작업: ${escapedTask.slice(0, 100)}\\033[0m'`,
-    `echo '---'`,
-    codexCmd,
-  ];
-
-  cmdParts.push(
-    `echo '\\n\\033[1;32m[tenetx] Codex 작업 완료\\033[0m'`,
+    `printf '\\033[1;36m[tenetx] Codex 팀원 시작\\033[0m\\n'`,
+    `printf '\\033[0;33m작업: %s\\033[0m\\n' '${taskPreview}'`,
+    `printf '%s\\n' '---'`,
+    `codex ${codexArgsSh}`,
+    `printf '\\n\\033[1;32m[tenetx] Codex 작업 완료\\033[0m\\n'`,
     `touch '${markerPath}'`,
-    `echo '${autoCloseDelay}초 후 패널을 닫습니다...'`,
+    `printf '%d초 후 패널을 닫습니다...\\n' '${autoCloseDelay}'`,
     `sleep ${autoCloseDelay}`,
-  );
-
-  const fullCmd = cmdParts.join(' && ');
+  ].join(' && ');
 
   // tmux split
   const splitFlag = split === 'horizontal' ? '-h' : '-v';
 
   try {
-    const result = execSync(
-      `tmux split-window ${splitFlag} -p ${sizePercent} -P -F "#{pane_id}" '${fullCmd.replace(/'/g, "'\\''")}'`,
+    // execFileSync로 셸을 경유하지 않고 tmux에 직접 인자 전달
+    // sh -c 부분만 명시적으로 배열에 포함, task 내용은 fullCmd 스크립트 안에 안전하게 격리됨
+    const result = execFileSync(
+      'tmux',
+      ['split-window', splitFlag, '-p', String(sizePercent), '-P', '-F', '#{pane_id}', 'sh', '-c', fullCmd],
       { encoding: 'utf-8', timeout: 5000 },
     ).trim();
 
@@ -228,7 +233,7 @@ export function getActiveCodexPanes(): CodexSpawnState['spawns'] {
     // tmux에 실제로 살아있는 패널만 필터
     const activePanes = new Set<string>();
     try {
-      const panes = execSync('tmux list-panes -a -F "#{pane_id}"', { encoding: 'utf-8' });
+      const panes = execFileSync('tmux', ['list-panes', '-a', '-F', '#{pane_id}'], { encoding: 'utf-8' });
       panes.trim().split('\n').forEach(p => activePanes.add(p.trim()));
     } catch { /* tmux 없으면 빈 셋 */ }
 

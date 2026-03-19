@@ -8,6 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { debugLog } from '../core/logger.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -54,7 +55,9 @@ export function loadTokenUsage(sessionId: string): TokenUsage {
       const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
       if (data.sessionId === sessionId) return data;
     }
-  } catch { /* ignore */ }
+  } catch (e) {
+    debugLog('token-tracker', `토큰 사용량 로드 실패 (세션: ${sessionId}): ${e instanceof Error ? e.message : String(e)}`);
+  }
   return {
     sessionId,
     inputTokens: 0,
@@ -93,20 +96,20 @@ export function inferModelTier(modelId: string): string {
 /**
  * 도구 호출 토큰 기록
  * @param sessionId 세션 ID
- * @param inputChars 입력 문자 수 (tool_input)
- * @param outputChars 출력 문자 수 (tool_response)
+ * @param inputText 입력 텍스트 (tool_input) — 한글 비율을 반영한 토큰 근사에 사용
+ * @param outputText 출력 텍스트 (tool_response) — 한글 비율을 반영한 토큰 근사에 사용
  * @param modelId 모델 ID (선택)
  */
 export function recordToolUsage(
   sessionId: string,
-  inputChars: number,
-  outputChars: number,
+  inputText: string,
+  outputText: string,
   modelId?: string,
 ): TokenUsage {
   const usage = loadTokenUsage(sessionId);
-  // 문자 수 기반 직접 토큰 근사 (대형 문자열 할당 방지)
-  const inputTokens = Math.ceil(inputChars / 4);
-  const outputTokens = Math.ceil(outputChars / 4);
+  // estimateTokens()로 한글 비율을 반영한 토큰 근사
+  const inputTokens = estimateTokens(inputText);
+  const outputTokens = estimateTokens(outputText);
   const model = modelId ? inferModelTier(modelId) : 'sonnet';
 
   usage.inputTokens += inputTokens;
@@ -153,5 +156,7 @@ export function cleanStaleUsageFiles(): void {
       const stat = fs.statSync(p);
       if (now - stat.mtimeMs > MAX_AGE_MS) fs.unlinkSync(p);
     }
-  } catch { /* ignore */ }
+  } catch (e) {
+    debugLog('token-tracker', `오래된 토큰 사용량 파일 정리 실패: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }

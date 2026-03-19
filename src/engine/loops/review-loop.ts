@@ -33,29 +33,53 @@ export function getChangedFiles(cwd: string): ChangedFile[] {
   try {
     // staged + unstaged 변경 (execFileSync로 인젝션 방지)
     const { execFileSync } = require('node:child_process');
-    let output = '';
-    try {
-      output = (execFileSync('git', ['diff', '--numstat', 'HEAD'], { cwd, encoding: 'utf-8', timeout: 10_000 }) as string).trim();
-    } catch {
+
+    type GitArgs = [string, string[]];
+    const numstatArgs: GitArgs[] = [
+      ['git', ['diff', '--numstat', 'HEAD']],
+      ['git', ['diff', '--numstat', '--cached']],
+    ];
+    const nameStatusArgs: GitArgs[] = [
+      ['git', ['diff', '--name-status', 'HEAD']],
+      ['git', ['diff', '--name-status', '--cached']],
+    ];
+
+    let numstatOutput = '';
+    let nameStatusOutput = '';
+
+    for (let i = 0; i < numstatArgs.length; i++) {
       try {
-        output = (execFileSync('git', ['diff', '--numstat', '--cached'], { cwd, encoding: 'utf-8', timeout: 10_000 }) as string).trim();
-      } catch { /* no git */ }
+        numstatOutput = (execFileSync(numstatArgs[i][0], numstatArgs[i][1], { cwd, encoding: 'utf-8', timeout: 10_000 }) as string).trim();
+        nameStatusOutput = (execFileSync(nameStatusArgs[i][0], nameStatusArgs[i][1], { cwd, encoding: 'utf-8', timeout: 10_000 }) as string).trim();
+        if (numstatOutput) break;
+      } catch { /* try next */ }
     }
 
-    if (!output) return [];
+    if (!numstatOutput) return [];
 
-    return output.split('\n').filter(Boolean).map(line => {
+    // --name-status 결과를 맵으로 파싱 (A/M/D/R)
+    const statusMap = new Map<string, 'added' | 'modified' | 'deleted' | 'renamed'>();
+    for (const line of nameStatusOutput.split('\n').filter(Boolean)) {
+      const [code, ...parts] = line.split('\t');
+      const filePath = parts[parts.length - 1];
+      if (!filePath) continue;
+      if (code.startsWith('A')) statusMap.set(filePath, 'added');
+      else if (code.startsWith('D')) statusMap.set(filePath, 'deleted');
+      else if (code.startsWith('R')) statusMap.set(filePath, 'renamed');
+      else statusMap.set(filePath, 'modified');
+    }
+
+    return numstatOutput.split('\n').filter(Boolean).map(line => {
       const [add, del, filePath] = line.split('\t');
       const additions = add === '-' ? 0 : parseInt(add, 10);
       const deletions = del === '-' ? 0 : parseInt(del, 10);
 
-      return {
-        path: filePath,
-        status: additions > 0 && deletions === 0 ? 'added' as const :
-          deletions > 0 && additions === 0 ? 'deleted' as const : 'modified' as const,
-        additions,
-        deletions,
-      };
+      // name-status에서 실제 상태를 우선 사용; 없으면 숫자 통계로 폴백
+      const status = statusMap.get(filePath) ?? (
+        deletions > 0 && additions === 0 ? 'deleted' as const : 'modified' as const
+      );
+
+      return { path: filePath, status, additions, deletions };
     });
   } catch {
     return [];

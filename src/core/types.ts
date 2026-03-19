@@ -1,5 +1,13 @@
 export interface Principle {
   belief: string;
+  /**
+   * generates 항목 유형:
+   * - string: 일반 텍스트 규칙
+   * - routing: 모델 라우팅 지시 (예: "explore → Sonnet, implement → Opus")
+   * - alert: 경고 메시지 (임계값 초과 시 표시)
+   * - step: 단계 설명
+   * - hook: @planned — 향후 자동 훅 등록 기능에서 사용 예정. 현재 소비자 없음.
+   */
   generates: Array<string | { hook?: string; routing?: string; alert?: string; step?: string }>;
 }
 

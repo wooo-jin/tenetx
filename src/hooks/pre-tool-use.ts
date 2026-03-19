@@ -112,10 +112,13 @@ export function shouldShowReminder(count: number, interval: number = REMINDER_IN
 /** 카운터 기반 리마인더 표시 여부 (I/O 포함 — main에서 사용) */
 function shouldShowReminderIO(): boolean {
   try {
-    let count = 0;
+    let count: number;
     if (fs.existsSync(REMINDER_COUNTER_PATH)) {
       const data = JSON.parse(fs.readFileSync(REMINDER_COUNTER_PATH, 'utf-8'));
       count = (data.count ?? 0) + 1;
+    } else {
+      // 파일 없음 = 최초 호출: 1부터 시작하여 10번째 호출에 첫 리마인더 표시
+      count = 1;
     }
     fs.mkdirSync(STATE_DIR, { recursive: true });
     fs.writeFileSync(REMINDER_COUNTER_PATH, JSON.stringify({ count }));

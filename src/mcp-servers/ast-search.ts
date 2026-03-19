@@ -34,7 +34,13 @@ const MAX_FILES = 10_000; // 대형 프로젝트 보호
 /** 패턴에 매칭되는 선언 검색 */
 export function astSearch(pattern: string, cwd: string): SearchResult[] {
   const results: SearchResult[] = [];
-  const regex = new RegExp(pattern, 'i');
+  let regex: RegExp;
+  try {
+    regex = new RegExp(pattern, 'i');
+  } catch {
+    // 잘못된 정규식 패턴이면 빈 결과 반환 (MCP 서버 크래시 방지)
+    return [];
+  }
   let fileCount = 0;
 
   function walk(dir: string): void {

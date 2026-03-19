@@ -307,7 +307,7 @@ async function callClaude(prompt: string, model: string, timeout: number): Promi
     });
     return stdout.trim();
   } catch (e) {
-    throw new Error(`claude CLI: ${(e as Error).message}`);
+    throw new Error(`claude CLI: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -357,7 +357,7 @@ async function callCodexCli(prompt: string, model: string, timeout: number): Pro
   } catch (e) {
     // 임시 파일 정리
     try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
-    throw new Error(`codex CLI: ${(e as Error).message}`);
+    throw new Error(`codex CLI: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

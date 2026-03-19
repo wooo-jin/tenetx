@@ -48,7 +48,7 @@ export function saveRateLimitState(state: RateLimitState): void {
   fs.renameSync(tmpFile, RATE_LIMIT_PATH);
 }
 
-/** 오래된 호출 기록 정리 + 현재 호출 추가 후 제한 초과 여부 판정 (순수 함수) */
+/** 오래된 호출 기록 정리 + 제한 초과 여부 판정 (순수 함수) */
 export function checkRateLimit(
   state: RateLimitState,
   now: number = Date.now(),
@@ -58,13 +58,17 @@ export function checkRateLimit(
   const cutoff = now - WINDOW_MS;
   const recentCalls = state.calls.filter(t => t > cutoff);
 
-  // 현재 호출 추가
-  recentCalls.push(now);
+  // 초과 여부 먼저 판정 (현재 호출 추가 전 기준)
+  const exceeded = recentCalls.length >= limit;
 
-  const exceeded = recentCalls.length > limit;
+  // 거부된 호출은 윈도우에 추가하지 않음 — 승인된 호출만 기록
+  if (!exceeded) {
+    recentCalls.push(now);
+  }
+
   return {
     exceeded,
-    count: recentCalls.length,
+    count: recentCalls.length + (exceeded ? 1 : 0),
     updatedState: { calls: recentCalls },
   };
 }
@@ -87,7 +91,11 @@ async function main(): Promise<void> {
 
   const state = loadRateLimitState();
   const { exceeded, count, updatedState } = checkRateLimit(state);
-  saveRateLimitState(updatedState);
+
+  // 거부된 호출은 상태를 저장하지 않음 (윈도우 누적 방지)
+  if (!exceeded) {
+    saveRateLimitState(updatedState);
+  }
 
   if (exceeded) {
     console.log(JSON.stringify({

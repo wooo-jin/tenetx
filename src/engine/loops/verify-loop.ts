@@ -159,13 +159,23 @@ export function runVerifyLoop(options: VerifyLoopOptions): LoopResult {
   const summary = `${passedSteps}/${steps.length} 단계 통과` +
     (failedSteps > 0 ? `, ${failedSteps} 실패` : '');
 
+  const constraintStep = steps.find(s => s.name === 'constraints');
+  const violations = constraintStep
+    ? (() => {
+        const msg = constraintStep.message ?? '';
+        const match = msg.match(/^(\d+)건의 제약 위반/);
+        if (match) return parseInt(match[1], 10);
+        const warnMatch = msg.match(/경고\s+(\d+)건/);
+        return warnMatch ? parseInt(warnMatch[1], 10) : 0;
+      })()
+    : undefined;
+
   return {
     loopName: 'verify',
     status,
     steps,
     summary,
-    violations: steps.find(s => s.name === 'constraints')
-      ? undefined : undefined,
+    violations,
     suggestions: suggestions.length > 0 ? suggestions : undefined,
   };
 }

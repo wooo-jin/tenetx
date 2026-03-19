@@ -308,7 +308,7 @@ export async function syncGithubPack(
     return { updated: total > 0, message };
   } catch (err) {
     debugLog('pack-config', `[${config.name}] GitHub 팩 동기화 실패`, err);
-    return { updated: false, message: `[${config.name}] 동기화 실패: ${(err as Error).message}` };
+    return { updated: false, message: `[${config.name}] 동기화 실패: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 

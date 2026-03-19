@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import type { PackMeta } from '../core/types.js';
 
@@ -47,7 +48,7 @@ export function cloneFromGitHub(url: string, destDir: string): void {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
   } catch (err) {
-    throw new Error(`GitHub 클론 실패: ${gitUrl}\n${(err as Error).message}`);
+    throw new Error(`GitHub 클론 실패: ${gitUrl}\n${err instanceof Error ? err.message : String(err)}`);
   }
 
   // .git 디렉토리 제거 (팩은 flat copy로 관리)
@@ -94,13 +95,13 @@ export function syncFromGitHub(url: string, destDir: string): void {
   try {
     execFileSync('git', ['pull', '--ff-only'], { cwd: destDir, stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (err) {
-    throw new Error(`Git pull 실패: ${(err as Error).message}`);
+    throw new Error(`Git pull 실패: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
 /** 로컬 경로에서 팩 복사 */
 export function copyFromLocal(sourcePath: string, destDir: string): void {
-  const resolved = sourcePath.replace(/^~/, process.env.HOME ?? '');
+  const resolved = sourcePath.replace(/^~/, os.homedir());
   if (!fs.existsSync(resolved)) {
     throw new Error(`경로를 찾을 수 없습니다: ${resolved}`);
   }

@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import {
   installPack,
   syncPack,
@@ -143,7 +144,7 @@ export async function handlePack(args: string[]): Promise<void> {
         printPackHelp();
     }
   } catch (err) {
-    console.error(`  ✗ ${(err as Error).message}\n`);
+    console.error(`  ✗ ${err instanceof Error ? err.message : String(err)}\n`);
     process.exit(1);
   }
 }
@@ -327,7 +328,7 @@ async function handlePackSetup(args: string[]): Promise<void> {
     packName = dirName; // 디렉토리명 기준 (meta.name과 다를 수 있음)
     console.log(`  ✓ ${meta.name} v${meta.version} 설치 완료`);
   } catch (err) {
-    const msg = (err as Error).message;
+    const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('이미 설치')) {
       meta = readPackMeta(path.join(PACKS_DIR, dirName)) ?? undefined;
       console.log(`  ✓ ${packName} 이미 설치됨 (동기화 진행)`);
@@ -356,7 +357,11 @@ async function handlePackSetup(args: string[]): Promise<void> {
     // github 팩이면 lastSync SHA를 프로젝트 PackConnection에 기록 (pack lock에 필요)
     if (isGithub) {
       try {
-        const sha = execSync(`gh api repos/${source}/commits/HEAD --jq .sha`, {
+        // source 검증: owner/repo 형식만 허용 (셸 인젝션 방지)
+        if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(source)) {
+          throw new Error(`유효하지 않은 레포 형식: ${source}`);
+        }
+        const sha = execFileSync('gh', ['api', `repos/${source}/commits/HEAD`, '--jq', '.sha'], {
           encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000,
         }).trim();
         const { savePackConfigs } = await import('../core/pack-config.js');
@@ -414,8 +419,8 @@ function checkRequirements(requires: PackRequirement): string[] {
 
   function commandExists(cmd: string): boolean {
     try {
-      const check = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
-      execSync(check, { stdio: 'pipe' });
+      const checker = process.platform === 'win32' ? 'where' : 'which';
+      execFileSync(checker, [cmd], { stdio: 'pipe' });
       return true;
     } catch { return false; }
   }
@@ -424,7 +429,7 @@ function checkRequirements(requires: PackRequirement): string[] {
   if (requires.mcpServers) {
     for (const mcp of requires.mcpServers) {
       // settings.json에서 MCP 서버 등록 여부 확인
-      const settingsPath = path.join(process.env.HOME ?? '', '.claude', 'settings.json');
+      const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
       let found = false;
       try {
         if (fs.existsSync(settingsPath)) {

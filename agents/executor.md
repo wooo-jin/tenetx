@@ -2,8 +2,8 @@
 ---
 name: executor
 description: Focused code implementation specialist
-model: sonnet
-tier: MEDIUM
+model: opus
+tier: HIGH
 lane: build
 tools:
   - Read

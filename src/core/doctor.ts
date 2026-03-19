@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { COMPOUND_HOME, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from './paths.js';
 
 /** ~/.claude/projects/ — Claude Code 세션 저장 경로 */
@@ -19,8 +19,8 @@ function exists(p: string): boolean {
 
 function commandExists(cmd: string): boolean {
   try {
-    const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
-    execSync(checkCmd, { stdio: 'pipe' });
+    const checker = process.platform === 'win32' ? 'where' : 'which';
+    execFileSync(checker, [cmd], { stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -183,7 +183,7 @@ export async function runDoctor(): Promise<void> {
   // 현재 디렉토리 git 정보
   console.log('  [Git]');
   try {
-    const remote = execSync('git remote get-url origin', { stdio: 'pipe' }).toString().trim();
+    const remote = execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf-8', stdio: 'pipe' }).trim();
     console.log(`  remote (origin): ${remote}`);
   } catch {
     // git 저장소가 아니거나 origin이 없으면 표시하지 않음
