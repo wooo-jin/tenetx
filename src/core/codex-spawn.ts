@@ -114,7 +114,9 @@ export function spawnCodexPane(
     ? path.join(STATE_DIR, `${markerId}.output.md`)
     : undefined;
 
-  // Codex 명령어 인자 배열 구성 (셸 보간 없이 직접 전달)
+  // Codex 명령어 인자 배열 구성.
+  // execFileSync로 tmux에 직접 인자를 전달하되, tmux 내부에서는 sh -c를 통해 스크립트를 실행.
+  // task 문자열은 작은따옴표 이스케이프("'\\''")로 보호됨.
   const codexArgs: string[] = ['exec', '--full-auto'];
   if (model) {
     codexArgs.push('-m', model);
@@ -145,8 +147,9 @@ export function spawnCodexPane(
   const splitFlag = split === 'horizontal' ? '-h' : '-v';
 
   try {
-    // execFileSync로 셸을 경유하지 않고 tmux에 직접 인자 전달
-    // sh -c 부분만 명시적으로 배열에 포함, task 내용은 fullCmd 스크립트 안에 안전하게 격리됨
+    // execFileSync로 tmux 바이너리에 직접 인자 전달 (Node→tmux 구간은 셸 보간 없음).
+    // tmux는 전달받은 'sh', '-c', fullCmd 인자로 내부 셸을 띄우므로
+    // fullCmd 안의 task 내용은 작은따옴표 이스케이프로 반드시 보호해야 함.
     const result = execFileSync(
       'tmux',
       ['split-window', splitFlag, '-p', String(sizePercent), '-P', '-F', '#{pane_id}', 'sh', '-c', fullCmd],

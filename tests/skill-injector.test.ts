@@ -4,6 +4,7 @@ import {
   matchSkills,
   type SkillMeta,
 } from '../src/hooks/skill-injector.js';
+import { KEYWORD_PATTERNS } from '../src/hooks/keyword-detector.js';
 
 describe('parseFrontmatter', () => {
   it('기본 frontmatter 파싱', () => {
@@ -149,6 +150,63 @@ describe('matchSkills', () => {
     const matched = matchSkills('취약점 분석 필요', skills);
     expect(matched).toHaveLength(1);
     expect(matched[0].name).toBe('security');
+  });
+});
+
+// ── 이중 주입 방지 테스트 ──
+
+describe('keyword-detector 스킬 이중 주입 방지', () => {
+  // keyword-detector가 담당하는 스킬 이름 집합
+  const keywordDetectorSkillNames = new Set(
+    KEYWORD_PATTERNS
+      .filter(p => p.skill != null)
+      .map(p => p.skill!)
+  );
+
+  it('keyword-detector가 처리하는 스킬 목록이 비어있지 않다', () => {
+    expect(keywordDetectorSkillNames.size).toBeGreaterThan(0);
+  });
+
+  it('ralph는 keyword-detector가 처리하므로 skill-injector에서 제외된다', () => {
+    expect(keywordDetectorSkillNames.has('ralph')).toBe(true);
+    const skills: SkillMeta[] = [
+      { name: 'ralph', description: '', triggers: ['ralph'], filePath: '', content: '' },
+    ];
+    const matched = matchSkills('ralph 모드 시작', skills);
+    expect(matched).toHaveLength(0); // skill-injector에서 제외됨
+  });
+
+  it('autopilot은 keyword-detector가 처리하므로 skill-injector에서 제외된다', () => {
+    expect(keywordDetectorSkillNames.has('autopilot')).toBe(true);
+    const skills: SkillMeta[] = [
+      { name: 'autopilot', description: '', triggers: ['autopilot'], filePath: '', content: '' },
+    ];
+    const matched = matchSkills('autopilot 실행', skills);
+    expect(matched).toHaveLength(0);
+  });
+
+  it('ecomode는 keyword-detector가 처리하므로 skill-injector에서 제외된다', () => {
+    expect(keywordDetectorSkillNames.has('ecomode')).toBe(true);
+    const skills: SkillMeta[] = [
+      { name: 'ecomode', description: '', triggers: ['ecomode'], filePath: '', content: '' },
+    ];
+    const matched = matchSkills('ecomode 모드', skills);
+    expect(matched).toHaveLength(0);
+  });
+
+  it('ultrawork, team, ccg 등도 keyword-detector 담당', () => {
+    for (const name of ['ultrawork', 'team', 'ccg', 'ralplan', 'deep-interview', 'pipeline']) {
+      expect(keywordDetectorSkillNames.has(name)).toBe(true);
+    }
+  });
+
+  it('keyword-detector에 없는 스킬은 skill-injector에서 정상 매칭된다', () => {
+    const customSkills: SkillMeta[] = [
+      { name: 'my-custom-skill', description: '', triggers: ['커스텀'], filePath: '', content: '' },
+    ];
+    const matched = matchSkills('커스텀 스킬 실행', customSkills);
+    expect(matched).toHaveLength(1);
+    expect(matched[0].name).toBe('my-custom-skill');
   });
 });
 

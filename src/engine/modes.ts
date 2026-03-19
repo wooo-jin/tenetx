@@ -136,7 +136,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
 /** 내장 모드 이름 집합 — 팩 충돌 감지 기준선 */
 const BUILTIN_MODE_NAMES = new Set<string>(Object.keys(MODE_CONFIGS));
 
-/** 모드별 설정 반환 */
+/** 모드별 설정 반환 (composedOf 병합 없이 원본 반환) */
 export function getModeConfig(mode: ExecutionMode): ModeConfig {
   return MODE_CONFIGS[mode];
 }
@@ -242,14 +242,21 @@ export function listModes(): ModeConfig[] {
 /**
  * composedOf를 재귀적으로 병합한 유효 모드 설정을 반환합니다.
  *
+ * 사용 가이드:
+ *   - Claude 실행 시 실제 적용할 인자/환경변수가 필요하면 이 함수를 사용하세요.
+ *   - 단순 메타데이터(description, principle 등) 조회는 getModeConfig으로 충분합니다.
+ *
+ * 예시:
+ *   const effective = getEffectiveModeConfig('autopilot');
+ *   // autopilot + ralph + ultrawork의 claudeArgs/envOverrides가 모두 병합됨
+ *
  * 병합 규칙:
  * - claudeArgs: 하위 모드 → 상위 모드 순서로 연결 (상위가 뒤에서 오버라이드)
  * - envOverrides: 하위 모드 → 상위 모드 순서로 Object.assign (상위 우선)
  * - persistent: 하나라도 true면 true
  * - description: "[합성] 원본설명 (포함: 하위모드1, 하위모드2)" 형태로 표시
- * - composedOf: 원본 유지 (참조용)
  *
- * 순환 참조 방지를 위해 visited set을 사용합니다.
+ * @see resolveComposed — 내부 재귀 병합 구현 (경로 기반 visited로 다이아몬드 의존성 지원)
  */
 export function getEffectiveModeConfig(mode: ExecutionMode): ModeConfig {
   const base = MODE_CONFIGS[mode];
@@ -266,8 +273,6 @@ export function getEffectiveModeConfig(mode: ExecutionMode): ModeConfig {
 }
 
 function resolveComposed(config: ModeConfig, visited: Set<string>): ModeConfig {
-  visited.add(config.name);
-
   if (!config.composedOf || config.composedOf.length === 0) {
     return { ...config };
   }
@@ -279,12 +284,16 @@ function resolveComposed(config: ModeConfig, visited: Set<string>): ModeConfig {
   const includedNames: string[] = [];
 
   for (const childName of config.composedOf) {
-    if (visited.has(childName)) continue; // 순환 참조 방지
+    if (visited.has(childName)) continue; // 순환 참조(사이클) 방지
 
     const childConfig = MODE_CONFIGS[childName as ExecutionMode];
     if (!childConfig) continue;
 
-    const resolved = resolveComposed(childConfig, visited);
+    // 경로 기반 복사: 이 재귀 경로에서만 childName을 방문한 것으로 표시.
+    // 전역 visited를 공유하면 다이아몬드 의존성(A→B→D, A→C→D)에서
+    // B가 D를 먼저 방문한 뒤 C의 D 방문이 차단되므로 경로별 복사가 필요.
+    const pathVisited = new Set([...visited, config.name]);
+    const resolved = resolveComposed(childConfig, pathVisited);
     mergedClaudeArgs = [...mergedClaudeArgs, ...resolved.claudeArgs];
     mergedEnvOverrides = { ...mergedEnvOverrides, ...resolved.envOverrides };
     if (resolved.persistent) mergedPersistent = true;

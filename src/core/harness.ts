@@ -79,12 +79,13 @@ function injectSettings(env: Record<string, string>): void {
   const existingEnv = (settings.env as Record<string, string>) ?? {};
   settings.env = { ...existingEnv, ...env };
 
-  // statusLine: 기존에 tenetx 관련이 아닌 사용자 커스텀 값이 있으면 덮어쓰지 않음
+  // statusLine: 기존에 tenetx 관련이 아닌 사용자 커스텀 값이 있으면 덮어쓰지 않음.
+  // command가 없거나 빈 문자열인 경우는 의도된 커스텀 설정이 아닌 것으로 간주하여 tenetx로 교체.
   const existingStatusLine = settings.statusLine as { type?: string; command?: string } | undefined;
   const isTenetxStatusLine =
     !existingStatusLine ||
-    (typeof existingStatusLine.command === 'string' &&
-      existingStatusLine.command.startsWith('tenetx'));
+    !existingStatusLine.command ||   // undefined, null, '' 모두 교체 대상
+    existingStatusLine.command.startsWith('tenetx');
   if (isTenetxStatusLine) {
     settings.statusLine = {
       type: 'command',

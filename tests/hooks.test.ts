@@ -46,6 +46,38 @@ describe('token-tracker', () => {
       const tokens = estimateTokens(text);
       expect(tokens).toBeGreaterThan(0);
     });
+
+    // ── 한글 토큰 추정 정밀 테스트 ──
+
+    it('한글 100% 텍스트 → 2자/토큰 (정확한 계산)', () => {
+      // 한글 10자 → 10/2 = 5 토큰
+      const text = '가나다라마바사아자차';
+      expect(estimateTokens(text)).toBe(5);
+    });
+
+    it('영문 100% 텍스트 → 4자/토큰 (정확한 계산)', () => {
+      // 영문 20자 → 20/4 = 5 토큰
+      const text = 'abcdefghijklmnopqrst';
+      expect(estimateTokens(text)).toBe(5);
+    });
+
+    it('혼합 텍스트 → 비율에 따른 가중 평균', () => {
+      // 한글 4자 + 영문 8자 → 4/2 + 8/4 = 2 + 2 = 4 토큰
+      const text = '안녕하세abcdefgh';
+      expect(estimateTokens(text)).toBe(4);
+    });
+
+    it('한글만 있는 긴 텍스트도 2자/토큰', () => {
+      // 한글 100자 → 100/2 = 50 토큰
+      const text = '가'.repeat(100);
+      expect(estimateTokens(text)).toBe(50);
+    });
+
+    it('영문만 있는 긴 텍스트도 4자/토큰', () => {
+      // 영문 100자 → 100/4 = 25 토큰
+      const text = 'a'.repeat(100);
+      expect(estimateTokens(text)).toBe(25);
+    });
   });
 
   describe('formatCost', () => {

@@ -115,6 +115,33 @@ describe('db-guard', () => {
     const result = checkDangerousSql('Bash', 'DROP TABLE users;');
     expect(result.action).toBe('block');
   });
+
+  // ── SQL 주석 처리 테스트 ──
+
+  it('라인 주석 안의 DELETE는 차단하지 않는다', () => {
+    const result = checkDangerousSql('Bash', { command: '-- DELETE FROM users' });
+    expect(result.action).toBe('pass');
+  });
+
+  it('WHERE 절이 있는 DELETE는 차단하지 않는다', () => {
+    const result = checkDangerousSql('Bash', { command: 'DELETE FROM users WHERE id=1' });
+    expect(result.action).toBe('pass');
+  });
+
+  it('WHERE 절이 없는 DELETE는 차단한다', () => {
+    const result = checkDangerousSql('Bash', { command: 'DELETE FROM users' });
+    expect(result.action).toBe('block');
+  });
+
+  it('블록 주석 안의 DROP TABLE은 차단하지 않는다', () => {
+    const result = checkDangerousSql('Bash', { command: '/* DROP TABLE users; */ SELECT 1' });
+    expect(result.action).toBe('pass');
+  });
+
+  it('주석 뒤의 실제 SQL은 차단한다', () => {
+    const result = checkDangerousSql('Bash', { command: '-- this is a comment\nDROP TABLE users;' });
+    expect(result.action).toBe('block');
+  });
 });
 
 // ── Rate Limiter 테스트 ──
@@ -168,5 +195,38 @@ describe('rate-limiter', () => {
     const state = { calls };
     const result = checkRateLimit(state, now, 5);
     expect(result.exceeded).toBe(true);
+  });
+
+  // ── reject 시 호출 미기록 테스트 ──
+
+  it('제한 초과(reject) 시 recentCalls에 새 타임스탬프가 추가되지 않는다', () => {
+    const baseTime = 1700000000000; // 고정 타임스탬프
+    // 30개 호출 (baseTime-1000 ~ baseTime-30000) — baseTime 자체는 포함 안 됨
+    const calls = Array.from({ length: 30 }, (_, i) => baseTime - (i + 1) * 1000);
+    const state = { calls };
+    const now = baseTime; // 새 호출 시점
+    const result = checkRateLimit(state, now, 30);
+    expect(result.exceeded).toBe(true);
+    // reject된 호출의 타임스탬프(now=baseTime)가 updatedState.calls에 포함되지 않아야 함
+    expect(result.updatedState.calls).not.toContain(now);
+    // 기존 호출 수만 유지 (새 호출은 추가되지 않음)
+    expect(result.updatedState.calls.length).toBe(30);
+  });
+
+  it('reject 후 시간이 지나면 정상적으로 rate limit이 풀린다', () => {
+    const baseTime = Date.now();
+    // 30개 호출을 baseTime 기준으로 생성
+    const calls = Array.from({ length: 30 }, (_, i) => baseTime - i * 1000);
+    const state = { calls };
+
+    // 현재 시점에서는 제한 초과
+    const result1 = checkRateLimit(state, baseTime, 30);
+    expect(result1.exceeded).toBe(true);
+
+    // 61초 후 — 모든 기존 호출이 윈도우 밖으로 밀려남
+    const futureTime = baseTime + 61_000;
+    const result2 = checkRateLimit(result1.updatedState, futureTime, 30);
+    expect(result2.exceeded).toBe(false);
+    expect(result2.count).toBe(1); // 새 호출만 카운트
   });
 });

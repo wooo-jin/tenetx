@@ -654,6 +654,59 @@ describe('createMcpServer()', () => {
     expect(res.error.code).toBe(-32603);
     expect(res.error.message).toContain('intentional failure');
   });
+
+  it('두 개의 tools/call이 순차 처리된다 (동시 실행 안 됨)', async () => {
+    const executionOrder: string[] = [];
+    const slowTool: McpTool = {
+      name: 'slow',
+      description: 'Slow tool that records execution order',
+      inputSchema: { type: 'object', properties: { label: { type: 'string' } }, required: ['label'] },
+      handler: async (args) => {
+        executionOrder.push(`start-${args.label}`);
+        await new Promise(r => setTimeout(r, 30));
+        executionOrder.push(`end-${args.label}`);
+        return `done: ${args.label}`;
+      },
+    };
+
+    // 직접 stdin을 모킹하여 두 메시지를 연속 전송
+    let dataCallback: ((chunk: string) => void) | null = null;
+    let endCallback: (() => void) | null = null;
+
+    const originalSetEncoding = process.stdin.setEncoding;
+    const originalOn = process.stdin.on;
+    const originalExit = process.exit;
+
+    process.stdin.setEncoding = vi.fn().mockReturnThis() as typeof process.stdin.setEncoding;
+    process.stdin.on = vi.fn().mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
+      if (event === 'data') dataCallback = cb as (chunk: string) => void;
+      if (event === 'end') endCallback = cb as () => void;
+      return process.stdin;
+    }) as typeof process.stdin.on;
+    process.exit = vi.fn() as unknown as typeof process.exit;
+
+    createMcpServer({
+      name: 'test-sequential',
+      version: '1.0.0',
+      tools: [slowTool],
+    }).start();
+
+    // 두 메시지를 동시에 전송
+    const msg1 = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'slow', arguments: { label: 'first' } } });
+    const msg2 = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'slow', arguments: { label: 'second' } } });
+    if (dataCallback) (dataCallback as (chunk: string) => void)(`${msg1}\n${msg2}\n`);
+
+    // 충분히 대기
+    await new Promise(r => setTimeout(r, 150));
+    if (endCallback) (endCallback as () => void)();
+
+    process.stdin.setEncoding = originalSetEncoding;
+    process.stdin.on = originalOn;
+    process.exit = originalExit;
+
+    // 순차 처리 확인: first가 완료된 후 second가 시작되어야 함
+    expect(executionOrder).toEqual(['start-first', 'end-first', 'start-second', 'end-second']);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────────────

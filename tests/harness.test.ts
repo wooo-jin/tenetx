@@ -159,6 +159,46 @@ describe('prepareHarness() integration', () => {
     });
   });
 
+  // ── statusLine 보존 테스트 ──
+
+  it('기존 tenetx statusLine → 덮어쓰기', async () => {
+    fs.mkdirSync(TEST_CLAUDE_DIR, { recursive: true });
+    fs.writeFileSync(TEST_SETTINGS_PATH, JSON.stringify({
+      statusLine: { type: 'command', command: 'tenetx old-status' },
+    }));
+
+    await prepareHarness(TEST_CWD);
+
+    const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
+    expect(settings.statusLine.command).toBe('tenetx status');
+  });
+
+  it('기존 커스텀 statusLine → 보존', async () => {
+    fs.mkdirSync(TEST_CLAUDE_DIR, { recursive: true });
+    fs.writeFileSync(TEST_SETTINGS_PATH, JSON.stringify({
+      statusLine: { type: 'command', command: 'my-custom-status-tool' },
+    }));
+
+    await prepareHarness(TEST_CWD);
+
+    const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
+    // 사용자 커스텀 statusLine은 보존되어야 함
+    expect(settings.statusLine.command).toBe('my-custom-status-tool');
+  });
+
+  it('statusLine 없음 → tenetx 설정', async () => {
+    fs.mkdirSync(TEST_CLAUDE_DIR, { recursive: true });
+    fs.writeFileSync(TEST_SETTINGS_PATH, JSON.stringify({ env: {} }));
+
+    await prepareHarness(TEST_CWD);
+
+    const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
+    expect(settings.statusLine).toEqual({
+      type: 'command',
+      command: 'tenetx status',
+    });
+  });
+
   it('settings.json.tenetx-backup이 생성된다 (기존 settings가 있을 때)', async () => {
     // 기존 settings 생성
     fs.mkdirSync(TEST_CLAUDE_DIR, { recursive: true });
@@ -232,7 +272,7 @@ describe('prepareHarness() integration', () => {
 
   it('prepareHarness를 두 번 호출해도 정상 동작한다 (idempotent)', async () => {
     await prepareHarness(TEST_CWD);
-    const firstSettings = fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8');
+    await prepareHarness(TEST_CWD);
 
     await prepareHarness(TEST_CWD);
     const secondSettings = fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8');

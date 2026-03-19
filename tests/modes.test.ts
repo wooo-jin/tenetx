@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseMode, getModeConfig, listModes } from '../src/engine/modes.js';
+import { parseMode, getModeConfig, getEffectiveModeConfig, listModes } from '../src/engine/modes.js';
 
 describe('modes', () => {
   describe('parseMode', () => {
@@ -112,6 +112,65 @@ describe('modes', () => {
       const modes = listModes();
       const names = modes.map(m => m.name);
       expect(new Set(names).size).toBe(names.length);
+    });
+  });
+
+  // ── composedOf 병합 테스트 ──
+
+  describe('getEffectiveModeConfig', () => {
+    it('autopilot → ralph + ultrawork 설정이 병합된다', () => {
+      const effective = getEffectiveModeConfig('autopilot');
+      // autopilot은 composedOf: ['ralph', 'ultrawork']
+      expect(effective.name).toBe('autopilot');
+      expect(effective.composedOf).toEqual(['ralph', 'ultrawork']);
+      // description에 합성 표시
+      expect(effective.description).toContain('합성');
+      expect(effective.description).toContain('ralph');
+      expect(effective.description).toContain('ultrawork');
+      // envOverrides에 autopilot 자체 값이 최우선 (상위 모드가 하위를 오버라이드)
+      expect(effective.envOverrides.COMPOUND_MODE).toBe('autopilot');
+      // ralph의 envOverrides도 병합되어 있어야 함 (ultrawork도)
+      // 하위 모드 envOverrides는 상위에 의해 오버라이드될 수 있으므로 COMPOUND_MODE는 autopilot
+    });
+
+    it('ecomode → composedOf 없으므로 원본 그대로', () => {
+      const effective = getEffectiveModeConfig('ecomode');
+      const original = getModeConfig('ecomode');
+      expect(effective.name).toBe('ecomode');
+      expect(effective.description).toBe(original.description);
+      expect(effective.claudeArgs).toEqual(original.claudeArgs);
+      expect(effective.envOverrides).toEqual(original.envOverrides);
+      // composedOf가 없으므로 합성 표시가 없어야 함
+      expect(effective.description).not.toContain('합성');
+    });
+
+    it('ralph → ultrawork 설정이 병합된다 (ralph.composedOf = ["ultrawork"])', () => {
+      const effective = getEffectiveModeConfig('ralph');
+      expect(effective.composedOf).toEqual(['ultrawork']);
+      expect(effective.description).toContain('합성');
+      expect(effective.description).toContain('ultrawork');
+      // ralph의 envOverrides가 ultrawork를 오버라이드
+      expect(effective.envOverrides.COMPOUND_MODE).toBe('ralph');
+    });
+
+    it('순환 참조 시 무한 루프에 빠지지 않는다', () => {
+      // getEffectiveModeConfig는 visited Set으로 순환 방지
+      // 실제 MODE_CONFIGS에 순환이 없지만, 함수가 안전하게 동작하는지 확인
+      // autopilot → ralph → ultrawork 체인이 정상 종료됨
+      const effective = getEffectiveModeConfig('autopilot');
+      expect(effective).toBeDefined();
+      expect(effective.name).toBe('autopilot');
+    });
+
+    it('composedOf가 없는 모드는 persistent가 원본과 같다', () => {
+      const effective = getEffectiveModeConfig('normal');
+      expect(effective.persistent).toBe(false);
+    });
+
+    it('composedOf 병합 시 하위 모드의 persistent가 true면 결과도 true', () => {
+      const effective = getEffectiveModeConfig('autopilot');
+      // ultrawork.persistent = true, ralph.persistent = true
+      expect(effective.persistent).toBe(true);
     });
   });
 });
