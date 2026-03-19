@@ -201,9 +201,9 @@ RECOMMENDATION: [APPROVE / REQUEST CHANGES / COMMENT]
 ```
 코드 리뷰 후 피드백 수정, 승인될 때까지 반복
 
-**Swarm 연동:**
+**팀 기반 병렬 리뷰:**
 ```
-/tenetx:swarm 4:code-reviewer "src/ 전체 파일 리뷰"
+/tenetx:team 4:code-reviewer "src/ 전체 파일 리뷰"
 ```
 여러 파일에 대해 병렬 코드 리뷰 수행
 

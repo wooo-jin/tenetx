@@ -44,7 +44,7 @@ explore -> {
 여러 에이전트를 병렬로 실행한 후 출력을 병합.
 
 ```
-parallel(explore, document-specialist) -> architect -> executor
+parallel(explore, writer) -> architect -> executor
 ```
 </Core_Concepts>
 
@@ -94,7 +94,7 @@ parallel(explore, document-specialist) -> architect -> executor
 **단계:**
 1. `explore` — 에러 위치 및 관련 코드 탐색
 2. `architect` — 근본 원인 분석
-3. `build-fixer` — 수정 적용 및 검증
+3. `debugger` — 수정 적용 및 검증
 
 **사용처:** 버그, 빌드 에러, 테스트 실패
 
@@ -108,7 +108,7 @@ parallel(explore, document-specialist) -> architect -> executor
 ```
 
 **단계:**
-1. `parallel(document-specialist, explore)` — 외부 문서 + 내부 코드
+1. `parallel(writer, explore)` — 외부 문서 + 내부 코드
 2. `architect` — 발견 사항 종합
 3. `writer` — 권장사항 문서화
 
@@ -125,7 +125,7 @@ parallel(explore, document-specialist) -> architect -> executor
 
 **단계:**
 1. `explore` — 모든 사용처 및 의존성 검색
-2. `architect-medium` — 리팩토링 전략 설계
+2. `architect` (model="sonnet") — 리팩토링 전략 설계
 3. `executor:opus` — 리팩토링 실행
 4. `qa-tester` — 회귀 없음 검증
 
@@ -144,7 +144,7 @@ parallel(explore, document-specialist) -> architect -> executor
 1. `explore` — 잠재 취약점 탐색
 2. `security-reviewer` — 감사 및 이슈 식별
 3. `executor` — 수정 구현
-4. `security-reviewer-low` — 재검증
+4. `security-reviewer` (model="haiku") — 재검증
 
 **사용처:** 보안 리뷰, 취약점 수정
 </Built_In_Presets>
@@ -182,7 +182,7 @@ parallel(explore, document-specialist) -> architect -> executor
 
 ### 병렬 구조
 ```
-/tenetx:pipeline [explore, document-specialist] -> architect -> executor "OAuth 구현"
+/tenetx:pipeline [explore, writer] -> architect -> executor "OAuth 구현"
 ```
 
 대괄호(`[]`)로 묶인 에이전트들은 병렬 실행되며, 모든 결과가 다음 단계에 병합됩니다.
@@ -484,7 +484,7 @@ rm -f .compound/state/pipeline-state.json
 ```
 /tenetx:pipeline debug "OAuth 로그인 실패"
 ```
--> explore -> architect -> build-fixer
+-> explore -> architect -> debugger
 
 ### 예시 3: 커스텀 체인
 ```
@@ -495,7 +495,7 @@ rm -f .compound/state/pipeline-state.json
 ```
 /tenetx:pipeline research "GraphQL subscriptions 구현"
 ```
--> parallel(document-specialist, explore) -> architect -> writer
+-> parallel(writer, explore) -> architect -> writer
 
 ### 예시 5: 모델 지정 보안 파이프라인
 ```

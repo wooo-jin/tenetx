@@ -26,7 +26,7 @@ Claude Code 네이티브 팀 API를 활용합니다.
 ### 파라미터
 
 - **N** - 팀원 에이전트 수 (1-20). 선택사항; 기본값은 태스크 분해 기반 자동 결정.
-- **agent-type** - `team-exec` 단계에 스폰할 에이전트 타입 (executor, build-fixer, designer, codex, gemini 등). 선택사항; 기본값은 단계별 자동 라우팅.
+- **agent-type** - `team-exec` 단계에 스폰할 에이전트 타입 (executor, debugger, designer, codex, gemini 등). 선택사항; 기본값은 단계별 자동 라우팅.
 - **task** - 분해하여 팀원에게 분배할 상위 작업 설명
 - **ralph** - 선택 수식어. 사용 시 Ralph 지속 루프(실패 시 재시도, architect 검증)로 팀을 감싼다. 아래 Team + Ralph Composition 참조.
 
@@ -34,7 +34,7 @@ Claude Code 네이티브 팀 API를 활용합니다.
 
 ```bash
 /tenetx:team 5:executor "프로젝트 전체의 TypeScript 에러 수정"
-/tenetx:team 3:build-fixer "src/ 빌드 에러 수정"
+/tenetx:team 3:debugger "src/ 빌드 에러 수정"
 /tenetx:team 4:designer "모든 페이지 컴포넌트에 반응형 레이아웃 구현"
 /tenetx:team "인증 모듈 리팩토링 + 보안 리뷰"
 /tenetx:team ralph "사용자 관리 REST API 전체 구축"
@@ -110,9 +110,9 @@ User: "/tenetx:team 3:executor TypeScript 에러 전부 수정"
 |------|-------------|-------------|----------|
 | **team-plan** | `explore` (haiku), `planner` (opus) | `analyst` (opus), `architect` (opus) | 요구사항 불명확 시 `analyst`. 복잡한 시스템 경계 시 `architect`. |
 | **team-prd** | `analyst` (opus) | `critic` (opus) | 스코프 도전 시 `critic`. |
-| **team-exec** | `executor` (sonnet) | `deep-executor` (opus), `build-fixer` (sonnet), `designer` (sonnet), `writer` (haiku), `test-engineer` (sonnet) | 하위 태스크 유형에 에이전트 매칭. 복잡한 자율 작업은 `deep-executor`, UI는 `designer`, 빌드 문제는 `build-fixer`, 문서는 `writer`, 테스트 생성은 `test-engineer`. |
-| **team-verify** | `verifier` (sonnet) | `test-engineer` (sonnet), `security-reviewer` (sonnet), `code-reviewer` (opus), `quality-reviewer` (sonnet) | 항상 `verifier` 실행. 인증/암호화 변경 시 `security-reviewer` 추가. 20+ 파일 또는 아키텍처 변경 시 `code-reviewer` 추가. 스타일/포맷팅은 `quality-reviewer` (model=haiku). |
-| **team-fix** | `executor` (sonnet) | `build-fixer` (sonnet), `debugger` (sonnet), `deep-executor` (opus) | 타입/빌드 에러는 `build-fixer`. 회귀 격리는 `debugger`. 복잡한 다중 파일 수정은 `deep-executor`. |
+| **team-exec** | `executor` (sonnet) | `executor` (opus), `debugger` (sonnet), `designer` (sonnet), `writer` (haiku), `test-engineer` (sonnet) | 하위 태스크 유형에 에이전트 매칭. 복잡한 자율 작업은 `executor` (model="opus"), UI는 `designer`, 빌드 문제는 `debugger`, 문서는 `writer`, 테스트 생성은 `test-engineer`. |
+| **team-verify** | `verifier` (sonnet) | `test-engineer` (sonnet), `security-reviewer` (sonnet), `code-reviewer` (opus), `code-reviewer` (haiku) | 항상 `verifier` 실행. 인증/암호화 변경 시 `security-reviewer` 추가. 20+ 파일 또는 아키텍처 변경 시 `code-reviewer` 추가. 스타일/포맷팅은 `code-reviewer` (model="haiku"). |
+| **team-fix** | `executor` (sonnet) | `debugger` (sonnet), `debugger` (sonnet), `executor` (opus) | 타입/빌드 에러는 `debugger`. 회귀 격리는 `debugger`. 복잡한 다중 파일 수정은 `executor` (model="opus"). |
 
 **라우팅 규칙:**
 
@@ -140,12 +140,12 @@ User: "/tenetx:team 3:executor TypeScript 에러 전부 수정"
 ### Stage 3: team-exec (병렬 실행)
 - Agent: 태스크 유형별 전문가 선택
   - 코드 구현 → executor (Sonnet)
-  - 복잡한 자율 작업 → deep-executor (Opus)
+  - 복잡한 자율 작업 → executor (Opus, model="opus")
   - 버그 수정 → debugger (Sonnet)
   - UI 작업 → designer (Sonnet)
   - 문서 작성 → writer (Haiku)
   - 테스트 생성 → test-engineer (Sonnet)
-  - 빌드 문제 → build-fixer (Sonnet)
+  - 빌드 문제 → debugger (Sonnet)
 - Entry: `TeamCreate`, `TaskCreate`, 배정, 워커 스폰 완료.
 - 독립적 태스크는 병렬 실행
 - 의존적 태스크는 순차 실행
@@ -153,7 +153,7 @@ User: "/tenetx:team 3:executor TypeScript 에러 전부 수정"
 
 ### Stage 4: team-verify (병렬 검증)
 - Agent: verifier (Sonnet)
-- 선택적: security-reviewer, code-reviewer, quality-reviewer
+- 선택적: security-reviewer, code-reviewer
 - Entry: 실행 패스 완료.
 - 각 태스크의 acceptance criteria 검증
 - Exit (통과): 검증 게이트 통과, 후속 작업 없음.
@@ -593,7 +593,7 @@ designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git
 | 계획/설계 | planner, architect | Opus | build |
 | 디버깅 | debugger | Sonnet | build |
 | 코드 구현 | executor | Sonnet | build |
-| 복잡한 자율 작업 | deep-executor | Opus | build |
+| 복잡한 자율 작업 | executor (model="opus") | Opus | build |
 | 검증 | verifier | Sonnet | build |
 | 단순화 | code-simplifier | Opus | build |
 | 리팩토링 | refactoring-expert | Sonnet | build |
@@ -740,7 +740,7 @@ state_write(mode="ralph", active=true, iteration=1, max_iterations=10, current_p
 1. Ralph 외부 루프 시작 (iteration 1)
 2. 팀 파이프라인 실행: `team-plan -> team-prd -> team-exec -> team-verify`
 3. `team-verify` 통과 시: Ralph가 architect 검증 실행 (STANDARD 티어 이상)
-4. architect 승인 시: 양 모드 완료, `/tenetx:cancel` 실행
+4. architect 승인 시: 양 모드 완료, `canceltenetx` 키워드 입력으로 종료
 5. `team-verify` 실패 또는 architect 거부 시: team-fix 진입, 이후 `team-exec -> team-verify` 루프 복귀
 6. fix 루프가 `max_fix_loops` 초과 시: Ralph가 iteration 증가하여 전체 파이프라인 재시도
 7. Ralph가 `max_iterations` 초과 시: 터미널 `failed` 상태
@@ -827,7 +827,7 @@ state_write(mode="ralph", active=true, iteration=1, max_iterations=10, current_p
 
 ### 재개/취소 시맨틱
 - **재개:** 마지막 비터미널 단계에서 재시작. `.compound/handoffs/` 읽어 단계 전환 컨텍스트 복구.
-- **취소:** `/tenetx:cancel`이 팀원 종료 요청, 응답 대기, `cancelled` 표시(`active=false`), 취소 메타데이터 캡처, 팀 리소스 삭제. `.compound/handoffs/` 핸드오프 파일은 보존.
+- **취소:** `canceltenetx` 키워드 입력 시 팀원 종료 요청, 응답 대기, `cancelled` 표시(`active=false`), 취소 메타데이터 캡처, 팀 리소스 삭제. `.compound/handoffs/` 핸드오프 파일은 보존.
 - 터미널 상태: `complete`, `failed`, `cancelled`.
 </Idempotent_Recovery>
 
@@ -857,7 +857,7 @@ state_write(mode="ralph", active=true, iteration=1, max_iterations=10, current_p
 <Cancellation>
 ## 취소
 
-`/tenetx:cancel` 스킬이 팀 정리를 처리:
+`canceltenetx` 키워드 입력으로 팀 정리를 처리:
 
 1. `state_read(mode="team")`로 팀 상태 읽어 `team_name`과 `linked_ralph` 확인
 2. 모든 활성 팀원에게 `shutdown_request` 전송 (`config.json` members 기반)
@@ -919,7 +919,7 @@ state_write(mode="ralph", active=true, iteration=1, max_iterations=10, current_p
    ```
    state_clear(mode="ralph")
    ```
-3. 또는 `/tenetx:cancel` 실행으로 모든 정리 자동 처리.
+3. 또는 `canceltenetx` 키워드 입력으로 모든 정리 자동 처리.
 
 **중요:** 모든 팀원이 종료된 후에만 `TeamDelete` 호출. 활성 멤버(리드 제외)가 config에 남아있으면 `TeamDelete` 실패.
 </State_Management>

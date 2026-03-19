@@ -116,7 +116,7 @@ interface ModeState {
   completedSteps?: string[];
 }
 
-const PERSISTENT_MODES = ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview'];
+const PERSISTENT_MODES = ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline'];
 
 async function main(): Promise<void> {
   // SessionStart 훅은 stdin으로 세션 정보를 받음

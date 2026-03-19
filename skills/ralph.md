@@ -31,7 +31,7 @@ PRD를 자동 생성하고, 각 스토리를 순서대로 구현하며,
 
 <Do_Not_Use_When>
 - 아이디어에서 코드까지 자율 파이프라인이 필요하면 `autopilot` 사용
-- 실행 전 탐색/계획이 필요하면 `plan` 스킬 사용
+- 실행 전 탐색/계획이 필요하면 `/tenetx:ralplan` 사용
 - 빠른 원샷 수정이면 executor 에이전트에 직접 위임
 - 수동 완료 제어가 필요하면 `ultrawork` 직접 사용
 </Do_Not_Use_When>

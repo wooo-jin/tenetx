@@ -27,8 +27,8 @@ tenetx providers
 - **Claude**: 현재 세션에서 직접 응답 (항상 가용)
 - **Codex**: 환경에 따라 분기
   - tmux O + Codex CLI 설치됨 → `codex exec --full-auto`로 **tmux 패널에 에이전트 스폰** (진짜 자율 실행)
-  - tmux X 또는 Codex CLI 없음 → `ch ask --provider codex` (OpenAI API 폴백)
-- **Gemini**: `ch ask --provider gemini` (Google AI API, GEMINI_API_KEY 필요)
+  - tmux X 또는 Codex CLI 없음 → `tenetx ask --provider codex` (OpenAI API 폴백)
+- **Gemini**: `tenetx ask --provider gemini` (Google AI API, GEMINI_API_KEY 필요)
 
 ## Step 2 — 작업 분해 및 팀 시작
 
@@ -71,10 +71,10 @@ TeamDelete(team="ccg-{slug}")
 
 ```bash
 # Codex: API 단발 질의
-ch ask --provider codex "사용자 질문"
+tenetx ask --provider codex "사용자 질문"
 
 # Gemini: API 질의
-ch ask --provider gemini "사용자 질문"
+tenetx ask --provider gemini "사용자 질문"
 ```
 
 > OpenAI/Google API로 단발 질의합니다. 에이전트 수준의 깊이는 없지만 응답은 받을 수 있습니다.

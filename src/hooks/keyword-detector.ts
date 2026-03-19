@@ -347,7 +347,7 @@ async function main(): Promise<void> {
 
   if (match.type === 'cancel') {
     // 모든 모드 상태 초기화 (ralplan, deep-interview 포함)
-    for (const mode of ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview']) {
+    for (const mode of ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview', 'ecomode']) {
       clearState(`${mode}-state`);
     }
     // ralph-loop 플러그인 상태 파일도 삭제
