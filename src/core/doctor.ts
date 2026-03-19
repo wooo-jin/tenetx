@@ -38,6 +38,15 @@ export async function runDoctor(): Promise<void> {
   check('gh (GitHub CLI)', commandExists('gh'), '팀 PR 기능에 필요: brew install gh');
   console.log();
 
+  // 플러그인
+  console.log('  [플러그인]');
+  const ralphLoopInstalled = exists(
+    path.join(os.homedir(), '.claude', 'plugins', 'cache', 'claude-plugins-official', 'ralph-loop')
+  );
+  check('ralph-loop 플러그인', ralphLoopInstalled,
+    'ralph 모드의 자동 반복에 필요합니다. 설치: claude plugins install ralph-loop');
+  console.log();
+
   // 디렉토리 구조
   console.log('  [디렉토리]');
   check('~/.compound/', exists(COMPOUND_HOME));

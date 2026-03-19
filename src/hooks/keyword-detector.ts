@@ -350,6 +350,10 @@ async function main(): Promise<void> {
     for (const mode of ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview']) {
       clearState(`${mode}-state`);
     }
+    // ralph-loop 플러그인 상태 파일도 삭제
+    const cancelCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
+    const ralphLoopState = path.join(cancelCwd, '.claude', 'ralph-loop.local.md');
+    try { fs.unlinkSync(ralphLoopState); } catch { /* 파일 없으면 무시 */ }
     // skill-cache 파일도 정리 (재주입 가능하도록)
     cleanSkillCaches();
     console.log(JSON.stringify({
@@ -381,6 +385,26 @@ async function main(): Promise<void> {
       prompt: match.prompt,
       sessionId: input.session_id,
     });
+
+    // ralph 스킬 활성화 시 ralph-loop 플러그인 상태 파일도 생성
+    if (match.skill === 'ralph') {
+      const ralphLoopDir = path.join(effectiveCwd, '.claude');
+      const ralphLoopState = path.join(ralphLoopDir, 'ralph-loop.local.md');
+      fs.mkdirSync(ralphLoopDir, { recursive: true });
+      const frontmatter = [
+        '---',
+        'active: true',
+        'iteration: 1',
+        `session_id: ${input.session_id ?? ''}`,
+        'max_iterations: 0',
+        'completion_promise: "TASK COMPLETE"',
+        `started_at: "${new Date().toISOString()}"`,
+        '---',
+        '',
+        match.prompt ?? input.prompt,
+      ].join('\n');
+      fs.writeFileSync(ralphLoopState, frontmatter);
+    }
 
     if (skillContent) {
       console.log(JSON.stringify({
