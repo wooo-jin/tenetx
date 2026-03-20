@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-03-20
+
+### Fixed
+- Resolve remaining audit warnings — rate-limiter timeout, governance try-catch
+- Resolve 4 critical runtime issues from previous audit
+- Resolve all skill/agent audit issues — 2 CRITICAL, 4 HIGH, 4 MEDIUM
+- Correct README statistics — skills 11→19, hooks 14/18→17, tests 654→1204
+- Complete i18n — convert all remaining Korean to English
+
+### Added
+- `cancel-ralph` skill for Ralph loop cancellation via `/tenetx:cancel-ralph`
+- `ralph-craft` skill for interactive Ralph prompt building
+
 ## [1.6.0] - 2026-03-20
 
 ### Added
@@ -87,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bilingual documentation (EN/KO)
 - Core CLI commands: `txd` entrypoint
 
-[Unreleased]: https://github.com/wooo-jin/tenetx/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/wooo-jin/tenetx/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/wooo-jin/tenetx/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/wooo-jin/tenetx/compare/v1.4.0...v1.6.0
 [1.4.0]: https://github.com/wooo-jin/tenetx/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/wooo-jin/tenetx/compare/v1.1.0...v1.3.0

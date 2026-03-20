@@ -173,7 +173,7 @@ tenetx --resume                     # 이전 세션 재개
 tenetx --offline                    # 네트워크 없이 실행
 ```
 
-### 실행 모드 (9가지 모드, 11개 스킬)
+### 실행 모드 (9가지 모드, 21개 스킬)
 
 각 모드는 철학적 원칙과 매핑됩니다:
 
@@ -402,9 +402,9 @@ tenetx dashboard
 엔진은 철학을 실행 가능한 컴포넌트로 번역합니다:
 
 - **9가지 실행 모드** — 단순 채팅부터 전체 자율 파이프라인까지
-- **11개 스킬** — autopilot, ralph, team, ultrawork, pipeline, ccg, ralplan, deep-interview, tdd, code-review, security-review
+- **21개 스킬** — autopilot, ralph, team, ultrawork, pipeline, ccg, ralplan, deep-interview, tdd, code-review, security-review, compound, debug-detective, ecomode, git-master, migrate, pack-builder, ralph-craft, cancel-ralph, refactor, benchmark
 - **3-tier 모델 라우팅** — Haiku / Sonnet / Opus (16-signal 스코어링)
-- **14개 훅** — UserPromptSubmit, SessionStart, PreToolUse, PostToolUse, PostToolFailure 등
+- **17개 훅** — UserPromptSubmit, SessionStart, PreToolUse, PostToolUse, PostToolFailure, PreCompact 등
 - **10가지 이벤트 타입** — 포괄적 관찰 가능성 (startup, hook_trigger, model_routing 등)
 - **3개 보안 훅** — permission-handler, secret-filter, db-guard
 - **실시간 모니터** — 비용, 편집, 컨텍스트 사용 추적
@@ -426,8 +426,8 @@ tenetx dashboard
 
 3-lane으로 구조화된 파이프라인을 위해 구성됩니다:
 
-| Lane | 에이전트 (9개) | 목적 |
-|------|---------------|------|
+| Lane | 에이전트 | 목적 |
+|------|----------|------|
 | **BUILD** | explore → analyst → planner → architect → debugger → executor → verifier → code-simplifier → refactoring-expert | 탐색 → 구현 → 검증 |
 | **REVIEW** | code-reviewer, security-reviewer, critic | 품질 보증 (3개) |
 | **DOMAIN** | designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git-master | 전문 분야 (7개) |
@@ -447,12 +447,14 @@ file-watcher             최근 수정 파일 추적
 dependency-analyzer     패키지 의존성 분석
 ```
 
-### 내장 스킬 (11개)
+### 내장 스킬 (21개)
 
 ```
-autopilot     ralph        team         ultrawork     pipeline
-ccg           ralplan      deep-interview tdd         code-review
-security-review
+autopilot        ralph           team            ultrawork        pipeline
+ccg              ralplan         deep-interview  tdd              code-review
+security-review  compound        debug-detective ecomode          git-master
+migrate          pack-builder    ralph-craft     cancel-ralph     refactor
+benchmark
 ```
 
 ---
@@ -472,7 +474,7 @@ tenetx "차트 API 리팩토링"
   │      └── 최신 팀 지식 + 상속 검증
   │
   ├── 4. 세션 설정
-  │      ├── 14개 훅을 ~/.claude/settings.json에 주입
+  │      ├── 17개 훅을 ~/.claude/settings.json에 주입
   │      ├── 16-signal 모델 라우팅을 env에 설정
   │      ├── 에이전트 & 스킬 설치
   │      ├── 10가지 이벤트 타입 관찰 가능성 설정
@@ -546,11 +548,11 @@ tenetx setup --project --pack backend     # 또는 직접 선택
 
 - **1204개 테스트** (75개 테스트 파일, 100% 통과)
 - **19개 에이전트** (3-lane: BUILD 9, REVIEW 3, DOMAIN 7)
-- **11개 스킬**과 9가지 실행 모드
-- **14개 훅**, 10가지 이벤트 타입, 3개 보안 훅
+- **21개 스킬**과 9가지 실행 모드
+- **17개 훅**, 10가지 이벤트 타입, 3개 보안 훅
 - **8개 내장 MCP 서버** (실행 가능, JSON-RPC 2.0)
 - **16-signal 모델 라우팅** (Haiku/Sonnet/Opus)
-- **5개 샘플 철학 팩** (startup, enterprise, research, content, platform)
+- **5개 샘플 철학 팩** (frontend, backend, devops, security, data)
 - **45개 이상 CLI 명령어** (setup, philosophy, pack, compound, ask, scan, verify, stats, dashboard, doctor, notify, mcp, marketplace, session, worktree 등)
 
 ---

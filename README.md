@@ -47,7 +47,7 @@ $ claude                        $ tenetx
 - **Philosophy-driven**: Declare beliefs, not configs. Workflows emerge automatically.
 - **Growth-oriented**: Compound engineering loop extracts patterns from every session.
 - **Team-aware**: Move knowledge (packs) between personal → team → org seamlessly.
-- **Production-ready**: 1204 tests (100% pass), 19 agents in 3 lanes, 8 MCP servers, 16-signal model routing.
+- **Production-ready**: 1204 tests (100% pass), 19 agents in 3 lanes, 21 skills, 8 MCP servers, 16-signal model routing.
 
 ---
 
@@ -206,7 +206,7 @@ tenetx --resume                     # Resume previous session
 tenetx --offline                    # Run without network
 ```
 
-### Execution Modes (9 modes, 19 skills)
+### Execution Modes (9 modes, 21 skills)
 
 Each mode maps to a philosophical principle:
 
@@ -435,9 +435,9 @@ Your `philosophy.yaml` declares principles. Each principle has a `belief` and `g
 The engine translates philosophy into executable components:
 
 - **9 Execution Modes** — from simple chat to full autonomous pipelines
-- **11 Skills** — autopilot, ralph, team, ultrawork, pipeline, ccg, ralplan, deep-interview, tdd, code-review, security-review
+- **21 Skills** — autopilot, ralph, team, ultrawork, pipeline, ccg, ralplan, deep-interview, tdd, code-review, security-review, compound, debug-detective, ecomode, git-master, migrate, pack-builder, ralph-craft, cancel-ralph, refactor, benchmark
 - **3-Tier Model Routing** — Haiku / Sonnet / Opus with 16-signal scoring
-- **14 Hooks** — UserPromptSubmit, SessionStart, PreToolUse, PostToolUse, PostToolFailure, etc.
+- **17 Hooks** — UserPromptSubmit, SessionStart, PreToolUse, PostToolUse, PostToolFailure, PreCompact, etc.
 - **10 Event Types** — comprehensive observability (startup, hook_trigger, model_routing, etc.)
 - **3 Security Hooks** — permission-handler, secret-filter, db-guard
 - **Real-time Monitor** — cost, edits, context usage tracking
@@ -459,8 +459,8 @@ Packs sync to GitHub, Google Drive, S3, or local directories. Support philosophy
 
 Organized in three lanes for structured pipelines:
 
-| Lane | Agents (9) | Purpose |
-|------|-----------|---------|
+| Lane | Agents | Purpose |
+|------|--------|---------|
 | **BUILD** | explore → analyst → planner → architect → debugger → executor → verifier → code-simplifier → refactoring-expert | Exploration → Implementation → Verification |
 | **REVIEW** | code-reviewer, security-reviewer, critic | Quality assurance (3 agents) |
 | **DOMAIN** | designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git-master | Specialized expertise (7 agents) |
@@ -480,12 +480,14 @@ file-watcher            Recently modified file tracking
 dependency-analyzer     Package dependency analysis
 ```
 
-### Built-in Skills (11)
+### Built-in Skills (21)
 
 ```
-autopilot      ralph        team         ultrawork     pipeline
-ccg            ralplan      deep-interview tdd         code-review
-security-review
+autopilot        ralph           team            ultrawork        pipeline
+ccg              ralplan         deep-interview  tdd              code-review
+security-review  compound        debug-detective ecomode          git-master
+migrate          pack-builder    ralph-craft     cancel-ralph     refactor
+benchmark
 ```
 
 ---
@@ -579,11 +581,11 @@ tenetx setup --project --pack backend     # Or choose explicitly
 
 - **1204 tests** across 75 test files (100% pass)
 - **19 agents** in 3 lanes (BUILD 9, REVIEW 3, DOMAIN 7)
-- **19 skills** and 9 execution modes
+- **21 skills** and 9 execution modes
 - **17 hooks**, 10 event types, 3 security hooks
 - **8 built-in MCP servers** (executable, JSON-RPC 2.0)
 - **16-signal model routing** (Haiku/Sonnet/Opus)
-- **5 sample philosophy packs** (startup, enterprise, research, content, platform)
+- **5 sample philosophy packs** (frontend, backend, devops, security, data)
 - **45+ CLI commands** (setup, philosophy, pack, compound, ask, scan, verify, stats, dashboard, doctor, notify, mcp, marketplace, session, worktree, etc.)
 
 ---
