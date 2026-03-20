@@ -1,0 +1,22 @@
+name: Compatibility Check
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly on Monday 9AM UTC
+  push:
+    branches: [main]
+    paths:
+      - 'src/core/harness.ts'
+      - 'src/hooks/**'
+      - 'src/core/settings-lock.ts'
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - run: npx vitest run tests/claude-code-compat.test.ts

@@ -20,4 +20,7 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - name: Coverage Report
+        if: matrix.node-version == 20
+        run: npx vitest run --coverage.enabled --coverage.reporter=text --coverage.reporter=json-summary
       - run: npm pack --dry-run

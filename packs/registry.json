@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "updated": "2026-03-20",
+  "packs": [
+    {
+      "name": "backend",
+      "version": "1.0.0",
+      "description": "Backend engineering best practices — API design, data integrity, security patterns",
+      "author": "tenetx",
+      "tags": ["backend", "api", "security", "database"],
+      "source": "builtin",
+      "provides": { "rules": 5, "solutions": 3 }
+    },
+    {
+      "name": "frontend",
+      "version": "1.0.0",
+      "description": "Frontend development standards — component design, accessibility, performance",
+      "author": "tenetx",
+      "tags": ["frontend", "react", "accessibility", "css"],
+      "source": "builtin",
+      "provides": { "rules": 4, "solutions": 2 }
+    },
+    {
+      "name": "security",
+      "version": "1.0.0",
+      "description": "Security-focused rules — OWASP Top 10, secret management, dependency audit",
+      "author": "tenetx",
+      "tags": ["security", "owasp", "audit"],
+      "source": "builtin",
+      "provides": { "rules": 6, "solutions": 4 }
+    },
+    {
+      "name": "data",
+      "version": "1.0.0",
+      "description": "Data engineering patterns — pipeline reliability, data quality, reproducibility",
+      "author": "tenetx",
+      "tags": ["data", "pipeline", "etl", "quality"],
+      "source": "builtin",
+      "provides": { "rules": 4, "solutions": 2 }
+    },
+    {
+      "name": "devops",
+      "version": "1.0.0",
+      "description": "DevOps/SRE practices — CI/CD, infrastructure as code, observability",
+      "author": "tenetx",
+      "tags": ["devops", "sre", "ci-cd", "monitoring"],
+      "source": "builtin",
+      "provides": { "rules": 5, "solutions": 3 }
+    }
+  ]
+}

@@ -15,6 +15,28 @@ import { execFileSync } from 'node:child_process';
 import { COMPOUND_HOME, PACKS_DIR } from './paths.js';
 
 // ---------------------------------------------------------------------------
+// 팩 레지스트리 타입 정의
+// ---------------------------------------------------------------------------
+
+/** 팩 카탈로그 엔트리 — packs/registry.json 의 각 항목 */
+export interface PackEntry {
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  tags: string[];
+  source: string;
+  provides: { rules: number; solutions: number };
+}
+
+/** 팩 레지스트리 파일 구조 */
+export interface PackRegistry {
+  version: number;
+  updated: string;
+  packs: PackEntry[];
+}
+
+// ---------------------------------------------------------------------------
 // 타입 정의
 // ---------------------------------------------------------------------------
 
@@ -196,6 +218,65 @@ export function searchPlugins(query: string, registry?: PluginRegistry): PluginM
     const haystack = `${plugin.name} ${plugin.description}`.toLowerCase();
     return terms.every((term) => haystack.includes(term));
   });
+}
+
+// ---------------------------------------------------------------------------
+// 팩 레지스트리
+// ---------------------------------------------------------------------------
+
+/**
+ * 패키지 내장 packs/registry.json을 로드합니다.
+ * 파일이 없거나 파싱 실패 시 빈 레지스트리를 반환합니다.
+ */
+export function loadPackRegistry(): PackRegistry {
+  try {
+    // 패키지 루트의 packs/registry.json 경로 해석
+    const registryPath = path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      '../../packs/registry.json',
+    );
+    if (fs.existsSync(registryPath)) {
+      const raw = fs.readFileSync(registryPath, 'utf-8');
+      return JSON.parse(raw) as PackRegistry;
+    }
+  } catch {
+    // 파싱/경로 오류 시 빈 레지스트리
+  }
+  return { version: 1, updated: '', packs: [] };
+}
+
+/**
+ * 팩 레지스트리에서 키워드로 검색합니다.
+ * name, description, tags를 대소문자 무시로 매칭합니다.
+ *
+ * @param query - 검색 키워드 (공백 구분 시 AND 검색)
+ * @param registry - 검색 대상 레지스트리 (생략 시 내장 레지스트리 사용)
+ */
+export function searchPacks(query: string, registry?: PackRegistry): PackEntry[] {
+  const reg = registry ?? loadPackRegistry();
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return reg.packs;
+
+  return reg.packs.filter((pack) => {
+    const haystack = `${pack.name} ${pack.description} ${pack.tags.join(' ')}`.toLowerCase();
+    return terms.every((term) => haystack.includes(term));
+  });
+}
+
+/**
+ * 팩 레지스트리의 모든 항목을 포맷된 테이블로 출력합니다.
+ */
+export function formatPackList(packs: PackEntry[]): string {
+  if (packs.length === 0) return '  No packs found.';
+
+  const lines: string[] = [];
+  for (const p of packs) {
+    lines.push(`  ${p.name} v${p.version} [${p.source}]`);
+    lines.push(`    ${p.description}`);
+    lines.push(`    by ${p.author} | tags: ${p.tags.join(', ')} | rules: ${p.provides.rules}, solutions: ${p.provides.solutions}`);
+    lines.push('');
+  }
+  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -465,15 +546,25 @@ export async function handleMarketplace(args: string[]): Promise<void> {
         console.error('[marketplace] 검색어를 입력해주세요. 예: tenetx marketplace search "skill"');
         process.exit(1);
       }
+      // 플러그인 검색
       const results = searchPlugins(query);
-      if (results.length === 0) {
+      // 팩 레지스트리 검색
+      const packResults = searchPacks(query);
+
+      if (results.length === 0 && packResults.length === 0) {
         console.log('[marketplace] 검색 결과가 없습니다.');
       } else {
-        console.log(`[marketplace] 검색 결과 (${results.length}개):\n`);
-        for (const p of results) {
-          console.log(`  ${p.name} v${p.version} [${p.type}]`);
-          console.log(`    ${p.description}`);
-          console.log(`    by ${p.author} — ${p.repository}\n`);
+        if (packResults.length > 0) {
+          console.log(`[marketplace] 팩 검색 결과 (${packResults.length}개):\n`);
+          console.log(formatPackList(packResults));
+        }
+        if (results.length > 0) {
+          console.log(`[marketplace] 플러그인 검색 결과 (${results.length}개):\n`);
+          for (const p of results) {
+            console.log(`  ${p.name} v${p.version} [${p.type}]`);
+            console.log(`    ${p.description}`);
+            console.log(`    by ${p.author} — ${p.repository}\n`);
+          }
         }
       }
       break;
@@ -499,6 +590,14 @@ export async function handleMarketplace(args: string[]): Promise<void> {
     }
 
     case 'list': {
+      // 팩 레지스트리 표시
+      const packReg = loadPackRegistry();
+      if (packReg.packs.length > 0) {
+        console.log(`[marketplace] 사용 가능한 팩 (${packReg.packs.length}개):\n`);
+        console.log(formatPackList(packReg.packs));
+      }
+
+      // 설치된 플러그인 표시
       const installed = listInstalledPlugins();
       if (installed.length === 0) {
         console.log('[marketplace] 설치된 플러그인이 없습니다.');
@@ -534,9 +633,9 @@ export async function handleMarketplace(args: string[]): Promise<void> {
   Tenetx Marketplace
 
   Usage:
-    tenetx marketplace search <query>     플러그인 검색
+    tenetx marketplace search <query>     플러그인/팩 검색
     tenetx marketplace install <name|url> 플러그인 설치 (GitHub URL 또는 이름)
-    tenetx marketplace list               설치된 플러그인 목록
+    tenetx marketplace list               사용 가능한 팩 + 설치된 플러그인 목록
     tenetx marketplace remove <name>      플러그인 제거
 `);
       break;
