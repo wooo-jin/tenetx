@@ -58,7 +58,7 @@
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",
-    "@types/node": "^18.19.130",
+    "@types/node": "^22.19.15",
     "@types/react": "^18.3.28",
     "@vitest/coverage-v8": "^4.1.0",
     "typescript": "^5.9.3",
