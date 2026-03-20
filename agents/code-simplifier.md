@@ -62,11 +62,12 @@ verifier 다음, refactoring-expert 이전 단계에서 동작하며
 
 ### 측정 방법
 ```bash
-# TypeScript/JavaScript
-npx ts-complexity {file}
-
 # 수동 계산: if, else, for, while, case, &&, || 개수 + 1
-grep -c "if\|else\|for\|while\|case\|\&\&\|||" {file}
+# Grep 도구로 분기 키워드를 검색하여 복잡도 추정:
+# Grep: pattern="if\s*\(|else\s|for\s*\(|while\s*\(|case\s|&&|\|\|" path={file}
+
+# 함수 길이 확인: 함수 시작/끝 위치를 Read 도구로 확인
+# 중첩 깊이: 들여쓰기 레벨을 시각적으로 확인
 ```
 
 ## 단순화 패턴

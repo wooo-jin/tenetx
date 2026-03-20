@@ -49,7 +49,7 @@ TeamCreate(name="ccg-{slug}", description="CCG 교차 검증")
 tenetx codex-spawn "분석 작업 전체 설명..."
 
 # Gemini 태스크: Claude Task 에이전트로 위임
-TaskCreate(team="ccg-{slug}", agent="executor", model="sonnet", prompt="디자인/UI 작업 전체 설명...")
+Agent(subagent_type="executor", model="sonnet", prompt="디자인/UI 작업 전체 설명...", team_name="ccg-{slug}")
 ```
 
 ### 2b. 결과 수집 및 정리
@@ -127,8 +127,8 @@ Codex 4단계 폴백 (tenetx 고유):
 4. Codex CLI 없음 + OAuth/API 키 → OpenAI API 직접 호출
 5. 모두 불가 → Codex 건너뛰기, Claude Task 에이전트 대체:
    ```
-   Task(subagent_type="tenetx:executor", model="sonnet", ...)  # 분석 태스크
-   Task(subagent_type="tenetx:designer", model="sonnet", ...)  # 디자인 태스크
+   Agent(subagent_type="executor", model="sonnet", ...)  # 분석 태스크
+   Agent(subagent_type="designer", model="sonnet", ...)  # 디자인 태스크
    ```
 
 CLI 미설치 시 출력:

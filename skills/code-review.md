@@ -41,8 +41,8 @@ triggers:
 `code-reviewer` 에이전트(Opus 모델)에 위임하여 심층 코드 분석을 수행합니다:
 
 ```
-Task(
-  subagent_type="tenetx:code-reviewer",
+Agent(
+  subagent_type="code-reviewer",
   model="opus",
   prompt="CODE REVIEW TASK
 

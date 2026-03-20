@@ -67,8 +67,8 @@ triggers:
 `security-reviewer` 에이전트(Opus 모델)에 위임하여 심층 보안 분석을 수행합니다:
 
 ```
-Task(
-  subagent_type="tenetx:security-reviewer",
+Agent(
+  subagent_type="security-reviewer",
   model="opus",
   prompt="SECURITY REVIEW TASK
 

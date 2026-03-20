@@ -65,12 +65,10 @@ git log --oneline -20
 # 스테이징된 변경 확인
 git diff --staged
 
-# 파일 일부만 스테이징 (hunks)
-git add -p {file}
-
-# 인터랙티브 스테이징
-git add -i
+# 파일 단위로 선택적 스테이징
+git add {file1} {file2}
 ```
+> **Note:** `git add -p` (인터랙티브 패치 모드)와 `git add -i` (인터랙티브 모드)는 Claude Code에서 지원되지 않습니다. `git add <specific-files>`를 사용하세요.
 
 ## 브랜치 전략
 
@@ -101,11 +99,14 @@ main (항상 배포 가능)
 ## 히스토리 정리
 
 ### 인터랙티브 리베이스
-```bash
-# 마지막 5개 커밋 정리
-git rebase -i HEAD~5
+> **Note:** `git rebase -i`는 Claude Code에서 지원되지 않습니다 (인터랙티브 입력 불가). 대신 `git commit --fixup <sha>` + `git rebase --autosquash`를 사용하거나, 명시적 커밋 범위로 non-interactive rebase를 사용하세요.
 
-# 커맨드:
+```bash
+# 비인터랙티브 대안: fixup + autosquash
+git commit --fixup <sha>
+git rebase --autosquash main
+
+# 참고: 아래 커맨드들은 인터랙티브 모드에서 사용됨 (Claude Code 외부):
 # pick  — 유지
 # reword — 메시지만 수정
 # edit  — 커밋 내용 수정
@@ -117,16 +118,18 @@ git rebase -i HEAD~5
 **주의**: 공유된 브랜치(origin에 push된) 리베이스는 팀과 협의 후 진행.
 
 ### 커밋 분리
+> **Note:** 커밋 분리는 `git rebase -i`가 필요하므로 Claude Code에서 직접 실행할 수 없습니다. 대신 사용자에게 터미널에서 직접 실행하도록 안내하세요.
+
 ```bash
-# 하나의 커밋을 여러 개로 분리
-git rebase -i HEAD~N
+# (Claude Code 외부에서 실행)
+# git rebase -i HEAD~N
 # 해당 커밋을 'edit'으로 표시
-git reset HEAD^
-git add -p  # 첫 번째 커밋 내용만 스테이징
-git commit -m "first commit"
-git add -p  # 두 번째 커밋 내용 스테이징
-git commit -m "second commit"
-git rebase --continue
+# git reset HEAD^
+# git add <specific-files>  # 첫 번째 커밋 내용만 스테이징
+# git commit -m "first commit"
+# git add <specific-files>  # 두 번째 커밋 내용 스테이징
+# git commit -m "second commit"
+# git rebase --continue
 ```
 
 ## 충돌 해결

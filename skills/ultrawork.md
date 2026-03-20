@@ -61,13 +61,13 @@ autopilot (자율 실행 파이프라인)
 
 ```
 # 단순 변경 (LOW)
-Task(subagent_type="tenetx:executor", model="haiku", prompt="Config 인터페이스의 누락된 타입 익스포트 추가")
+Agent(subagent_type="executor", model="haiku", prompt="Config 인터페이스의 누락된 타입 익스포트 추가")
 
 # 표준 구현 (MEDIUM)
-Task(subagent_type="tenetx:executor", model="sonnet", prompt="/api/users 엔드포인트 검증 로직 구현")
+Agent(subagent_type="executor", model="sonnet", prompt="/api/users 엔드포인트 검증 로직 구현")
 
 # 복잡한 분석 (HIGH)
-Task(subagent_type="tenetx:executor", model="opus", prompt="인증 미들웨어 전체 보안 감사")
+Agent(subagent_type="executor", model="opus", prompt="인증 미들웨어 전체 보안 감사")
 ```
 
 > Opus는 단순 수정에 과도한 비용입니다. 세미콜론 추가 같은 작업에는 `executor` + `model="haiku"`를 사용하세요.
