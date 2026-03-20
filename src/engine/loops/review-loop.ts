@@ -10,7 +10,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-// child_process는 getChangedFiles 내부에서 require()로 사용
+import { execFileSync } from 'node:child_process';
 import { runConstraintsOnFile, constraintConfigPath } from '../constraints/constraint-runner.js';
 import type { LoopResult, LoopStep, ReviewLoopOptions } from './types.js';
 
@@ -32,7 +32,6 @@ export interface ReviewPoint {
 export function getChangedFiles(cwd: string): ChangedFile[] {
   try {
     // git 리포지토리 여부 확인 (비 git 디렉토리에서 경고 출력 방지)
-    const { execFileSync } = require('node:child_process');
     try {
       execFileSync('git', ['rev-parse', '--git-dir'], { cwd, stdio: 'pipe', timeout: 5_000 });
     } catch {

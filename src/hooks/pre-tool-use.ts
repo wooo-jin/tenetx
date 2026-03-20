@@ -222,7 +222,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  // fail-close: block on exception for safety
-  console.log(JSON.stringify({ result: 'reject', reason: '[Tenetx] PreToolUse: internal error — blocking for safety.' }));
+  process.stderr.write(`[ch-hook] PreToolUse error: ${e instanceof Error ? e.message : String(e)}\n`);
+  // fail-open: approve on internal error to avoid blocking all tool calls
+  console.log(JSON.stringify({ result: 'approve', message: '[Tenetx] PreToolUse: internal error — approving to avoid blocking.' }));
 });

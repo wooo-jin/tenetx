@@ -9,6 +9,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { projectDir } from '../../core/paths.js';
 import type { LoopResult, LoopStep, GardeningLoopOptions } from './types.js';
 import type { ProjectMap } from '../knowledge/types.js';
@@ -34,7 +35,6 @@ export function checkMapFreshness(cwd: string): {
     // git으로 마지막 맵 생성 이후 변경 파일 수 확인
     let changedFilesSince = 0;
     try {
-      const { execFileSync } = require('node:child_process');
       const since = generatedAt.toISOString();
       const output = (execFileSync('git', [
         'log', `--since=${since}`, '--name-only', '--pretty=format:',

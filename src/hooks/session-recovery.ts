@@ -119,12 +119,18 @@ interface ModeState {
 const PERSISTENT_MODES = ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline'];
 
 async function main(): Promise<void> {
-  // SessionStart 훅은 stdin으로 세션 정보를 받음
+  // SessionStart 훅은 stdin으로 세션 정보를 받음 (타임아웃 포함)
   const chunks: string[] = [];
   process.stdin.setEncoding('utf-8');
-  for await (const chunk of process.stdin) {
-    chunks.push(chunk as string);
-  }
+  await new Promise<void>((resolve) => {
+    const timeout = setTimeout(() => {
+      process.stdin.removeAllListeners('data');
+      process.stdin.removeAllListeners('end');
+      resolve();
+    }, 2000);
+    process.stdin.on('data', (chunk) => chunks.push(chunk as string));
+    process.stdin.on('end', () => { clearTimeout(timeout); resolve(); });
+  });
 
   if (!fs.existsSync(STATE_DIR)) {
     console.log(JSON.stringify({ result: 'approve' }));

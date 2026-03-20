@@ -386,11 +386,11 @@ async function callOpenAIApi(prompt: string, model: string, timeout: number, bea
       throw new NonRetryableError(msg);
     }
 
-    // 429: rate limit — Retry-After 헤더 존중
+    // 429: rate limit — respect Retry-After header (capped at 30s)
     if (res.status === 429) {
       const retryAfter = parseInt(res.headers.get('retry-after') ?? '', 10);
       if (retryAfter > 0) {
-        await sleep(retryAfter * 1000);
+        await sleep(Math.min(retryAfter * 1000, 30_000));
       }
     }
 
@@ -430,7 +430,7 @@ async function callGemini(config: ProviderConfig, prompt: string, model: string,
     if (res.status === 429) {
       const retryAfter = parseInt(res.headers.get('retry-after') ?? '', 10);
       if (retryAfter > 0) {
-        await sleep(retryAfter * 1000);
+        await sleep(Math.min(retryAfter * 1000, 30_000));
       }
     }
     throw new Error(msg);

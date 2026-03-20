@@ -119,6 +119,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'reject', reason: '[Tenetx] DB Guard: internal error — blocking for safety.' }));
+  process.stderr.write(`[ch-hook] DB Guard error: ${e instanceof Error ? e.message : String(e)}\n`);
+  console.log(JSON.stringify({ result: 'approve', message: '[Tenetx] DB Guard: internal error — approving to avoid blocking.' }));
 });
