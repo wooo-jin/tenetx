@@ -2,12 +2,22 @@
   "name": "tenetx",
   "version": "1.6.0",
   "main": "dist/cli.js",
+  "types": "./dist/cli.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    }
+  },
   "scripts": {
-    "build": "tsc && cp src/hooks/dangerous-patterns.json dist/hooks/",
+    "build": "tsc && node scripts/copy-assets.js",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "link": "npm run build && npm link",
+    "lint": "biome lint src/",
+    "lint:fix": "biome lint --write src/",
+    "format": "biome format --write src/",
     "prepublishOnly": "npm run build && npm test"
   },
   "author": "jang-ujin",
@@ -43,6 +53,7 @@
     "LICENSE"
   ],
   "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
     "@types/node": "^25.4.0",
     "@types/react": "^18.3.28",
     "@vitest/coverage-v8": "^4.1.0",

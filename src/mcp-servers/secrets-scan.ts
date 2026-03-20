@@ -113,7 +113,7 @@ export function scanForSecrets(cwd: string): SecretFinding[] {
                 const rawSnippet = line.trim().slice(0, 120);
                 const sensitiveValue = match[1] ?? match[0];
                 const masked = sensitiveValue.length > 8
-                  ? sensitiveValue.slice(0, 4) + '****' + sensitiveValue.slice(-4)
+                  ? `${sensitiveValue.slice(0, 4)}****${sensitiveValue.slice(-4)}`
                   : '****';
                 const snippet = rawSnippet.replace(sensitiveValue, masked);
                 findings.push({

@@ -59,7 +59,7 @@ function readSolutionContent(filePath: string): string {
   try {
     const content = fs.readFileSync(filePath, 'utf-8').trim();
     if (content.length <= MAX_SOLUTION_LENGTH) return content;
-    return content.slice(0, MAX_SOLUTION_LENGTH) + '\n\n... (truncated)';
+    return `${content.slice(0, MAX_SOLUTION_LENGTH)}\n\n... (truncated)`;
   } catch {
     return '';
   }
@@ -117,6 +117,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write('[ch-hook] solution-injector: ' + (e instanceof Error ? e.message : String(e)) + '\n');
+  process.stderr.write(`[ch-hook] solution-injector: ${e instanceof Error ? e.message : String(e)}\n`);
   console.log(JSON.stringify({ result: 'approve' }));
 });

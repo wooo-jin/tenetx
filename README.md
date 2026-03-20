@@ -7,6 +7,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://www.npmjs.com/package/tenetx"><img src="https://img.shields.io/npm/v/tenetx.svg" alt="npm version"/></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
+</p>
+
+<p align="center">
   <a href="#installation">Install</a> &middot;
   <a href="#philosophy">Philosophy</a> &middot;
   <a href="#usage">Usage</a> &middot;
@@ -40,7 +46,7 @@ $ claude                        $ tenetx
 - **Philosophy-driven**: Declare beliefs, not configs. Workflows emerge automatically.
 - **Growth-oriented**: Compound engineering loop extracts patterns from every session.
 - **Team-aware**: Move knowledge (packs) between personal → team → org seamlessly.
-- **Production-ready**: 654 tests (100% pass), 19 agents in 3 lanes, 8 MCP servers, 16-signal model routing.
+- **Production-ready**: 701 tests (100% pass), 19 agents in 3 lanes, 8 MCP servers, 16-signal model routing.
 
 ---
 
@@ -155,6 +161,27 @@ tenetx init --extends           # Or use extends for central management
 
 # Daily
 tenetx                          # Auto-pulls + syncs latest team rules
+```
+
+---
+
+## Philosophy Templates
+
+Pre-built `philosophy.yaml` starters for common engineering roles. Copy and customize to fit your team.
+
+| Template | Role | Key Principles |
+|---|---|---|
+| [`templates/philosophy-backend.yaml`](templates/philosophy-backend.yaml) | Backend Engineer | reliability-first, data-integrity, security-by-default, observe-everything |
+| [`templates/philosophy-frontend.yaml`](templates/philosophy-frontend.yaml) | Frontend Developer | user-first, accessible-by-default, performance-budget, component-isolation |
+| [`templates/philosophy-fullstack.yaml`](templates/philosophy-fullstack.yaml) | Fullstack Developer | contract-driven, end-to-end-ownership, fail-gracefully, iterate-with-feedback |
+| [`templates/philosophy-data.yaml`](templates/philosophy-data.yaml) | Data Scientist / Engineer | reproducibility-always, data-quality-first, pipeline-reliability, document-the-why |
+| [`templates/philosophy-devops.yaml`](templates/philosophy-devops.yaml) | DevOps / SRE | automate-everything, observability-by-design, minimize-blast-radius, blameless-learning |
+
+```bash
+# Use a template as your starting point
+cp templates/philosophy-backend.yaml philosophy.yaml
+# Edit philosophy.yaml to match your beliefs, then run:
+tenetx
 ```
 
 ---
@@ -541,7 +568,7 @@ tenetx setup --project --pack backend     # Or choose explicitly
 
 ## Statistics
 
-- **654 tests** across 36 test files (100% pass)
+- **701 tests** across 36 test files (100% pass)
 - **19 agents** in 3 lanes (BUILD 9, REVIEW 3, DOMAIN 7)
 - **11 skills** and 9 execution modes
 - **14 hooks**, 10 event types, 3 security hooks

@@ -1,0 +1,34 @@
+name: "backend-engineering"
+version: "1.0.0"
+author: "Your Name"
+
+principles:
+  reliability-first:
+    belief: "Reliability is non-negotiable — design for failure"
+    generates:
+      - "Every external call has a timeout, retry, and fallback"
+      - "Circuit breakers protect downstream dependencies"
+      - alert: "Warn when error handling is missing in service boundaries"
+
+  data-integrity:
+    belief: "Data must be correct before it is fast"
+    generates:
+      - "Validate at system boundaries — never trust external input"
+      - "Prefer explicit transactions over optimistic concurrency for critical writes"
+      - alert: "Flag direct DB mutations without transaction guards"
+
+  security-by-default:
+    belief: "Security is a constraint, not a feature"
+    generates:
+      - "Least-privilege access for every service and credential"
+      - "Sanitize inputs; parameterize all queries"
+      - alert: "Block commits containing hardcoded secrets or credentials"
+      - hook: "PreToolUse → scan for SQL injection and command injection patterns"
+
+  observe-everything:
+    belief: "If you can't measure it, you can't fix it"
+    generates:
+      - "Structured logs with request IDs on every operation"
+      - "Emit metrics for latency, error rate, and saturation"
+      - routing: "explore → Sonnet, implement → Opus"
+      - alert: "Warn when new endpoints lack logging or metrics instrumentation"

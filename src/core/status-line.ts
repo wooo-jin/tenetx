@@ -542,7 +542,7 @@ export async function printStatus(): Promise<void> {
     // stdin 없이 직접 호출된 경우 (테스트 또는 초기화 중)
     const parts = [`${MAGENTA}${BOLD}⚡${RST} ${philosophy}`, scope];
     if (pack) parts.push(`${CYAN}${pack}${RST}`);
-    process.stdout.write(parts.join(' · ') + '\n');
+    process.stdout.write(`${parts.join(' · ')}\n`);
     return;
   }
 
@@ -591,7 +591,7 @@ export async function printStatus(): Promise<void> {
     const fhBar = miniBar(fiveHourPct, fhColor);
     const wkBar = miniBar(weeklyPct, wkColor);
     const resetStr = fiveHourReset ? `${DIM}↻${formatResetTime(fiveHourReset)}${RST}` : '';
-    parts.push(`5h ${fhBar} ${fhColor}${fiveHourPct}%${RST}${resetStr ? ' ' + resetStr : ''} ${DIM}│${RST} wk ${wkBar} ${wkColor}${weeklyPct}%${RST}`);
+    parts.push(`5h ${fhBar} ${fhColor}${fiveHourPct}%${RST}${resetStr ? ` ${resetStr}` : ''} ${DIM}│${RST} wk ${wkBar} ${wkColor}${weeklyPct}%${RST}`);
   } else if (usageLimits.error === 'rate_limited') {
     parts.push(`${DIM}5h/wk ${YELLOW}429${RST} ${DIM}rate limited${RST}`);
   } else if (usageLimits.error === 'no_token') {
@@ -652,5 +652,5 @@ export async function printStatus(): Promise<void> {
 
   const line2 = `${DIM}${line2Parts.join(` ${DIM}·${RST} `)}${RST}`;
 
-  process.stdout.write(line1 + '\n' + line2 + '\n');
+  process.stdout.write(`${line1}\n${line2}\n`);
 }

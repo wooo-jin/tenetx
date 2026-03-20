@@ -3,8 +3,8 @@
  * Tenetx — Slop Detector Hook (PostToolUse)
  *
  * Write/Edit 도구 실행 후 결과물에서 AI 슬롭 패턴을 감지합니다.
- * - TODO 주석 잔류, eslint-disable, @ts-ignore, as any 등
- * - 빈 catch 블록, 불필요한 설명 주석, console.log 디버깅 코드
+ * - TODO 주석 잔류, eslint-disable, @ts-expect-error, as any 등
+ * - Empty catch blocks, unnecessary comments, console.log debug code
  */
 
 import { readStdinJSON } from './shared/read-stdin.js';
@@ -21,14 +21,14 @@ interface PostToolInput {
 }
 
 export const SLOP_PATTERNS: Array<{ pattern: RegExp; message: string; severity: 'warn' | 'info' }> = [
-  { pattern: /\/\/\s*TODO:?\s*(implement|add|fix|handle)/i, message: 'TODO 주석 잔류', severity: 'warn' },
-  { pattern: /\/\/\s*eslint-disable/i, message: 'eslint-disable 주석', severity: 'warn' },
-  { pattern: /\/\/\s*@ts-ignore/i, message: '@ts-ignore 주석', severity: 'warn' },
-  { pattern: /as\s+any\b/g, message: '"as any" 타입 단언', severity: 'warn' },
-  { pattern: /console\.(log|debug|info)\(/g, message: 'console.log 디버깅 코드', severity: 'info' },
-  { pattern: /catch\s*\([^)]*\)\s*\{\s*\}/m, message: '빈 catch 블록', severity: 'warn' },
-  { pattern: /\/\*\*[\s\S]*?\*\/\s*\n\s*(\/\*\*[\s\S]*?\*\/)/m, message: '중복 JSDoc', severity: 'info' },
-  { pattern: /^\s*\/\/\s*(This|The|We|Here|Note:)\s/m, message: '불필요한 설명 주석', severity: 'info' },
+  { pattern: /\/\/\s*TODO:?\s*(implement|add|fix|handle)/i, message: 'Leftover TODO comment', severity: 'warn' },
+  { pattern: /\/\/\s*eslint-disable/i, message: 'eslint-disable comment', severity: 'warn' },
+  { pattern: /\/\/\s*@ts-ignore/i, message: '@ts-ignore comment', severity: 'warn' },
+  { pattern: /as\s+any\b/g, message: '"as any" type assertion', severity: 'warn' },
+  { pattern: /console\.(log|debug|info)\(/g, message: 'console.log debug code', severity: 'info' },
+  { pattern: /catch\s*\([^)]*\)\s*\{\s*\}/m, message: 'Empty catch block', severity: 'warn' },
+  { pattern: /\/\*\*[\s\S]*?\*\/\s*\n\s*(\/\*\*[\s\S]*?\*\/)/m, message: 'Duplicate JSDoc', severity: 'info' },
+  { pattern: /^\s*\/\/\s*(This|The|We|Here|Note:)\s/m, message: 'Unnecessary explanatory comment', severity: 'info' },
 ];
 
 /** 텍스트에서 슬롭 패턴을 감지하여 메시지 목록 반환 (순수 함수) */
@@ -100,6 +100,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write('[ch-hook] ' + (e instanceof Error ? e.message : String(e)) + '\n');
+  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
   console.log(JSON.stringify({ result: 'approve' }));
 });

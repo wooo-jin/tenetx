@@ -70,7 +70,7 @@ function logPermissionRequest(sessionId: string, toolName: string, decision: str
       tool: toolName,
       decision,
     });
-    fs.appendFileSync(logPath, entry + '\n');
+    fs.appendFileSync(logPath, `${entry}\n`);
   } catch (e) {
     debugLog('permission-handler', '권한 로그 기록 실패', e);
   }
@@ -124,6 +124,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write('[ch-hook] ' + (e instanceof Error ? e.message : String(e)) + '\n');
+  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
   console.log(JSON.stringify({ result: 'approve' }));
 });

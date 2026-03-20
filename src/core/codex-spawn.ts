@@ -283,7 +283,7 @@ export async function waitForCodexOutput(
   // 타임아웃이어도 부분 출력 반환 시도
   if (fs.existsSync(outputPath)) {
     try {
-      return fs.readFileSync(outputPath, 'utf-8') + '\n\n(⚠ 타임아웃 — 부분 출력)';
+      return `${fs.readFileSync(outputPath, 'utf-8')}\n\n(⚠ 타임아웃 — 부분 출력)`;
     } catch { /* ignore */ }
   }
   return null;

@@ -90,7 +90,7 @@ export async function runCompoundLoop(cwd: string, insights: CompoundInsight[]):
 }
 
 function getDestPath(insight: CompoundInsight, teamPackName?: string): string | null {
-  const fileName = slugify(insight.title) + '.md';
+  const fileName = `${slugify(insight.title)}.md`;
 
   if (insight.scope === 'me') {
     const dir = insight.type === 'rule' || insight.type === 'convention'
@@ -335,7 +335,7 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
   const changes = await prompt('  > ');
   if (changes.trim()) {
     for (const num of changes.split(/[,\s]+/)) {
-      const changeIdx = parseInt(num) - 1;
+      const changeIdx = parseInt(num, 10) - 1;
       if (changeIdx >= 0 && changeIdx < insights.length) {
         insights[changeIdx].classification = insights[changeIdx].classification === 'team' ? 'personal' : 'team';
         insights[changeIdx].scope = insights[changeIdx].classification === 'team' ? 'team' : 'me';

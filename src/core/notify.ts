@@ -131,7 +131,7 @@ export function validateWebhookUrl(url: string): boolean {
 /** HTTP POST 헬퍼 (fetch API 사용, shell injection 방지) */
 async function postJSON(url: string, payload: unknown, timeoutMs = 10000): Promise<boolean> {
   if (!validateWebhookUrl(url)) {
-    console.error(`[tenetx] 안전하지 않은 URL: ${url} (HTTPS 필요)`);
+    console.error(`[tenetx] Unsafe URL: ${url} (HTTPS required)`);
     return false;
   }
   try {
@@ -240,12 +240,12 @@ export async function handleNotify(args: string[]): Promise<void> {
   }
 
   if (args.length === 0) {
-    console.log('  사용법: tenetx notify "메시지"');
-    console.log('  옵션:');
-    console.log('    --title "제목"     알림 제목 (기본: Tenetx)');
-    console.log('    --no-sound         소리 없이');
+    console.log('  Usage: tenetx notify "message"');
+    console.log('  Options:');
+    console.log('    --title "title"    Notification title (default: Tenetx)');
+    console.log('    --no-sound         Silent notification');
     console.log('');
-    console.log('  외부 알림 설정:');
+    console.log('  External notification setup:');
     console.log('    tenetx notify config discord <webhook-url>');
     console.log('    tenetx notify config telegram <bot-token> <chat-id>');
     console.log('    tenetx notify config slack <webhook-url>');
@@ -267,8 +267,8 @@ async function handleNotifyConfig(args: string[]): Promise<void> {
   const config = loadNotifyConfig();
 
   if (args[0] === 'show' || args.length === 0) {
-    console.log('\n  [알림 설정]');
-    console.log(`  활성: ${config.enabled ? 'Yes' : 'No'}`);
+    console.log('\n  [Notification Config]');
+    console.log(`  Enabled: ${config.enabled ? 'Yes' : 'No'}`);
     if (config.discord?.webhook) {
       console.log(`  Discord: ${config.discord.webhook.slice(0, 40)}...`);
     }
@@ -285,19 +285,19 @@ async function handleNotifyConfig(args: string[]): Promise<void> {
   if (args[0] === 'disable') {
     config.enabled = false;
     saveNotifyConfig(config);
-    console.log('  알림 비활성화됨');
+    console.log('  Notifications disabled');
     return;
   }
 
   if (args[0] === 'discord' && args[1]) {
     if (!validateWebhookUrl(args[1])) {
-      console.error('  유효하지 않은 URL입니다. HTTPS URL을 입력하세요.');
+      console.error('  Invalid URL. Please enter an HTTPS URL.');
       return;
     }
     config.enabled = true;
     config.discord = { webhook: args[1], tagList: args[2] };
     saveNotifyConfig(config);
-    console.log('  Discord 웹훅 설정 완료');
+    console.log('  Discord webhook configured');
     return;
   }
 
@@ -305,21 +305,21 @@ async function handleNotifyConfig(args: string[]): Promise<void> {
     config.enabled = true;
     config.telegram = { botToken: args[1], chatId: args[2], tagList: args[3] };
     saveNotifyConfig(config);
-    console.log('  Telegram 봇 설정 완료');
+    console.log('  Telegram bot configured');
     return;
   }
 
   if (args[0] === 'slack' && args[1]) {
     if (!validateWebhookUrl(args[1])) {
-      console.error('  유효하지 않은 URL입니다. HTTPS URL을 입력하세요.');
+      console.error('  Invalid URL. Please enter an HTTPS URL.');
       return;
     }
     config.enabled = true;
     config.slack = { webhook: args[1], tagList: args[2] };
     saveNotifyConfig(config);
-    console.log('  Slack 웹훅 설정 완료');
+    console.log('  Slack webhook configured');
     return;
   }
 
-  console.log('  알 수 없는 설정 명령입니다. tenetx notify config show 로 현재 설정을 확인하세요.');
+  console.log('  Unknown config command. Run tenetx notify config show to view current settings.');
 }

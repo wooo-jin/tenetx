@@ -87,9 +87,9 @@ async function main(): Promise<void> {
   if (!data) {
     const failCount = getAndIncrementFailCount();
     if (failCount >= FAIL_CLOSE_THRESHOLD) {
-      console.log(JSON.stringify({ result: 'reject', reason: `[Tenetx] DB Guard: stdin 파싱 ${failCount}회 연속 실패 — 안전을 위해 차단합니다.` }));
+      console.log(JSON.stringify({ result: 'reject', reason: `[Tenetx] DB Guard: stdin parse failed ${failCount} consecutive times — blocking for safety.` }));
     } else {
-      process.stderr.write(`[ch-hook] db-guard stdin 파싱 실패 (${failCount}/${FAIL_CLOSE_THRESHOLD})\n`);
+      process.stderr.write(`[ch-hook] db-guard stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})\n`);
       console.log(JSON.stringify({ result: 'approve' }));
     }
     return;
@@ -103,14 +103,14 @@ async function main(): Promise<void> {
   if (check.action === 'block') {
     console.log(JSON.stringify({
       result: 'reject',
-      reason: `[Tenetx] 위험 SQL 차단: ${check.description}`,
+      reason: `[Tenetx] Dangerous SQL blocked: ${check.description}`,
     }));
     return;
   }
   if (check.action === 'warn') {
     console.log(JSON.stringify({
       result: 'approve',
-      message: `<compound-sql-warning>\n[Tenetx] ⚠ 위험 SQL 감지: ${check.description}\n확인 후 진행하세요.\n</compound-sql-warning>`,
+      message: `<compound-sql-warning>\n[Tenetx] ⚠ Dangerous SQL detected: ${check.description}\nProceed with caution.\n</compound-sql-warning>`,
     }));
     return;
   }
@@ -119,6 +119,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write('[ch-hook] ' + (e instanceof Error ? e.message : String(e)) + '\n');
-  console.log(JSON.stringify({ result: 'reject', reason: '[Tenetx] DB Guard: 내부 오류 — 안전을 위해 차단합니다.' }));
+  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
+  console.log(JSON.stringify({ result: 'reject', reason: '[Tenetx] DB Guard: internal error — blocking for safety.' }));
 });

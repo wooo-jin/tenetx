@@ -28,27 +28,24 @@ function commandExists(cmd: string): boolean {
 }
 
 export async function runDoctor(): Promise<void> {
-  console.log('\n  Tenetx — 환경 진단\n');
+  console.log('\n  Tenetx — Diagnostics\n');
 
-  // 필수 도구
-  console.log('  [도구]');
+  console.log('  [Tools]');
   check('claude CLI', commandExists('claude'));
   check('tmux', commandExists('tmux'));
   check('git', commandExists('git'));
-  check('gh (GitHub CLI)', commandExists('gh'), '팀 PR 기능에 필요: brew install gh');
+  check('gh (GitHub CLI)', commandExists('gh'), 'Required for team PR features: brew install gh');
   console.log();
 
-  // 플러그인
-  console.log('  [플러그인]');
+  console.log('  [Plugins]');
   const ralphLoopInstalled = exists(
     path.join(os.homedir(), '.claude', 'plugins', 'cache', 'claude-plugins-official', 'ralph-loop')
   );
-  check('ralph-loop 플러그인', ralphLoopInstalled,
-    'ralph 모드의 자동 반복에 필요합니다. 설치: claude plugins install ralph-loop');
+  check('ralph-loop plugin', ralphLoopInstalled,
+    'Required for ralph mode auto-iteration. Install: claude plugins install ralph-loop');
   console.log();
 
-  // 디렉토리 구조
-  console.log('  [디렉토리]');
+  console.log('  [Directories]');
   check('~/.compound/', exists(COMPOUND_HOME));
   check('~/.compound/me/', exists(ME_DIR));
   check('~/.compound/me/solutions/', exists(ME_SOLUTIONS));
@@ -57,44 +54,38 @@ export async function runDoctor(): Promise<void> {
   check('~/.compound/sessions/', exists(SESSIONS_DIR));
   console.log();
 
-  // 철학
-  console.log('  [철학]');
+  console.log('  [Philosophy]');
   check('philosophy.json', exists(ME_PHILOSOPHY));
   console.log();
 
-  // 환경
-  console.log('  [환경]');
-  check('tmux 세션 내', !!process.env.TMUX);
-  check('COMPOUND_HARNESS 환경변수', process.env.COMPOUND_HARNESS === '1');
+  console.log('  [Environment]');
+  check('Inside tmux session', !!process.env.TMUX);
+  check('COMPOUND_HARNESS env var', process.env.COMPOUND_HARNESS === '1');
   console.log();
 
   // 솔루션/규칙 수
   if (exists(ME_SOLUTIONS)) {
     const solutions = fs.readdirSync(ME_SOLUTIONS).filter((f) => f.endsWith('.md')).length;
-    console.log(`  개인 솔루션: ${solutions}개`);
+    console.log(`  Personal solutions: ${solutions}`);
   }
   if (exists(ME_RULES)) {
     const rules = fs.readdirSync(ME_RULES).filter((f) => f.endsWith('.md')).length;
-    console.log(`  개인 규칙: ${rules}개`);
+    console.log(`  Personal rules: ${rules}`);
   }
   console.log();
 
-  // 로그 저장 위치
-  console.log('  [로그 위치]');
-  console.log(`  세션 로그: ${SESSIONS_DIR}`);
+  console.log('  [Log Locations]');
+  console.log(`  Session logs: ${SESSIONS_DIR}`);
 
-  // 세션 파일 수 표시
   if (exists(SESSIONS_DIR)) {
     const sessionCount = fs.readdirSync(SESSIONS_DIR).filter((f) => f.endsWith('.json')).length;
-    console.log(`  저장된 세션: ${sessionCount}개`);
+    console.log(`  Saved sessions: ${sessionCount}`);
   }
 
-  // Claude Code 세션 경로
-  console.log(`  Claude Code 세션: ${CLAUDE_PROJECTS_DIR}`);
+  console.log(`  Claude Code sessions: ${CLAUDE_PROJECTS_DIR}`);
   console.log();
 
-  // 프로바이더 상태
-  console.log('  [프로바이더]');
+  console.log('  [Providers]');
   try {
     const { getProviderSummary } = await import('../engine/provider.js');
     const providers = getProviderSummary();
@@ -103,12 +94,11 @@ export async function runDoctor(): Promise<void> {
       check(`${p.name} (${detail})`, p.available);
     }
   } catch {
-    console.log('  (프로바이더 모듈 로드 실패)');
+    console.log('  (Failed to load provider module)');
   }
   console.log();
 
-  // 프로젝트 팩 연결 상태
-  console.log('  [팩 연결]');
+  console.log('  [Pack Connections]');
   try {
     const { loadPackConfigs, packConfigPath } = await import('./pack-config.js');
     const packPath = packConfigPath(process.cwd());
@@ -117,19 +107,19 @@ export async function runDoctor(): Promise<void> {
       const raw = JSON.parse(fs.readFileSync(packPath, 'utf-8'));
       const isLegacy = !Array.isArray(raw.packs) && raw.type && raw.name;
       if (isLegacy) {
-        check('pack.json 형식', false, '구 형식 감지됨. 자동 마이그레이션하려면: tenetx doctor --migrate-packs');
+        check('pack.json format', false, 'Legacy format detected. Auto-migrate: tenetx doctor --migrate-packs');
         // --migrate-packs 플래그 처리
         if (process.argv.includes('--migrate-packs')) {
           const packs = loadPackConfigs(process.cwd()); // 내부에서 자동 래핑
           const { savePackConfigs } = await import('./pack-config.js');
           savePackConfigs(process.cwd(), packs);
-          console.log(`    → 마이그레이션 완료: ${packs.length}개 팩을 새 형식으로 변환`);
+          console.log(`    → Migration complete: ${packs.length} packs converted to new format`);
         }
       } else {
-        check('pack.json 형식', true);
+        check('pack.json format', true);
       }
       const packs = loadPackConfigs(process.cwd());
-      console.log(`  연결된 팩: ${packs.length}개`);
+      console.log(`  Connected packs: ${packs.length}`);
       for (const p of packs) {
         const detail = p.type === 'github' ? p.repo : p.type;
         console.log(`    • ${p.name} (${detail})`);
@@ -155,7 +145,7 @@ export async function runDoctor(): Promise<void> {
                   found = mcp.name in (settings.mcpServers ?? {});
                 }
               } catch { /* ignore */ }
-              check(`  [${p.name}] MCP: ${mcp.name}`, found, mcp.installCmd ?? mcp.npm ?? '설치 필요');
+              check(`  [${p.name}] MCP: ${mcp.name}`, found, mcp.installCmd ?? mcp.npm ?? 'Installation required');
               if (!found) totalIssues++;
             }
           }
@@ -163,7 +153,7 @@ export async function runDoctor(): Promise<void> {
           if (req.tools) {
             for (const tool of req.tools) {
               const ok = commandExists(tool.name);
-              check(`  [${p.name}] CLI: ${tool.name}`, ok, tool.installCmd ?? '설치 필요');
+              check(`  [${p.name}] CLI: ${tool.name}`, ok, tool.installCmd ?? 'Installation required');
               if (!ok) totalIssues++;
             }
           }
@@ -179,13 +169,13 @@ export async function runDoctor(): Promise<void> {
         }
       }
       if (totalIssues > 0) {
-        console.log(`\n  ⚠ 미충족 의존성 ${totalIssues}건`);
+        console.log(`\n  ⚠ ${totalIssues} unmet dependencies`);
       }
     } else {
-      console.log('  팩 미연결 (개인 모드)');
+      console.log('  No packs connected (personal mode)');
     }
   } catch {
-    console.log('  (팩 설정 확인 실패)');
+    console.log('  (Failed to check pack config)');
   }
   console.log();
 
@@ -196,7 +186,7 @@ export async function runDoctor(): Promise<void> {
     console.log(`  remote (origin): ${remote}`);
   } catch {
     // git 저장소가 아니거나 origin이 없으면 표시하지 않음
-    console.log('  git remote: (없음)');
+    console.log('  git remote: (none)');
   }
   console.log();
 }

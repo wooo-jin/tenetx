@@ -173,7 +173,7 @@ function cleanClaudeMd(cwd: string): void {
 
   const regex = new RegExp(`\\n?${marker}[\\s\\S]*?${endMarker}\\n?`, 'g');
   const cleaned = content.replace(regex, '\n');
-  fs.writeFileSync(claudeMdPath, cleaned.replace(/\n{3,}/g, '\n\n').trim() + '\n');
+  fs.writeFileSync(claudeMdPath, `${cleaned.replace(/\n{3,}/g, '\n\n').trim()}\n`);
   console.log('  ✓ CLAUDE.md에서 CH 블록 제거');
 }
 

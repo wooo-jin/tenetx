@@ -27,17 +27,17 @@ export function PhilosophyTab({ data }: PhilosophyTabProps) {
             }
             if (typeof gen === 'object' && gen !== null) {
               const g = gen as Record<string, string>;
-              if (g['alert']) {
-                return <Text key={i}><Text color="yellow">  ⚠ </Text><Text color="yellow">{g['alert']}</Text></Text>;
+              if (g.alert) {
+                return <Text key={i}><Text color="yellow">  ⚠ </Text><Text color="yellow">{g.alert}</Text></Text>;
               }
-              if (g['routing']) {
-                return <Text key={i}><Text color="magenta">  ⇄ </Text><Text color="magenta">{g['routing']}</Text></Text>;
+              if (g.routing) {
+                return <Text key={i}><Text color="magenta">  ⇄ </Text><Text color="magenta">{g.routing}</Text></Text>;
               }
-              if (g['steps'] || g['step']) {
-                return <Text key={i}><Text color="cyan">  ◆ </Text>{g['steps'] ?? g['step']}</Text>;
+              if (g.steps || g.step) {
+                return <Text key={i}><Text color="cyan">  ◆ </Text>{g.steps ?? g.step}</Text>;
               }
-              if (g['hook']) {
-                return <Text key={i}><Text color="green">  ⚙ </Text>{g['hook']}</Text>;
+              if (g.hook) {
+                return <Text key={i}><Text color="green">  ⚙ </Text>{g.hook}</Text>;
               }
             }
             return null;

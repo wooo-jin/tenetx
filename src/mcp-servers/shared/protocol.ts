@@ -129,7 +129,7 @@ async function handleMessage(raw: string, config: McpServerConfig): Promise<void
 }
 
 function sendResult(id: number | string, result: unknown): void {
-  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, result }) + '\n');
+  process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, result })}\n`);
 }
 
 function sendError(
@@ -138,6 +138,6 @@ function sendError(
   message: string,
 ): void {
   process.stdout.write(
-    JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } }) + '\n',
+    `${JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } })}\n`,
   );
 }

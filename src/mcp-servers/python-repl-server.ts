@@ -43,7 +43,7 @@ createMcpServer({
             timeout: 30000,
             encoding: 'utf8',
           });
-          return stdout + (stderr ? '\nstderr: ' + stderr : '');
+          return stdout + (stderr ? `\nstderr: ${stderr}` : '');
         } catch (e: unknown) {
           const err = e as { stdout?: string; stderr?: string; message?: string };
           return `Error: ${err.stderr ?? err.message ?? 'Unknown error'}`;

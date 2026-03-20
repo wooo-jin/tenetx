@@ -2,7 +2,7 @@
 
 const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
 if (nodeVersion < 18) {
-  console.error('[Tenetx] Node.js 18 이상이 필요합니다. 현재: ' + process.version);
+  console.error(`[Tenetx] Node.js 18 or higher is required. Current: ${process.version}`);
   process.exit(1);
 }
 
@@ -27,7 +27,7 @@ interface Command {
   name: string;
   aliases?: string[];
   description: string;
-  /** help에서 표시할 카테고리 */
+  /** Category for help display */
   category?: 'mode' | 'command' | 'internal';
   handler: (args: string[]) => Promise<void>;
 }
@@ -67,8 +67,16 @@ const commands: Command[] = [
       if (args.includes('--project')) {
         const packIdx = args.indexOf('--pack');
         const pack = packIdx !== -1 ? args[packIdx + 1] : undefined;
+        if (packIdx !== -1 && (!pack || pack.startsWith('--'))) {
+          console.error('[tenetx] --pack option requires a value. Example: --pack my-pack');
+          process.exit(1);
+        }
         const extendsIdx = args.indexOf('--extends');
         const extendsFrom = extendsIdx !== -1 ? args[extendsIdx + 1] : undefined;
+        if (extendsIdx !== -1 && (!extendsFrom || extendsFrom.startsWith('--'))) {
+          console.error('[tenetx] --extends option requires a value. Example: --extends base-pack');
+          process.exit(1);
+        }
         const { runProjectSetup } = await import('./core/setup.js');
         await runProjectSetup(process.cwd(), { pack, extends: extendsFrom, yes: isYes });
       } else {
@@ -151,7 +159,7 @@ const commands: Command[] = [
   },
   {
     name: 'compound',
-    description: 'Compound loop (인사이트 축적, 개인/팀 자동 분류)',
+    description: 'Compound loop (insight accumulation, auto-classified)',
     category: 'command',
     handler: async (args) => {
       const { handleCompound } = await import('./engine/compound-loop.js');
@@ -170,7 +178,7 @@ const commands: Command[] = [
   {
     name: 'codex-spawn',
     aliases: ['codex'],
-    description: 'Codex를 tmux 패널에 팀원으로 스폰',
+    description: 'Spawn Codex as teammate in tmux panel',
     category: 'command',
     handler: async (args) => {
       const { handleCodexSpawn } = await import('./core/codex-spawn.js');
@@ -228,15 +236,15 @@ const commands: Command[] = [
     category: 'command',
     handler: async (args) => {
       if (!args.includes('--plugin')) {
-        console.error('사용법: tenetx install --plugin');
+        console.error('Usage: tenetx install --plugin');
         return;
       }
       const { installAsPlugin } = await import('./core/plugin-installer.js');
       const result = installAsPlugin();
       if (result.success) {
-        console.log(`[tenetx] 플러그인 설치 완료: ${result.pluginDir}`);
+        console.log(`[tenetx] Plugin installed: ${result.pluginDir}`);
       } else {
-        console.error(`[tenetx] 플러그인 설치 실패: ${result.error}`);
+        console.error(`[tenetx] Plugin installation failed: ${result.error}`);
         process.exit(1);
       }
     },
@@ -335,7 +343,7 @@ const commands: Command[] = [
 
 function findCommand(name: string): Command | undefined {
   return commands.find(
-    (c) => c.name === name || (c.aliases && c.aliases.includes(name))
+    (c) => c.name === name || (c.aliases?.includes(name))
   );
 }
 
@@ -344,7 +352,7 @@ function findCommand(name: string): Command | undefined {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  // help 먼저 처리 (커맨드 배열에 포함되지 않는 특수 케이스)
+  // Handle help first (special case not in command array)
   if (args[0] === 'help' || args[0] === '--help' || args[0] === '-h') {
     printHelp();
     return;
@@ -356,35 +364,36 @@ async function main() {
     return;
   }
 
-  // 기본 동작: 하네스 적용된 Claude Code 실행
+  // Default: run Claude Code with harness
   try {
-    // 최초 실행 감지: ~/.compound/ 없으면 웰컴 메시지 출력
+    // First run detection: show welcome if ~/.compound/ doesn't exist
     const firstRun = isFirstRun();
     if (firstRun) {
       console.log(`
   ╔══════════════════════════════════════════════╗
-  ║   Tenetx — 처음 오신 것을 환영합니다!       ║
+  ║       Welcome to Tenetx!                    ║
   ╚══════════════════════════════════════════════╝
 
-  Tenetx는 당신의 개발 철학을 Claude Code에 주입합니다.
-  원칙을 선언하면 훅, 모델 라우팅, 에이전트가 자동으로 구성됩니다.
+  Tenetx injects your development philosophy into Claude Code.
+  Declare principles, and hooks, model routing, and agents are
+  configured automatically.
 
-  지금 기본 환경을 설정합니다...`);
+  Setting up the default environment now...`);
     }
 
     const context = await prepareHarness(process.cwd());
 
     if (firstRun) {
       console.log(`
-  ✓ 초기 설정 완료!
+  ✓ Initial setup complete!
 
-  다음 단계:
-    tenetx init              프로젝트 타입 감지 → 맞춤 철학 생성
-    tenetx init --team       팀 모드로 시작 (팀원과 철학 공유)
-    tenetx philosophy show   현재 철학 확인
-    tenetx doctor            환경 진단
+  Next steps:
+    tenetx init              Detect project type → generate philosophy
+    tenetx init --team       Start in team mode (share philosophy)
+    tenetx philosophy show   View current philosophy
+    tenetx doctor            Run diagnostics
 
-  더 알아보기: https://github.com/wooo-jin/tenetx
+  Learn more: https://github.com/wooo-jin/tenetx
 `);
     }
 
@@ -393,8 +402,8 @@ async function main() {
     if (context.scope.team) {
       const t = context.scope.team;
       const assets: string[] = [];
-      if (t.ruleCount > 0) assets.push(`규칙 ${t.ruleCount}`);
-      if (t.solutionCount > 0) assets.push(`솔루션 ${t.solutionCount}`);
+      if (t.ruleCount > 0) assets.push(`rules ${t.ruleCount}`);
+      if (t.solutionCount > 0) assets.push(`solutions ${t.solutionCount}`);
       const assetStr = assets.length > 0 ? ` (${assets.join(', ')})` : '';
       console.log(`[tenetx] Pack: ${t.name} v${t.version}${assetStr}`);
     }
@@ -411,31 +420,31 @@ async function main() {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
 
-    // 사용자 친화적 에러 메시지 변환
+    // User-friendly error message conversion
     if (msg.includes('ENOENT') && msg.includes('claude')) {
-      console.error('\n  [tenetx] Claude Code가 설치되어 있지 않습니다.');
-      console.error('  설치: https://docs.anthropic.com/en/docs/claude-code');
-      console.error('  확인: tenetx doctor\n');
+      console.error('\n  [tenetx] Claude Code is not installed.');
+      console.error('  Install: https://docs.anthropic.com/en/docs/claude-code');
+      console.error('  Verify: tenetx doctor\n');
     } else if (msg.includes('ENOENT') && msg.includes('git')) {
-      console.error('\n  [tenetx] Git이 설치되어 있지 않습니다.');
-      console.error('  설치: https://git-scm.com/downloads\n');
+      console.error('\n  [tenetx] Git is not installed.');
+      console.error('  Install: https://git-scm.com/downloads\n');
     } else if (msg.includes('ENOENT') && msg.includes('node')) {
-      console.error('\n  [tenetx] Node.js 18 이상이 필요합니다.');
-      console.error('  현재: ' + process.version + '\n');
+      console.error('\n  [tenetx] Node.js 18 or higher is required.');
+      console.error(`  Current: ${process.version}\n`);
     } else if (msg.includes('EACCES') || msg.includes('EPERM')) {
-      console.error('\n  [tenetx] 권한이 부족합니다. sudo 또는 파일 권한을 확인하세요.');
-      console.error('  상세: ' + msg + '\n');
+      console.error('\n  [tenetx] Permission denied. Check file permissions or use sudo.');
+      console.error(`  Details: ${msg}\n`);
     } else {
-      console.error('\n  [tenetx] 오류:', msg);
-      console.error('  문제가 계속되면: tenetx doctor 로 환경을 진단하세요.');
-      console.error('  이슈: https://github.com/wooo-jin/tenetx/issues\n');
+      console.error('\n  [tenetx] Error:', msg);
+      console.error('  If the problem persists: run tenetx doctor for diagnostics.');
+      console.error('  Issues: https://github.com/wooo-jin/tenetx/issues\n');
     }
     process.exit(1);
   }
 }
 
 // ---------------------------------------------------------------------------
-// printHelp — 커맨드 배열에서 자동 생성
+// printHelp — auto-generated from command array
 // ---------------------------------------------------------------------------
 
 function printHelp() {
@@ -449,25 +458,25 @@ function printHelp() {
     tenetx --resume                 Resume previous session
 
   Modes:
-    tenetx --autopilot (-a)         5단계 자율 실행 파이프라인
-    tenetx --ralph (-r)             PRD 기반 완료 보장 + verify/fix loop
-    tenetx --team (-t)              전문 에이전트 단계별 파이프라인
-    tenetx --ultrawork (-u)         최대 병렬성 버스트
-    tenetx --pipeline (-p)          순차 단계별 처리
-    tenetx --ccg                    Claude-Codex-Gemini 3모델 합성
-    tenetx --ralplan                합의 기반 설계 (Planner→Architect→Critic)
-    tenetx --deep-interview         Socratic 요구사항 명확화
+    tenetx --autopilot (-a)         5-phase autonomous execution pipeline
+    tenetx --ralph (-r)             PRD-based completion guarantee + verify/fix loop
+    tenetx --team (-t)              Specialized agent staged pipeline
+    tenetx --ultrawork (-u)         Maximum parallelism burst
+    tenetx --pipeline (-p)          Sequential stage processing
+    tenetx --ccg                    Claude-Codex-Gemini tri-model synthesis
+    tenetx --ralplan                Consensus planning (Planner→Architect→Critic)
+    tenetx --deep-interview         Socratic requirement clarification
 
-  Magic Keywords (프롬프트 내):
-    autopilot <task>            autopilot 모드 활성화
-    ralph <task>                ralph 모드 활성화
-    ulw/ultrawork <task>        ultrawork 모드 활성화
-    ralplan <task>              합의 계획 모드 활성화
-    deep-interview <task>       딥 인터뷰 모드 활성화
-    ultrathink                  확장 추론 모드
-    deepsearch                  코드베이스 심층 탐색
-    tdd                         TDD 모드
-    canceltenetx                    모든 모드 중단
+  Magic Keywords (in prompt):
+    autopilot <task>            Activate autopilot mode
+    ralph <task>                Activate ralph mode
+    ulw/ultrawork <task>        Activate ultrawork mode
+    ralplan <task>              Activate consensus planning mode
+    deep-interview <task>       Activate deep interview mode
+    ultrathink                  Extended reasoning mode
+    deepsearch                  Deep codebase search
+    tdd                         TDD mode
+    canceltenetx                    Cancel all modes
 
   Commands:`);
 
@@ -478,7 +487,7 @@ function printHelp() {
   }
 
   console.log(`
-  Agents (19종, 자동 설치):
+  Agents (19 types, auto-installed):
     executor, architect, critic, planner, analyst, debugger,
     designer, security-reviewer, code-reviewer, test-engineer,
     writer, qa-tester, verifier, explore, refactoring-expert,
@@ -490,6 +499,6 @@ function printHelp() {
 }
 
 main().catch(() => {
-  // main() 내부에서 이미 에러 처리됨
+  // Error already handled inside main()
   process.exit(1);
 });

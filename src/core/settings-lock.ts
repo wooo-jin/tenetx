@@ -14,6 +14,27 @@ export const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
 export const SETTINGS_BACKUP_PATH = path.join(CLAUDE_DIR, 'settings.json.tenetx-backup');
 const SETTINGS_LOCK_PATH = path.join(CLAUDE_DIR, 'settings.json.lock');
 
+/** lockfile 내용에서 pid 추출 */
+function readLockPid(): number | null {
+  try {
+    const content = fs.readFileSync(SETTINGS_LOCK_PATH, 'utf-8').trim();
+    const pid = parseInt(content, 10);
+    return Number.isNaN(pid) ? null : pid;
+  } catch {
+    return null;
+  }
+}
+
+/** 프로세스가 살아있는지 확인 (signal 0 전송) */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** lockfile 획득 (최대 3초 대기, 100ms 간격 재시도) */
 export function acquireLock(): void {
   const maxWaitMs = 3000;
@@ -31,8 +52,14 @@ export function acquireLock(): void {
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, intervalMs);
     }
   }
-  // 타임아웃: stale lock일 수 있으므로 강제 획득
-  debugLog('settings-lock', 'lockfile 타임아웃 — stale lock 강제 해제');
+  // 타임아웃: lock을 잡고 있는 프로세스가 살아있는지 확인
+  const lockPid = readLockPid();
+  if (lockPid !== null && isProcessAlive(lockPid)) {
+    debugLog('settings-lock', `lockfile 타임아웃 — pid ${lockPid} 프로세스가 아직 활성 상태, 대기 중 강제 획득 보류`);
+    // 프로세스가 살아있으면 그래도 강제 획득 (데드락 방지)
+  } else {
+    debugLog('settings-lock', `lockfile 타임아웃 — stale lock 감지 (pid: ${lockPid ?? 'unknown'}, 프로세스 종료됨)`);
+  }
   fs.writeFileSync(SETTINGS_LOCK_PATH, String(process.pid));
 }
 

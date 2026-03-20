@@ -18,7 +18,7 @@ export async function handleWait(args: string[]): Promise<void> {
   }
 
   const minutes = parseFloat(args[0]);
-  if (isNaN(minutes) || minutes <= 0) {
+  if (Number.isNaN(minutes) || minutes <= 0) {
     console.log('  유효한 분 수를 입력하세요. (예: tenetx wait 5)');
     return;
   }

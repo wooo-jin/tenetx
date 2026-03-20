@@ -163,7 +163,7 @@ export function runGardeningLoop(options: GardeningLoopOptions): LoopResult {
 
     if (orphans.length > 0) {
       step.message = `${orphans.length}개 고아 파일 발견: ${orphans.slice(0, 5).join(', ')}`;
-      suggestions.push(`고아 파일 검토: ${orphans.slice(0, 3).join(', ')}${orphans.length > 3 ? ' 외 ' + (orphans.length - 3) + '개' : ''}`);
+      suggestions.push(`고아 파일 검토: ${orphans.slice(0, 3).join(', ')}${orphans.length > 3 ? ` 외 ${orphans.length - 3}개` : ''}`);
       hasIssues = true;
     } else {
       step.message = '고아 파일 없음';

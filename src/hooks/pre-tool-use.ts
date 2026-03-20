@@ -175,13 +175,13 @@ function resetFailCount(): void {
 async function main(): Promise<void> {
   const data = await readStdinJSON<PreToolInput>();
   if (!data) {
-    // graceful fail-close: 연속 실패 카운터 기반
+    // graceful fail-close: consecutive failure counter
     const failCount = getAndIncrementFailCount();
     if (failCount >= FAIL_CLOSE_THRESHOLD) {
-      console.log(JSON.stringify({ result: 'reject', reason: `[Tenetx] PreToolUse: stdin 파싱 ${failCount}회 연속 실패 — 안전을 위해 차단합니다.` }));
+      console.log(JSON.stringify({ result: 'reject', reason: `[Tenetx] PreToolUse: stdin parse failed ${failCount} consecutive times — blocking for safety.` }));
     } else {
-      process.stderr.write(`[ch-hook] stdin 파싱 실패 (${failCount}/${FAIL_CLOSE_THRESHOLD}), approve로 통과\n`);
-      console.log(JSON.stringify({ result: 'approve', message: `[Tenetx] ⚠ PreToolUse stdin 파싱 실패 (${failCount}/${FAIL_CLOSE_THRESHOLD})` }));
+      process.stderr.write(`[ch-hook] stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD}), approving\n`);
+      console.log(JSON.stringify({ result: 'approve', message: `[Tenetx] ⚠ PreToolUse stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})` }));
     }
     return;
   }
@@ -196,14 +196,14 @@ async function main(): Promise<void> {
   if (check.action === 'block') {
     console.log(JSON.stringify({
       result: 'reject',
-      reason: `[Tenetx] 위험 명령어 차단: ${check.description}\n명령어: ${check.command}`,
+      reason: `[Tenetx] Dangerous command blocked: ${check.description}\nCommand: ${check.command}`,
     }));
     return;
   }
   if (check.action === 'warn') {
     console.log(JSON.stringify({
       result: 'approve',
-      message: `<compound-tool-warning>\n[Tenetx] ⚠ 위험 명령어 감지: ${check.description}\n확인 후 진행하세요.\n</compound-tool-warning>`,
+      message: `<compound-tool-warning>\n[Tenetx] ⚠ Dangerous command detected: ${check.description}\nProceed with caution.\n</compound-tool-warning>`,
     }));
     return;
   }
@@ -222,7 +222,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write('[ch-hook] ' + (e instanceof Error ? e.message : String(e)) + '\n');
-  // fail-close: 예외 발생 시 안전하게 차단
-  console.log(JSON.stringify({ result: 'reject', reason: '[Tenetx] PreToolUse: 내부 오류 — 안전을 위해 차단합니다.' }));
+  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
+  // fail-close: block on exception for safety
+  console.log(JSON.stringify({ result: 'reject', reason: '[Tenetx] PreToolUse: internal error — blocking for safety.' }));
 });

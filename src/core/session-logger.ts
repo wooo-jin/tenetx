@@ -21,6 +21,8 @@ interface SessionLog {
 let currentSessionPath: string | null = null;
 /** 세션 시작 시각 (duration 계산에 사용) */
 let sessionStartMs: number | null = null;
+/** exit/signal 리스너 등록 여부 (중복 등록 방지) */
+let isBound = false;
 
 /** UUID v4 생성 (node:crypto 활용) */
 function generateUUID(): string {
@@ -65,16 +67,19 @@ export function startSessionLog(context: HarnessContext): void {
     // 오래된 세션 로그 정리 (90일+)
     cleanOldSessions();
 
-    // 프로세스 종료 시 자동으로 endTime/duration 업데이트
-    process.on('exit', finalizeSessionLog);
-    process.on('SIGINT', () => {
-      finalizeSessionLog();
-      process.exit(0);
-    });
-    process.on('SIGTERM', () => {
-      finalizeSessionLog();
-      process.exit(0);
-    });
+    // 프로세스 종료 시 자동으로 endTime/duration 업데이트 (한 번만 등록)
+    if (!isBound) {
+      isBound = true;
+      process.on('exit', finalizeSessionLog);
+      process.on('SIGINT', () => {
+        finalizeSessionLog();
+        process.exit(0);
+      });
+      process.on('SIGTERM', () => {
+        finalizeSessionLog();
+        process.exit(0);
+      });
+    }
   } catch (e) {
     debugLog('session-logger', '세션 로그 시작 실패', e);
   }

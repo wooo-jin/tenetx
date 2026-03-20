@@ -60,7 +60,7 @@ export function resolveScope(cwd: string, philosophySource?: 'project' | 'global
 
   // Team — pack.link (레거시) 또는 pack.json (현재) 에서 팩 탐색
   let packName = readPackLink(cwd);
-  let team: ScopeInfo['team'] = undefined;
+  let team: ScopeInfo['team'] ;
 
   // pack.link가 없으면 pack.json(loadPackConfigs)에서 첫 번째 팩 사용
   if (!packName) {

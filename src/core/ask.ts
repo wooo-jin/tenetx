@@ -176,7 +176,7 @@ export async function handleProviders(args: string[]): Promise<void> {
   if (sub === 'priority') {
     const name = args[1] as ProviderName;
     const priority = parseInt(args[2], 10);
-    if (!name || isNaN(priority)) {
+    if (!name || Number.isNaN(priority)) {
       console.log('  사용법: tenetx providers priority <claude|codex|gemini> <number>');
       return;
     }

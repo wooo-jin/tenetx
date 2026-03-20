@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { loadDashboardData } from './data.js';
 import { HomeTab } from './tabs/HomeTab.js';
@@ -47,7 +47,7 @@ export function App() {
     }
 
     // Number keys: switch tabs
-    const tabIndex = parseInt(input) - 1;
+    const tabIndex = parseInt(input, 10) - 1;
     if (tabIndex >= 0 && tabIndex < TABS.length) {
       setActiveTab(tabIndex);
       return;

@@ -69,7 +69,7 @@ export function sampleUserHistory(maxMessages = 500): string[] {
   // 메시지가 너무 길면 잘라내기 (각 200자)
   return allMessages
     .slice(0, maxMessages)
-    .map(m => m.text.length > 200 ? m.text.slice(0, 200) + '...' : m.text);
+    .map(m => m.text.length > 200 ? `${m.text.slice(0, 200)}...` : m.text);
 }
 
 /** claude -p 를 사용하여 철학 생성 */

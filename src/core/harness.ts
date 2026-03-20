@@ -120,16 +120,16 @@ function injectSettings(env: Record<string, string>): void {
   /** tenetx 훅인지 판별 (matcher 래핑 여부 무관) */
   function isCHHook(entry: Record<string, unknown>): boolean {
     // 패키지 dist/hooks 경로를 포함하는 커맨드인지 확인
-    const hookMarkers = ['tenetx', 'compound-harness', pkgRoot];
-    function matchesMarker(cmd: string): boolean {
-      return hookMarkers.some(m => cmd.includes(m));
+    const distHooksPath = path.join(pkgRoot, 'dist', 'hooks');
+    function matchesHookPath(cmd: string): boolean {
+      return cmd.includes(distHooksPath) || /[\\/]dist[\\/]hooks[\\/].*\.js/.test(cmd);
     }
     // 직접 형식: { type, command }
-    if (typeof entry.command === 'string' && matchesMarker(entry.command)) return true;
+    if (typeof entry.command === 'string' && matchesHookPath(entry.command)) return true;
     // 래핑 형식: { matcher, hooks: [{ command }] }
     const hooks = entry.hooks as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(hooks)) {
-      return hooks.some(h => typeof h.command === 'string' && matchesMarker(h.command));
+      return hooks.some(h => typeof h.command === 'string' && matchesHookPath(h.command));
     }
     return false;
   }
@@ -284,7 +284,7 @@ function loadAgentHashes(): Record<string, string> {
     if (fs.existsSync(AGENT_HASHES_PATH)) {
       return JSON.parse(fs.readFileSync(AGENT_HASHES_PATH, 'utf-8'));
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('harness', '에이전트 해시 맵 로드 실패', e); }
   return {};
 }
 
@@ -293,7 +293,7 @@ function saveAgentHashes(hashes: Record<string, string>): void {
   try {
     fs.mkdirSync(path.dirname(AGENT_HASHES_PATH), { recursive: true });
     fs.writeFileSync(AGENT_HASHES_PATH, JSON.stringify(hashes, null, 2));
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('harness', '에이전트 해시 맵 저장 실패', e); }
 }
 
 /** 연결된 팩의 커스텀 워크플로우를 모드 시스템에 등록 */
@@ -402,7 +402,7 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
   // 마이그레이션: 이전 위치(.claude/compound-rules.md) 파일 제거
   const legacyPath = path.join(cwd, '.claude', 'compound-rules.md');
   if (fs.existsSync(legacyPath)) {
-    try { fs.unlinkSync(legacyPath); } catch { /* ignore */ }
+    try { fs.unlinkSync(legacyPath); } catch (e) { debugLog('harness', '레거시 규칙 파일 삭제 실패', e); }
   }
 
   // 기존 CLAUDE.md에서 이전 마커 블록 제거 (마이그레이션)
@@ -447,7 +447,7 @@ function ensureGitignore(cwd: string): void {
       // 이미 등록되어 있으면 스킵
       if (content.includes(marker)) return;
     }
-    const newContent = content.trimEnd() + '\n\n' + tenetxEntries.join('\n') + '\n';
+    const newContent = `${content.trimEnd()}\n\n${tenetxEntries.join('\n')}\n`;
     fs.writeFileSync(gitignorePath, newContent);
   } catch {
     // .gitignore 쓰기 실패는 무시 (권한 등)
@@ -484,7 +484,7 @@ function cleanupStaleCommands(commandsDir: string, validFiles: Set<string>): num
         fs.unlinkSync(filePath);
         removed++;
       }
-    } catch { /* ignore */ }
+    } catch (e) { debugLog('harness', `stale 명령 파일 정리 실패: ${file}`, e); }
   }
   return removed;
 }
@@ -526,7 +526,9 @@ function installSlashCommands(cwd: string): void {
       fs.mkdirSync(localCommandsDir, { recursive: true });
     }
     for (const pack of connectedPacks) {
-      const packSkillsDir = path.join(PACKS_DIR, pack.name, 'skills');
+      const localPackSkillsDir = path.join(cwd, '.compound', 'packs', pack.name, 'skills');
+      const globalPackSkillsDir = path.join(PACKS_DIR, pack.name, 'skills');
+      const packSkillsDir = fs.existsSync(localPackSkillsDir) ? localPackSkillsDir : globalPackSkillsDir;
       if (!fs.existsSync(packSkillsDir)) continue;
       const packSkills = fs.readdirSync(packSkillsDir).filter(f => f.endsWith('.md'));
       for (const file of packSkills) {
@@ -540,7 +542,7 @@ function installSlashCommands(cwd: string): void {
         }
       }
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('harness', '팩 스킬 로컬 설치 실패', e); }
 
   // 3. 삭제된 스킬 정리 (tenetx-managed 파일만)
   const removedGlobal = cleanupStaleCommands(globalCommandsDir, validGlobalFiles);

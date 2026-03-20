@@ -44,6 +44,8 @@ import {
   killWorker,
   getWorkerOutput,
   spawnWorker,
+  cleanOldWorkers,
+  handleWorker,
 } from '../src/core/ai-worker.js';
 
 const STATE_DIR = path.join(TEST_HOME, '.compound', 'state');
@@ -151,5 +153,83 @@ describe('spawnWorker()', () => {
     const saved = JSON.parse(fs.readFileSync(WORKERS_FILE, 'utf-8'));
     expect(saved.length).toBeGreaterThan(0);
     expect(saved.find((w: any) => w.id === worker.id)).toBeDefined();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// cleanOldWorkers
+// ────────────────────────────────────────────────────────────────────────────
+describe('cleanOldWorkers()', () => {
+  it('workers.json이 없으면 에러 없이 동작', () => {
+    expect(() => cleanOldWorkers()).not.toThrow();
+  });
+
+  it('24시간 이상 된 완료 워커를 제거한다', () => {
+    const oldDate = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const recentDate = new Date().toISOString();
+
+    const validOldId = 'aa11bb22';
+    fs.writeFileSync(path.join(OUTPUT_DIR, `${validOldId}.txt`), 'old output');
+    fs.writeFileSync(WORKERS_FILE, JSON.stringify([
+      { id: validOldId, type: 'gemini', status: 'done', startedAt: oldDate },
+      { id: 'cc33dd44', type: 'claude', status: 'done', startedAt: recentDate },
+    ]));
+
+    cleanOldWorkers();
+
+    const workers = JSON.parse(fs.readFileSync(WORKERS_FILE, 'utf-8'));
+    expect(workers.length).toBe(1);
+    expect(workers[0].id).toBe('cc33dd44');
+    expect(fs.existsSync(path.join(OUTPUT_DIR, `${validOldId}.txt`))).toBe(false);
+  });
+
+  it('running 상태 워커는 오래되어도 제거하지 않는다', () => {
+    const oldDate = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    fs.writeFileSync(WORKERS_FILE, JSON.stringify([
+      { id: 'ee55ff66', type: 'gemini', status: 'running', startedAt: oldDate, pid: 999999 },
+    ]));
+
+    cleanOldWorkers();
+
+    const workers = JSON.parse(fs.readFileSync(WORKERS_FILE, 'utf-8'));
+    expect(workers.length).toBe(1);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// handleWorker CLI
+// ────────────────────────────────────────────────────────────────────────────
+describe('handleWorker()', () => {
+  it('list - 워커가 없을 때', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await handleWorker(['list']);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('활성 워커가 없습니다'));
+    logSpy.mockRestore();
+  });
+
+  it('list - 워커가 있을 때', async () => {
+    fs.writeFileSync(WORKERS_FILE, JSON.stringify([
+      { id: 'listed1', type: 'claude', status: 'done', startedAt: new Date().toISOString(), prompt: 'test' },
+    ]));
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await handleWorker(['list']);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('listed1'));
+    logSpy.mockRestore();
+  });
+
+  it('인자 없으면 list 실행', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await handleWorker([]);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('AI Workers'));
+    logSpy.mockRestore();
+  });
+
+  it('output - 존재하는 워커 출력', async () => {
+    const validId = 'a1b2c3d4';
+    fs.writeFileSync(path.join(OUTPUT_DIR, `${validId}.txt`), 'worker output content');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await handleWorker(['output', validId]);
+    expect(logSpy).toHaveBeenCalledWith('worker output content');
+    logSpy.mockRestore();
   });
 });

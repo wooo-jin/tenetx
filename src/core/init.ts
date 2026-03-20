@@ -174,7 +174,7 @@ export function detectProjectType(cwd: string): DetectionResult {
   }
 
   if (topScore === 0) {
-    return { type: 'unknown', pack: 'backend', confidence: 0, signals: ['감지된 신호 없음 — 기본 backend 팩 사용'] };
+    return { type: 'unknown', pack: 'backend', confidence: 0, signals: ['No signals detected — using default backend pack'] };
   }
 
   return {
@@ -199,9 +199,9 @@ export async function handleInit(args: string[]): Promise<void> {
   const existingPath = projectPhilosophyPath(cwd);
   if (fs.existsSync(existingPath)) {
     const existing = JSON.parse(fs.readFileSync(existingPath, 'utf-8'));
-    console.log(`\n  이미 프로젝트 철학이 있습니다: "${existing.name}"`);
-    console.log(`  경로: ${existingPath}`);
-    console.log(`  재설정하려면 삭제 후 다시 실행: rm ${existingPath}\n`);
+    console.log(`\n  Project philosophy already exists: "${existing.name}"`);
+    console.log(`  Path: ${existingPath}`);
+    console.log(`  To reset, delete and run again: rm ${existingPath}\n`);
     return;
   }
 
@@ -210,18 +210,18 @@ export async function handleInit(args: string[]): Promise<void> {
   const projectName = path.basename(cwd);
 
   console.log(`\n  Tenetx Init — ${projectName}\n`);
-  console.log(`  프로젝트 타입: ${detection.type} (신뢰도 ${detection.confidence}%)`);
-  console.log(`  감지 신호:`);
+  console.log(`  Project type: ${detection.type} (confidence ${detection.confidence}%)`);
+  console.log(`  Detection signals:`);
   for (const sig of detection.signals.slice(0, 5)) {
     console.log(`    • ${sig}`);
   }
-  console.log(`  추천 팩: ${detection.pack}`);
+  console.log(`  Recommended pack: ${detection.pack}`);
 
   // 신뢰도 낮을 때 경고
   if (detection.confidence < 30) {
-    console.log(`\n  ⚠ 신뢰도가 낮습니다 (${detection.confidence}%). 기본 철학을 사용합니다.`);
-    console.log(`  프로젝트에 맞는 팩을 직접 선택하려면: tenetx setup --project --pack <팩이름>`);
-    console.log(`  사용 가능한 팩: frontend, backend, devops, security, data`);
+    console.log(`\n  ⚠ Low confidence (${detection.confidence}%). Using default philosophy.`);
+    console.log(`  To manually select a pack: tenetx setup --project --pack <pack-name>`);
+    console.log(`  Available packs: frontend, backend, devops, security, data`);
   }
   console.log();
 
@@ -230,11 +230,11 @@ export async function handleInit(args: string[]): Promise<void> {
     const readline = await import('node:readline');
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     const answer = await new Promise<string>(resolve => {
-      rl.question(`  이대로 진행할까요? (Y/n): `, resolve);
+      rl.question(`  Proceed? (Y/n): `, resolve);
     });
     rl.close();
     if (answer.trim().toLowerCase() === 'n') {
-      console.log('  취소됨. 직접 설정: tenetx setup --project\n');
+      console.log('  Cancelled. Manual setup: tenetx setup --project\n');
       return;
     }
   }
@@ -256,23 +256,21 @@ export async function handleInit(args: string[]): Promise<void> {
       principles: {},
     };
     fs.writeFileSync(existingPath, JSON.stringify(philosophy, null, 2));
-    console.log(`  ✓ 중앙 관리 철학 생성 (extends: pack:${detection.pack})`);
+    console.log(`  ✓ Centrally managed philosophy created (extends: pack:${detection.pack})`);
   } else if (detection.confidence >= 30 && fs.existsSync(packPath)) {
-    // 독립 복사 모드 (신뢰도 30% 이상일 때만 팩 적용)
     const packContent = JSON.parse(fs.readFileSync(packPath, 'utf-8'));
     packContent.name = projectName;
     fs.writeFileSync(existingPath, JSON.stringify(packContent, null, 2));
-    console.log(`  ✓ "${detection.pack}" 팩 기반 철학 생성`);
+    console.log(`  ✓ Philosophy created from "${detection.pack}" pack`);
   } else {
-    // 폴백: 기본 철학
     const philosophy = JSON.parse(JSON.stringify(DEFAULT_PHILOSOPHY));
     philosophy.name = projectName;
     fs.writeFileSync(existingPath, JSON.stringify(philosophy, null, 2));
-    console.log(`  ✓ 기본 철학 생성`);
+    console.log(`  ✓ Default philosophy created`);
   }
 
-  console.log(`  경로: ${existingPath}`);
-  console.log(`  원칙 수: ${Object.keys(JSON.parse(fs.readFileSync(existingPath, 'utf-8')).principles).length}개`);
+  console.log(`  Path: ${existingPath}`);
+  console.log(`  Principles: ${Object.keys(JSON.parse(fs.readFileSync(existingPath, 'utf-8')).principles).length}`);
 
   // 팀 팩 설정
   if (isTeam) {
@@ -290,22 +288,21 @@ export async function handleInit(args: string[]): Promise<void> {
         repo: packRepo,
       };
       savePackConfig(cwd, config);
-      console.log(`  ✓ 팩 설정: github (${packRepo})`);
-      console.log('  팩 동기화: tenetx harness 실행 시 자동 동기화됩니다.');
+      console.log(`  ✓ Pack config: github (${packRepo})`);
+      console.log('  Pack sync: auto-synced on tenetx harness run.');
     } else {
-      // 인라인 모드 (이 레포가 팩)
       const config: PackConnection = {
         type: 'inline',
         name: projectName,
       };
       savePackConfig(cwd, config);
-      console.log('  ✓ 팩 설정: inline (이 레포가 팩)');
-      console.log('  팀원에게 공유: git add .compound/ && git commit');
+      console.log('  ✓ Pack config: inline (this repo is the pack)');
+      console.log('  Share with team: git add .compound/ && git commit');
     }
   }
 
   console.log('');
-  console.log('  다음 단계:');
+  console.log('  Next steps:');
   if (isTeam) {
     console.log('    git add .compound/ && git commit -m "chore: add tenetx team config"');
   } else {

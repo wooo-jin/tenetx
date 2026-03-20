@@ -31,7 +31,7 @@ export async function handleScan(args: string[]): Promise<void> {
 
   // 기본: 프로젝트 맵 생성
   console.log('\n  Tenetx — Project Scan\n');
-  console.log(`  스캔 대상: ${cwd}\n`);
+  console.log(`  Target: ${cwd}\n`);
 
   const map = generateProjectMap({ cwd });
 
@@ -41,7 +41,7 @@ export async function handleScan(args: string[]): Promise<void> {
 
   const jsonPath = path.join(outDir, 'project-map.json');
   fs.writeFileSync(jsonPath, JSON.stringify(map, null, 2));
-  console.log(`  ✓ 맵 저장: ${path.relative(cwd, jsonPath)}`);
+  console.log(`  ✓ Map saved: ${path.relative(cwd, jsonPath)}`);
 
   // --md: Markdown 출력
   if (args.includes('--md')) {
@@ -53,10 +53,10 @@ export async function handleScan(args: string[]): Promise<void> {
   // 요약 출력
   const { summary } = map;
   console.log('');
-  console.log(`  프로젝트: ${summary.name}`);
-  console.log(`  파일: ${summary.totalFiles}개, 줄: ${summary.totalLines.toLocaleString()}`);
-  if (summary.framework) console.log(`  프레임워크: ${summary.framework}`);
-  if (summary.packageManager) console.log(`  패키지 매니저: ${summary.packageManager}`);
+  console.log(`  Project: ${summary.name}`);
+  console.log(`  Files: ${summary.totalFiles}, Lines: ${summary.totalLines.toLocaleString()}`);
+  if (summary.framework) console.log(`  Framework: ${summary.framework}`);
+  if (summary.packageManager) console.log(`  Package manager: ${summary.packageManager}`);
 
   // 언어 분포
   const topLangs = Object.entries(summary.languages)
@@ -64,11 +64,11 @@ export async function handleScan(args: string[]): Promise<void> {
     .filter(([l]) => l !== 'other')
     .slice(0, 5);
   if (topLangs.length > 0) {
-    console.log(`  언어: ${topLangs.map(([l, n]) => `${l}(${n}줄)`).join(', ')}`);
+    console.log(`  Languages: ${topLangs.map(([l, n]) => `${l}(${n} lines)`).join(', ')}`);
   }
 
-  console.log(`  진입점: ${map.entryPoints.length > 0 ? map.entryPoints.join(', ') : '(없음)'}`);
-  console.log(`  의존성: ${map.dependencies.filter(d => d.type === 'production').length} prod, ${map.dependencies.filter(d => d.type === 'development').length} dev`);
+  console.log(`  Entry points: ${map.entryPoints.length > 0 ? map.entryPoints.join(', ') : '(none)'}`);
+  console.log(`  Dependencies: ${map.dependencies.filter(d => d.type === 'production').length} prod, ${map.dependencies.filter(d => d.type === 'development').length} dev`);
 
   // 제약 설정 존재 시 자동 검사
   if (fs.existsSync(constraintConfigPath(cwd))) {
@@ -82,7 +82,7 @@ export async function handleScan(args: string[]): Promise<void> {
 function initConstraints(cwd: string): void {
   const configPath = constraintConfigPath(cwd);
   if (fs.existsSync(configPath)) {
-    console.log(`  이미 존재합니다: ${path.relative(cwd, configPath)}`);
+    console.log(`  Already exists: ${path.relative(cwd, configPath)}`);
     return;
   }
 
@@ -90,26 +90,26 @@ function initConstraints(cwd: string): void {
   const dir = path.dirname(configPath);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-  console.log(`  ✓ 기본 제약 생성: ${path.relative(cwd, configPath)}`);
-  console.log(`  ${config.rules.length}개 규칙 포함 (편집하여 커스터마이즈 가능)`);
+  console.log(`  ✓ Default constraints created: ${path.relative(cwd, configPath)}`);
+  console.log(`  ${config.rules.length} rules included (edit to customize)`);
 }
 
 function runConstraints(cwd: string): void {
   const configPath = constraintConfigPath(cwd);
   if (!fs.existsSync(configPath)) {
-    console.log('  제약 설정이 없습니다. `tenetx scan --init-constraints`로 생성하세요.');
+    console.log('  No constraint config found. Create with `tenetx scan --init-constraints`.');
     return;
   }
 
-  console.log('  제약 검사 실행...');
+  console.log('  Running constraint checks...');
   const result = runConstraintsOnProject(cwd);
 
-  console.log(`  검사: ${result.checkedFiles}개 파일, 통과: ${result.passedFiles}개`);
+  console.log(`  Checked: ${result.checkedFiles} files, Passed: ${result.passedFiles}`);
 
   if (result.violations.length > 0) {
     console.log('');
     console.log(formatViolations(result.violations));
   } else {
-    console.log('  ✓ 모든 제약을 통과했습니다.');
+    console.log('  ✓ All constraints passed.');
   }
 }

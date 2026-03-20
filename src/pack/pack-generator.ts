@@ -156,7 +156,7 @@ export function generatePackContext(opts: PackContextOptions): void {
       lines.push('## CLAUDE.md (기존 프로젝트 지침)');
       lines.push('');
       // 너무 길면 앞부분만
-      const truncated = content.length > 2000 ? content.slice(0, 2000) + '\n...(이하 생략)' : content;
+      const truncated = content.length > 2000 ? `${content.slice(0, 2000)}\n...(이하 생략)` : content;
       lines.push(truncated);
       lines.push('');
     }

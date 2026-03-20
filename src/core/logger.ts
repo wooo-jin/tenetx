@@ -10,5 +10,5 @@ const DEBUG = process.env.COMPOUND_DEBUG === '1';
 export function debugLog(context: string, msg: string, error?: unknown): void {
   if (!DEBUG) return;
   const errMsg = error instanceof Error ? error.message : String(error ?? '');
-  console.error(`[CH:${context}] ${msg}${errMsg ? ': ' + errMsg : ''}`);
+  console.error(`[CH:${context}] ${msg}${errMsg ? `: ${errMsg}` : ''}`);
 }

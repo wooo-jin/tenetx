@@ -263,7 +263,7 @@ export async function callProvider(
       if (e instanceof NonRetryableError) break;
 
       if (attempt < maxRetries) {
-        await sleep(Math.pow(2, attempt) * 1000);
+        await sleep(2 ** attempt * 1000);
       }
     }
   }

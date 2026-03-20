@@ -49,7 +49,7 @@ createMcpServer({
             timeout: 60000,
             encoding: 'utf8',
           });
-          return stdout + (stderr ? '\n' + stderr : '');
+          return stdout + (stderr ? `\n${stderr}` : '');
         } catch (e: unknown) {
           const err = e as { stdout?: string; stderr?: string; message?: string };
           return `Test failed:\n${err.stdout ?? ''}\n${err.stderr ?? err.message ?? ''}`;

@@ -35,11 +35,11 @@ function extractThresholds(philosophy: Philosophy): Thresholds {
         const alert = gen.alert;
         // "같은 파일 5회 편집 시 중단 권고" → maxFileEdits = 5
         const editMatch = alert.match(/(\d+)회\s*편집/);
-        if (editMatch) defaults.maxFileEdits = parseInt(editMatch[1]);
+        if (editMatch) defaults.maxFileEdits = parseInt(editMatch[1], 10);
 
         // "세션 비용 $10+ 시 경고" → maxCost = 10
         const costMatch = alert.match(/\$(\d+)/);
-        if (costMatch) defaults.maxCost = parseInt(costMatch[1]);
+        if (costMatch) defaults.maxCost = parseInt(costMatch[1], 10);
       }
     }
   }

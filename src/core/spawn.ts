@@ -72,7 +72,7 @@ export async function spawnClaude(args: string[], context: HarnessContext): Prom
     // 솔루션 매칭 (knowledge-comes-to-you)
     const matches = matchSolutions(prompt, context.scope, context.cwd);
     if (matches.length > 0) {
-      console.log('[tenetx] 관련 솔루션:');
+      console.log('[tenetx] Related solutions:');
       for (const m of matches.slice(0, 3)) {
         const scopeLabel = m.scope === 'me' ? 'Me' : m.scope === 'team' ? 'Team' : 'Project';
         console.log(`  💡 [${scopeLabel}] ${m.name}: ${m.summary}`);
@@ -97,7 +97,7 @@ export async function spawnClaude(args: string[], context: HarnessContext): Prom
 
     child.on('error', (err) => {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new Error('Claude Code가 설치되어 있지 않습니다. npm install -g @anthropic-ai/claude-code'));
+        reject(new Error('Claude Code is not installed. npm install -g @anthropic-ai/claude-code'));
       } else {
         reject(err);
       }
