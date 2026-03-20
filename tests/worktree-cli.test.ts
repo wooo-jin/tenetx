@@ -35,7 +35,7 @@ describe('handleWorktree CLI', () => {
   it('create - branch도 issue도 없으면 에러', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await handleWorktree(['create']);
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('branch 또는 issueNumber'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Either branch or issueNumber'));
     errSpy.mockRestore();
   });
 

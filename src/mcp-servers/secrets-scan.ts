@@ -10,7 +10,7 @@ import type { McpServerDefinition, SecretFinding } from './types.js';
 
 export const SECRETS_SCAN_DEFINITION: McpServerDefinition = {
   name: 'secrets-scan',
-  description: '소스 파일에서 노출된 비밀 키/토큰/비밀번호 탐지',
+  description: 'Detect exposed secrets/tokens/passwords in source files',
   command: 'node',
   args: ['secrets-scan-server.js'],
   builtin: true,

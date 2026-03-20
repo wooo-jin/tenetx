@@ -193,7 +193,7 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
       console.error('[tenetx] Use --force flag in non-interactive environments.');
       process.exit(1);
     }
-    const ok = await confirm('계속하시겠습니까?');
+    const ok = await confirm('Do you want to continue?');
     if (!ok) {
       console.log('Cancelled.');
       return;

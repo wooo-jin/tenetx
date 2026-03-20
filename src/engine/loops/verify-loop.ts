@@ -93,12 +93,12 @@ export function runVerifyLoop(options: VerifyLoopOptions): LoopResult {
     const step: LoopStep = { name: 'type-check', status: 'running', startedAt: new Date().toISOString() };
     const result = runCommand(typeCheckCmd, cwd);
     step.status = result.success ? 'passed' : 'failed';
-    step.message = result.success ? '타입 체크 통과' : `타입 오류:\n${result.output}`;
+    step.message = result.success ? 'Type check passed' : `Type errors:\n${result.output}`;
     step.completedAt = new Date().toISOString();
     steps.push(step);
     if (!result.success) {
 
-      suggestions.push('타입 오류를 먼저 수정하세요.');
+      suggestions.push('Fix type errors first.');
     }
   }
 
@@ -107,12 +107,12 @@ export function runVerifyLoop(options: VerifyLoopOptions): LoopResult {
     const step: LoopStep = { name: 'build', status: 'running', startedAt: new Date().toISOString() };
     const result = runCommand(buildCmd, cwd);
     step.status = result.success ? 'passed' : 'failed';
-    step.message = result.success ? '빌드 성공' : `빌드 실패:\n${result.output}`;
+    step.message = result.success ? 'Build succeeded' : `Build failed:\n${result.output}`;
     step.completedAt = new Date().toISOString();
     steps.push(step);
     if (!result.success) {
 
-      suggestions.push('빌드 오류를 수정하세요.');
+      suggestions.push('Fix build errors.');
     }
   }
 
@@ -121,12 +121,12 @@ export function runVerifyLoop(options: VerifyLoopOptions): LoopResult {
     const step: LoopStep = { name: 'test', status: 'running', startedAt: new Date().toISOString() };
     const result = runCommand(testCmd, cwd);
     step.status = result.success ? 'passed' : 'failed';
-    step.message = result.success ? '테스트 통과' : `테스트 실패:\n${result.output}`;
+    step.message = result.success ? 'Tests passed' : `Tests failed:\n${result.output}`;
     step.completedAt = new Date().toISOString();
     steps.push(step);
     if (!result.success) {
 
-      suggestions.push('실패한 테스트를 수정하세요.');
+      suggestions.push('Fix failing tests.');
     }
   }
 
@@ -140,13 +140,13 @@ export function runVerifyLoop(options: VerifyLoopOptions): LoopResult {
       step.status = 'failed';
       step.message = formatViolations(constraintResult.violations);
 
-      suggestions.push(`${errors.length}건의 제약 위반을 수정하세요.`);
+      suggestions.push(`Fix ${errors.length} constraint violations.`);
     } else if (constraintResult.violations.length > 0) {
       step.status = 'passed'; // warn은 pass 처리
-      step.message = `경고 ${constraintResult.violations.length}건 (error 없음)`;
+      step.message = `${constraintResult.violations.length} warnings (no errors)`;
     } else {
       step.status = 'passed';
-      step.message = `${constraintResult.checkedFiles}개 파일 제약 통과`;
+      step.message = `${constraintResult.checkedFiles} files passed constraints`;
     }
     step.completedAt = new Date().toISOString();
     steps.push(step);
@@ -156,16 +156,16 @@ export function runVerifyLoop(options: VerifyLoopOptions): LoopResult {
   const failedSteps = steps.filter(s => s.status === 'failed').length;
 
   const status = failedSteps === 0 ? 'passed' : (passedSteps > 0 ? 'partial' : 'failed');
-  const summary = `${passedSteps}/${steps.length} 단계 통과` +
-    (failedSteps > 0 ? `, ${failedSteps} 실패` : '');
+  const summary = `${passedSteps}/${steps.length} steps passed` +
+    (failedSteps > 0 ? `, ${failedSteps} failed` : '');
 
   const constraintStep = steps.find(s => s.name === 'constraints');
   const violations = constraintStep
     ? (() => {
         const msg = constraintStep.message ?? '';
-        const match = msg.match(/^(\d+)건의 제약 위반/);
-        if (match) return parseInt(match[1], 10);
-        const warnMatch = msg.match(/경고\s+(\d+)건/);
+        const errMatch = msg.match(/(\d+)\s+constraint violations/);
+        if (errMatch) return parseInt(errMatch[1], 10);
+        const warnMatch = msg.match(/^(\d+)\s+warnings/);
         return warnMatch ? parseInt(warnMatch[1], 10) : 0;
       })()
     : undefined;
@@ -195,7 +195,7 @@ export function formatVerifyResult(result: LoopResult): string {
 
   if (result.suggestions && result.suggestions.length > 0) {
     lines.push('');
-    lines.push('권장 조치:');
+    lines.push('Recommended actions:');
     for (const s of result.suggestions) {
       lines.push(`  → ${s}`);
     }

@@ -238,7 +238,7 @@ export async function syncGithubPack(
   cwd: string,
 ): Promise<{ updated: boolean; message: string }> {
   if (config.type !== 'github' || !config.repo) {
-    return { updated: false, message: '팩이 github 타입이 아닙니다.' };
+    return { updated: false, message: 'Pack is not a github type.' };
   }
 
   // 팩별 네임스페이스: .compound/packs/{pack-name}/
@@ -255,7 +255,7 @@ export async function syncGithubPack(
 
     // 마지막 동기화와 비교
     if (config.lastSync === latestSha) {
-      return { updated: false, message: `[${config.name}] 이미 최신 상태입니다.` };
+      return { updated: false, message: `[${config.name}] Already up to date.` };
     }
 
     // 디렉토리 생성
@@ -300,15 +300,15 @@ export async function syncGithubPack(
     const total = Object.values(updateCounts).reduce((a, b) => a + b, 0);
     const parts = Object.entries(updateCounts)
       .filter(([, count]) => count > 0)
-      .map(([dir, count]) => `${dir} ${count}건`);
+      .map(([dir, count]) => `${dir} ${count} items`);
     const message = total > 0
-      ? `[${config.name}] ${parts.join(', ')} 업데이트됨`
-      : `[${config.name}] 변경 사항 없음`;
+      ? `[${config.name}] ${parts.join(', ')} updated`
+      : `[${config.name}] No changes`;
 
     return { updated: total > 0, message };
   } catch (err) {
-    debugLog('pack-config', `[${config.name}] GitHub 팩 동기화 실패`, err);
-    return { updated: false, message: `[${config.name}] 동기화 실패: ${err instanceof Error ? err.message : String(err)}` };
+    debugLog('pack-config', `[${config.name}] GitHub pack sync failed`, err);
+    return { updated: false, message: `[${config.name}] Sync failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -339,7 +339,7 @@ export async function autoSyncIfNeeded(cwd: string): Promise<string | null> {
     const outdated = checkPackUpdates(cwd);
     if (outdated.length > 0) {
       const names = outdated.map(o => o.name).join(', ');
-      messages.push(`⬆ 팩 업데이트 가능: ${names} — tenetx pack sync 후 tenetx pack lock`);
+      messages.push(`⬆ Pack updates available: ${names} — run tenetx pack sync then tenetx pack lock`);
     }
     return messages.length > 0 ? messages.join('\n') : null;
   }

@@ -17,38 +17,38 @@ const DEFAULT_PHILOSOPHY: Philosophy = {
   description: 'Default philosophy',
   principles: {
     'understand-before-act': {
-      belief: '이해 없이 행동하면 비용이 기하급수적으로 증가한다',
+      belief: 'Acting without understanding causes exponentially greater cost',
       generates: [
-        '모든 작업은 탐색 → 계획 → 구현 순서',
-        '롤백 시 변경 범위 먼저 파악',
+        'All tasks follow explore → plan → implement order',
+        'Before rollback, determine the scope of changes first',
       ],
     },
     'decompose-to-control': {
-      belief: '큰 작업은 분해해야 제어 가능하다',
+      belief: 'Large tasks must be decomposed to be controllable',
       generates: [
-        '큰 작업은 PLANS/CONTEXT/CHECKLIST로 분해',
-        { alert: '같은 파일 5회 편집 시 중단 권고' },
+        'Break large tasks into PLANS/CONTEXT/CHECKLIST',
+        { alert: 'Stop after editing the same file 5 times' },
       ],
     },
     'capitalize-on-failure': {
-      belief: '같은 실수를 두 번 하는 건 시스템의 실패다',
+      belief: 'Making the same mistake twice is a system failure',
       generates: [
-        '모든 작업 후 compound로 패턴 추출',
-        '실패에서 예방 규칙 자동 생성',
+        'After every task, extract patterns with compound',
+        'Auto-generate prevention rules from failures',
       ],
     },
     'focus-resources-on-judgment': {
-      belief: '자원은 판단이 필요한 곳에 집중해야 한다',
+      belief: 'Resources should be focused where judgment is needed',
       generates: [
         { routing: 'explore → Sonnet, implement → Opus' },
-        { alert: '세션 비용 $10+ 시 경고' },
+        { alert: 'Warn when session cost exceeds $10' },
       ],
     },
     'knowledge-comes-to-you': {
-      belief: '필요한 지식은 찾아와야 한다',
+      belief: 'Needed knowledge should come to you',
       generates: [
-        '세션 시작 시 관련 솔루션 자동 매칭',
-        '팩 업데이트 자동 pull',
+        'Auto-match relevant solutions at session start',
+        'Auto-pull pack updates',
       ],
     },
   },
@@ -198,21 +198,21 @@ export function mergePhilosophies(base: Philosophy, override: Philosophy): Philo
 export function syncPhilosophy(cwd: string): { updated: boolean; philosophy: Philosophy; message: string } {
   const projectPath = projectPhilosophyPath(cwd);
   if (!fs.existsSync(projectPath)) {
-    return { updated: false, philosophy: DEFAULT_PHILOSOPHY, message: '프로젝트 철학 파일 없음' };
+    return { updated: false, philosophy: DEFAULT_PHILOSOPHY, message: 'No project philosophy file found' };
   }
 
   const project = loadPhilosophy(projectPath);
   if (!project.extends) {
-    return { updated: false, philosophy: project, message: 'extends 없음 (로컬 전용)' };
+    return { updated: false, philosophy: project, message: 'No extends (local only)' };
   }
 
   const base = resolveBasePhilosophy(project.extends);
   if (!base) {
-    return { updated: false, philosophy: project, message: `팩 "${project.extends}" 찾을 수 없음` };
+    return { updated: false, philosophy: project, message: `Pack "${project.extends}" not found` };
   }
 
   const merged = mergePhilosophies(base, project);
-  return { updated: true, philosophy: merged, message: `"${project.extends}" 기반 동기화 완료` };
+  return { updated: true, philosophy: merged, message: `Synced based on "${project.extends}"` };
 }
 
 export { DEFAULT_PHILOSOPHY };

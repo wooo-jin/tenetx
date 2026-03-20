@@ -59,7 +59,7 @@ function resolvePluginPaths(obj: unknown, pluginDir: string): unknown {
 export function installAsPlugin(): { success: boolean; pluginDir: string; error?: string } {
   const manifest = loadPluginManifest();
   if (!manifest) {
-    return { success: false, pluginDir: '', error: 'plugin.json을 찾을 수 없습니다' };
+    return { success: false, pluginDir: '', error: 'plugin.json not found' };
   }
 
   const pkgRoot = getPackageRoot();

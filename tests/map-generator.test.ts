@@ -51,10 +51,10 @@ export const VERSION = '1.0';
 
     const map = generateProjectMap({ cwd: tmpDir });
     const srcDir = map.directories.find(d => d.path === 'src');
-    expect(srcDir?.purpose).toBe('소스 코드');
+    expect(srcDir?.purpose).toBe('source code');
 
     const testsDir = map.directories.find(d => d.path === 'tests');
-    expect(testsDir?.purpose).toBe('테스트');
+    expect(testsDir?.purpose).toBe('tests');
   });
 
   it('package.json 기반 프로젝트명 + 의존성', () => {
@@ -129,9 +129,9 @@ describe('formatMapAsMarkdown', () => {
       const md = formatMapAsMarkdown(map);
 
       expect(md).toContain('md-test');
-      expect(md).toContain('프로젝트 요약');
-      expect(md).toContain('언어 분포');
-      expect(md).toContain('주요 의존성');
+      expect(md).toContain('Project Summary');
+      expect(md).toContain('Language Distribution');
+      expect(md).toContain('Key Dependencies');
       expect(md).toContain('express');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });

@@ -203,7 +203,7 @@ describe('createWorktree', () => {
   it('branch도 issueNumber도 없으면 실패를 반환한다', () => {
     const result = createWorktree(repoDir, {});
     expect(result.success).toBe(false);
-    expect(result.message).toContain('branch 또는 issueNumber');
+    expect(result.message).toContain('Either branch or issueNumber');
   });
 
   it('이미 존재하는 경로에 생성하면 실패를 반환한다', () => {
@@ -240,7 +240,7 @@ describe('removeWorktree', () => {
 
       const removed = removeWorktree(repoDir, created.path!);
       expect(removed.success).toBe(true);
-      expect(removed.message).toContain('완료');
+      expect(removed.message).toContain('Worktree removed');
     } finally {
       removeTempDir(repoDir);
     }

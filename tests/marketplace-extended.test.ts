@@ -163,7 +163,7 @@ describe('marketplace - extended', () => {
     it('설치되지 않은 플러그인 제거 시 실패', () => {
       const result = removePlugin('nonexistent');
       expect(result.success).toBe(false);
-      expect(result.message).toContain('설치되어 있지 않습니다');
+      expect(result.message).toContain('is not installed');
     });
 
     it('설치된 플러그인을 제거한다', () => {
@@ -236,7 +236,7 @@ describe('marketplace - extended', () => {
       ]));
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleMarketplace(['remove', 'removable']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('제거 완료'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('removed'));
       logSpy.mockRestore();
     });
 

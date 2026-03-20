@@ -55,17 +55,17 @@ describe('verify-loop', () => {
       loopName: 'verify',
       status: 'partial' as const,
       steps: [
-        { name: 'build', status: 'passed' as const, message: '빌드 성공' },
-        { name: 'test', status: 'failed' as const, message: '테스트 실패' },
+        { name: 'build', status: 'passed' as const, message: 'Build succeeded' },
+        { name: 'test', status: 'failed' as const, message: 'Tests failed' },
       ],
-      summary: '1/2 단계 통과',
-      suggestions: ['실패한 테스트를 수정하세요.'],
+      summary: '1/2 steps passed',
+      suggestions: ['Fix failing tests.'],
     };
     const formatted = formatVerifyResult(result);
     expect(formatted).toContain('Verify Loop');
-    expect(formatted).toContain('빌드 성공');
-    expect(formatted).toContain('테스트 실패');
-    expect(formatted).toContain('권장 조치');
+    expect(formatted).toContain('Build succeeded');
+    expect(formatted).toContain('Tests failed');
+    expect(formatted).toContain('Recommended actions');
   });
 
   // ── violations 파싱 테스트 ──
@@ -78,14 +78,14 @@ describe('verify-loop', () => {
       loopName: 'verify',
       status: 'failed' as const,
       steps: [
-        { name: 'constraints', status: 'failed' as const, message: '3건의 제약 위반을 수정하세요.' },
+        { name: 'constraints', status: 'failed' as const, message: 'Fix 3 constraint violations.' },
       ],
-      summary: '0/1 단계 통과',
+      summary: '0/1 steps passed',
     };
-    // violations 파싱은 verify-loop.ts 내부에서 수행되므로,
-    // constraints step의 message 패턴을 직접 검증
+    // violations parsing is done inside verify-loop.ts,
+    // so we directly verify the constraints step message pattern
     const msg = loopResult.steps[0].message ?? '';
-    const match = msg.match(/^(\d+)건의 제약 위반/);
+    const match = msg.match(/(\d+)\s+constraint violations/);
     expect(match).not.toBeNull();
     expect(parseInt(match![1], 10)).toBe(3);
     fs.rmSync(result.steps.length === 0 ? '' : '', { recursive: true, force: true }); // cleanup handled by test
@@ -93,11 +93,11 @@ describe('verify-loop', () => {
 
   it('constraints 스텝이 "모두 통과" → violations = 0', () => {
     // 제약 위반 없이 통과한 경우의 메시지 패턴
-    const msg = '5개 파일 제약 통과';
-    const match = msg.match(/^(\d+)건의 제약 위반/);
-    expect(match).toBeNull(); // 위반 패턴이 없으므로 null
-    const warnMatch = msg.match(/경고\s+(\d+)건/);
-    expect(warnMatch).toBeNull(); // 경고도 없음
+    const msg = '5 files passed constraints';
+    const match = msg.match(/(\d+)\s+constraint violations/);
+    expect(match).toBeNull(); // no violation pattern → null
+    const warnMatch = msg.match(/^(\d+)\s+warnings/);
+    expect(warnMatch).toBeNull(); // no warnings either
     // verify-loop.ts에서 이 경우 violations = 0
   });
 
@@ -113,10 +113,10 @@ describe('verify-loop', () => {
   });
 
   it('경고만 있는 constraints 스텝 → violations = 경고 수', () => {
-    const msg = '경고 2건 (error 없음)';
-    const match = msg.match(/^(\d+)건의 제약 위반/);
+    const msg = '2 warnings (no errors)';
+    const match = msg.match(/(\d+)\s+constraint violations/);
     expect(match).toBeNull();
-    const warnMatch = msg.match(/경고\s+(\d+)건/);
+    const warnMatch = msg.match(/^(\d+)\s+warnings/);
     expect(warnMatch).not.toBeNull();
     expect(parseInt(warnMatch![1], 10)).toBe(2);
   });
@@ -145,7 +145,7 @@ describe('review-loop', () => {
       { path: 'feature.ts', status: 'added', additions: 50, deletions: 0 },
     ];
     const checklist = generateReviewChecklist(files);
-    expect(checklist.some(c => c.includes('테스트가 추가'))).toBe(true);
+    expect(checklist.some(c => c.includes('tests added'))).toBe(true);
   });
 
   it('generateReviewChecklist — 의존성 변경', () => {
@@ -153,7 +153,7 @@ describe('review-loop', () => {
       { path: 'package.json', status: 'modified', additions: 2, deletions: 1 },
     ];
     const checklist = generateReviewChecklist(files);
-    expect(checklist.some(c => c.includes('라이선스'))).toBe(true);
+    expect(checklist.some(c => c.includes('license'))).toBe(true);
   });
 
   it('generateReviewChecklist — 보안 파일', () => {
@@ -161,7 +161,7 @@ describe('review-loop', () => {
       { path: 'src/auth/handler.ts', status: 'modified', additions: 20, deletions: 5 },
     ];
     const checklist = generateReviewChecklist(files);
-    expect(checklist.some(c => c.includes('보안'))).toBe(true);
+    expect(checklist.some(c => c.includes('ecurity'))).toBe(true);
   });
 
   it('runReviewLoop — 변경 없음', () => {
@@ -169,7 +169,7 @@ describe('review-loop', () => {
     try {
       const result = runReviewLoop({ cwd: tmpDir, changedFiles: [] });
       expect(result.status).toBe('passed');
-      expect(result.summary).toContain('변경 없음');
+      expect(result.summary).toContain('No changes');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -181,7 +181,7 @@ describe('review-loop', () => {
       fs.writeFileSync(path.join(tmpDir, 'app.ts'), 'const x = 1;');
       const result = runReviewLoop({ cwd: tmpDir, changedFiles: ['app.ts'] });
       expect(result.steps.length).toBeGreaterThan(0);
-      expect(result.summary).toContain('1파일');
+      expect(result.summary).toContain('1 files reviewed');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -191,13 +191,13 @@ describe('review-loop', () => {
     const result = {
       loopName: 'review',
       status: 'passed' as const,
-      steps: [{ name: 'collect', status: 'passed' as const, message: '3파일' }],
-      summary: '3파일 리뷰, 0건 지적',
-      suggestions: ['☐ 의도가 명확한가?'],
+      steps: [{ name: 'collect', status: 'passed' as const, message: '3 files' }],
+      summary: '3 files reviewed, 0 issues found',
+      suggestions: ['☐ Is the intent clear?'],
     };
     const formatted = formatReviewResult(result);
     expect(formatted).toContain('Review Loop');
-    expect(formatted).toContain('리뷰 체크리스트');
+    expect(formatted).toContain('Review Checklist');
   });
 });
 

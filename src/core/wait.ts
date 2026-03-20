@@ -54,7 +54,7 @@ export async function handleWait(args: string[]): Promise<void> {
   if (!noNotify) {
     await notify({
       title: 'Tenetx',
-      message: `${minutes}분 대기 완료. Rate limit이 해제되었을 수 있습니다.`,
+      message: `${minutes}m wait complete. Rate limit may have been lifted.`,
       sound: true,
     });
   }

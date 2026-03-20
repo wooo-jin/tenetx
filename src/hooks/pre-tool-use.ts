@@ -141,7 +141,7 @@ function getActiveReminders(): string[] {
         const data = JSON.parse(fs.readFileSync(path.join(STATE_DIR, f), 'utf-8'));
         if (data.active) {
           const mode = f.replace('-state.json', '');
-          reminders.push(`[${mode}] 모드 활성 중`);
+          reminders.push(`[${mode}] mode active`);
         }
       } catch { /* skip corrupt files */ }
     }

@@ -10,7 +10,7 @@ import type { McpServerDefinition, DependencyReport } from './types.js';
 
 export const DEPENDENCY_ANALYZER_DEFINITION: McpServerDefinition = {
   name: 'dependency-analyzer',
-  description: '프로젝트 의존성 분석 및 패키지 매니저 감지',
+  description: 'Analyze project dependencies and detect package manager',
   command: 'node',
   args: ['dependency-analyzer-server.js'],
   builtin: true,

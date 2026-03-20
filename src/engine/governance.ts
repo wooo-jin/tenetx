@@ -260,12 +260,12 @@ export function formatGovernanceReport(report: GovernanceReport): string {
 
   lines.push(`# Governance Report — ${report.philosophy}`);
   lines.push('');
-  lines.push(`> 생성: ${report.generatedAt.split('T')[0]}`);
-  lines.push(`> 전체 준수율: ${report.overallCompliance}%`);
+  lines.push(`> Generated: ${report.generatedAt.split('T')[0]}`);
+  lines.push(`> Overall compliance: ${report.overallCompliance}%`);
   lines.push('');
 
   // 원칙별
-  lines.push('## 원칙별 준수율');
+  lines.push('## Compliance by Principle');
   lines.push('');
 
   for (const p of report.principles) {
@@ -275,7 +275,7 @@ export function formatGovernanceReport(report: GovernanceReport): string {
     lines.push('');
 
     if (p.generatedRules.length > 0) {
-      lines.push('규칙:');
+      lines.push('Rules:');
       for (const r of p.generatedRules) {
         lines.push(`  - ${r}`);
       }
@@ -283,7 +283,7 @@ export function formatGovernanceReport(report: GovernanceReport): string {
     }
 
     if (p.violations.length > 0) {
-      lines.push(`위반 (${p.violations.length}건):`);
+      lines.push(`Violations (${p.violations.length}):`);
       for (const v of p.violations) {
         const icon = v.severity === 'critical' ? '🚫' : v.severity === 'warning' ? '⚠' : 'ℹ';
         lines.push(`  ${icon} [${v.type}] ${v.description}`);
@@ -294,9 +294,9 @@ export function formatGovernanceReport(report: GovernanceReport): string {
 
   // 트렌드
   if (report.trends.length > 0) {
-    lines.push('## 트렌드');
+    lines.push('## Trends');
     lines.push('');
-    lines.push('| 날짜 | 준수율 | 위반 |');
+    lines.push('| Date | Compliance | Violations |');
     lines.push('|------|--------|------|');
     for (const t of report.trends.slice(-10)) {
       lines.push(`| ${t.date} | ${t.compliance}% | ${t.violations} |`);

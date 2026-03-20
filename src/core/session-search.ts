@@ -100,9 +100,9 @@ export function searchSessions(query: string, options?: {
 /** duration을 사람이 읽을 수 있는 문자열로 */
 function formatDuration(ms?: number): string {
   if (!ms) return '-';
-  if (ms < 60_000) return `${Math.round(ms / 1000)}초`;
-  if (ms < 3600_000) return `${Math.round(ms / 60_000)}분`;
-  return `${(ms / 3600_000).toFixed(1)}시간`;
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 3600_000) return `${Math.round(ms / 60_000)}m`;
+  return `${(ms / 3600_000).toFixed(1)}h`;
 }
 
 export async function handleSession(args: string[]): Promise<void> {

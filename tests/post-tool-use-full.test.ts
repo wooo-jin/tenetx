@@ -45,25 +45,25 @@ describe('post-tool-use - extended', () => {
     it('ENOENT를 감지한다', () => {
       const result = detectErrorPattern('Error: ENOENT: no such file or directory');
       expect(result).not.toBeNull();
-      expect(result!.description).toContain('파일 없음');
+      expect(result!.description).toContain('file not found');
     });
 
     it('permission denied를 감지한다', () => {
       const result = detectErrorPattern('EACCES: permission denied');
       expect(result).not.toBeNull();
-      expect(result!.description).toContain('권한');
+      expect(result!.description).toContain('permission');
     });
 
     it('SyntaxError를 감지한다', () => {
       const result = detectErrorPattern('SyntaxError: Unexpected token');
       expect(result).not.toBeNull();
-      expect(result!.description).toContain('구문');
+      expect(result!.description).toContain('syntax');
     });
 
     it('out of memory를 감지한다', () => {
       const result = detectErrorPattern('FATAL ERROR: out of memory');
       expect(result).not.toBeNull();
-      expect(result!.description).toContain('메모리');
+      expect(result!.description).toContain('memory');
     });
 
     it('정상 출력에서는 null 반환', () => {

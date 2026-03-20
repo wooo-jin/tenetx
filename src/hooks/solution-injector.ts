@@ -104,11 +104,11 @@ async function main(): Promise<void> {
   // 솔루션 내용을 Claude 컨텍스트에 주입
   const injections = toInject.map(sol => {
     const content = readSolutionContent(sol.path);
-    const scopeLabel = sol.scope === 'me' ? '개인' : sol.scope === 'team' ? '팀' : '프로젝트';
+    const scopeLabel = sol.scope === 'me' ? 'personal' : sol.scope === 'team' ? 'team' : 'project';
     return `<compound-solution name="${sol.name}" scope="${scopeLabel}" relevance="${sol.relevance.toFixed(2)}">\n${content}\n</compound-solution>`;
   }).join('\n\n');
 
-  const header = `아래는 이전 작업에서 축적된 관련 솔루션입니다. 현재 작업에 참고하세요:\n\n`;
+  const header = `Below are relevant solutions accumulated from previous work. Refer to these for the current task:\n\n`;
 
   console.log(JSON.stringify({
     result: 'approve',

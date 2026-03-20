@@ -11,7 +11,7 @@ import type { McpServerDefinition } from './types.js';
 
 export const LSP_BRIDGE_DEFINITION: McpServerDefinition = {
   name: 'lsp-bridge',
-  description: 'Language Server Protocol 래핑 — hover/definition/references 제공',
+  description: 'Language Server Protocol wrapper — provides hover/definition/references',
   command: 'node',
   args: ['lsp-bridge-server.js'],
   builtin: true,

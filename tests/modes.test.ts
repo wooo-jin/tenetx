@@ -124,7 +124,7 @@ describe('modes', () => {
       expect(effective.name).toBe('autopilot');
       expect(effective.composedOf).toEqual(['ralph', 'ultrawork']);
       // description에 합성 표시
-      expect(effective.description).toContain('합성');
+      expect(effective.description).toContain('composed');
       expect(effective.description).toContain('ralph');
       expect(effective.description).toContain('ultrawork');
       // envOverrides에 autopilot 자체 값이 최우선 (상위 모드가 하위를 오버라이드)
@@ -141,13 +141,13 @@ describe('modes', () => {
       expect(effective.claudeArgs).toEqual(original.claudeArgs);
       expect(effective.envOverrides).toEqual(original.envOverrides);
       // composedOf가 없으므로 합성 표시가 없어야 함
-      expect(effective.description).not.toContain('합성');
+      expect(effective.description).not.toContain('composed');
     });
 
     it('ralph → ultrawork 설정이 병합된다 (ralph.composedOf = ["ultrawork"])', () => {
       const effective = getEffectiveModeConfig('ralph');
       expect(effective.composedOf).toEqual(['ultrawork']);
-      expect(effective.description).toContain('합성');
+      expect(effective.description).toContain('composed');
       expect(effective.description).toContain('ultrawork');
       // ralph의 envOverrides가 ultrawork를 오버라이드
       expect(effective.envOverrides.COMPOUND_MODE).toBe('ralph');

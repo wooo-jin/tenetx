@@ -162,7 +162,7 @@ describe('formatGovernanceReport()', () => {
 
   it('트렌드 테이블이 포함된다', () => {
     const md = formatGovernanceReport(mockReport);
-    expect(md).toContain('트렌드');
+    expect(md).toContain('Trends');
     expect(md).toContain('2026-03-15');
     expect(md).toContain('2026-03-16');
   });
@@ -171,7 +171,7 @@ describe('formatGovernanceReport()', () => {
     const md = formatGovernanceReport(mockReport);
     // quality 섹션에는 위반이 없어야 함
     const qualitySection = md.split('### quality')[1]?.split('### security')[0] ?? '';
-    expect(qualitySection).not.toContain('위반');
+    expect(qualitySection).not.toContain('Violations');
   });
 });
 

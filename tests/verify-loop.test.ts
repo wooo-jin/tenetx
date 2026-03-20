@@ -85,14 +85,14 @@ describe('verify-loop', () => {
         loopName: 'verify',
         status: 'passed',
         steps: [
-          { name: 'type-check', status: 'passed', message: '타입 체크 통과', startedAt: '' },
-          { name: 'build', status: 'passed', message: '빌드 성공', startedAt: '' },
+          { name: 'type-check', status: 'passed', message: 'Type check passed', startedAt: '' },
+          { name: 'build', status: 'passed', message: 'Build succeeded', startedAt: '' },
         ],
-        summary: '2/2 단계 통과',
+        summary: '2/2 steps passed',
       };
       const formatted = formatVerifyResult(result);
       expect(formatted).toContain('✅');
-      expect(formatted).toContain('2/2 단계 통과');
+      expect(formatted).toContain('2/2 steps passed');
       expect(formatted).toContain('✓ type-check');
     });
 
@@ -101,15 +101,15 @@ describe('verify-loop', () => {
         loopName: 'verify',
         status: 'failed',
         steps: [
-          { name: 'build', status: 'failed', message: '빌드 실패: Error', startedAt: '' },
+          { name: 'build', status: 'failed', message: 'Build failed: Error', startedAt: '' },
         ],
-        summary: '0/1 단계 통과, 1 실패',
-        suggestions: ['빌드 오류를 수정하세요.'],
+        summary: '0/1 steps passed, 1 failed',
+        suggestions: ['Fix build errors.'],
       };
       const formatted = formatVerifyResult(result);
       expect(formatted).toContain('❌');
       expect(formatted).toContain('✗ build');
-      expect(formatted).toContain('빌드 오류를 수정하세요.');
+      expect(formatted).toContain('Fix build errors.');
     });
 
     it('partial 결과를 포맷한다', () => {
@@ -117,10 +117,10 @@ describe('verify-loop', () => {
         loopName: 'verify',
         status: 'partial',
         steps: [
-          { name: 'type-check', status: 'passed', message: '통과', startedAt: '' },
-          { name: 'test', status: 'failed', message: '실패', startedAt: '' },
+          { name: 'type-check', status: 'passed', message: 'passed', startedAt: '' },
+          { name: 'test', status: 'failed', message: 'failed', startedAt: '' },
         ],
-        summary: '1/2 단계 통과, 1 실패',
+        summary: '1/2 steps passed, 1 failed',
       };
       const formatted = formatVerifyResult(result);
       expect(formatted).toContain('⚠️');
@@ -134,7 +134,7 @@ describe('verify-loop', () => {
         summary: '0/0',
       };
       const formatted = formatVerifyResult(result);
-      expect(formatted).not.toContain('권장 조치');
+      expect(formatted).not.toContain('Recommended actions');
     });
   });
 
@@ -212,7 +212,7 @@ describe('verify-loop', () => {
         checkTypes: false,
         checkConstraints: false,
       });
-      expect(result.summary).toContain('2/2 단계 통과');
+      expect(result.summary).toContain('2/2 steps passed');
     });
   });
 });

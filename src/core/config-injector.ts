@@ -35,9 +35,9 @@ function loadProjectMapSummary(cwd: string): string | null {
     const { summary } = map;
     const lines: string[] = [];
 
-    lines.push(`- 프로젝트: ${summary.name} (${summary.totalFiles}파일, ${summary.totalLines.toLocaleString()}줄)`);
-    if (summary.framework) lines.push(`- 프레임워크: ${summary.framework}`);
-    if (summary.packageManager) lines.push(`- 패키지 매니저: ${summary.packageManager}`);
+    lines.push(`- Project: ${summary.name} (${summary.totalFiles} files, ${summary.totalLines.toLocaleString()} lines)`);
+    if (summary.framework) lines.push(`- Framework: ${summary.framework}`);
+    if (summary.packageManager) lines.push(`- Package manager: ${summary.packageManager}`);
 
     // 언어 분포 상위 3개
     const topLangs = Object.entries(summary.languages)
@@ -45,12 +45,12 @@ function loadProjectMapSummary(cwd: string): string | null {
       .filter(([l]) => l !== 'other')
       .slice(0, 3);
     if (topLangs.length > 0) {
-      lines.push(`- 언어: ${topLangs.map(([l, n]) => `${l}(${n}줄)`).join(', ')}`);
+      lines.push(`- Languages: ${topLangs.map(([l, n]) => `${l}(${n} lines)`).join(', ')}`);
     }
 
     // 진입점
     if (map.entryPoints.length > 0) {
-      lines.push(`- 진입점: ${map.entryPoints.slice(0, 5).join(', ')}`);
+      lines.push(`- Entry points: ${map.entryPoints.slice(0, 5).join(', ')}`);
     }
 
     // 주요 디렉토리
@@ -58,7 +58,7 @@ function loadProjectMapSummary(cwd: string): string | null {
       .filter(d => d.purpose && !d.path.includes('/'))
       .slice(0, 8);
     if (topDirs.length > 0) {
-      lines.push('- 디렉토리:');
+      lines.push('- Directories:');
       for (const dir of topDirs) {
         lines.push(`  - \`${dir.path}/\` — ${dir.purpose}`);
       }
@@ -73,17 +73,17 @@ function loadProjectMapSummary(cwd: string): string | null {
 /** 보안 관련 규칙 생성 */
 export function generateSecurityRules(context: HarnessContext): string {
   const lines: string[] = [
-    '# Tenetx — 보안 규칙',
+    '# Tenetx — Security Rules',
     `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
     '',
-    '## 위험 명령어 경고',
-    '- `rm -rf`, `git push --force`, `DROP TABLE` 등 파괴적 명령어 실행 전 반드시 확인',
-    '- 프로덕션 환경 접근 시 이중 확인 필수',
+    '## Dangerous Command Warning',
+    '- Always confirm before executing destructive commands like `rm -rf`, `git push --force`, `DROP TABLE`',
+    '- Double confirmation required for production environment access',
     '',
-    '## 비밀키 보호',
-    '- `.env`, `credentials.json`, API 키 등 민감 정보를 커밋하지 않음',
-    '- 환경변수 또는 시크릿 매니저를 통해 관리',
-    '- 코드 리뷰 시 하드코딩된 시크릿 탐지',
+    '## Secret Key Protection',
+    '- Do not commit sensitive information such as `.env`, `credentials.json`, API keys',
+    '- Manage through environment variables or a secrets manager',
+    '- Detect hardcoded secrets during code review',
     '',
   ];
 
@@ -93,7 +93,7 @@ export function generateSecurityRules(context: HarnessContext): string {
       g => typeof g !== 'string' && g.alert
     );
     if (alerts.length > 0) {
-      lines.push(`## ${name} — 보안 알림`);
+      lines.push(`## ${name} — Security Alert`);
       for (const gen of alerts) {
         if (typeof gen !== 'string' && gen.alert) {
           lines.push(`- ⚠ ${gen.alert}`);
@@ -109,7 +109,7 @@ export function generateSecurityRules(context: HarnessContext): string {
 /** 핵심 원칙 규칙 생성 (philosophy.generates에서 추출) */
 export function generateGoldenPrinciples(context: HarnessContext): string {
   const lines: string[] = [
-    '# Tenetx — 핵심 원칙',
+    '# Tenetx — Core Principles',
     `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
     `# Scope: ${context.scope.summary}`,
     '',
@@ -136,20 +136,20 @@ export function generateGoldenPrinciples(context: HarnessContext): string {
 /** 안티패턴 감지 규칙 생성 */
 export function generateAntiPatternRules(): string {
   const lines: string[] = [
-    '# Tenetx — 안티패턴 감지',
+    '# Tenetx — Anti-Pattern Detection',
     '',
-    '## 반복 수정 경고',
-    '- 동일 파일을 3회 이상 수정 시 즉시 중단 → 전체 구조 재설계 필요',
-    '- 5회 이상 수정 시 반드시 Read로 현재 상태 확인 후 단일 Write로 교체',
+    '## Repeated Edit Warning',
+    '- Stop immediately when editing the same file 3+ times → full structure redesign required',
+    '- For 5+ edits, always check current state with Read before replacing with a single Write',
     '',
-    '## 에러 무시 경고',
-    '- 빈 catch 블록 금지 — 최소한 로깅 또는 재throw 필수',
-    '- eslint-disable, @ts-ignore 등 억제 주석 최소화',
+    '## Error Suppression Warning',
+    '- No empty catch blocks — at minimum log or re-throw',
+    '- Minimize suppression comments like eslint-disable, @ts-ignore',
     '',
-    '## 과도한 복잡성 경고',
-    '- 단일 함수 50줄 초과 시 분리 검토',
-    '- 중첩 깊이 4단계 초과 시 early return 패턴 적용',
-    '- 불필요한 추상화 금지 — 현재 필요한 만큼만 구현',
+    '## Excessive Complexity Warning',
+    '- Consider splitting single functions exceeding 50 lines',
+    '- Apply early return pattern when nesting depth exceeds 4',
+    '- No unnecessary abstraction — implement only what is currently needed',
     '',
   ];
 
@@ -159,13 +159,13 @@ export function generateAntiPatternRules(): string {
 /** 모델 라우팅 테이블 규칙 생성 */
 export function generateRoutingRules(context: HarnessContext): string {
   const lines: string[] = [
-    '# Tenetx — 모델 라우팅',
+    '# Tenetx — Model Routing',
     '',
   ];
 
   if (context.modelRouting) {
-    lines.push('## 에이전트 모델 라우팅');
-    lines.push('작업 유형별 권장 모델 (focus-resources-on-judgment 원칙):');
+    lines.push('## Agent Model Routing');
+    lines.push('Recommended model by task type (focus-resources-on-judgment principle):');
     for (const [model, tasks] of Object.entries(context.modelRouting)) {
       if ((tasks as string[]).length > 0) {
         lines.push(`- **${model}**: ${(tasks as string[]).join(', ')}`);
@@ -174,16 +174,16 @@ export function generateRoutingRules(context: HarnessContext): string {
     lines.push('');
 
     if (context.signalRoutingEnabled) {
-      lines.push('### 동적 모델 에스컬레이션');
-      lines.push('위 테이블은 기본 라우팅이며, 프롬프트 복잡도에 따라 자동 에스컬레이션됩니다:');
-      lines.push('- 아키텍처/보안/교차파일 키워드 → Opus로 에스컬레이션');
-      lines.push('- 이전 실패 반복 시 → 더 높은 티어로 에스컬레이션');
-      lines.push('- 단순 질문/탐색 → Haiku로 디에스컬레이션');
-      lines.push('에이전트(Agent 도구) 호출 시 `model` 파라미터를 이 라우팅에 맞춰 지정하세요.');
+      lines.push('### Dynamic Model Escalation');
+      lines.push('The above table is the default routing and escalates automatically based on prompt complexity:');
+      lines.push('- Architecture/security/cross-file keywords → escalate to Opus');
+      lines.push('- Repeated previous failures → escalate to a higher tier');
+      lines.push('- Simple questions/exploration → de-escalate to Haiku');
+      lines.push('When calling agents (Agent tool), specify the `model` parameter according to this routing.');
       lines.push('');
     }
   } else {
-    lines.push('모델 라우팅 미설정. 기본 라우팅을 사용합니다.');
+    lines.push('Model routing not configured. Using default routing.');
     lines.push('');
   }
 
@@ -201,7 +201,7 @@ export function generateCompoundRules(context: HarnessContext): string {
   // 프로젝트 맵 요약 주입
   const mapSummary = loadProjectMapSummary(context.cwd);
   if (mapSummary) {
-    lines.push('## 프로젝트 구조 (자동 생성)');
+    lines.push('## Project Structure (auto-generated)');
     lines.push(mapSummary);
     lines.push('');
   }
@@ -209,7 +209,7 @@ export function generateCompoundRules(context: HarnessContext): string {
   // 개인 규칙 로드
   const meRules = loadRulesFromDir(ME_RULES);
   if (meRules.length > 0) {
-    lines.push('## 개인 규칙 (Me)');
+    lines.push('## Personal Rules (Me)');
     for (const rule of meRules) {
       lines.push(`- ${rule}`);
     }
@@ -232,7 +232,7 @@ export function generateCompoundRules(context: HarnessContext): string {
           lines.push(`- ${rule}`);
         }
       } else {
-        lines.push('- (규칙 없음)');
+        lines.push('- (no rules)');
       }
       lines.push('');
     }

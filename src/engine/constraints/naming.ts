@@ -18,8 +18,8 @@ export function checkNaming(
         constraintId: rule.id,
         severity: rule.severity,
         filePath: relativePath,
-        message: `파일명 "${fileName}"이 네이밍 규칙에 맞지 않습니다 (패턴: ${rule.pattern})`,
-        suggestion: `파일명을 규칙에 맞게 변경하세요.`,
+        message: `Filename "${fileName}" does not match naming convention (pattern: ${rule.pattern})`,
+        suggestion: `Rename the file to match the convention.`,
       }];
     }
   } catch {

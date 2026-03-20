@@ -135,17 +135,17 @@ export function runGardeningLoop(options: GardeningLoopOptions): LoopResult {
     };
 
     if (!freshness.exists) {
-      step.message = '프로젝트 맵이 없습니다. `tenetx scan`을 실행하세요.';
-      suggestions.push('`tenetx scan`으로 프로젝트 맵을 생성하세요.');
+      step.message = 'Project map not found. Run `tenetx scan`.';
+      suggestions.push('Generate the project map with `tenetx scan`.');
       hasIssues = true;
     } else if (freshness.stale) {
       const hours = Math.round(freshness.ageHours);
-      step.message = `맵이 오래되었습니다 (${hours}시간 경과, ${freshness.changedFilesSince}파일 변경)`;
-      suggestions.push('`tenetx scan`으로 프로젝트 맵을 갱신하세요.');
+      step.message = `Map is stale (${hours}h elapsed, ${freshness.changedFilesSince} files changed)`;
+      suggestions.push('Refresh the project map with `tenetx scan`.');
       hasIssues = true;
     } else {
       const hours = Math.round(freshness.ageHours);
-      step.message = `맵 최신 (${hours}시간 전 생성)`;
+      step.message = `Map is up to date (generated ${hours}h ago)`;
     }
 
     steps.push(step);
@@ -162,11 +162,11 @@ export function runGardeningLoop(options: GardeningLoopOptions): LoopResult {
     };
 
     if (orphans.length > 0) {
-      step.message = `${orphans.length}개 고아 파일 발견: ${orphans.slice(0, 5).join(', ')}`;
-      suggestions.push(`고아 파일 검토: ${orphans.slice(0, 3).join(', ')}${orphans.length > 3 ? ` 외 ${orphans.length - 3}개` : ''}`);
+      step.message = `${orphans.length} orphan files found: ${orphans.slice(0, 5).join(', ')}`;
+      suggestions.push(`Review orphan files: ${orphans.slice(0, 3).join(', ')}${orphans.length > 3 ? ` and ${orphans.length - 3} more` : ''}`);
       hasIssues = true;
     } else {
-      step.message = '고아 파일 없음';
+      step.message = 'No orphan files';
     }
 
     steps.push(step);
@@ -178,12 +178,12 @@ export function runGardeningLoop(options: GardeningLoopOptions): LoopResult {
     const step: LoopStep = {
       name: 'constraints-config',
       status: 'skipped',
-      message: '제약 설정 없음 — `tenetx scan --init-constraints`로 생성 가능',
+      message: 'No constraint config — create with `tenetx scan --init-constraints`',
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     };
     steps.push(step);
-    suggestions.push('`tenetx scan --init-constraints`로 제약 규칙을 설정하세요.');
+    suggestions.push('Set up constraint rules with `tenetx scan --init-constraints`.');
   }
 
   const passedSteps = steps.filter(s => s.status === 'passed').length;
@@ -193,7 +193,7 @@ export function runGardeningLoop(options: GardeningLoopOptions): LoopResult {
     loopName: 'gardening',
     status,
     steps,
-    summary: `${passedSteps}/${steps.length} 항목 양호`,
+    summary: `${passedSteps}/${steps.length} items healthy`,
     suggestions: suggestions.length > 0 ? suggestions : undefined,
   };
 }
@@ -214,7 +214,7 @@ export function formatGardeningResult(result: LoopResult): string {
 
   if (result.suggestions && result.suggestions.length > 0) {
     lines.push('');
-    lines.push('유지보수 제안:');
+    lines.push('Maintenance suggestions:');
     for (const s of result.suggestions) {
       lines.push(`  → ${s}`);
     }

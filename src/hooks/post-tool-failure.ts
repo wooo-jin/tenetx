@@ -72,25 +72,25 @@ function getRecoverySuggestion(error: string, toolName: string): string {
   const lower = error.toLowerCase();
 
   if (/timeout|timed out/.test(lower)) {
-    return '타임아웃 발생. 더 작은 단위로 나누어 실행하세요.';
+    return 'Timeout occurred. Split into smaller units and retry.';
   }
   if (/enoent|no such file|not found/.test(lower)) {
-    return '파일/경로가 존재하지 않습니다. 경로를 확인하세요.';
+    return 'File/path does not exist. Check the path.';
   }
   if (/eacces|permission denied/.test(lower)) {
-    return '권한이 없습니다. 파일 권한을 확인하세요.';
+    return 'Permission denied. Check file permissions.';
   }
   if (/syntax error|syntaxerror/.test(lower)) {
-    return '구문 오류입니다. 코드를 다시 확인하세요.';
+    return 'Syntax error. Review the code again.';
   }
   if (/enospc|no space/.test(lower)) {
-    return '디스크 공간이 부족합니다.';
+    return 'Disk space is insufficient.';
   }
   if (/old_string.*not found|not unique/i.test(lower)) {
-    return 'Edit 도구의 old_string이 파일에서 찾을 수 없습니다. Read로 현재 파일 내용을 확인한 후 다시 시도하세요.';
+    return 'Edit tool old_string not found in file. Use Read to check the current file content and retry.';
   }
 
-  return `${toolName} 도구 실패. 다른 접근 방식을 시도하세요.`;
+  return `${toolName} tool failed. Try a different approach.`;
 }
 
 async function main(): Promise<void> {
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
   if (failCount >= 3) {
     console.log(JSON.stringify({
       result: 'approve',
-      message: `<compound-failure-warning>\n[Tenetx] ⚠ ${toolName} 도구가 세션 내 ${failCount}회 실패했습니다.\n복구 제안: ${suggestion}\n다른 접근 방식을 시도하거나, 문제를 분석한 후 재시도하세요.\n</compound-failure-warning>`,
+      message: `<compound-failure-warning>\n[Tenetx] ⚠ ${toolName} tool has failed ${failCount} times in this session.\nRecovery suggestion: ${suggestion}\nTry a different approach or analyze the issue before retrying.\n</compound-failure-warning>`,
     }));
     return;
   }
@@ -132,7 +132,7 @@ async function main(): Promise<void> {
   // 일반 실패 안내
   console.log(JSON.stringify({
     result: 'approve',
-    message: `<compound-failure-info>\n[Tenetx] ${toolName} 실패 (${failCount}회). ${suggestion}\n</compound-failure-info>`,
+    message: `<compound-failure-info>\n[Tenetx] ${toolName} failed (${failCount} time(s)). ${suggestion}\n</compound-failure-info>`,
   }));
 }
 

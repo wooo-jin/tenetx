@@ -86,7 +86,7 @@ export class SessionMonitor {
         const shortName = file.split('/').slice(-2).join('/');
         alerts.push({
           level: 'critical',
-          message: `🔴 ${shortName} ${count}회 편집 — 중단하고 구조를 재검토하세요`,
+          message: `🔴 ${shortName} ${count} edits — stop and review the structure`,
           principle: 'decompose-to-control',
         });
       }
@@ -96,7 +96,7 @@ export class SessionMonitor {
     if (this.metrics.estimatedCost >= this.thresholds.maxCost) {
       alerts.push({
         level: 'warning',
-        message: `⚠ 세션 비용 $${this.metrics.estimatedCost.toFixed(2)} — 범위 축소를 권고합니다`,
+        message: `⚠ Session cost $${this.metrics.estimatedCost.toFixed(2)} — scope reduction recommended`,
         principle: 'focus-resources-on-judgment',
       });
     }
@@ -106,7 +106,7 @@ export class SessionMonitor {
     if (elapsed >= this.thresholds.maxSessionMinutes) {
       alerts.push({
         level: 'warning',
-        message: `⚠ 세션 ${Math.round(elapsed)}분 경과 — compact 또는 새 세션을 권고합니다`,
+        message: `⚠ Session ${Math.round(elapsed)} min elapsed — compact or new session recommended`,
         principle: 'decompose-to-control',
       });
     }
@@ -115,7 +115,7 @@ export class SessionMonitor {
     if (this.metrics.contextPercent >= this.thresholds.contextWarning) {
       alerts.push({
         level: 'warning',
-        message: `⚠ 컨텍스트 ${this.metrics.contextPercent}% — 곧 compact 됩니다`,
+        message: `⚠ Context ${this.metrics.contextPercent}% — compact imminent`,
       });
     }
 

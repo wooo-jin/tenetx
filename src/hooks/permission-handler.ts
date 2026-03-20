@@ -108,8 +108,8 @@ async function main(): Promise<void> {
 
     // Bash는 pre-tool-use를 통과했더라도 경고 강도를 높임 (임의 셸 실행 위험)
     const warningLevel = toolName === 'Bash'
-      ? `[Tenetx] ⚠ Autopilot: Bash 도구 자동 승인 — pre-tool-use 검증 통과됨. 예상치 못한 명령에 주의하세요.`
-      : `[Tenetx] Autopilot: ${toolName} 도구 실행을 자동 승인합니다.`;
+      ? `[Tenetx] ⚠ Autopilot: Bash tool auto-approved — passed pre-tool-use validation. Beware of unexpected commands.`
+      : `[Tenetx] Autopilot: ${toolName} tool execution auto-approved.`;
 
     console.log(JSON.stringify({
       result: 'approve',

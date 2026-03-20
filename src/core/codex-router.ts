@@ -27,27 +27,27 @@ interface TaskProfile {
 
 /** Claude가 잘하는 패턴 */
 const CLAUDE_PATTERNS: Array<{ pattern: RegExp; reason: string; weight: number }> = [
-  { pattern: /아키텍처|설계|구조|architect|design/i, reason: '아키텍처 설계', weight: 0.9 },
-  { pattern: /리팩토링|refactor|재구조화|정리/i, reason: '리팩토링 (문맥 이해 필요)', weight: 0.8 },
-  { pattern: /보안|security|인증|auth|OWASP/i, reason: '보안 관련 (신중한 판단 필요)', weight: 0.85 },
-  { pattern: /마이그레이션|migration|호환성|breaking/i, reason: '마이그레이션 (영향 분석 필요)', weight: 0.8 },
-  { pattern: /복잡한|어려운|까다로운|complex|tricky/i, reason: '복잡한 추론', weight: 0.7 },
-  { pattern: /리뷰|review|검토|분석|analyze/i, reason: '코드 분석/리뷰', weight: 0.75 },
-  { pattern: /문서|docs|README|설명|주석/i, reason: '문서 작성 (한국어)', weight: 0.7 },
-  { pattern: /디버그|debug|왜.*안|에러.*원인/i, reason: '디버깅 (추론 필요)', weight: 0.75 },
-  { pattern: /API.*설계|인터페이스.*정의|타입.*설계/i, reason: 'API/인터페이스 설계', weight: 0.8 },
+  { pattern: /아키텍처|설계|구조|architect|design/i, reason: 'architecture design', weight: 0.9 },
+  { pattern: /리팩토링|refactor|재구조화|정리/i, reason: 'refactoring (context understanding needed)', weight: 0.8 },
+  { pattern: /보안|security|인증|auth|OWASP/i, reason: 'security (careful judgment needed)', weight: 0.85 },
+  { pattern: /마이그레이션|migration|호환성|breaking/i, reason: 'migration (impact analysis needed)', weight: 0.8 },
+  { pattern: /복잡한|어려운|까다로운|complex|tricky/i, reason: 'complex reasoning', weight: 0.7 },
+  { pattern: /리뷰|review|검토|분석|analyze/i, reason: 'code analysis/review', weight: 0.75 },
+  { pattern: /문서|docs|README|설명|주석/i, reason: 'documentation', weight: 0.7 },
+  { pattern: /디버그|debug|왜.*안|에러.*원인/i, reason: 'debugging (reasoning needed)', weight: 0.75 },
+  { pattern: /API.*설계|인터페이스.*정의|타입.*설계/i, reason: 'API/interface design', weight: 0.8 },
 ];
 
 /** Codex가 잘하는 패턴 */
 const CODEX_PATTERNS: Array<{ pattern: RegExp; reason: string; weight: number }> = [
-  { pattern: /테스트.*작성|test.*write|단위.*테스트|unit test/i, reason: '테스트 코드 작성', weight: 0.85 },
-  { pattern: /반복.*적용|모든.*파일|각각|전부|일괄/i, reason: '반복 패턴 적용', weight: 0.8 },
-  { pattern: /구현.*해줘|만들어|추가.*해줘|implement|create|add/i, reason: '단위 기능 구현', weight: 0.6 },
-  { pattern: /변환|convert|transform|포맷|format/i, reason: '코드 변환/포맷', weight: 0.75 },
-  { pattern: /타입.*추가|type.*annotation|JSDoc/i, reason: '타입 어노테이션 추가', weight: 0.7 },
-  { pattern: /에러.*핸들링.*추가|validation.*추가|검증.*추가/i, reason: '보일러플레이트 추가', weight: 0.7 },
-  { pattern: /린트|lint|prettier|formatting|스타일/i, reason: '코드 스타일 수정', weight: 0.65 },
-  { pattern: /CRUD|엔드포인트.*추가|라우트.*추가/i, reason: 'CRUD/라우트 구현', weight: 0.7 },
+  { pattern: /테스트.*작성|test.*write|단위.*테스트|unit test/i, reason: 'test code writing', weight: 0.85 },
+  { pattern: /반복.*적용|모든.*파일|각각|전부|일괄/i, reason: 'batch pattern application', weight: 0.8 },
+  { pattern: /구현.*해줘|만들어|추가.*해줘|implement|create|add/i, reason: 'unit feature implementation', weight: 0.6 },
+  { pattern: /변환|convert|transform|포맷|format/i, reason: 'code conversion/format', weight: 0.75 },
+  { pattern: /타입.*추가|type.*annotation|JSDoc/i, reason: 'type annotation addition', weight: 0.7 },
+  { pattern: /에러.*핸들링.*추가|validation.*추가|검증.*추가/i, reason: 'boilerplate addition', weight: 0.7 },
+  { pattern: /린트|lint|prettier|formatting|스타일/i, reason: 'code style fix', weight: 0.65 },
+  { pattern: /CRUD|엔드포인트.*추가|라우트.*추가/i, reason: 'CRUD/route implementation', weight: 0.7 },
 ];
 
 /**
@@ -91,7 +91,7 @@ export function profileTask(task: string): TaskProfile {
   return {
     task,
     agent: 'either',
-    reason: claudeScore > 0 ? claudeReason : codexReason || '범용 작업',
+    reason: claudeScore > 0 ? claudeReason : codexReason || 'general task',
     confidence: Math.max(claudeScore, codexScore, 0.5),
   };
 }
@@ -132,13 +132,13 @@ export function routeTasks(
   }
 
   const parts: string[] = [];
-  if (claude.length > 0) parts.push(`Claude ${claude.length}건`);
-  if (codex.length > 0) parts.push(`Codex ${codex.length}건`);
+  if (claude.length > 0) parts.push(`Claude ${claude.length} tasks`);
+  if (codex.length > 0) parts.push(`Codex ${codex.length} tasks`);
 
   return {
     claude,
     codex,
-    summary: parts.join(' + ') || '작업 없음',
+    summary: parts.join(' + ') || 'no tasks',
   };
 }
 

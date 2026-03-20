@@ -121,31 +121,31 @@ export function generateReviewChecklist(files: ChangedFile[]): string[] {
   const changeSize = classifyChangeSize(files);
 
   // 기본 체크리스트
-  checklist.push('변경된 코드의 의도가 명확한가?');
+  checklist.push('Is the intent of the changed code clear?');
 
   if (changeTypes.has('new-feature') || changeTypes.has('implementation')) {
-    checklist.push('새 기능에 대한 테스트가 추가되었는가?');
-    checklist.push('에러 처리가 적절한가?');
+    checklist.push('Are tests added for the new feature?');
+    checklist.push('Is error handling adequate?');
   }
 
   if (changeTypes.has('refactor')) {
-    checklist.push('리팩터링 전후 동작이 동일한가?');
-    checklist.push('기존 테스트가 여전히 통과하는가?');
+    checklist.push('Does behavior remain the same before and after refactoring?');
+    checklist.push('Do existing tests still pass?');
   }
 
   if (changeTypes.has('dependency')) {
-    checklist.push('새 의존성의 라이선스가 호환되는가?');
-    checklist.push('알려진 취약점이 없는가?');
+    checklist.push('Is the license of the new dependency compatible?');
+    checklist.push('Are there no known vulnerabilities?');
   }
 
   if (changeTypes.has('migration')) {
-    checklist.push('마이그레이션이 롤백 가능한가?');
-    checklist.push('기존 데이터와의 호환성 확인');
+    checklist.push('Is the migration rollback-safe?');
+    checklist.push('Verify compatibility with existing data');
   }
 
   if (changeSize === 'large') {
-    checklist.push('변경 범위가 너무 넓지 않은가? 분할 검토 필요');
-    checklist.push('영향 범위 분석이 완료되었는가?');
+    checklist.push('Is the change scope too broad? Consider splitting');
+    checklist.push('Has the impact analysis been completed?');
   }
 
   // 보안 관련 파일 체크
@@ -155,7 +155,7 @@ export function generateReviewChecklist(files: ChangedFile[]): string[] {
     f.path.includes('password') || f.path.includes('secret')
   );
   if (securityFiles.length > 0) {
-    checklist.push('보안 관련 변경 — 보안 리뷰 필수');
+    checklist.push('Security-related change — security review required');
   }
 
   return checklist;
@@ -176,8 +176,8 @@ export function runReviewLoop(options: ReviewLoopOptions): LoopResult {
     name: 'collect-changes',
     status: changedFiles.length > 0 ? 'passed' : 'skipped',
     message: changedFiles.length > 0
-      ? `${changedFiles.length}개 파일 변경 감지 (${classifyChangeSize(changedFiles)})`
-      : '변경 파일 없음',
+      ? `${changedFiles.length} changed files detected (${classifyChangeSize(changedFiles)})`
+      : 'No changed files',
     startedAt: new Date().toISOString(),
     completedAt: new Date().toISOString(),
   };
@@ -188,7 +188,7 @@ export function runReviewLoop(options: ReviewLoopOptions): LoopResult {
       loopName: 'review',
       status: 'passed',
       steps,
-      summary: '변경 없음 — 리뷰 불필요',
+      summary: 'No changes — review not needed',
     };
   }
 
@@ -220,8 +220,8 @@ export function runReviewLoop(options: ReviewLoopOptions): LoopResult {
 
     constraintStep.status = totalViolations > 0 ? 'failed' : 'passed';
     constraintStep.message = totalViolations > 0
-      ? `${totalViolations}건의 제약 위반 발견`
-      : '제약 검사 통과';
+      ? `${totalViolations} constraint violations found`
+      : 'Constraint check passed';
     constraintStep.completedAt = new Date().toISOString();
     steps.push(constraintStep);
   }
@@ -231,7 +231,7 @@ export function runReviewLoop(options: ReviewLoopOptions): LoopResult {
   const checklistStep: LoopStep = {
     name: 'review-checklist',
     status: 'passed',
-    message: `${checklist.length}개 항목 체크리스트 생성`,
+    message: `${checklist.length}-item checklist generated`,
     startedAt: new Date().toISOString(),
     completedAt: new Date().toISOString(),
   };
@@ -260,14 +260,14 @@ export function runReviewLoop(options: ReviewLoopOptions): LoopResult {
 
   const suggestions = checklist.map(c => `☐ ${c}`);
   if (reviewPoints.length > 0) {
-    suggestions.unshift(`⚠ ${reviewPoints.length}건의 리뷰 포인트 발견`);
+    suggestions.unshift(`⚠ ${reviewPoints.length} review points found`);
   }
 
   return {
     loopName: 'review',
     status,
     steps,
-    summary: `${changedFiles.length}파일 리뷰, ${reviewPoints.length}건 지적`,
+    summary: `${changedFiles.length} files reviewed, ${reviewPoints.length} issues found`,
     violations: reviewPoints.length,
     suggestions,
   };
@@ -289,7 +289,7 @@ export function formatReviewResult(result: LoopResult): string {
 
   if (result.suggestions && result.suggestions.length > 0) {
     lines.push('');
-    lines.push('리뷰 체크리스트:');
+    lines.push('Review Checklist:');
     for (const s of result.suggestions) {
       lines.push(`  ${s}`);
     }

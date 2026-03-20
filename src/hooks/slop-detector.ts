@@ -88,7 +88,7 @@ async function main(): Promise<void> {
       });
       console.log(JSON.stringify({
         result: 'approve',
-        message: `<compound-slop-warning>\n[Tenetx] AI 슬롭 감지:\n${lines.join('\n')}\n정리를 권장합니다.\n</compound-slop-warning>`,
+        message: `<compound-slop-warning>\n[Tenetx] AI slop detected:\n${lines.join('\n')}\nCleanup recommended.\n</compound-slop-warning>`,
       }));
     } else {
       console.log(JSON.stringify({ result: 'approve' }));

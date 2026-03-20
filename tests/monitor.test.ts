@@ -50,7 +50,7 @@ describe('SessionMonitor', () => {
     const alerts = monitor.check();
     const critical = alerts.find(a => a.level === 'critical');
     expect(critical).toBeDefined();
-    expect(critical!.message).toContain('5회 편집');
+    expect(critical!.message).toContain('5 edits');
     expect(critical!.principle).toBe('decompose-to-control');
   });
 
@@ -67,7 +67,7 @@ describe('SessionMonitor', () => {
     const monitor = new SessionMonitor(makePhilosophy());
     monitor.updateCost(10);
     const alerts = monitor.check();
-    const warning = alerts.find(a => a.message.includes('비용'));
+    const warning = alerts.find(a => a.message.includes('cost'));
     expect(warning).toBeDefined();
     expect(warning!.level).toBe('warning');
   });
@@ -76,14 +76,14 @@ describe('SessionMonitor', () => {
     const monitor = new SessionMonitor(makePhilosophy());
     monitor.updateCost(5);
     const alerts = monitor.check();
-    expect(alerts.filter(a => a.message.includes('비용'))).toHaveLength(0);
+    expect(alerts.filter(a => a.message.includes('cost'))).toHaveLength(0);
   });
 
   it('컨텍스트 70% 이상 시 warning', () => {
     const monitor = new SessionMonitor(makePhilosophy());
     monitor.updateContext(75);
     const alerts = monitor.check();
-    const warning = alerts.find(a => a.message.includes('컨텍스트'));
+    const warning = alerts.find(a => a.message.includes('Context'));
     expect(warning).toBeDefined();
     expect(warning!.message).toContain('75%');
   });

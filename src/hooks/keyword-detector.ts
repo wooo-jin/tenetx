@@ -253,7 +253,7 @@ export function detectKeyword(prompt: string): KeywordMatch | null {
       const extractedPrompt = prompt.replace(new RegExp(`\\b${escapedKeyword}\\b`, 'i'), '').trim();
 
       if (entry.type === 'cancel') {
-        return { type: 'cancel', keyword: entry.keyword, message: '[Tenetx] 모드가 중단되었습니다.' };
+        return { type: 'cancel', keyword: entry.keyword, message: '[Tenetx] Mode cancelled.' };
       }
 
       if (entry.type === 'inject') {
@@ -324,7 +324,7 @@ export function getModelRecommendation(prompt: string, cwd?: string): string {
     const router = new ModelRouter(philosophy, routingPreset);
     const contextSignals = loadContextSignals();
     const result = router.route(prompt, contextSignals);
-    return `\n[Tenetx] 권장 모델: **${result.tier}** (source: ${result.source}, category: ${result.category}${result.score ? `, score: ${result.score.total}` : ''})`;
+    return `\n[Tenetx] Recommended model: **${result.tier}** (source: ${result.source}, category: ${result.category}${result.score ? `, score: ${result.score.total}` : ''})`;
   } catch {
     return '';
   }
@@ -414,7 +414,7 @@ async function main(): Promise<void> {
     } else {
       console.log(JSON.stringify({
         result: 'approve',
-        message: `[Tenetx] ${match.keyword} 모드 활성화됨.${modelRec}\n\nUser request: ${match.prompt}`,
+        message: `[Tenetx] ${match.keyword} mode activated.${modelRec}\n\nUser request: ${match.prompt}`,
       }));
     }
     return;

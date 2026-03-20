@@ -60,12 +60,12 @@ function saveModifiedFiles(state: ModifiedFilesState): void {
 
 /** 에러 패턴 감지 */
 export const ERROR_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
-  { pattern: /ENOENT|no such file/i, description: '파일 없음' },
-  { pattern: /EACCES|permission denied/i, description: '권한 없음' },
-  { pattern: /ENOSPC|no space left/i, description: '디스크 공간 부족' },
-  { pattern: /syntax error|SyntaxError/i, description: '구문 오류' },
-  { pattern: /segmentation fault|SIGSEGV/i, description: '세그멘테이션 폴트' },
-  { pattern: /out of memory|OOM/i, description: '메모리 부족' },
+  { pattern: /ENOENT|no such file/i, description: 'file not found' },
+  { pattern: /EACCES|permission denied/i, description: 'permission denied' },
+  { pattern: /ENOSPC|no space left/i, description: 'disk space insufficient' },
+  { pattern: /syntax error|SyntaxError/i, description: 'syntax error' },
+  { pattern: /segmentation fault|SIGSEGV/i, description: 'segmentation fault' },
+  { pattern: /out of memory|OOM/i, description: 'out of memory' },
 ];
 
 /** 에러 패턴 감지 (순수 함수) */
@@ -157,7 +157,7 @@ async function main(): Promise<void> {
     if (usage.toolCalls % 50 === 0) {
       const totalTokens = formatTokenCount(usage.inputTokens + usage.outputTokens);
       const cost = formatCost(usage.estimatedCost);
-      messages.push(`<compound-cost-info>\n[Tenetx] 세션 토큰 현황: ${totalTokens} (${usage.toolCalls}회 호출), 추정 비용: ${cost}\n</compound-cost-info>`);
+      messages.push(`<compound-cost-info>\n[Tenetx] Session token usage: ${totalTokens} (${usage.toolCalls} calls), estimated cost: ${cost}\n</compound-cost-info>`);
     }
   } catch (e) {
     debugLog('post-tool-use', '토큰 추적 실패', e);
@@ -172,7 +172,7 @@ async function main(): Promise<void> {
 
         // 같은 파일 5회 이상 수정 시 경고
         if (count >= 5) {
-          messages.push(`<compound-tool-warning>\n[Tenetx] ⚠ ${path.basename(filePath)}을 ${count}회 수정했습니다.\n전체 구조를 재설계한 뒤 재시작하는 것을 고려하세요.\n</compound-tool-warning>`);
+          messages.push(`<compound-tool-warning>\n[Tenetx] ⚠ ${path.basename(filePath)} has been modified ${count} times.\nConsider redesigning the overall structure and restarting.\n</compound-tool-warning>`);
         }
 
         // 아키텍처 제약 검사 (constraints.json 있을 때만)
@@ -198,7 +198,7 @@ async function main(): Promise<void> {
     if (errorMatch) {
       // 컨텍스트 신호에 실패 카운터 기록 (route() 에스컬레이션용)
       incrementFailureCounter(sessionId);
-      messages.push(`<compound-tool-info>\n[Tenetx] 실행 결과에 "${errorMatch.description}" 패턴 감지됨. 확인이 필요할 수 있습니다.\n</compound-tool-info>`);
+      messages.push(`<compound-tool-info>\n[Tenetx] Error pattern detected in execution result: "${errorMatch.description}". Review may be needed.\n</compound-tool-info>`);
     }
   }
 

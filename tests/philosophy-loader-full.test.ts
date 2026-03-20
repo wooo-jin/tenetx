@@ -201,7 +201,7 @@ describe('philosophy-loader - extended', () => {
     it('프로젝트 철학 파일이 없으면 not updated', () => {
       const result = syncPhilosophy('/tmp/no-project');
       expect(result.updated).toBe(false);
-      expect(result.message).toContain('프로젝트 철학 파일 없음');
+      expect(result.message).toContain('No project philosophy file found');
     });
 
     it('extends가 없으면 not updated', () => {
@@ -213,7 +213,7 @@ describe('philosophy-loader - extended', () => {
       );
       const result = syncPhilosophy(projectDir);
       expect(result.updated).toBe(false);
-      expect(result.message).toContain('extends 없음');
+      expect(result.message).toContain('No extends (local only)');
     });
   });
 

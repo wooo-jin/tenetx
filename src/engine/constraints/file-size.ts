@@ -16,8 +16,8 @@ export function checkFileSize(
       constraintId: rule.id,
       severity: rule.severity,
       filePath: relativePath,
-      message: `파일 ${lineCount}줄 (최대 ${rule.maxLines}줄 초과)`,
-      suggestion: `파일을 분리하거나 로직을 모듈화하세요.`,
+      message: `File has ${lineCount} lines (exceeds max ${rule.maxLines})`,
+      suggestion: `Split the file or modularize the logic.`,
     }];
   }
 

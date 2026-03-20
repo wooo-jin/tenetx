@@ -61,5 +61,5 @@ export async function checkSelfUpdate(): Promise<string | null> {
   if (!latest) return null;
   if (!isOlder(current, latest)) return null;
 
-  return `⬆ tenetx ${current} → ${latest} 업데이트 가능: npm update -g tenetx`;
+  return `⬆ tenetx ${current} → ${latest} update available: npm update -g tenetx`;
 }

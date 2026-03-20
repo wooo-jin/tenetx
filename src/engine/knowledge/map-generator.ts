@@ -50,43 +50,43 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 /** 디렉토리 이름에서 목적 추론 */
 const DIR_PURPOSE_MAP: Record<string, string> = {
-  'src': '소스 코드',
-  'lib': '라이브러리',
-  'test': '테스트', 'tests': '테스트', '__tests__': '테스트',
-  'spec': '테스트 스펙',
-  'components': 'UI 컴포넌트',
-  'pages': '페이지/라우트',
-  'hooks': 'React 훅 또는 이벤트 훅',
-  'utils': '유틸리티',
-  'helpers': '헬퍼 함수',
-  'models': '데이터 모델',
-  'services': '서비스 레이어',
-  'controllers': '컨트롤러',
-  'routes': '라우팅',
-  'middleware': '미들웨어',
-  'config': '설정',
-  'types': '타입 정의',
-  'interfaces': '인터페이스',
-  'api': 'API 엔드포인트',
-  'core': '코어 모듈',
-  'engine': '엔진/비즈니스 로직',
-  'assets': '정적 자산',
-  'public': '퍼블릭 파일',
-  'static': '정적 파일',
-  'scripts': '스크립트',
-  'docs': '문서',
-  'migrations': 'DB 마이그레이션',
-  'schemas': '스키마 정의',
-  'fixtures': '테스트 픽스처',
-  'mocks': '목 데이터',
-  'store': '상태 관리',
-  'redux': 'Redux 상태',
-  'atoms': '원자 문서',
-  'agents': '에이전트 정의',
-  'skills': '스킬 정의',
-  'templates': '템플릿',
-  'layouts': '레이아웃',
-  'i18n': '국제화', 'locales': '로케일',
+  'src': 'source code',
+  'lib': 'library',
+  'test': 'tests', 'tests': 'tests', '__tests__': 'tests',
+  'spec': 'test specs',
+  'components': 'UI components',
+  'pages': 'pages/routes',
+  'hooks': 'React hooks or event hooks',
+  'utils': 'utilities',
+  'helpers': 'helper functions',
+  'models': 'data models',
+  'services': 'service layer',
+  'controllers': 'controllers',
+  'routes': 'routing',
+  'middleware': 'middleware',
+  'config': 'configuration',
+  'types': 'type definitions',
+  'interfaces': 'interfaces',
+  'api': 'API endpoints',
+  'core': 'core modules',
+  'engine': 'engine/business logic',
+  'assets': 'static assets',
+  'public': 'public files',
+  'static': 'static files',
+  'scripts': 'scripts',
+  'docs': 'documentation',
+  'migrations': 'DB migrations',
+  'schemas': 'schema definitions',
+  'fixtures': 'test fixtures',
+  'mocks': 'mock data',
+  'store': 'state management',
+  'redux': 'Redux state',
+  'atoms': 'atomic documents',
+  'agents': 'agent definitions',
+  'skills': 'skill definitions',
+  'templates': 'templates',
+  'layouts': 'layouts',
+  'i18n': 'internationalization', 'locales': 'locales',
 };
 
 /** 프로젝트 구조 맵 생성 */
@@ -375,30 +375,30 @@ export function formatMapAsMarkdown(map: ProjectMap): string {
 
   lines.push(`# ${summary.name} — Project Map`);
   lines.push('');
-  lines.push(`> 생성: ${map.generatedAt.split('T')[0]}`);
+  lines.push(`> Generated: ${map.generatedAt.split('T')[0]}`);
   lines.push('');
 
   // 요약
-  lines.push('## 프로젝트 요약');
-  lines.push(`- 파일 수: ${summary.totalFiles}`);
-  lines.push(`- 총 줄 수: ${summary.totalLines.toLocaleString()}`);
-  if (summary.framework) lines.push(`- 프레임워크: ${summary.framework}`);
-  if (summary.packageManager) lines.push(`- 패키지 매니저: ${summary.packageManager}`);
+  lines.push('## Project Summary');
+  lines.push(`- Files: ${summary.totalFiles}`);
+  lines.push(`- Total lines: ${summary.totalLines.toLocaleString()}`);
+  if (summary.framework) lines.push(`- Framework: ${summary.framework}`);
+  if (summary.packageManager) lines.push(`- Package manager: ${summary.packageManager}`);
   lines.push('');
 
   // 언어 분포
-  lines.push('## 언어 분포');
+  lines.push('## Language Distribution');
   const sortedLangs = Object.entries(summary.languages)
     .sort((a, b) => b[1] - a[1])
     .filter(([lang]) => lang !== 'other');
   for (const [lang, lineCount] of sortedLangs) {
     const pct = ((lineCount / summary.totalLines) * 100).toFixed(1);
-    lines.push(`- ${lang}: ${lineCount.toLocaleString()}줄 (${pct}%)`);
+    lines.push(`- ${lang}: ${lineCount.toLocaleString()} lines (${pct}%)`);
   }
   lines.push('');
 
   // 디렉토리 구조
-  lines.push('## 디렉토리 구조');
+  lines.push('## Directory Structure');
   const topDirs = map.directories.filter(d => !d.path.includes('/'));
   for (const dir of topDirs) {
     const purpose = dir.purpose ? ` — ${dir.purpose}` : '';
@@ -408,7 +408,7 @@ export function formatMapAsMarkdown(map: ProjectMap): string {
 
   // 진입점
   if (map.entryPoints.length > 0) {
-    lines.push('## 진입점');
+    lines.push('## Entry Points');
     for (const ep of map.entryPoints) {
       lines.push(`- \`${ep}\``);
     }
@@ -420,10 +420,10 @@ export function formatMapAsMarkdown(map: ProjectMap): string {
     .sort((a, b) => b.lines - a.lines)
     .slice(0, 10);
   if (topFiles.length > 0) {
-    lines.push('## 주요 파일 (줄 수 기준)');
+    lines.push('## Key Files (by line count)');
     for (const f of topFiles) {
       const exps = f.exports.length > 0 ? ` — exports: ${f.exports.slice(0, 5).join(', ')}` : '';
-      lines.push(`- \`${f.path}\` (${f.lines}줄, ${f.language})${exps}`);
+      lines.push(`- \`${f.path}\` (${f.lines} lines, ${f.language})${exps}`);
     }
     lines.push('');
   }
@@ -431,7 +431,7 @@ export function formatMapAsMarkdown(map: ProjectMap): string {
   // 외부 의존성
   const prodDeps = map.dependencies.filter(d => d.type === 'production');
   if (prodDeps.length > 0) {
-    lines.push('## 주요 의존성');
+    lines.push('## Key Dependencies');
     for (const d of prodDeps) {
       lines.push(`- ${d.name} ${d.version}`);
     }

@@ -158,12 +158,12 @@ async function main(): Promise<void> {
       const elapsedMinutes = Math.round(elapsed / 60000);
       recoveryMessages.push(
         `<compound-recovery mode="${mode}">` +
-        `\n이전 세션의 ${mode} 모드가 복구되었습니다.` +
-        `\n시작: ${state.startedAt} (${elapsedMinutes}분 전)` +
-        (state.prompt ? `\n원래 요청: ${state.prompt}` : '') +
-        (state.stage ? `\n현재 단계: ${state.stage}` : '') +
-        (state.completedSteps?.length ? `\n완료된 단계: ${state.completedSteps.join(', ')}` : '') +
-        `\n\n이전 작업을 이어서 진행하세요. 중단하려면 "canceltenetx"를 입력하세요.` +
+        `\n${mode} mode from previous session has been recovered.` +
+        `\nStarted: ${state.startedAt} (${elapsedMinutes} minutes ago)` +
+        (state.prompt ? `\nOriginal request: ${state.prompt}` : '') +
+        (state.stage ? `\nCurrent stage: ${state.stage}` : '') +
+        (state.completedSteps?.length ? `\nCompleted steps: ${state.completedSteps.join(', ')}` : '') +
+        `\n\nContinue the previous work. To stop, type "canceltenetx".` +
         `\n</compound-recovery>`
       );
     } catch (e) {
@@ -191,11 +191,11 @@ async function main(): Promise<void> {
         const elapsedMin = Math.round(age / 60000);
         recoveryMessages.push(
           `<compound-checkpoint session="${cp.sessionId}">` +
-          `\n미완료 체크포인트 발견 (${elapsedMin}분 전)` +
-          `\n- 수정 파일: ${cp.modifiedFiles.length}개` +
-          `\n- 도구 호출: ${cp.toolCallCount}회` +
-          `\n- 마지막 도구: ${cp.lastToolCall}` +
-          `\n- 작업 디렉토리: ${cp.cwd}` +
+          `\nIncomplete checkpoint found (${elapsedMin} minutes ago)` +
+          `\n- Modified files: ${cp.modifiedFiles.length}` +
+          `\n- Tool calls: ${cp.toolCallCount}` +
+          `\n- Last tool: ${cp.lastToolCall}` +
+          `\n- Working directory: ${cp.cwd}` +
           `\n</compound-checkpoint>`
         );
       } catch { /* 개별 파일 파싱 실패 무시 */ }
@@ -211,8 +211,8 @@ async function main(): Promise<void> {
       const pending = JSON.parse(fs.readFileSync(pendingPath, 'utf-8'));
       recoveryMessages.push(
         `<compound-pending>` +
-        `\n이전 세션(${pending.promptCount ?? '?'}회 프롬프트)에서 compound loop가 예약되었습니다.` +
-        `\n\`tenetx compound\`를 실행하여 패턴/솔루션을 추출하세요.` +
+        `\nCompound loop was scheduled in the previous session (${pending.promptCount ?? '?'} prompts).` +
+        `\nRun \`tenetx compound\` to extract patterns/solutions.` +
         `\n</compound-pending>`
       );
       // 마커 삭제 (한 번만 안내)

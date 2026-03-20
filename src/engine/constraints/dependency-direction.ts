@@ -73,8 +73,8 @@ export function checkDependencyDirection(
         constraintId: rule.id,
         severity: rule.severity,
         filePath: relativePath,
-        message: `"${currentLayer}" 레이어가 상위 레이어 "${importLayer}"를 import합니다`,
-        suggestion: `의존 방향: ${layers.join(' → ')}. 하위 레이어는 상위 레이어를 참조할 수 없습니다.`,
+        message: `Layer "${currentLayer}" imports upper layer "${importLayer}"`,
+        suggestion: `Dependency direction: ${layers.join(' → ')}. Lower layers cannot reference upper layers.`,
       });
     }
   }

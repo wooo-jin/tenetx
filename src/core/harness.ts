@@ -310,7 +310,7 @@ function loadAndRegisterPackWorkflows(cwd: string): string[] {
         const skipped = registerPackWorkflows(workflows);
         debugLog('harness', `팩 '${pack.name}'에서 워크플로우 ${workflows.length}개 등록`);
         if (skipped.length > 0) {
-          const msg = `⚠ 팩 '${pack.name}' 워크플로우 이름 충돌: ${skipped.join(', ')} (내장 모드 우선)`;
+          const msg = `⚠ Pack '${pack.name}' workflow name collision: ${skipped.join(', ')} (built-in mode takes priority)`;
           warnings.push(msg);
         }
       }
@@ -435,7 +435,7 @@ function ensureGitignore(cwd: string): void {
     '.compound/project-map.json',
     '.claude/commands/tenetx/',
     '.compound/notepad.md',
-    '# pack.lock은 커밋 가능 (팀 버전 일관성)',
+    '# pack.lock can be committed (team version consistency)',
     '!.compound/pack.lock',
   ];
   const marker = '.claude/agents/ch-*.md';

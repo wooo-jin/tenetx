@@ -214,7 +214,7 @@ export function formatViolations(violations: ConstraintViolation[]): string {
   const lines: string[] = [];
 
   if (errors.length > 0) {
-    lines.push(`🚫 제약 위반 ${errors.length}건:`);
+    lines.push(`🚫 ${errors.length} constraint violations:`);
     for (const v of errors) {
       lines.push(`  ${v.filePath}: ${v.message}`);
       if (v.suggestion) lines.push(`    → ${v.suggestion}`);
@@ -222,14 +222,14 @@ export function formatViolations(violations: ConstraintViolation[]): string {
   }
 
   if (warns.length > 0) {
-    lines.push(`⚠ 경고 ${warns.length}건:`);
+    lines.push(`⚠ ${warns.length} warnings:`);
     for (const v of warns) {
       lines.push(`  ${v.filePath}: ${v.message}`);
     }
   }
 
   if (infos.length > 0 && lines.length === 0) {
-    lines.push(`ℹ 정보 ${infos.length}건:`);
+    lines.push(`ℹ ${infos.length} info:`);
     for (const v of infos) {
       lines.push(`  ${v.filePath}: ${v.message}`);
     }
@@ -245,8 +245,8 @@ export function generateDefaultConfig(): ConstraintConfig {
     rules: [
       {
         id: 'file-size-300',
-        name: '파일 크기 제한',
-        description: '단일 파일 300줄 초과 경고',
+        name: 'file size limit',
+        description: 'single file exceeds 300 lines warning',
         type: 'file-size',
         severity: 'warn',
         maxLines: 300,
@@ -255,8 +255,8 @@ export function generateDefaultConfig(): ConstraintConfig {
       },
       {
         id: 'file-size-500',
-        name: '파일 크기 하드 제한',
-        description: '단일 파일 500줄 초과 에러',
+        name: 'file size hard limit',
+        description: 'single file exceeds 500 lines error',
         type: 'file-size',
         severity: 'error',
         maxLines: 500,
@@ -265,8 +265,8 @@ export function generateDefaultConfig(): ConstraintConfig {
       },
       {
         id: 'naming-kebab',
-        name: '파일명 kebab-case 규칙',
-        description: '소스 파일은 kebab-case 파일명만 허용',
+        name: 'filename kebab-case rule',
+        description: 'source files must use kebab-case filenames',
         type: 'naming',
         severity: 'warn',
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.(test|spec|d))?(\\.[a-z]+)$',

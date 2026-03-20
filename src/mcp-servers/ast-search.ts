@@ -10,7 +10,7 @@ import type { McpServerDefinition, SearchResult } from './types.js';
 
 export const AST_SEARCH_DEFINITION: McpServerDefinition = {
   name: 'ast-search',
-  description: 'AST 기반 코드 검색 — 함수/클래스/인터페이스 선언 매칭',
+  description: 'AST-based code search — matches function/class/interface declarations',
   command: 'node',
   args: ['ast-search-server.js'],
   builtin: true,

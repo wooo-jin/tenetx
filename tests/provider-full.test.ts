@@ -178,7 +178,7 @@ describe('provider - extended', () => {
   describe('callWithFallback', () => {
     it('가용한 프로바이더가 없으면 에러 반환', async () => {
       const result = await callWithFallback('test prompt', undefined, []);
-      expect(result.error).toContain('가용한 프로바이더가 없습니다');
+      expect(result.error).toContain('No available providers');
       expect(result.content).toBe('');
     });
   });

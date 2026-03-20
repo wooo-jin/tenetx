@@ -48,7 +48,7 @@ export interface ModeConfig {
 const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   normal: {
     name: 'normal',
-    description: '일반 대화형 작업',
+    description: 'General conversational tasks',
     claudeArgs: [],
     envOverrides: {},
     principle: '-',
@@ -56,7 +56,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   autopilot: {
     name: 'autopilot',
-    description: '5단계 자율 실행 (탐색→계획→실행→QA→검증)',
+    description: '5-phase autonomous execution (explore→plan→execute→QA→verify)',
     claudeArgs: ['--allowedTools', 'Edit,Write,Bash,Read,Glob,Grep,Agent'],
     envOverrides: { COMPOUND_MODE: 'autopilot' },
     principle: 'understand-before-act',
@@ -65,7 +65,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   ralph: {
     name: 'ralph',
-    description: 'PRD 기반 반복 + verify/fix loop (완료 보장)',
+    description: 'PRD-based iteration + verify/fix loop (completion guaranteed)',
     claudeArgs: [],
     envOverrides: { COMPOUND_MODE: 'ralph' },
     principle: 'capitalize-on-failure',
@@ -74,7 +74,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   team: {
     name: 'team',
-    description: '전문 에이전트 단계별 파이프라인 (plan→prd→exec→verify→fix)',
+    description: 'Expert agent staged pipeline (plan→prd→exec→verify→fix)',
     claudeArgs: [],
     envOverrides: {
       COMPOUND_MODE: 'team',
@@ -85,7 +85,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   ultrawork: {
     name: 'ultrawork',
-    description: '최대 병렬성 버스트 (독립 작업 동시 실행)',
+    description: 'Maximum parallelism burst (concurrent independent tasks)',
     claudeArgs: [],
     envOverrides: { COMPOUND_MODE: 'ultrawork' },
     principle: 'focus-resources-on-judgment',
@@ -93,7 +93,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   pipeline: {
     name: 'pipeline',
-    description: '순차 단계별 처리 (다단계 변환/마이그레이션)',
+    description: 'Sequential staged processing (multi-stage transforms/migrations)',
     claudeArgs: [],
     envOverrides: { COMPOUND_MODE: 'pipeline' },
     principle: 'decompose-to-control',
@@ -101,7 +101,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   ccg: {
     name: 'ccg',
-    description: 'Claude-Codex-Gemini 3-모델 합성 교차검증',
+    description: 'Claude-Codex-Gemini 3-model synthesis cross-validation',
     claudeArgs: [],
     envOverrides: { COMPOUND_MODE: 'ccg' },
     principle: 'focus-resources-on-judgment',
@@ -109,7 +109,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   ralplan: {
     name: 'ralplan',
-    description: '합의 기반 설계 (Planner→Architect→Critic 루프)',
+    description: 'Consensus-based design (Planner→Architect→Critic loop)',
     claudeArgs: [],
     envOverrides: { COMPOUND_MODE: 'ralplan' },
     principle: 'understand-before-act',
@@ -117,7 +117,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   'deep-interview': {
     name: 'deep-interview',
-    description: 'Socratic 요구사항 명확화 (모호성 점수 기반)',
+    description: 'Socratic requirement clarification (ambiguity score based)',
     claudeArgs: [],
     envOverrides: { COMPOUND_MODE: 'deep-interview' },
     principle: 'understand-before-act',
@@ -125,7 +125,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
   },
   ecomode: {
     name: 'ecomode',
-    description: '토큰 절약 모드 (Haiku 우선, 간결한 응답)',
+    description: 'Token-saving mode (Haiku priority, concise responses)',
     claudeArgs: ['--model', ECO_MODEL_ID],
     envOverrides: { COMPOUND_MODE: 'ecomode', COMPOUND_ECO: '1' },
     principle: 'focus-resources-on-judgment',
@@ -306,12 +306,12 @@ function resolveComposed(config: ModeConfig, visited: Set<string>): ModeConfig {
   const effectivePersistent = config.persistent || mergedPersistent;
 
   const composedLabel = includedNames.length > 0
-    ? ` (포함: ${includedNames.join(', ')})`
+    ? ` (includes: ${includedNames.join(', ')})`
     : '';
 
   return {
     name: config.name,
-    description: `[합성] ${config.description}${composedLabel}`,
+    description: `[composed] ${config.description}${composedLabel}`,
     claudeArgs: deduplicateArgs(effectiveClaudeArgs),
     envOverrides: effectiveEnvOverrides,
     principle: config.principle,

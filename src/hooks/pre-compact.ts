@@ -68,8 +68,8 @@ function saveCompactionSnapshot(sessionId: string): string | null {
   }
 
   lines.push('## Recovery');
-  lines.push('이 스냅샷은 compaction 전 자동 생성되었습니다.');
-  lines.push('활성 모드는 compaction 후에도 state 파일에서 유지됩니다.');
+  lines.push('This snapshot was automatically created before compaction.');
+  lines.push('Active modes are preserved in state files even after compaction.');
 
   fs.writeFileSync(snapshotPath, lines.join('\n'));
   return snapshotPath;
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
     if (snapshotPath) {
       console.log(JSON.stringify({
         result: 'approve',
-        message: `<compound-compact-info>\n[Tenetx] Compaction 전 상태 스냅샷 저장됨: ${path.basename(snapshotPath)}\n활성 모드는 compaction 후에도 유지됩니다.\n</compound-compact-info>`,
+        message: `<compound-compact-info>\n[Tenetx] Pre-compaction state snapshot saved: ${path.basename(snapshotPath)}\nActive modes are preserved after compaction.\n</compound-compact-info>`,
       }));
       return;
     }

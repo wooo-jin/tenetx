@@ -401,7 +401,7 @@ export async function runProjectSetup(cwd: string, options?: { pack?: string; ex
     // routing 정보를 principles에 추가
     if (!philosophy.principles['focus-resources-on-judgment']) {
       philosophy.principles['focus-resources-on-judgment'] = {
-        belief: '자원은 판단이 필요한 곳에 집중해야 한다',
+        belief: 'Resources should be focused where judgment is needed',
         generates: [],
       };
     }

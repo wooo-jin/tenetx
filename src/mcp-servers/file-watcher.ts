@@ -10,7 +10,7 @@ import type { McpServerDefinition } from './types.js';
 
 export const FILE_WATCHER_DEFINITION: McpServerDefinition = {
   name: 'file-watcher',
-  description: '최근 수정된 파일 추적 및 변경 요약',
+  description: 'Track recently modified files and summarize changes',
   command: 'node',
   args: ['file-watcher-server.js'],
   builtin: true,

@@ -329,7 +329,7 @@ async function handlePackSetup(args: string[]): Promise<void> {
     console.log(`  ✓ ${meta.name} v${meta.version} installed`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('이미 설치')) {
+    if (msg.includes('already installed')) {
       meta = readPackMeta(path.join(PACKS_DIR, dirName)) ?? undefined;
       console.log(`  ✓ ${packName} already installed (syncing)`);
       try { await syncPack(packName); } catch { /* ignore */ }

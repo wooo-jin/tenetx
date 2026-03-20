@@ -31,7 +31,7 @@ function summarizeStructure(cwd: string): string[] {
       if (item.name.startsWith('.') && item.name !== '.github') continue;
       if (item.isDirectory()) {
         const subItems = fs.readdirSync(path.join(cwd, item.name)).length;
-        entries.push(`${item.name}/ (${subItems}개 파일)`);
+        entries.push(`${item.name}/ (${subItems} files)`);
       } else {
         entries.push(item.name);
       }
@@ -45,21 +45,21 @@ function summarizeStructure(cwd: string): string[] {
 function detectExistingConventions(cwd: string): string[] {
   const conventions: string[] = [];
   const checks: Array<[string, string]> = [
-    ['CLAUDE.md', 'Claude Code 프로젝트 지침'],
-    ['.eslintrc.json', 'ESLint 설정'],
-    ['.eslintrc.js', 'ESLint 설정'],
+    ['CLAUDE.md', 'Claude Code project instructions'],
+    ['.eslintrc.json', 'ESLint config'],
+    ['.eslintrc.js', 'ESLint config'],
     ['eslint.config.js', 'ESLint Flat Config'],
-    ['.prettierrc', 'Prettier 설정'],
-    ['tsconfig.json', 'TypeScript 설정'],
+    ['.prettierrc', 'Prettier config'],
+    ['tsconfig.json', 'TypeScript config'],
     ['.editorconfig', 'EditorConfig'],
-    ['Dockerfile', 'Docker 컨테이너화'],
+    ['Dockerfile', 'Docker containerization'],
     ['docker-compose.yml', 'Docker Compose'],
     ['.github/workflows', 'GitHub Actions CI/CD'],
-    ['Makefile', 'Make 빌드 시스템'],
-    ['vitest.config.ts', 'Vitest 테스트'],
-    ['jest.config.ts', 'Jest 테스트'],
-    ['jest.config.js', 'Jest 테스트'],
-    ['.env.example', '환경변수 템플릿'],
+    ['Makefile', 'Make build system'],
+    ['vitest.config.ts', 'Vitest tests'],
+    ['jest.config.ts', 'Jest tests'],
+    ['jest.config.js', 'Jest tests'],
+    ['.env.example', 'Environment variable template'],
   ];
 
   for (const [file, desc] of checks) {
@@ -97,23 +97,23 @@ export function generatePackContext(opts: PackContextOptions): void {
   const devDeps = Object.keys((pkg?.devDependencies ?? {}) as Record<string, string>);
 
   const lines: string[] = [
-    `# 팩 컨텍스트: ${packName}`,
+    `# Pack Context: ${packName}`,
     '',
-    '> 이 파일은 AI가 팩을 채울 때 참고하는 프로젝트 브리핑입니다.',
-    '> "팩 채워줘" 또는 "fill pack"이라고 말하면 이 컨텍스트를 기반으로 도와줍니다.',
+    '> This file is a project briefing for AI to reference when filling the pack.',
+    '> Say "fill pack" and the AI will help based on this context.',
     '',
-    '## 프로젝트 요약',
+    '## Project Summary',
     '',
-    `- **이름**: ${(pkg?.name as string) ?? path.basename(cwd)}`,
-    `- **타입**: ${detection.type} (신뢰도: ${detection.confidence}%)`,
-    `- **감지 신호**: ${detection.signals.join(', ') || '없음'}`,
+    `- **Name**: ${(pkg?.name as string) ?? path.basename(cwd)}`,
+    `- **Type**: ${detection.type} (confidence: ${detection.confidence}%)`,
+    `- **Detected signals**: ${detection.signals.join(', ') || 'none'}`,
     '',
-    '## 기술 스택',
+    '## Tech Stack',
     '',
   ];
 
   if (deps.length > 0) {
-    lines.push(`### 프로덕션 의존성 (${deps.length}개)`);
+    lines.push(`### Production Dependencies (${deps.length})`);
     lines.push('```');
     lines.push(deps.join(', '));
     lines.push('```');
@@ -121,7 +121,7 @@ export function generatePackContext(opts: PackContextOptions): void {
   }
 
   if (devDeps.length > 0) {
-    lines.push(`### 개발 의존성 (${devDeps.length}개)`);
+    lines.push(`### Dev Dependencies (${devDeps.length})`);
     lines.push('```');
     lines.push(devDeps.join(', '));
     lines.push('```');
@@ -129,12 +129,12 @@ export function generatePackContext(opts: PackContextOptions): void {
   }
 
   if (scripts.length > 0) {
-    lines.push('### 스크립트');
+    lines.push('### Scripts');
     lines.push(...scripts);
     lines.push('');
   }
 
-  lines.push('## 프로젝트 구조');
+  lines.push('## Project Structure');
   lines.push('```');
   for (const entry of structure.slice(0, 30)) {
     lines.push(entry);
@@ -143,7 +143,7 @@ export function generatePackContext(opts: PackContextOptions): void {
   lines.push('');
 
   if (conventions.length > 0) {
-    lines.push('## 기존 컨벤션/설정');
+    lines.push('## Existing Conventions/Config');
     lines.push(...conventions);
     lines.push('');
   }
@@ -153,34 +153,34 @@ export function generatePackContext(opts: PackContextOptions): void {
   if (fs.existsSync(claudeMdPath)) {
     const content = fs.readFileSync(claudeMdPath, 'utf-8');
     if (content.trim()) {
-      lines.push('## CLAUDE.md (기존 프로젝트 지침)');
+      lines.push('## CLAUDE.md (Existing Project Instructions)');
       lines.push('');
       // 너무 길면 앞부분만
-      const truncated = content.length > 2000 ? `${content.slice(0, 2000)}\n...(이하 생략)` : content;
+      const truncated = content.length > 2000 ? `${content.slice(0, 2000)}\n...(truncated)` : content;
       lines.push(truncated);
       lines.push('');
     }
   }
 
-  lines.push('## AI에게 요청할 것');
+  lines.push('## What to Ask AI');
   lines.push('');
-  lines.push('이 프로젝트를 기반으로 다음을 채워주세요:');
+  lines.push('Based on this project, please fill in the following:');
   lines.push('');
-  lines.push('1. **rules/** — 이 프로젝트/팀에서 지켜야 할 코딩 규칙');
-  lines.push('   - 코드 스타일, 네이밍 컨벤션, 아키텍처 원칙');
-  lines.push('   - 리뷰 체크리스트, 금지 패턴');
+  lines.push('1. **rules/** — Coding rules for this project/team');
+  lines.push('   - Code style, naming conventions, architecture principles');
+  lines.push('   - Review checklists, forbidden patterns');
   lines.push('');
-  lines.push('2. **skills/** — 반복되는 작업을 자동화하는 스킬');
-  lines.push('   - 배포, 마이그레이션, 리뷰 등 팀이 자주 하는 작업');
-  lines.push('   - 트리거 키워드를 한국어/영어 모두 포함');
+  lines.push('2. **skills/** — Skills to automate repetitive tasks');
+  lines.push('   - Deploy, migration, review, and other frequent team tasks');
+  lines.push('   - Include trigger keywords in both English and native language');
   lines.push('');
-  lines.push('3. **agents/** — 이 도메인에 특화된 전문 에이전트');
-  lines.push('   - 도메인 리뷰어, 보안 감사자 등');
+  lines.push('3. **agents/** — Domain-specific expert agents');
+  lines.push('   - Domain reviewers, security auditors, etc.');
   lines.push('');
-  lines.push('4. **workflows/** — 팀 고유 작업 파이프라인');
-  lines.push('   - 코드 리뷰, QA, 릴리즈 프로세스 등');
+  lines.push('4. **workflows/** — Team-specific task pipelines');
+  lines.push('   - Code review, QA, release processes, etc.');
   lines.push('');
-  lines.push('5. **philosophy.json** — 팀 철학/원칙 (선택)');
+  lines.push('5. **philosophy.json** — Team philosophy/principles (optional)');
   lines.push('');
 
   fs.writeFileSync(path.join(packDir, '_context.md'), lines.join('\n'));
@@ -189,48 +189,46 @@ export function generatePackContext(opts: PackContextOptions): void {
 /** 스타터 템플릿 생성 */
 export function generateStarterTemplates(packDir: string): void {
   // 예시 규칙
-  fs.writeFileSync(path.join(packDir, 'rules', 'code-style.md'), `# 코드 스타일 가이드
+  fs.writeFileSync(path.join(packDir, 'rules', 'code-style.md'), `# Code Style Guide
 
-<!-- 이 파일을 팀 코드 스타일에 맞게 수정하세요 -->
+<!-- Customize this file to match your team's code style -->
 
-## 네이밍 규칙
-- 변수/함수: camelCase
-- 클래스/타입: PascalCase
-- 상수: UPPER_SNAKE_CASE
+## Naming Conventions
+- Variables/functions: camelCase
+- Classes/types: PascalCase
+- Constants: UPPER_SNAKE_CASE
 
-## 금지 패턴
-- any 타입 사용 금지 (unknown 사용)
-- console.log 프로덕션 코드 금지 (logger 사용)
+## Forbidden Patterns
+- No \`any\` type (use \`unknown\`)
+- No console.log in production code (use logger)
 `);
 
   // 예시 스킬
   fs.writeFileSync(path.join(packDir, 'skills', 'deploy-check.md'), `---
 name: deploy-check
-description: 배포 전 체크리스트 자동 주입
+description: Auto-inject pre-deploy checklist
 triggers:
-  - "배포"
   - "deploy"
-  - "릴리즈"
   - "release"
 ---
 <Purpose>
-배포 전 필수 확인 사항을 안내합니다.
+Guides through mandatory pre-deploy checks.
 </Purpose>
 
 <Steps>
-<!-- 팀 배포 프로세스에 맞게 수정하세요 -->
-1. 테스트 전체 통과 확인
-2. 빌드 성공 확인
-3. 환경변수 diff 확인
-4. DB 마이그레이션 확인
-5. 롤백 계획 수립
+<!-- Customize to match your team's deploy process -->
+1. Verify all tests pass
+2. Verify build succeeds
+3. Check environment variable diff
+4. Check DB migrations
+5. Prepare rollback plan
 </Steps>
 `);
 
   // 예시 워크플로우
   fs.writeFileSync(path.join(packDir, 'workflows', 'team-review.json'), JSON.stringify({
     name: 'team-review',
-    description: '팀 코드 리뷰 파이프라인',
+    description: 'Team code review pipeline',
     claudeArgs: [],
     envOverrides: {},
     principle: 'understand-before-act',

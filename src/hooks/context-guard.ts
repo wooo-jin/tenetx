@@ -49,7 +49,7 @@ export function shouldWarn(
 
 /** 경고 메시지 생성 (순수 함수) */
 export function buildContextWarningMessage(promptCount: number, totalChars: number): string {
-  return `<compound-context-warning>\n[Tenetx] Context 한계 접근 경고: ${promptCount}회 프롬프트, ${Math.round(totalChars / 1000)}K 문자.\n중요한 진행 상황이 있다면 지금 저장하세요:\n- canceltenetx로 모드 상태 초기화 후 새 세션 시작\n- 또는 현재 작업 계속 진행 (자동 compaction 발생 가능)\n</compound-context-warning>`;
+  return `<compound-context-warning>\n[Tenetx] Context limit approaching: ${promptCount} prompts, ${Math.round(totalChars / 1000)}K characters.\nIf you have important progress, save it now:\n- Use canceltenetx to reset mode state and start a new session\n- Or continue current work (auto compaction may occur)\n</compound-context-warning>`;
 }
 
 function loadContextState(sessionId: string): ContextState {
@@ -85,7 +85,7 @@ async function main(): Promise<void> {
         saveHandoff(sessionId, 'context-limit', errorMsg);
         console.log(JSON.stringify({
           result: 'approve',
-          message: `[Tenetx] Context limit에 도달했습니다. 현재 상태가 ~/.compound/handoffs/에 저장되었습니다.\n새 세션에서 이전 작업을 자동으로 복구합니다.`,
+          message: `[Tenetx] Context limit reached. Current state has been saved to ~/.compound/handoffs/.\nThe previous work will be automatically recovered in the next session.`,
         }));
         return;
       }
@@ -182,8 +182,8 @@ function saveHandoff(sessionId: string, reason: string, detail: string): void {
     activeStates.length > 0 ? activeStates.join('\n') : '- none',
     '',
     '## Recovery Instructions',
-    '새 세션에서 자동으로 복구됩니다 (session-recovery 훅).',
-    '수동 복구: 이전 작업의 마지막 상태를 확인하고 이어서 진행하세요.',
+    'Automatically recovered in the next session (session-recovery hook).',
+    'Manual recovery: Check the last state of the previous work and continue from there.',
   ].join('\n');
 
   fs.writeFileSync(handoffPath, content);

@@ -201,22 +201,22 @@ describe('post-tool-use error patterns', () => {
 
   it('ENOENT 감지', () => {
     const result = detectErrorPattern('Error: ENOENT: no such file or directory');
-    expect(result?.description).toBe('파일 없음');
+    expect(result?.description).toBe('file not found');
   });
 
   it('permission denied 감지', () => {
     const result = detectErrorPattern('bash: /root/test: Permission denied');
-    expect(result?.description).toBe('권한 없음');
+    expect(result?.description).toBe('permission denied');
   });
 
   it('SyntaxError 감지', () => {
     const result = detectErrorPattern('SyntaxError: Unexpected token');
-    expect(result?.description).toBe('구문 오류');
+    expect(result?.description).toBe('syntax error');
   });
 
   it('OOM 감지', () => {
     const result = detectErrorPattern('FATAL ERROR: Reached heap limit - out of memory');
-    expect(result?.description).toBe('메모리 부족');
+    expect(result?.description).toBe('out of memory');
   });
 
   it('정상 출력은 에러 없음', () => {

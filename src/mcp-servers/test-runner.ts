@@ -10,7 +10,7 @@ import type { McpServerDefinition } from './types.js';
 
 export const TEST_RUNNER_DEFINITION: McpServerDefinition = {
   name: 'test-runner',
-  description: '프로젝트 테스트 프레임워크 감지 및 실행',
+  description: 'Detect and run project test framework',
   command: 'node',
   args: ['test-runner-server.js'],
   builtin: true,

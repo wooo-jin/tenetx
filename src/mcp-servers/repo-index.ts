@@ -9,7 +9,7 @@ import { generateProjectMap, formatMapAsMarkdown } from '../engine/knowledge/map
 
 export const REPO_INDEX_DEFINITION: McpServerDefinition = {
   name: 'repo-index',
-  description: 'map-generator 활용 프로젝트 구조 인덱싱',
+  description: 'Project structure indexing using map-generator',
   command: 'node',
   args: ['repo-index-server.js'],
   builtin: true,

@@ -33,7 +33,7 @@ export function checkCustomPattern(
           constraintId: rule.id,
           severity: rule.severity,
           filePath: relativePath,
-          message: `${i + 1}번째 줄에서 금지 패턴 감지: ${rule.description}`,
+          message: `Forbidden pattern detected at line ${i + 1}: ${rule.description}`,
           suggestion: rule.name,
         });
       }

@@ -199,7 +199,7 @@ export function checkProviderAvailability(config: ProviderConfig): { available: 
 
     if (mode === 'oauth') {
       if (!token) {
-        return { available: false, reason: 'Codex OAuth 토큰 없음 (`codex login` 필요)' };
+        return { available: false, reason: 'Codex OAuth token not found (`codex login` required)' };
       }
       return { available: true };
     }
@@ -292,7 +292,7 @@ async function executeProviderCall(
     case 'gemini':
       return callGemini(config, prompt, model, timeout);
     default:
-      throw new Error(`알 수 없는 프로바이더: ${config.name}`);
+      throw new Error(`Unknown provider: ${config.name}`);
   }
 }
 
@@ -323,8 +323,8 @@ async function callCodex(config: ProviderConfig, prompt: string, model: string, 
   if (!token) {
     throw new NonRetryableError(
       mode === 'oauth'
-        ? 'Codex OAuth 토큰 없음. `codex login`을 실행하세요.'
-        : 'OpenAI API 키가 설정되지 않았습니다.'
+        ? 'Codex OAuth token not found. Run `codex login`.'
+        : 'OpenAI API key is not set.'
     );
   }
 
@@ -353,7 +353,7 @@ async function callCodexCli(prompt: string, model: string, timeout: number): Pro
       fs.unlinkSync(tmpOut);
       return content;
     }
-    return '(Codex 출력 없음)';
+    return '(no Codex output)';
   } catch (e) {
     // 임시 파일 정리
     try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
@@ -398,14 +398,14 @@ async function callOpenAIApi(prompt: string, model: string, timeout: number, bea
   }
 
   const json = await res.json() as { choices?: { message?: { content?: string } }[] };
-  return json.choices?.[0]?.message?.content ?? '응답 없음';
+  return json.choices?.[0]?.message?.content ?? 'no response';
 }
 
 /** Google Gemini API 호출 */
 async function callGemini(config: ProviderConfig, prompt: string, model: string, timeout: number): Promise<string> {
   const apiKey = resolveApiKey(config.apiKey);
   if (!apiKey) {
-    throw new NonRetryableError('Gemini API 키가 설정되지 않았습니다.');
+    throw new NonRetryableError('Gemini API key is not set.');
   }
 
   const targetModel = model || config.defaultModel || 'gemini-2.5-flash';
@@ -439,7 +439,7 @@ async function callGemini(config: ProviderConfig, prompt: string, model: string,
   const json = await res.json() as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
-  return json.candidates?.[0]?.content?.parts?.[0]?.text ?? '응답 없음';
+  return json.candidates?.[0]?.content?.parts?.[0]?.text ?? 'no response';
 }
 
 function sleep(ms: number): Promise<void> {
@@ -462,7 +462,7 @@ export async function callWithFallback(
       model: '',
       content: '',
       latencyMs: 0,
-      error: '가용한 프로바이더가 없습니다',
+      error: 'No available providers',
     };
   }
 
@@ -477,7 +477,7 @@ export async function callWithFallback(
     model: model ?? '',
     content: '',
     latencyMs: Date.now() - startTime,
-    error: '모든 프로바이더가 실패했습니다',
+    error: 'All providers failed',
   };
 }
 

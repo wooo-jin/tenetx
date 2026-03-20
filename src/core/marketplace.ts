@@ -93,7 +93,7 @@ const DEFAULT_PLUGINS: PluginManifest[] = [
   {
     name: 'tenetx-skill-tdd',
     version: '1.0.0',
-    description: 'TDD 모드 스킬 — 테스트 주도 개발 워크플로우',
+    description: 'TDD mode skill — test-driven development workflow',
     author: 'tenetx-community',
     type: 'skill',
     repository: 'https://github.com/tenetx-community/skill-tdd',
@@ -101,7 +101,7 @@ const DEFAULT_PLUGINS: PluginManifest[] = [
   {
     name: 'tenetx-skill-codebase-search',
     version: '1.0.0',
-    description: '코드베이스 심층 검색 스킬',
+    description: 'Deep codebase search skill',
     author: 'tenetx-community',
     type: 'skill',
     repository: 'https://github.com/tenetx-community/skill-codebase-search',
@@ -109,7 +109,7 @@ const DEFAULT_PLUGINS: PluginManifest[] = [
   {
     name: 'tenetx-agent-reviewer',
     version: '1.0.0',
-    description: 'AI 코드 리뷰 에이전트',
+    description: 'AI code review agent',
     author: 'tenetx-community',
     type: 'agent',
     repository: 'https://github.com/tenetx-community/agent-reviewer',
@@ -117,7 +117,7 @@ const DEFAULT_PLUGINS: PluginManifest[] = [
   {
     name: 'tenetx-hook-auto-commit',
     version: '1.0.0',
-    description: '자동 커밋 훅 — PostToolUse 후 자동 커밋',
+    description: 'Auto-commit hook — auto-commit after PostToolUse',
     author: 'tenetx-community',
     type: 'hook',
     repository: 'https://github.com/tenetx-community/hook-auto-commit',
@@ -125,7 +125,7 @@ const DEFAULT_PLUGINS: PluginManifest[] = [
   {
     name: 'tenetx-pack-fullstack',
     version: '1.0.0',
-    description: '풀스택 개발 팩 (React + Node.js)',
+    description: 'Full-stack development pack (React + Node.js)',
     author: 'tenetx-community',
     type: 'pack',
     repository: 'https://github.com/tenetx-community/pack-fullstack',
@@ -323,8 +323,8 @@ function postInstall(localPath: string, manifest: PluginManifest, cwd: string): 
     }
     case 'hook': {
       console.log(
-        `[marketplace] hook 플러그인은 .claude/hooks/ 에 직접 등록해야 합니다.\n` +
-        `  설치 경로: ${localPath}`,
+        `[marketplace] Hook plugins must be registered directly in .claude/hooks/.\n` +
+        `  Install path: ${localPath}`,
       );
       break;
     }
@@ -350,7 +350,7 @@ function readManifestFromDir(destDir: string, repoUrl: string): PluginManifest {
   if (fs.existsSync(pluginJsonPath)) {
     const raw = JSON.parse(fs.readFileSync(pluginJsonPath, 'utf-8')) as Record<string, unknown>;
     if (typeof raw.name !== 'string' || typeof raw.version !== 'string' || typeof raw.type !== 'string') {
-      throw new Error(`plugin.json 필수 필드(name, version, type) 누락: ${pluginJsonPath}`);
+      throw new Error(`plugin.json missing required fields (name, version, type): ${pluginJsonPath}`);
     }
     return raw as unknown as PluginManifest;
   }
@@ -415,8 +415,7 @@ export async function installPlugin(nameOrUrl: string, cwd: string = process.cwd
     );
     if (!found) {
       throw new Error(
-        `플러그인 '${nameOrUrl}'을(를) 레지스트리에서 찾을 수 없습니다. ` +
-        `URL을 직접 지정하거나 registry.json을 업데이트하세요.`,
+        `Plugin '${nameOrUrl}' not found in registry. Specify a URL directly or update registry.json.`,
       );
     }
     repoUrl = found.repository;
@@ -482,7 +481,7 @@ export function removePlugin(name: string, cwd: string = process.cwd()): { succe
   const target = all.find((p) => p.name.toLowerCase() === name.toLowerCase());
 
   if (!target) {
-    return { success: false, message: `플러그인 '${name}'이(가) 설치되어 있지 않습니다.` };
+    return { success: false, message: `Plugin '${name}' is not installed.` };
   }
 
   try {
@@ -515,10 +514,10 @@ export function removePlugin(name: string, cwd: string = process.cwd()): { succe
     }
 
     saveInstalled(all.filter((p) => p.name.toLowerCase() !== name.toLowerCase()));
-    return { success: true, message: `플러그인 '${target.name}' 제거 완료.` };
+    return { success: true, message: `Plugin '${target.name}' removed.` };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { success: false, message: `제거 실패: ${msg}` };
+    return { success: false, message: `Removal failed: ${msg}` };
   }
 }
 

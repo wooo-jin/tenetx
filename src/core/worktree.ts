@@ -185,7 +185,7 @@ export function createWorktree(cwd: string, options: CreateWorktreeOptions): Wor
     if (issueNumber) {
       branch = `feature/${issueNumber}`;
     } else {
-      return { success: false, message: 'branch 또는 issueNumber 중 하나는 반드시 지정해야 합니다.' };
+      return { success: false, message: 'Either branch or issueNumber must be specified.' };
     }
   }
 
@@ -197,7 +197,7 @@ export function createWorktree(cwd: string, options: CreateWorktreeOptions): Wor
   // 저장소 루트 찾기
   const repoRoot = runGit(['rev-parse', '--show-toplevel'], cwd);
   if (!repoRoot) {
-    return { success: false, message: 'Git 저장소를 찾을 수 없습니다.' };
+    return { success: false, message: 'Git repository not found.' };
   }
 
   const worktreesDir = path.join(repoRoot.trim(), '.worktrees');
@@ -211,7 +211,7 @@ export function createWorktree(cwd: string, options: CreateWorktreeOptions): Wor
   if (fs.existsSync(worktreePath)) {
     return {
       success: false,
-      message: `워크트리 경로가 이미 존재합니다: ${worktreePath}`,
+      message: `Worktree path already exists: ${worktreePath}`,
     };
   }
 
@@ -232,7 +232,7 @@ export function createWorktree(cwd: string, options: CreateWorktreeOptions): Wor
   if (!result.success) {
     return {
       success: false,
-      message: `워크트리 생성 실패: ${result.output}`,
+      message: `Worktree creation failed: ${result.output}`,
     };
   }
 
@@ -240,7 +240,7 @@ export function createWorktree(cwd: string, options: CreateWorktreeOptions): Wor
     success: true,
     path: worktreePath,
     branch,
-    message: `워크트리 생성 완료: ${worktreePath} (브랜치: ${branch})`,
+    message: `Worktree created: ${worktreePath} (branch: ${branch})`,
   };
 }
 
@@ -260,7 +260,7 @@ export function removeWorktree(
   if (!path.isAbsolute(pathOrName)) {
     const repoRoot = runGit(['rev-parse', '--show-toplevel'], cwd);
     if (!repoRoot) {
-      return { success: false, message: 'Git 저장소를 찾을 수 없습니다.' };
+      return { success: false, message: 'Git repository not found.' };
     }
     targetPath = path.join(repoRoot.trim(), '.worktrees', pathOrName);
   }
@@ -272,11 +272,11 @@ export function removeWorktree(
   if (!result.success) {
     return {
       success: false,
-      message: `워크트리 제거 실패: ${result.output}`,
+      message: `Worktree removal failed: ${result.output}`,
     };
   }
 
-  return { success: true, message: `워크트리 제거 완료: ${targetPath}` };
+  return { success: true, message: `Worktree removed: ${targetPath}` };
 }
 
 /**

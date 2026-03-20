@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     const names = secrets.map(s => s.name).join(', ');
     console.log(JSON.stringify({
       result: 'approve',
-      message: `<compound-security-warning>\n[Tenetx] ⚠ 민감 정보 노출 감지: ${names}\n출력에 시크릿이 포함되어 있을 수 있습니다. 확인하세요.\n</compound-security-warning>`,
+      message: `<compound-security-warning>\n[Tenetx] ⚠ Sensitive information exposure detected: ${names}\nThe output may contain secrets. Please review.\n</compound-security-warning>`,
     }));
     return;
   }

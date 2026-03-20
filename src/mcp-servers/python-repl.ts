@@ -11,7 +11,7 @@ import type { McpServerDefinition } from './types.js';
 
 export const PYTHON_REPL_DEFINITION: McpServerDefinition = {
   name: 'python-repl',
-  description: 'Python 환경 감지 및 REPL 실행',
+  description: 'Python environment detection and REPL execution',
   command: 'node',
   args: ['python-repl-server.js'],
   builtin: true,

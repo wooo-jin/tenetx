@@ -35,14 +35,14 @@ const INTENT_RULES: IntentRule[] = [
 ];
 
 const INTENT_HINTS: Record<Intent, string> = {
-  implement: '구현 작업입니다. 테스트도 고려하세요.',
-  debug: '디버깅 모드. 재현→격리→수정 순서로 접근하세요.',
-  refactor: '리팩토링 작업. 기존 동작을 보존하면서 구조를 개선하세요.',
-  explain: '설명 요청. 핵심 개념을 간결하게 전달하세요.',
-  review: '코드 리뷰. 심각도별로 분류하여 피드백하세요.',
-  explore: '탐색 작업. Glob/Grep으로 빠르게 찾으세요.',
-  design: '설계 작업. 트레이드오프를 명시하세요.',
-  general: '일반 요청.',
+  implement: 'Implementation task. Consider tests.',
+  debug: 'Debug mode. Approach: reproduce → isolate → fix.',
+  refactor: 'Refactoring task. Improve structure while preserving existing behavior.',
+  explain: 'Explanation request. Convey core concepts concisely.',
+  review: 'Code review. Classify feedback by severity.',
+  explore: 'Exploration task. Use Glob/Grep to find quickly.',
+  design: 'Design task. Specify trade-offs explicitly.',
+  general: 'General request.',
 };
 
 function classifyIntent(prompt: string): Intent {

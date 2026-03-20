@@ -68,8 +68,8 @@ describe('context-guard', () => {
   describe('buildContextWarningMessage', () => {
     it('프롬프트 수와 문자 수를 포함한다', () => {
       const msg = buildContextWarningMessage(50, 200_000);
-      expect(msg).toContain('50회 프롬프트');
-      expect(msg).toContain('200K 문자');
+      expect(msg).toContain('50 prompts');
+      expect(msg).toContain('200K characters');
     });
 
     it('compound-context-warning 태그를 포함한다', () => {
@@ -85,7 +85,7 @@ describe('context-guard', () => {
 
     it('저장 안내를 포함한다', () => {
       const msg = buildContextWarningMessage(1, 1000);
-      expect(msg).toContain('저장');
+      expect(msg).toContain('save');
     });
   });
 });

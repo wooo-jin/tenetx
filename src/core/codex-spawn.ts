@@ -51,7 +51,7 @@ export function isCodexAvailable(): { available: boolean; reason?: string } {
     const whichCmd = process.platform === 'win32' ? 'where' : 'which';
     execFileSync(whichCmd, ['codex'], { encoding: 'utf-8', timeout: 3000 });
   } catch {
-    return { available: false, reason: 'Codex CLI가 설치되어 있지 않습니다 (npm i -g @openai/codex)' };
+    return { available: false, reason: 'Codex CLI is not installed (npm i -g @openai/codex)' };
   }
 
   // 2. 인증 확인 (codex login)
@@ -59,7 +59,7 @@ export function isCodexAvailable(): { available: boolean; reason?: string } {
   if (codexConfig) {
     const check = checkProviderAvailability(codexConfig);
     if (!check.available) {
-      return { available: false, reason: check.reason ?? 'Codex 인증 필요 (codex login)' };
+      return { available: false, reason: check.reason ?? 'Codex authentication required (codex login)' };
     }
   }
 
@@ -97,7 +97,7 @@ export function spawnCodexPane(
 
   // 사전 조건 확인
   if (!isTmux()) {
-    return { success: false, error: 'tmux 세션이 아닙니다. tmux 안에서 실행해주세요.' };
+    return { success: false, error: 'Not inside a tmux session. Please run inside tmux.' };
   }
 
   const codexCheck = isCodexAvailable();
@@ -133,13 +133,13 @@ export function spawnCodexPane(
   const codexArgsSh = codexArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ');
   const fullCmd = [
     `cd '${cwd.replace(/'/g, "'\\''")}'`,
-    `printf '\\033[1;36m[tenetx] Codex 팀원 시작\\033[0m\\n'`,
-    `printf '\\033[0;33m작업: %s\\033[0m\\n' '${taskPreview}'`,
+    `printf '\\033[1;36m[tenetx] Codex teammate starting\\033[0m\\n'`,
+    `printf '\\033[0;33mTask: %s\\033[0m\\n' '${taskPreview}'`,
     `printf '%s\\n' '---'`,
     `codex ${codexArgsSh}`,
-    `printf '\\n\\033[1;32m[tenetx] Codex 작업 완료\\033[0m\\n'`,
+    `printf '\\n\\033[1;32m[tenetx] Codex task complete\\033[0m\\n'`,
     `touch '${markerPath}'`,
-    `printf '%d초 후 패널을 닫습니다...\\n' '${autoCloseDelay}'`,
+    `printf 'Closing pane in %ds...\\n' '${autoCloseDelay}'`,
     `sleep ${autoCloseDelay}`,
   ].join(' && ');
 
@@ -165,8 +165,8 @@ export function spawnCodexPane(
     return { success: true, paneId, outputPath, markerPath };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    debugLog('codex-spawn', `tmux split 실패: ${msg}`);
-    return { success: false, error: `tmux 패널 분할 실패: ${msg}` };
+    debugLog('codex-spawn', `tmux split failed: ${msg}`);
+    return { success: false, error: `tmux pane split failed: ${msg}` };
   }
 }
 
@@ -270,7 +270,7 @@ export async function waitForCodexOutput(
         if (fs.existsSync(outputPath)) {
           return fs.readFileSync(outputPath, 'utf-8');
         }
-        return '(출력 파일 없음)';
+        return '(no output file)';
       } catch (e) {
         debugLog('codex-spawn', `출력 파일 읽기 실패: ${e instanceof Error ? e.message : String(e)}`);
         return null;
@@ -283,7 +283,7 @@ export async function waitForCodexOutput(
   // 타임아웃이어도 부분 출력 반환 시도
   if (fs.existsSync(outputPath)) {
     try {
-      return `${fs.readFileSync(outputPath, 'utf-8')}\n\n(⚠ 타임아웃 — 부분 출력)`;
+      return `${fs.readFileSync(outputPath, 'utf-8')}\n\n(⚠ Timeout — partial output)`;
     } catch { /* ignore */ }
   }
   return null;

@@ -83,7 +83,7 @@ async function main(): Promise<void> {
     if (activeCount > MAX_CONCURRENT_AGENTS) {
       console.log(JSON.stringify({
         result: 'approve',
-        message: `<compound-tool-warning>\n[Tenetx] ⚠ 활성 에이전트 ${activeCount}개 — 동시 실행이 많습니다. 리소스 사용에 주의하세요.\n</compound-tool-warning>`,
+        message: `<compound-tool-warning>\n[Tenetx] ⚠ ${activeCount} active agents — too many concurrent executions. Watch resource usage.\n</compound-tool-warning>`,
       }));
       return;
     }

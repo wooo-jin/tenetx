@@ -30,9 +30,9 @@ export interface SqlPattern {
 export const DANGEROUS_SQL_PATTERNS: SqlPattern[] = [
   { pattern: /DROP\s+(TABLE|DATABASE|SCHEMA)/i, description: 'DROP TABLE/DATABASE/SCHEMA', severity: 'block' },
   { pattern: /TRUNCATE\s+TABLE/i, description: 'TRUNCATE TABLE', severity: 'block' },
-  { pattern: /DELETE\s+FROM\s+\w+/i, description: 'DELETE FROM (WHERE 절 필요)', severity: 'block' },
+  { pattern: /DELETE\s+FROM\s+\w+/i, description: 'DELETE FROM (WHERE clause required)', severity: 'block' },
   { pattern: /ALTER\s+TABLE\s+\w+\s+DROP\s+COLUMN/i, description: 'ALTER TABLE DROP COLUMN', severity: 'warn' },
-  { pattern: /UPDATE\s+\w+\s+SET/i, description: 'UPDATE SET (WHERE 절 필요)', severity: 'warn' },
+  { pattern: /UPDATE\s+\w+\s+SET/i, description: 'UPDATE SET (WHERE clause required)', severity: 'warn' },
 ];
 
 /** SQL 명령어 위험도 검사 (순수 함수) */

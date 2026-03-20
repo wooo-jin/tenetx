@@ -74,14 +74,14 @@ describe('generateClaudeRules', () => {
 
   it('modelRouting이 있으면 모델 라우팅 섹션을 포함한다', () => {
     const result = generateClaudeRules(contextWithRouting);
-    expect(result).toContain('에이전트 모델 라우팅');
+    expect(result).toContain('Agent Model Routing');
     expect(result).toContain('claude-opus-4-6');
     expect(result).toContain('핵심 구현');
   });
 
   it('modelRouting이 없으면 라우팅 섹션이 없다', () => {
     const result = generateClaudeRules(baseContext);
-    expect(result).not.toContain('에이전트 모델 라우팅');
+    expect(result).not.toContain('Agent Model Routing');
   });
 
   it('team이 있으면 팩 섹션을 포함한다', () => {
@@ -178,7 +178,7 @@ describe('generateClaudeRules — 프로젝트 맵 주입', () => {
 
       const ctx: HarnessContext = { ...baseContext, cwd: tmpDir };
       const rules = generateClaudeRules(ctx);
-      expect(rules).toContain('프로젝트 구조');
+      expect(rules).toContain('Project Structure');
       expect(rules).toContain('my-app');
       expect(rules).toContain('React');
       expect(rules).toContain('src/index.ts');
@@ -211,9 +211,9 @@ describe('generateClaudeRuleFiles — 5개 분할', () => {
 describe('generateSecurityRules', () => {
   it('보안 관련 키워드를 포함한다', () => {
     const result = generateSecurityRules(baseContext);
-    expect(result).toContain('보안 규칙');
-    expect(result).toContain('위험 명령어');
-    expect(result).toContain('비밀키 보호');
+    expect(result).toContain('Security Rules');
+    expect(result).toContain('Dangerous Command');
+    expect(result).toContain('Secret Key Protection');
   });
 
   it('철학에 alert가 있으면 보안 알림 섹션을 포함한다', () => {
@@ -240,7 +240,7 @@ describe('generateSecurityRules', () => {
 describe('generateGoldenPrinciples', () => {
   it('철학 원칙의 belief를 포함한다', () => {
     const result = generateGoldenPrinciples(baseContext);
-    expect(result).toContain('핵심 원칙');
+    expect(result).toContain('Core Principles');
     expect(result).toContain('precision prevents mistakes');
     expect(result).toContain('always verify before acting');
   });
@@ -249,22 +249,22 @@ describe('generateGoldenPrinciples', () => {
 describe('generateAntiPatternRules', () => {
   it('안티패턴 관련 규칙을 포함한다', () => {
     const result = generateAntiPatternRules();
-    expect(result).toContain('안티패턴 감지');
-    expect(result).toContain('반복 수정 경고');
-    expect(result).toContain('에러 무시 경고');
+    expect(result).toContain('Anti-Pattern Detection');
+    expect(result).toContain('Repeated Edit Warning');
+    expect(result).toContain('Error Suppression Warning');
   });
 });
 
 describe('generateRoutingRules', () => {
   it('라우팅이 있으면 모델 라우팅 테이블을 포함한다', () => {
     const result = generateRoutingRules(contextWithRouting);
-    expect(result).toContain('에이전트 모델 라우팅');
+    expect(result).toContain('Agent Model Routing');
     expect(result).toContain('claude-opus-4-6');
   });
 
   it('라우팅이 없으면 미설정 메시지를 표시한다', () => {
     const result = generateRoutingRules(baseContext);
-    expect(result).toContain('모델 라우팅 미설정');
+    expect(result).toContain('Model routing not configured');
   });
 
   it('signalRoutingEnabled가 true이면 에스컬레이션 섹션을 포함한다', () => {
@@ -273,7 +273,7 @@ describe('generateRoutingRules', () => {
       signalRoutingEnabled: true,
     };
     const result = generateRoutingRules(ctx);
-    expect(result).toContain('동적 모델 에스컬레이션');
+    expect(result).toContain('Dynamic Model Escalation');
   });
 });
 

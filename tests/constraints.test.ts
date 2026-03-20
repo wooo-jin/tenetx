@@ -72,7 +72,7 @@ describe('dependency-direction constraint', () => {
     const content = `import { Repo } from '../ui/component.js';`;
     const v = checkDependencyDirection('infra/db.ts', content, rule);
     expect(v).toHaveLength(1);
-    expect(v[0].message).toContain('상위 레이어');
+    expect(v[0].message).toContain('upper layer');
   });
 
   it('상위→하위 의존은 통과', () => {
@@ -105,7 +105,7 @@ describe('custom-pattern constraint', () => {
     const content = `const x = 1;\nconsole.log(x);\nreturn x;`;
     const v = checkCustomPattern('src/foo.ts', content, rule);
     expect(v).toHaveLength(1);
-    expect(v[0].message).toContain('2번째 줄');
+    expect(v[0].message).toContain('line 2');
   });
 
   it('console.error는 통과', () => {
@@ -199,7 +199,7 @@ describe('formatViolations', () => {
       { constraintId: 'a', severity: 'error', filePath: 'x.ts', message: 'too big' },
       { constraintId: 'b', severity: 'warn', filePath: 'y.ts', message: 'naming' },
     ]);
-    expect(output).toContain('제약 위반 1건');
-    expect(output).toContain('경고 1건');
+    expect(output).toContain('1 constraint violations');
+    expect(output).toContain('1 warnings');
   });
 });
