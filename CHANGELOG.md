@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ecomode for token-saving with Haiku priority and minimal responses
 - Intent classifier for automatic task routing
 - Slop detector to identify low-quality outputs
-- 5 new skills for expanded workflow coverage
+- 7 new skills for expanded workflow coverage
+- `cancel-ralph` skill for Ralph loop cancellation via `/tenetx:cancel-ralph`
+- `ralph-craft` skill for interactive Ralph prompt building
 - Crash recovery support
 - 47 scenario tests for comprehensive coverage
 - Ralph mode integration with ralph-loop plugin for auto-iteration
