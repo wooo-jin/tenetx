@@ -206,7 +206,7 @@ tenetx --resume                     # Resume previous session
 tenetx --offline                    # Run without network
 ```
 
-### Execution Modes (9 modes, 11 skills)
+### Execution Modes (9 modes, 19 skills)
 
 Each mode maps to a philosophical principle:
 
@@ -505,7 +505,7 @@ tenetx "Refactor the chart API"
   │      └── Pull latest team knowledge + validate inheritance
   │
   ├── 4. Configure session
-  │      ├── Inject 14 hooks into ~/.claude/settings.json
+  │      ├── Inject 17 hooks into ~/.claude/settings.json
   │      ├── Set 16-signal model routing in env
   │      ├── Install agents & skills
   │      ├── Configure 10 event types for observability
@@ -580,7 +580,7 @@ tenetx setup --project --pack backend     # Or choose explicitly
 - **1204 tests** across 75 test files (100% pass)
 - **19 agents** in 3 lanes (BUILD 9, REVIEW 3, DOMAIN 7)
 - **19 skills** and 9 execution modes
-- **18 hooks**, 10 event types, 3 security hooks
+- **17 hooks**, 10 event types, 3 security hooks
 - **8 built-in MCP servers** (executable, JSON-RPC 2.0)
 - **16-signal model routing** (Haiku/Sonnet/Opus)
 - **5 sample philosophy packs** (startup, enterprise, research, content, platform)
