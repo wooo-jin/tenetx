@@ -128,7 +128,7 @@ async function main(): Promise<void> {
       process.stdin.removeAllListeners('end');
       resolve();
     }, 2000);
-    process.stdin.on('data', (chunk) => chunks.push(chunk as string));
+    process.stdin.on('data', (chunk) => chunks.push(String(chunk)));
     process.stdin.on('end', () => { clearTimeout(timeout); resolve(); });
   });
 
