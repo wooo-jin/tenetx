@@ -22,7 +22,7 @@
   },
   "author": "jang-ujin",
   "license": "MIT",
-  "description": "Philosophy-driven Claude Code harness — 원칙 선언형 워크플로우 프레임워크",
+  "description": "Philosophy-driven Claude Code harness — declare principles, generate workflows",
   "keywords": [
     "claude-code",
     "tenetx",
@@ -48,9 +48,13 @@
     "agents/",
     "skills/",
     "packs/",
+    "templates/",
     "plugin.json",
     "README.md",
-    "LICENSE"
+    "README.ko.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",
