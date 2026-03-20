@@ -54,7 +54,13 @@ const GOVERNANCE_DIR = path.join(STATE_DIR, 'governance');
 
 /** 거버넌스 리포트 생성 */
 export async function generateGovernanceReport(cwd: string): Promise<GovernanceReport> {
-  const { philosophy } = loadPhilosophyForProject(cwd);
+  let philosophy;
+  try {
+    ({ philosophy } = loadPhilosophyForProject(cwd));
+  } catch {
+    // Fallback to minimal philosophy if loading fails
+    philosophy = { name: 'default', version: '1.0.0', author: '', principles: {} };
+  }
 
   // Constraint 위반 수집
   const constraintResult = runConstraintsOnProject(cwd);

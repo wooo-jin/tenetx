@@ -74,7 +74,7 @@ export function checkRateLimit(
 }
 
 async function main(): Promise<void> {
-  const data = await readStdinJSON<PreToolInput>();
+  const data = await readStdinJSON<PreToolInput>(1500); // Must finish within plugin.json timeout (2000ms)
   if (!data) {
     // stdin 파싱 실패 — 통과 (rate limiter는 fail-open)
     console.log(JSON.stringify({ result: 'approve' }));
