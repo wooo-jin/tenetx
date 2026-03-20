@@ -43,7 +43,7 @@ describe('handleMcp - CLI extended', () => {
   it('add - 서버 이름 없이 호출하면 에러', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(handleMcp(['add'])).rejects.toThrow('process.exit');
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('서버 이름'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('server name'));
     errSpy.mockRestore();
   });
 
@@ -69,7 +69,7 @@ describe('handleMcp - CLI extended', () => {
   it('remove - 서버 이름 없이 호출하면 에러', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(handleMcp(['remove'])).rejects.toThrow('process.exit');
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('서버 이름'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('server name'));
     errSpy.mockRestore();
   });
 
@@ -78,7 +78,7 @@ describe('handleMcp - CLI extended', () => {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify({ mcpServers: {} }));
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleMcp(['remove', 'nonexistent']);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('설치되어 있지 않습니다'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('not installed'));
     logSpy.mockRestore();
   });
 
@@ -95,14 +95,14 @@ describe('handleMcp - CLI extended', () => {
     const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
     expect(settings.mcpServers.filesystem).toBeUndefined();
     expect(settings.mcpServers.fetch).toBeDefined();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('제거됨'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Removed'));
     logSpy.mockRestore();
   });
 
   it('알 수 없는 서브커맨드', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(handleMcp(['unknown'])).rejects.toThrow('process.exit');
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('알 수 없는'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Unknown'));
     errSpy.mockRestore();
   });
 

@@ -329,7 +329,7 @@ export async function handleGovernance(args: string[]): Promise<void> {
   const jsonMode = args.includes('--json');
   const trendOnly = args.includes('--trend');
 
-  console.log(`\n  ${DIM}거버넌스 리포트 생성 중...${RST}`);
+  console.log(`\n  ${DIM}Generating governance report...${RST}`);
 
   const report = await generateGovernanceReport(cwd);
 
@@ -339,14 +339,14 @@ export async function handleGovernance(args: string[]): Promise<void> {
   }
 
   if (trendOnly) {
-    console.log(`\n  ${BOLD}Tenetx — 거버넌스 트렌드${RST}\n`);
+    console.log(`\n  ${BOLD}Tenetx — Governance Trends${RST}\n`);
     if (report.trends.length === 0) {
-      console.log('  트렌드 데이터가 없습니다.\n');
+      console.log('  No trend data available.\n');
       return;
     }
     for (const t of report.trends.slice(-10)) {
       const color = t.compliance >= 80 ? GREEN : t.compliance >= 50 ? YELLOW : RED;
-      console.log(`  ${t.date}  ${color}${complianceBar(t.compliance)}${RST} ${t.compliance}%  (위반 ${t.violations}건)`);
+      console.log(`  ${t.date}  ${color}${complianceBar(t.compliance)}${RST} ${t.compliance}%  (${t.violations} violation(s))`);
     }
     console.log('');
     return;
@@ -357,7 +357,7 @@ export async function handleGovernance(args: string[]): Promise<void> {
   console.log(`  Philosophy: ${report.philosophy}`);
 
   const overallColor = report.overallCompliance >= 80 ? GREEN : report.overallCompliance >= 50 ? YELLOW : RED;
-  console.log(`  전체 준수율: ${overallColor}${report.overallCompliance}%${RST}\n`);
+  console.log(`  Overall compliance: ${overallColor}${report.overallCompliance}%${RST}\n`);
 
   for (const p of report.principles) {
     const color = p.complianceRate >= 80 ? GREEN : p.complianceRate >= 50 ? YELLOW : RED;
@@ -365,23 +365,23 @@ export async function handleGovernance(args: string[]): Promise<void> {
     console.log(`    ${DIM}${p.belief}${RST}`);
 
     if (p.violations.length > 0) {
-      console.log(`    위반 ${p.violations.length}건:`);
+      console.log(`    ${p.violations.length} violation(s):`);
       for (const v of p.violations.slice(0, 5)) {
         const icon = v.severity === 'critical' ? `${RED}✗${RST}` : v.severity === 'warning' ? `${YELLOW}⚠${RST}` : `${DIM}ℹ${RST}`;
         console.log(`      ${icon} ${v.description}`);
       }
       if (p.violations.length > 5) {
-        console.log(`      ${DIM}... 외 ${p.violations.length - 5}건${RST}`);
+        console.log(`      ${DIM}... and ${p.violations.length - 5} more${RST}`);
       }
     }
     console.log('');
   }
 
   if (report.trends.length > 0) {
-    console.log(`  ${DIM}트렌드 (최근):${RST}`);
+    console.log(`  ${DIM}Trends (recent):${RST}`);
     for (const t of report.trends.slice(-5)) {
       const c = t.compliance >= 80 ? GREEN : t.compliance >= 50 ? YELLOW : RED;
-      console.log(`    ${t.date}  ${c}${t.compliance}%${RST}  (위반 ${t.violations}건)`);
+      console.log(`    ${t.date}  ${c}${t.compliance}%${RST}  (${t.violations} violation(s))`);
     }
     console.log('');
   }
@@ -392,6 +392,6 @@ export async function handleGovernance(args: string[]): Promise<void> {
   try {
     fs.mkdirSync(GOVERNANCE_DIR, { recursive: true });
     fs.writeFileSync(mdPath, md);
-    console.log(`  ${DIM}리포트 저장: ${mdPath}${RST}\n`);
+    console.log(`  ${DIM}Report saved: ${mdPath}${RST}\n`);
   } catch { /* ignore */ }
 }

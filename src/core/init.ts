@@ -308,7 +308,7 @@ export async function handleInit(args: string[]): Promise<void> {
   } else {
     console.log('    git add .compound/philosophy.json && git commit -m "chore: add tenetx philosophy"');
   }
-  console.log('    tenetx philosophy show     # 철학 확인');
-  console.log('    tenetx philosophy edit     # 커스터마이즈');
+  console.log('    tenetx philosophy show     # View philosophy');
+  console.log('    tenetx philosophy edit     # Customize');
   console.log('');
 }

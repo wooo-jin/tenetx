@@ -130,7 +130,7 @@ describe('notepad', () => {
     it('show - 비어있을 때', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleNotepad(['show']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('비어있습니다'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('empty'));
       logSpy.mockRestore();
     });
 
@@ -152,7 +152,7 @@ describe('notepad', () => {
     it('add - 항목 추가', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleNotepad(['add', '테스트', '메모']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('추가'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Added'));
       const content = readNotepad(tmpDir);
       expect(content).toContain('테스트 메모');
       logSpy.mockRestore();
@@ -169,7 +169,7 @@ describe('notepad', () => {
       writeNotepad(tmpDir, '삭제할 내용');
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleNotepad(['clear']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('초기화'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('cleared'));
       const content = readNotepad(tmpDir);
       expect(content).toBe('');
       logSpy.mockRestore();
@@ -178,7 +178,7 @@ describe('notepad', () => {
     it('알 수 없는 서브커맨드', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleNotepad(['unknown']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('사용법'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Usage'));
       logSpy.mockRestore();
     });
   });

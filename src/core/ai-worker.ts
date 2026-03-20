@@ -263,19 +263,19 @@ export async function handleWorker(args: string[]): Promise<void> {
   if (sub === 'spawn') {
     const type = args[1] as AIWorker['type'];
     if (!type || !['gemini', 'codex', 'claude'].includes(type)) {
-      console.error('  사용법: tenetx worker spawn <gemini|codex|claude> "prompt"');
+      console.error('  Usage: tenetx worker spawn <gemini|codex|claude> "prompt"');
       process.exit(1);
     }
     const prompt = args.slice(2).join(' ');
     if (!prompt) {
-      console.error('  프롬프트를 입력하세요.');
+      console.error('  Please enter a prompt.');
       process.exit(1);
     }
 
     const worker = await spawnWorker(type, prompt);
-    console.log(`\n  ${GREEN}✓${RST} 워커 스폰: ${BOLD}${worker.id}${RST} (${worker.type})`);
+    console.log(`\n  ${GREEN}✓${RST} Worker spawned: ${BOLD}${worker.id}${RST} (${worker.type})`);
     if (worker.pid) console.log(`  PID: ${worker.pid}`);
-    console.log(`  프롬프트: ${DIM}${prompt.slice(0, 80)}${RST}\n`);
+    console.log(`  Prompt: ${DIM}${prompt.slice(0, 80)}${RST}\n`);
     return;
   }
 
@@ -284,7 +284,7 @@ export async function handleWorker(args: string[]): Promise<void> {
     console.log('\n  Tenetx — AI Workers\n');
 
     if (workers.length === 0) {
-      console.log('  활성 워커가 없습니다.');
+      console.log('  No active workers.');
       console.log(`  ${DIM}tenetx worker spawn <gemini|codex|claude> "prompt"${RST}\n`);
       return;
     }
@@ -306,14 +306,14 @@ export async function handleWorker(args: string[]): Promise<void> {
   if (sub === 'kill') {
     const id = args[1];
     if (!id) {
-      console.error('  사용법: tenetx worker kill <id>');
+      console.error('  Usage: tenetx worker kill <id>');
       process.exit(1);
     }
     const success = killWorker(id);
     if (success) {
-      console.log(`  ${GREEN}✓${RST} 워커 종료: ${id}`);
+      console.log(`  ${GREEN}✓${RST} Worker terminated: ${id}`);
     } else {
-      console.error(`  ${RED}✗${RST} 워커를 찾을 수 없습니다: ${id}`);
+      console.error(`  ${RED}✗${RST} Worker not found: ${id}`);
       process.exit(1);
     }
     return;
@@ -322,12 +322,12 @@ export async function handleWorker(args: string[]): Promise<void> {
   if (sub === 'output') {
     const id = args[1];
     if (!id) {
-      console.error('  사용법: tenetx worker output <id>');
+      console.error('  Usage: tenetx worker output <id>');
       process.exit(1);
     }
     const output = getWorkerOutput(id);
     if (output === null) {
-      console.error(`  ${RED}✗${RST} 출력을 찾을 수 없습니다: ${id}`);
+      console.error(`  ${RED}✗${RST} Output not found: ${id}`);
       process.exit(1);
     } else {
       console.log(output);
@@ -335,6 +335,6 @@ export async function handleWorker(args: string[]): Promise<void> {
     return;
   }
 
-  console.error('  사용법: tenetx worker <spawn|list|kill|output>');
+  console.error('  Usage: tenetx worker <spawn|list|kill|output>');
   process.exit(1);
 }

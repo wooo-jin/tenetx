@@ -28,13 +28,13 @@ function findDashboardPane(): string | null {
 /** Toggle tmux dashboard pane open/close */
 export async function toggleDashboard(): Promise<void> {
   if (process.platform === 'win32') {
-    console.log('[tenetx] 대시보드는 현재 Windows를 지원하지 않습니다.');
-    console.log('  WSL 또는 macOS/Linux에서 사용하세요.');
+    console.log('[tenetx] Dashboard is not supported on Windows.');
+    console.log('  Please use WSL or macOS/Linux.');
     return;
   }
   if (!process.env.TMUX) {
-    console.log('[tenetx] tmux 세션에서만 대시보드를 사용할 수 있습니다.');
-    console.log('  설치: brew install tmux (macOS) / apt install tmux (Linux)');
+    console.log('[tenetx] Dashboard is only available inside a tmux session.');
+    console.log('  Install: brew install tmux (macOS) / apt install tmux (Linux)');
     return;
   }
 
@@ -49,7 +49,7 @@ export async function toggleDashboard(): Promise<void> {
       execFileSync('tmux', ['select-pane', '-T', PANE_TITLE], { stdio: 'ignore' });
       execFileSync('tmux', ['last-pane'], { stdio: 'ignore' });
     } catch (err) {
-      console.error('[tenetx] 대시보드 열기 실패:', err);
+      console.error('[tenetx] Failed to open dashboard:', err);
     }
   }
 }

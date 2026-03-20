@@ -203,7 +203,7 @@ describe('handleWorker()', () => {
   it('list - 워커가 없을 때', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleWorker(['list']);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('활성 워커가 없습니다'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('No active workers'));
     logSpy.mockRestore();
   });
 

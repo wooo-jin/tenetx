@@ -111,8 +111,8 @@ export async function handleSession(args: string[]): Promise<void> {
   if (sub === 'search') {
     const query = args.slice(1).filter(a => !a.startsWith('--')).join(' ');
     if (!query) {
-      console.log('  사용법: tenetx session search "검색어"');
-      console.log('  옵션: --project <path> --json');
+      console.log('  Usage: tenetx session search "query"');
+      console.log('  Options: --project <path> --json');
       return;
     }
 
@@ -124,7 +124,7 @@ export async function handleSession(args: string[]): Promise<void> {
       return;
     }
 
-    console.log(`\n  세션 검색: "${query}" (${results.length}건)\n`);
+    console.log(`\n  Session search: "${query}" (${results.length} results)\n`);
     for (const r of results) {
       const date = r.startTime.slice(0, 10);
       const time = r.startTime.slice(11, 16);
@@ -132,7 +132,7 @@ export async function handleSession(args: string[]): Promise<void> {
       const proj = path.basename(r.cwd);
       console.log(`  ${date} ${time}  ${proj}  mode:${r.mode}  ${dur}  [${r.philosophy}]`);
     }
-    if (results.length === 0) console.log('  검색 결과가 없습니다.');
+    if (results.length === 0) console.log('  No results found.');
     console.log('');
     return;
   }
@@ -140,7 +140,7 @@ export async function handleSession(args: string[]): Promise<void> {
   if (sub === 'show') {
     const idOrDate = args[1];
     if (!idOrDate) {
-      console.log('  사용법: tenetx session show <session-id 또는 날짜>');
+      console.log('  Usage: tenetx session show <session-id or date>');
       return;
     }
 
@@ -150,19 +150,19 @@ export async function handleSession(args: string[]): Promise<void> {
     );
 
     if (!match) {
-      console.log(`  세션을 찾을 수 없습니다: ${idOrDate}`);
+      console.log(`  Session not found: ${idOrDate}`);
       return;
     }
 
-    console.log('\n  세션 상세:\n');
+    console.log('\n  Session Details:\n');
     console.log(`  ID: ${match.sessionId}`);
-    console.log(`  시작: ${match.startTime}`);
-    if (match.endTime) console.log(`  종료: ${match.endTime}`);
-    console.log(`  소요: ${formatDuration(match.durationMs)}`);
-    console.log(`  프로젝트: ${match.cwd}`);
-    console.log(`  철학: ${match.philosophy}`);
-    console.log(`  모드: ${match.mode}`);
-    console.log(`  스코프: ${match.scope}`);
+    console.log(`  Start: ${match.startTime}`);
+    if (match.endTime) console.log(`  End: ${match.endTime}`);
+    console.log(`  Duration: ${formatDuration(match.durationMs)}`);
+    console.log(`  Project: ${match.cwd}`);
+    console.log(`  Philosophy: ${match.philosophy}`);
+    console.log(`  Mode: ${match.mode}`);
+    console.log(`  Scope: ${match.scope}`);
     console.log('');
     return;
   }
@@ -175,7 +175,7 @@ export async function handleSession(args: string[]): Promise<void> {
 
   const recent = sessions.filter(s => new Date(s.startTime).getTime() > cutoffMs);
 
-  console.log(`\n  최근 세션 (${cutoff}일, ${recent.length}건)\n`);
+  console.log(`\n  Recent sessions (${cutoff}d, ${recent.length} total)\n`);
   for (const s of recent.slice(0, 30)) {
     const date = s.startTime.slice(0, 10);
     const time = s.startTime.slice(11, 16);
@@ -183,6 +183,6 @@ export async function handleSession(args: string[]): Promise<void> {
     const proj = path.basename(s.cwd);
     console.log(`  ${date} ${time}  ${proj}  mode:${s.mode}  ${dur}`);
   }
-  if (recent.length === 0) console.log('  세션 기록이 없습니다.');
+  if (recent.length === 0) console.log('  No session history found.');
   console.log('');
 }

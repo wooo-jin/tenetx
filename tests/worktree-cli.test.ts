@@ -42,28 +42,28 @@ describe('handleWorktree CLI', () => {
   it('remove - 인자 없으면 사용법 출력', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await handleWorktree(['remove']);
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('사용법'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Usage'));
     errSpy.mockRestore();
   });
 
   it('teleport - 인자 없으면 사용법 출력', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await handleWorktree(['teleport']);
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('사용법'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Usage'));
     errSpy.mockRestore();
   });
 
   it('teleport - 없는 식별자', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await handleWorktree(['teleport', 'nonexistent-99999']);
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('찾을 수 없습니다'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('No worktree found'));
     errSpy.mockRestore();
   });
 
   it('알 수 없는 서브커맨드', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await handleWorktree(['unknown-subcmd']);
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('알 수 없는'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Unknown'));
     errSpy.mockRestore();
   });
 });

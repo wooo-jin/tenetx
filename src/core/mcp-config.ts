@@ -84,7 +84,7 @@ export function generateMcpConfig(
     if (templates[name]) {
       result[name] = { ...templates[name], args: [...templates[name].args] };
     } else {
-      console.warn(`[mcp-config] 알 수 없는 MCP 서버 이름: "${name}" — 건너뜁니다.`);
+      console.warn(`[mcp-config] Unknown MCP server name: "${name}" — skipping.`);
     }
   }
 
@@ -136,10 +136,10 @@ export async function handleMcp(args: string[]): Promise<void> {
     console.log('\n  Tenetx — MCP Servers\n');
 
     if (names.length === 0) {
-      console.log('  설치된 MCP 서버가 없습니다.');
-      console.log('  `tenetx mcp add <name>` 으로 추가하세요.\n');
+      console.log('  No MCP servers installed.');
+      console.log('  Use `tenetx mcp add <name>` to add one.\n');
     } else {
-      console.log(`  설치된 서버 (${names.length}개):\n`);
+      console.log(`  Installed servers (${names.length}):\n`);
       for (const name of names) {
         const cfg = installed[name];
         console.log(`    ${name}`);
@@ -156,7 +156,7 @@ export async function handleMcp(args: string[]): Promise<void> {
   if (sub === 'templates') {
     const templates = getDefaultMcpTemplates();
     console.log('\n  Tenetx — MCP Templates\n');
-    console.log(`  사용 가능한 기본 템플릿 (${Object.keys(templates).length}개):\n`);
+    console.log(`  Available default templates (${Object.keys(templates).length}):\n`);
     for (const [name, cfg] of Object.entries(templates)) {
       console.log(`    ${name}`);
       console.log(`      command: ${cfg.command} ${cfg.args.join(' ')}`);
@@ -168,9 +168,9 @@ export async function handleMcp(args: string[]): Promise<void> {
   if (sub === 'add') {
     const serverNames = args.slice(1);
     if (serverNames.length === 0) {
-      console.error('  오류: 추가할 서버 이름을 지정하세요.');
-      console.error('  사용법: tenetx mcp add <name> [<name>...]');
-      console.error('  템플릿 목록: tenetx mcp templates');
+      console.error('  Error: Please specify a server name to add.');
+      console.error('  Usage: tenetx mcp add <name> [<name>...]');
+      console.error('  Available templates: tenetx mcp templates');
       process.exit(1);
     }
 
@@ -178,7 +178,7 @@ export async function handleMcp(args: string[]): Promise<void> {
     const addedNames = Object.keys(configs);
 
     if (addedNames.length === 0) {
-      console.error('  오류: 유효한 서버 이름이 없습니다.');
+      console.error('  Error: No valid server names provided.');
       process.exit(1);
     }
 
@@ -186,7 +186,7 @@ export async function handleMcp(args: string[]): Promise<void> {
 
     console.log('\n  Tenetx — MCP Add\n');
     for (const name of addedNames) {
-      console.log(`  ✓ 추가됨: ${name}`);
+      console.log(`  ✓ Added: ${name}`);
     }
     console.log('');
     return;
@@ -195,8 +195,8 @@ export async function handleMcp(args: string[]): Promise<void> {
   if (sub === 'remove') {
     const serverName = args[1];
     if (!serverName) {
-      console.error('  오류: 제거할 서버 이름을 지정하세요.');
-      console.error('  사용법: tenetx mcp remove <name>');
+      console.error('  Error: Please specify a server name to remove.');
+      console.error('  Usage: tenetx mcp remove <name>');
       process.exit(1);
     }
 
@@ -204,14 +204,14 @@ export async function handleMcp(args: string[]): Promise<void> {
     try {
       settings = readSettings();
     } catch {
-      console.error('  오류: settings.json 파싱 실패');
+      console.error('  Error: Failed to parse settings.json');
       process.exit(1);
       return;
     }
 
     const mcpServers = (settings.mcpServers as Record<string, McpServerConfig>) ?? {};
     if (!mcpServers[serverName]) {
-      console.log(`  "${serverName}"가 설치되어 있지 않습니다.`);
+      console.log(`  "${serverName}" is not installed.`);
       return;
     }
 
@@ -219,12 +219,12 @@ export async function handleMcp(args: string[]): Promise<void> {
     settings.mcpServers = mcpServers;
     writeSettings(settings); // lock + backup + atomic write
 
-    console.log(`\n  ✓ 제거됨: ${serverName}\n`);
+    console.log(`\n  ✓ Removed: ${serverName}\n`);
     return;
   }
 
   // 알 수 없는 서브커맨드
-  console.error(`  오류: 알 수 없는 mcp 서브커맨드: "${sub}"`);
-  console.error('  사용법: tenetx mcp [list|templates|add|remove]');
+  console.error(`  Error: Unknown mcp subcommand: "${sub}"`);
+  console.error('  Usage: tenetx mcp [list|templates|add|remove]');
   process.exit(1);
 }

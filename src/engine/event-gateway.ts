@@ -71,7 +71,7 @@ export async function handleGateway(args: string[]): Promise<void> {
   if (subcommand === 'config' && args[1]) {
     const url = args[1];
     if (!validateWebhookUrl(url)) {
-      console.error('  유효하지 않은 URL입니다. HTTPS URL을 입력하세요.');
+      console.error('  Invalid URL. Please enter an HTTPS URL.');
       return;
     }
     const config = loadGlobalConfig();
@@ -82,18 +82,18 @@ export async function handleGateway(args: string[]): Promise<void> {
       events: config.gateway?.events,
     };
     saveGlobalConfig(config);
-    console.log(`  Gateway 설정 완료: ${url}`);
+    console.log(`  Gateway configured: ${url}`);
     return;
   }
 
   if (subcommand === 'test') {
     const gwConfig = loadGatewayConfig();
     if (!gwConfig) {
-      console.log('  Gateway가 설정되지 않았거나 비활성화 상태입니다.');
-      console.log('  설정: tenetx gateway config <url>');
+      console.log('  Gateway is not configured or is disabled.');
+      console.log('  Configure: tenetx gateway config <url>');
       return;
     }
-    console.log(`  테스트 이벤트 전송 중... (${gwConfig.url})`);
+    console.log(`  Sending test event... (${gwConfig.url})`);
     const testEvent: GatewayEvent = {
       type: 'session-start',
       timestamp: new Date().toISOString(),
@@ -101,9 +101,9 @@ export async function handleGateway(args: string[]): Promise<void> {
     };
     const ok = await forwardEvent(testEvent);
     if (ok) {
-      console.log('  테스트 성공!');
+      console.log('  Test succeeded!');
     } else {
-      console.log('  테스트 실패. URL과 네트워크를 확인하세요.');
+      console.log('  Test failed. Check the URL and network.');
     }
     return;
   }
@@ -114,15 +114,15 @@ export async function handleGateway(args: string[]): Promise<void> {
       config.gateway.enabled = false;
       saveGlobalConfig(config);
     }
-    console.log('  Gateway 비활성화됨');
+    console.log('  Gateway disabled');
     return;
   }
 
   // help
-  console.log('  사용법: tenetx gateway <command>');
+  console.log('  Usage: tenetx gateway <command>');
   console.log('');
   console.log('  Commands:');
-  console.log('    config <url>     Gateway webhook URL 설정');
-  console.log('    test             테스트 이벤트 전송');
-  console.log('    disable          Gateway 비활성화');
+  console.log('    config <url>     Set gateway webhook URL');
+  console.log('    test             Send a test event');
+  console.log('    disable          Disable the gateway');
 }

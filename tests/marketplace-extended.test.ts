@@ -196,21 +196,21 @@ describe('marketplace - extended', () => {
     it('search - 결과가 있을 때', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleMarketplace(['search', 'tdd']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('검색 결과'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('search results'));
       logSpy.mockRestore();
     });
 
     it('search - 결과가 없을 때', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleMarketplace(['search', 'zzzznonexistent']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('검색 결과가 없습니다'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('No search results'));
       logSpy.mockRestore();
     });
 
     it('list - 설치된 플러그인이 없을 때', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleMarketplace(['list']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('설치된 플러그인이 없습니다'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('No plugins installed'));
       logSpy.mockRestore();
     });
 

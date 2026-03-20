@@ -31,8 +31,13 @@ export interface ReviewPoint {
 /** Git에서 변경된 파일 목록 추출 */
 export function getChangedFiles(cwd: string): ChangedFile[] {
   try {
-    // staged + unstaged 변경 (execFileSync로 인젝션 방지)
+    // git 리포지토리 여부 확인 (비 git 디렉토리에서 경고 출력 방지)
     const { execFileSync } = require('node:child_process');
+    try {
+      execFileSync('git', ['rev-parse', '--git-dir'], { cwd, stdio: 'pipe', timeout: 5_000 });
+    } catch {
+      return [];
+    }
 
     type GitArgs = [string, string[]];
     const numstatArgs: GitArgs[] = [

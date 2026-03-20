@@ -41,7 +41,7 @@ export async function handleAsk(args: string[]): Promise<void> {
   const knownFlags = new Set(['--provider', '--model', '--all', '--compare', '--fallback']);
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith('--') && !knownFlags.has(args[i]) && !skipIndices.has(i)) {
-      console.log(`  ⚠ 알 수 없는 옵션: ${args[i]} (무시됨)`);
+      console.log(`  ⚠ Unknown option: ${args[i]} (ignored)`);
     }
   }
 
@@ -50,7 +50,7 @@ export async function handleAsk(args: string[]): Promise<void> {
   ).join(' ');
 
   if (!prompt) {
-    console.log('  질문을 입력하세요.');
+    console.log('  Please enter a question.');
     return;
   }
 
@@ -58,7 +58,7 @@ export async function handleAsk(args: string[]): Promise<void> {
   if (askAll || compare) {
     const results = await callAllProviders(prompt, model);
     if (results.length === 0) {
-      console.log('  가용한 프로바이더가 없습니다.');
+      console.log('  No available providers.');
       return;
     }
     for (const r of results) {
@@ -88,14 +88,14 @@ export async function handleAsk(args: string[]): Promise<void> {
   const config = configs.find(c => c.name === targetProvider);
 
   if (!config) {
-    console.error(`  ✗ 지원하지 않는 프로바이더: ${targetProvider}`);
-    console.log('  지원: claude, codex, gemini');
+    console.error(`  ✗ Unsupported provider: ${targetProvider}`);
+    console.log('  Supported: claude, codex, gemini');
     return process.exit(1);
   }
 
   const availability = checkProviderAvailability(config);
   if (!availability.available) {
-    console.error(`  ✗ ${targetProvider} 사용 불가: ${availability.reason}`);
+    console.error(`  ✗ ${targetProvider} unavailable: ${availability.reason}`);
     return process.exit(1);
   }
 
@@ -115,18 +115,18 @@ export async function handleProviders(args: string[]): Promise<void> {
   if (sub === 'enable' || sub === 'disable') {
     const name = args[1] as ProviderName;
     if (!name || (name !== 'claude' && name !== 'codex' && name !== 'gemini')) {
-      console.log(`  사용법: tenetx providers ${sub} <claude|codex|gemini>`);
+      console.log(`  Usage: tenetx providers ${sub} <claude|codex|gemini>`);
       return;
     }
     const configs = loadProviderConfigs();
     const config = configs.find(c => c.name === name);
     if (!config) {
-      console.log(`  ✗ 프로바이더 '${name}'을 찾을 수 없습니다.`);
+      console.log(`  ✗ Provider '${name}' not found.`);
       return;
     }
     config.enabled = sub === 'enable';
     saveProviderConfigs(configs);
-    console.log(`  ${sub === 'enable' ? '✓' : '✗'} ${name} ${sub === 'enable' ? '활성화' : '비활성화'}`);
+    console.log(`  ${sub === 'enable' ? '✓' : '✗'} ${name} ${sub === 'enable' ? 'enabled' : 'disabled'}`);
     return;
   }
 
@@ -134,34 +134,34 @@ export async function handleProviders(args: string[]): Promise<void> {
     const name = args[1] as ProviderName;
     const model = args[2];
     if (!name || !model) {
-      console.log('  사용법: tenetx providers model <claude|codex|gemini> <model-name>');
+      console.log('  Usage: tenetx providers model <claude|codex|gemini> <model-name>');
       return;
     }
     const configs = loadProviderConfigs();
     const config = configs.find(c => c.name === name);
     if (!config) {
-      console.log(`  ✗ 프로바이더 '${name}'을 찾을 수 없습니다.`);
+      console.log(`  ✗ Provider '${name}' not found.`);
       return;
     }
     config.defaultModel = model;
     saveProviderConfigs(configs);
-    console.log(`  ✓ ${name} 기본 모델 → ${model}`);
+    console.log(`  ✓ ${name} default model → ${model}`);
     return;
   }
 
   if (sub === 'auth') {
     const mode = args[1] as 'oauth' | 'cli' | 'apikey';
     if (!mode || !['oauth', 'cli', 'apikey'].includes(mode)) {
-      console.log('  사용법: tenetx providers auth <oauth|cli|apikey>');
-      console.log('    oauth   — ~/.codex/auth.json의 OAuth 토큰 사용 (기본)');
-      console.log('    cli     — codex CLI 직접 호출');
-      console.log('    apikey  — OPENAI_API_KEY 환경변수 사용');
+      console.log('  Usage: tenetx providers auth <oauth|cli|apikey>');
+      console.log('    oauth   — Use OAuth token from ~/.codex/auth.json (default)');
+      console.log('    cli     — Call codex CLI directly');
+      console.log('    apikey  — Use OPENAI_API_KEY environment variable');
       return;
     }
     const configs = loadProviderConfigs();
     const config = configs.find(c => c.name === 'codex');
     if (!config) {
-      console.log('  ✗ codex 프로바이더를 찾을 수 없습니다.');
+      console.log('  ✗ Codex provider not found.');
       return;
     }
     config.authMode = mode;
@@ -169,7 +169,7 @@ export async function handleProviders(args: string[]): Promise<void> {
       config.apiKey = 'OPENAI_API_KEY';
     }
     saveProviderConfigs(configs);
-    console.log(`  ✓ codex 인증 모드 → ${mode}`);
+    console.log(`  ✓ codex auth mode → ${mode}`);
     return;
   }
 
@@ -177,18 +177,18 @@ export async function handleProviders(args: string[]): Promise<void> {
     const name = args[1] as ProviderName;
     const priority = parseInt(args[2], 10);
     if (!name || Number.isNaN(priority)) {
-      console.log('  사용법: tenetx providers priority <claude|codex|gemini> <number>');
+      console.log('  Usage: tenetx providers priority <claude|codex|gemini> <number>');
       return;
     }
     const configs = loadProviderConfigs();
     const config = configs.find(c => c.name === name);
     if (!config) {
-      console.log(`  ✗ 프로바이더 '${name}'을 찾을 수 없습니다.`);
+      console.log(`  ✗ Provider '${name}' not found.`);
       return;
     }
     config.priority = priority;
     saveProviderConfigs(configs);
-    console.log(`  ✓ ${name} 우선순위 → ${priority}`);
+    console.log(`  ✓ ${name} priority → ${priority}`);
     return;
   }
 
@@ -207,11 +207,11 @@ const YELLOW = '\x1b[33m';
 
 function printProviderStatus(): void {
   const summary = getProviderSummary();
-  console.log('\n  Tenetx — 프로바이더 현황\n');
+  console.log('\n  Tenetx — Provider Status\n');
 
   for (const p of summary) {
     const statusIcon = p.available ? `${GREEN}●${RST}` : `${RED}○${RST}`;
-    const enabledLabel = p.enabled ? '' : `${DIM}(비활성)${RST}`;
+    const enabledLabel = p.enabled ? '' : `${DIM}(disabled)${RST}`;
     const modelLabel = p.model ? `${DIM}${p.model}${RST}` : '';
     const authLabel = p.authMode ? `${DIM}[${p.authMode}]${RST}` : '';
     const reason = !p.available && p.reason ? `${DIM}— ${p.reason}${RST}` : '';
@@ -219,7 +219,7 @@ function printProviderStatus(): void {
     console.log(`  ${statusIcon} ${BOLD}${p.name}${RST} ${modelLabel} ${authLabel} ${enabledLabel} ${reason}`.trimEnd());
   }
 
-  console.log(`\n  ${DIM}관리: tenetx providers <enable|disable|model|priority|auth> <provider> [value]${RST}\n`);
+  console.log(`\n  ${DIM}Manage: tenetx providers <enable|disable|model|priority|auth> <provider> [value]${RST}\n`);
 }
 
 function printProviderResult(r: ProviderResponse): void {
@@ -233,17 +233,17 @@ function printProviderResult(r: ProviderResponse): void {
 }
 
 function printComparison(results: ProviderResponse[]): void {
-  console.log(`  ─── 비교 요약 ───`);
+  console.log(`  ─── Comparison Summary ───`);
   const fastest = results.reduce((a, b) => a.latencyMs < b.latencyMs ? a : b);
   const longest = results.reduce((a, b) => (a.content?.length ?? 0) > (b.content?.length ?? 0) ? a : b);
 
-  console.log(`  ${CYAN}최고 속도${RST}: ${fastest.provider} (${fastest.latencyMs}ms)`);
-  console.log(`  ${YELLOW}가장 긴 응답${RST}: ${longest.provider} (${longest.content.length}자)`);
+  console.log(`  ${CYAN}Fastest${RST}: ${fastest.provider} (${fastest.latencyMs}ms)`);
+  console.log(`  ${YELLOW}Longest response${RST}: ${longest.provider} (${longest.content.length} chars)`);
 
   // 응답 유사도 (간단한 자카드 유사도)
   if (results.length === 2) {
     const similarity = jaccardSimilarity(results[0].content, results[1].content);
-    console.log(`  ${DIM}응답 유사도${RST}: ${(similarity * 100).toFixed(0)}%`);
+    console.log(`  ${DIM}Response similarity${RST}: ${(similarity * 100).toFixed(0)}%`);
   }
   console.log();
 }
@@ -262,30 +262,30 @@ function jaccardSimilarity(a: string, b: string): number {
 
 function printAskHelp(): void {
   console.log(`
-  사용법: tenetx ask "질문"
+  Usage: tenetx ask "question"
 
-  옵션:
-    --provider <claude|codex|gemini>  프로바이더 (기본: claude)
-    --model <model-name>        모델 지정
-    --all                       모든 가용 프로바이더에 동시 질문
-    --compare                   병렬 질문 + 비교 분석
-    --fallback                  자동 폴백 (실패 시 다음 프로바이더)
+  Options:
+    --provider <claude|codex|gemini>  Provider (default: claude)
+    --model <model-name>        Specify model
+    --all                       Query all available providers simultaneously
+    --compare                   Parallel query + comparison analysis
+    --fallback                  Auto fallback (try next provider on failure)
 
-  Codex 인증 (기본: OAuth):
-    1. codex login              — OAuth 로그인 (브라우저)
-    2. tenetx providers auth oauth  — OAuth 토큰 사용 (기본)
-    3. tenetx providers auth cli    — codex CLI 직접 호출
-    4. tenetx providers auth apikey — OPENAI_API_KEY 환경변수
+  Codex authentication (default: OAuth):
+    1. codex login              — OAuth login (browser)
+    2. tenetx providers auth oauth  — Use OAuth token (default)
+    3. tenetx providers auth cli    — Call codex CLI directly
+    4. tenetx providers auth apikey — Use OPENAI_API_KEY env var
 
-  Gemini 인증:
-    GEMINI_API_KEY 환경변수 설정 필요
+  Gemini authentication:
+    Requires GEMINI_API_KEY environment variable
 
-  프로바이더 관리:
-    tenetx providers                         상태 확인
-    tenetx providers enable codex            Codex 활성화
-    tenetx providers enable gemini           Gemini 활성화
-    tenetx providers auth <oauth|cli|apikey> 인증 모드 변경
-    tenetx providers model codex o4-mini     기본 모델 변경
-    tenetx providers model gemini gemini-2.5-pro  Gemini 모델 변경
+  Provider management:
+    tenetx providers                         Check status
+    tenetx providers enable codex            Enable Codex
+    tenetx providers enable gemini           Enable Gemini
+    tenetx providers auth <oauth|cli|apikey> Change auth mode
+    tenetx providers model codex o4-mini     Change default model
+    tenetx providers model gemini gemini-2.5-pro  Change Gemini model
 `);
 }

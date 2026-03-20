@@ -28,13 +28,13 @@ export async function handleRules(args: string[]): Promise<void> {
   const cwd = process.cwd();
   const sub = args[0];
 
-  console.log(`\n  ${BOLD}Tenetx — 규칙 뷰어${RST}\n`);
+  console.log(`\n  ${BOLD}Tenetx — Rules Viewer${RST}\n`);
 
   // 개인 규칙
   const personalRules = listMdFiles(ME_RULES);
-  console.log(`  ${CYAN}개인 규칙${RST} (${personalRules.length}건) — ~/.compound/me/rules/`);
+  console.log(`  ${CYAN}Personal Rules${RST} (${personalRules.length}) — ~/.compound/me/rules/`);
   if (personalRules.length === 0) {
-    console.log(`  ${DIM}없음. tenetx compound 로 추출하세요.${RST}`);
+    console.log(`  ${DIM}None. Extract with tenetx compound.${RST}`);
   } else {
     for (const r of personalRules) {
       console.log(`    • ${r.firstLine}`);
@@ -46,7 +46,7 @@ export async function handleRules(args: string[]): Promise<void> {
   console.log();
 
   if (packs.length === 0) {
-    console.log(`  ${DIM}팀 규칙: 팩 미연결 (tenetx init --team 으로 설정)${RST}`);
+    console.log(`  ${DIM}Team rules: no pack connected (set up with tenetx init --team)${RST}`);
   } else {
     for (const pack of packs) {
       // 규칙 디렉토리 후보 결정 (타입에 관계없이 모두 탐색)
@@ -78,12 +78,12 @@ export async function handleRules(args: string[]): Promise<void> {
       }
       const label = pack.type === 'inline' ? `inline:${pack.name}` : `pack:${pack.name}`;
 
-      console.log(`  ${YELLOW}팩 규칙${RST} (${packRules.length}건) — ${label}`);
+      console.log(`  ${YELLOW}Pack Rules${RST} (${packRules.length}) — ${label}`);
       if (packRules.length === 0) {
         if (pack.type === 'inline') {
-          console.log(`  ${DIM}없음. tenetx compound → tenetx propose 로 추가하세요.${RST}`);
+          console.log(`  ${DIM}None. Add with tenetx compound → tenetx propose.${RST}`);
         } else {
-          console.log(`  ${DIM}tenetx pack sync 후 확인하세요.${RST}`);
+          console.log(`  ${DIM}Check after running tenetx pack sync.${RST}`);
         }
       } else {
         for (const r of packRules) {
@@ -104,7 +104,7 @@ export async function handleRules(args: string[]): Promise<void> {
       console.log(`\n  ── ${target} ──\n`);
       console.log(fs.readFileSync(filePath, 'utf-8'));
     } else {
-      console.log(`\n  ${DIM}"${target}" 규칙을 찾을 수 없습니다.${RST}`);
+      console.log(`\n  ${DIM}Rule "${target}" not found.${RST}`);
     }
   }
 

@@ -294,17 +294,17 @@ export async function waitForCodexOutput(
 export async function handleCodexSpawn(args: string[]): Promise<void> {
   if (args.includes('--help') || args.includes('-h') || args.length === 0) {
     console.log(`
-  tenetx codex-spawn — Codex를 tmux 패널에 스폰
+  tenetx codex-spawn — Spawn Codex in a tmux pane
 
-  사용법:
-    tenetx codex-spawn "작업 설명"
-    tenetx codex-spawn --status          활성 패널 확인
-    tenetx codex-spawn --model o3 "작업"  모델 지정
+  Usage:
+    tenetx codex-spawn "task description"
+    tenetx codex-spawn --status          Check active panes
+    tenetx codex-spawn --model o3 "task"  Specify model
 
-  요구사항:
-    - tmux 세션 안에서 실행
-    - Codex CLI 설치 (npm i -g @openai/codex)
-    - Codex 인증 (codex login)
+  Requirements:
+    - Run inside a tmux session
+    - Codex CLI installed (npm i -g @openai/codex)
+    - Codex authenticated (codex login)
 `);
     return;
   }
@@ -312,9 +312,9 @@ export async function handleCodexSpawn(args: string[]): Promise<void> {
   if (args.includes('--status')) {
     const active = getActiveCodexPanes();
     if (active.length === 0) {
-      console.log('  활성 Codex 패널 없음');
+      console.log('  No active Codex panes');
     } else {
-      console.log(`  활성 Codex 패널 ${active.length}개:`);
+      console.log(`  Active Codex panes (${active.length}):`);
       for (const s of active) {
         console.log(`    ${s.paneId} — ${s.task.slice(0, 60)} (${s.startedAt})`);
       }
@@ -332,17 +332,17 @@ export async function handleCodexSpawn(args: string[]): Promise<void> {
 
   const task = args.filter(a => !a.startsWith('--')).join(' ');
   if (!task) {
-    console.log('  작업 설명이 필요합니다.');
+    console.log('  A task description is required.');
     return;
   }
 
-  console.log(`\n  Codex 팀원 스폰 중...`);
+  console.log(`\n  Spawning Codex teammate...`);
   const result = spawnCodexPane(task, { model });
 
   if (result.success) {
-    console.log(`  ✓ 패널 ${result.paneId} 에서 Codex 실행 중`);
-    console.log(`  작업: ${task.slice(0, 80)}`);
+    console.log(`  ✓ Codex running in pane ${result.paneId}`);
+    console.log(`  Task: ${task.slice(0, 80)}`);
   } else {
-    console.log(`  ✗ 실패: ${result.error}`);
+    console.log(`  ✗ Failed: ${result.error}`);
   }
 }

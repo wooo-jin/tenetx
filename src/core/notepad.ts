@@ -66,26 +66,26 @@ export async function handleNotepad(args: string[]): Promise<void> {
   if (subcommand === 'show') {
     const content = readNotepad(cwd);
     if (!content.trim()) {
-      console.log('  (notepad가 비어있습니다)');
+      console.log('  (notepad is empty)');
     } else {
       console.log(content);
     }
   } else if (subcommand === 'add') {
     const entry = args.slice(1).join(' ');
     if (!entry) {
-      console.error('  사용법: tenetx notepad add "추가할 내용"');
+      console.error('  Usage: tenetx notepad add "content to add"');
       process.exit(1);
     }
     appendToNotepad(cwd, entry);
-    console.log('  notepad에 추가되었습니다.');
+    console.log('  Added to notepad.');
   } else if (subcommand === 'edit') {
     const filePath = getNotepadPath(cwd);
-    console.log(`  notepad 파일 경로: ${filePath}`);
-    console.log(`  편집기로 열어주세요: $EDITOR ${filePath}`);
+    console.log(`  Notepad file path: ${filePath}`);
+    console.log(`  Open with your editor: $EDITOR ${filePath}`);
   } else if (subcommand === 'clear') {
     clearNotepad(cwd);
-    console.log('  notepad가 초기화되었습니다.');
+    console.log('  Notepad cleared.');
   } else {
-    console.log('  사용법: tenetx notepad <show|add|edit|clear>');
+    console.log('  Usage: tenetx notepad <show|add|edit|clear>');
   }
 }

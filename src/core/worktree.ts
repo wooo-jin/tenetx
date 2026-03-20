@@ -332,19 +332,19 @@ export async function handleWorktree(args: string[]): Promise<void> {
   switch (subcommand) {
     case 'list': {
       if (!isGitRepo(cwd)) {
-        console.log('  현재 디렉토리가 Git 저장소가 아닙니다.');
+        console.log('  Current directory is not a Git repository.');
         return;
       }
       const trees = getWorktrees(cwd);
       if (trees.length === 0) {
-        console.log('  워크트리가 없습니다.');
+        console.log('  No worktrees found.');
         return;
       }
-      console.log('\n  워크트리 목록:\n');
+      console.log('\n  Worktree list:\n');
       for (const t of trees) {
         const bare = t.bare ? ' [bare]' : '';
         console.log(`  ${t.branch}${bare}`);
-        console.log(`    경로: ${t.path}`);
+        console.log(`    Path: ${t.path}`);
         console.log(`    HEAD: ${t.head}`);
         console.log('');
       }
@@ -353,7 +353,7 @@ export async function handleWorktree(args: string[]): Promise<void> {
 
     case 'create': {
       if (!isGitRepo(cwd)) {
-        console.log('  현재 디렉토리가 Git 저장소가 아닙니다.');
+        console.log('  Current directory is not a Git repository.');
         return;
       }
 
@@ -382,13 +382,13 @@ export async function handleWorktree(args: string[]): Promise<void> {
 
     case 'remove': {
       if (!isGitRepo(cwd)) {
-        console.log('  현재 디렉토리가 Git 저장소가 아닙니다.');
+        console.log('  Current directory is not a Git repository.');
         return;
       }
       const force = args.includes('--force') || args.includes('-f');
       const target = args.filter((a) => !a.startsWith('-'))[1];
       if (!target) {
-        console.error('  사용법: tenetx worktree remove <경로-또는-이름> [--force|-f]');
+        console.error('  Usage: tenetx worktree remove <path-or-name> [--force|-f]');
         process.exitCode = 1;
         return;
       }
@@ -404,12 +404,12 @@ export async function handleWorktree(args: string[]): Promise<void> {
 
     case 'teleport': {
       if (!isGitRepo(cwd)) {
-        console.log('  현재 디렉토리가 Git 저장소가 아닙니다.');
+        console.log('  Current directory is not a Git repository.');
         return;
       }
       const identifier = args[1];
       if (!identifier) {
-        console.error('  사용법: tenetx worktree teleport <이슈번호-또는-브랜치명>');
+        console.error('  Usage: tenetx worktree teleport <issue-number-or-branch>');
         process.exitCode = 1;
         return;
       }
@@ -418,14 +418,14 @@ export async function handleWorktree(args: string[]): Promise<void> {
         // cd 가능하도록 경로만 출력 (shell alias에서 활용)
         console.log(worktreePath);
       } else {
-        console.error(`  해당하는 워크트리를 찾을 수 없습니다: ${identifier}`);
+        console.error(`  No worktree found for: ${identifier}`);
         process.exitCode = 1;
       }
       break;
     }
 
     default:
-      console.error(`  알 수 없는 서브커맨드: ${subcommand}`);
+      console.error(`  Unknown subcommand: ${subcommand}`);
       printHelp();
       process.exitCode = 1;
   }
@@ -433,15 +433,15 @@ export async function handleWorktree(args: string[]): Promise<void> {
 
 function printHelp(): void {
   console.log(`
-  tenetx worktree — Git 멀티 워크트리 관리
+  tenetx worktree — Git multi-worktree manager
 
-  사용법:
+  Usage:
     tenetx worktree list
-    tenetx worktree create [--branch <브랜치>] [--issue <번호>] [--base <기준브랜치>] [--name <이름>]
-    tenetx worktree remove <경로-또는-이름>
-    tenetx worktree teleport <이슈번호-또는-브랜치명>
+    tenetx worktree create [--branch <branch>] [--issue <number>] [--base <base-branch>] [--name <name>]
+    tenetx worktree remove <path-or-name>
+    tenetx worktree teleport <issue-number-or-branch>
 
-  예시:
+  Examples:
     tenetx worktree create --issue 42
     tenetx worktree create --branch hotfix/login --base main
     tenetx worktree teleport 42

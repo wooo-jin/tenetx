@@ -543,7 +543,7 @@ export async function handleMarketplace(args: string[]): Promise<void> {
     case 'search': {
       const query = args.slice(1).join(' ').trim();
       if (!query) {
-        console.error('[marketplace] 검색어를 입력해주세요. 예: tenetx marketplace search "skill"');
+        console.error('[marketplace] Please enter a search query. Example: tenetx marketplace search "skill"');
         process.exit(1);
       }
       // 플러그인 검색
@@ -552,14 +552,14 @@ export async function handleMarketplace(args: string[]): Promise<void> {
       const packResults = searchPacks(query);
 
       if (results.length === 0 && packResults.length === 0) {
-        console.log('[marketplace] 검색 결과가 없습니다.');
+        console.log('[marketplace] No search results found.');
       } else {
         if (packResults.length > 0) {
-          console.log(`[marketplace] 팩 검색 결과 (${packResults.length}개):\n`);
+          console.log(`[marketplace] Pack search results (${packResults.length}):\n`);
           console.log(formatPackList(packResults));
         }
         if (results.length > 0) {
-          console.log(`[marketplace] 플러그인 검색 결과 (${results.length}개):\n`);
+          console.log(`[marketplace] Plugin search results (${results.length}):\n`);
           for (const p of results) {
             console.log(`  ${p.name} v${p.version} [${p.type}]`);
             console.log(`    ${p.description}`);
@@ -573,17 +573,17 @@ export async function handleMarketplace(args: string[]): Promise<void> {
     case 'install': {
       const target = args[1];
       if (!target) {
-        console.error('[marketplace] 설치할 플러그인 이름 또는 URL을 입력해주세요.');
+        console.error('[marketplace] Please enter a plugin name or URL to install.');
         process.exit(1);
       }
-      console.log(`[marketplace] '${target}' 설치 중...`);
+      console.log(`[marketplace] Installing '${target}'...`);
       try {
         const plugin = await installPlugin(target, cwd);
-        console.log(`[marketplace] 설치 완료: ${plugin.name} v${plugin.version}`);
-        console.log(`  경로: ${plugin.localPath}`);
-        console.log(`  타입: ${plugin.type}`);
+        console.log(`[marketplace] Installed: ${plugin.name} v${plugin.version}`);
+        console.log(`  Path: ${plugin.localPath}`);
+        console.log(`  Type: ${plugin.type}`);
       } catch (e) {
-        console.error(`[marketplace] 설치 실패: ${e instanceof Error ? e.message : String(e)}`);
+        console.error(`[marketplace] Installation failed: ${e instanceof Error ? e.message : String(e)}`);
         process.exit(1);
       }
       break;
@@ -593,20 +593,20 @@ export async function handleMarketplace(args: string[]): Promise<void> {
       // 팩 레지스트리 표시
       const packReg = loadPackRegistry();
       if (packReg.packs.length > 0) {
-        console.log(`[marketplace] 사용 가능한 팩 (${packReg.packs.length}개):\n`);
+        console.log(`[marketplace] Available packs (${packReg.packs.length}):\n`);
         console.log(formatPackList(packReg.packs));
       }
 
       // 설치된 플러그인 표시
       const installed = listInstalledPlugins();
       if (installed.length === 0) {
-        console.log('[marketplace] 설치된 플러그인이 없습니다.');
+        console.log('[marketplace] No plugins installed.');
       } else {
-        console.log(`[marketplace] 설치된 플러그인 (${installed.length}개):\n`);
+        console.log(`[marketplace] Installed plugins (${installed.length}):\n`);
         for (const p of installed) {
           console.log(`  ${p.name} v${p.version} [${p.type}]`);
-          console.log(`    설치일: ${p.installedAt}`);
-          console.log(`    경로: ${p.localPath}\n`);
+          console.log(`    Installed: ${p.installedAt}`);
+          console.log(`    Path: ${p.localPath}\n`);
         }
       }
       break;
@@ -615,7 +615,7 @@ export async function handleMarketplace(args: string[]): Promise<void> {
     case 'remove': {
       const name = args[1];
       if (!name) {
-        console.error('[marketplace] 제거할 플러그인 이름을 입력해주세요.');
+        console.error('[marketplace] Please enter a plugin name to remove.');
         process.exit(1);
       }
       const result = removePlugin(name, cwd);
@@ -633,10 +633,10 @@ export async function handleMarketplace(args: string[]): Promise<void> {
   Tenetx Marketplace
 
   Usage:
-    tenetx marketplace search <query>     플러그인/팩 검색
-    tenetx marketplace install <name|url> 플러그인 설치 (GitHub URL 또는 이름)
-    tenetx marketplace list               사용 가능한 팩 + 설치된 플러그인 목록
-    tenetx marketplace remove <name>      플러그인 제거
+    tenetx marketplace search <query>     Search plugins/packs
+    tenetx marketplace install <name|url> Install plugin (GitHub URL or name)
+    tenetx marketplace list               List available packs + installed plugins
+    tenetx marketplace remove <name>      Remove plugin
 `);
       break;
     }

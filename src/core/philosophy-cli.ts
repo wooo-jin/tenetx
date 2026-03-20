@@ -21,7 +21,7 @@ function printPhilosophy(philosophy: ReturnType<typeof loadPhilosophyForProject>
       } else if (gen.routing) {
         console.log(`    🔀 ${gen.routing}`);
       } else if (gen.hook) {
-        console.log(`    🪝 ${gen.hook} (미구현)`);
+        console.log(`    🪝 ${gen.hook} (not implemented)`);
       } else if (gen.step) {
         console.log(`    📋 ${gen.step}`);
       }
@@ -36,7 +36,7 @@ export async function handlePhilosophy(args: string[]): Promise<void> {
 
   if (subcommand === 'show') {
     const { philosophy, source } = loadPhilosophyForProject(cwd);
-    const sourceLabel = source === 'project' ? '프로젝트' : source === 'global' ? '글로벌' : '기본값';
+    const sourceLabel = source === 'project' ? 'Project' : source === 'global' ? 'Global' : 'Default';
 
     console.log();
     printPhilosophy(philosophy, sourceLabel);
@@ -57,7 +57,7 @@ export async function handlePhilosophy(args: string[]): Promise<void> {
           try {
             const packPhil = JSON.parse(fs.readFileSync(candidate, 'utf-8'));
             if (packPhil.principles && Object.keys(packPhil.principles).length > 0) {
-              printPhilosophy(packPhil, `팩:${pack.name}`);
+              printPhilosophy(packPhil, `pack:${pack.name}`);
             }
           } catch { /* skip malformed */ }
           break;
@@ -68,12 +68,12 @@ export async function handlePhilosophy(args: string[]): Promise<void> {
     const result = syncPhilosophy(cwd);
     if (result.updated) {
       console.log(`\n  ✓ ${result.message}`);
-      console.log(`  원칙 ${Object.keys(result.philosophy.principles).length}개 (베이스 + 오버라이드 병합)`);
+      console.log(`  Principles: ${Object.keys(result.philosophy.principles).length} (base + override merged)`);
       console.log(`  extends: ${result.philosophy.extends}\n`);
     } else {
       console.log(`\n  ${result.message}`);
       if (!result.philosophy.extends) {
-        console.log('  중앙 관리를 사용하려면 philosophy.json에 "extends": "pack:<name>" 추가');
+        console.log('  To use central management, add "extends": "pack:<name>" to philosophy.json');
       }
       console.log();
     }
@@ -81,17 +81,17 @@ export async function handlePhilosophy(args: string[]): Promise<void> {
     const projectPath = projectPhilosophyPath(cwd);
     const hasProject = fs.existsSync(projectPath);
     if (hasProject) {
-      console.log(`  프로젝트 철학: ${projectPath}`);
+      console.log(`  Project philosophy: ${projectPath}`);
     } else {
-      console.log(`  글로벌 철학: ${ME_PHILOSOPHY}`);
-      console.log(`  프로젝트별 철학을 만들려면: tenetx setup --project`);
+      console.log(`  Global philosophy: ${ME_PHILOSOPHY}`);
+      console.log(`  To create a project-specific philosophy: tenetx setup --project`);
     }
-    console.log(`  편집기로 열어주세요: $EDITOR <경로>`);
+    console.log(`  Open with your editor: $EDITOR <path>`);
   } else {
-    console.log('  사용법: tenetx philosophy <show|edit|sync>');
+    console.log('  Usage: tenetx philosophy <show|edit|sync>');
     console.log('');
-    console.log('  show          현재 철학 표시 (extends 시 병합 결과)');
-    console.log('  edit          철학 파일 경로 안내');
-    console.log('  sync          중앙 팩에서 최신 철학 동기화 (extends 필요)');
+    console.log('  show          Show current philosophy (merged result if extends)');
+    console.log('  edit          Show philosophy file path');
+    console.log('  sync          Sync latest philosophy from central pack (requires extends)');
   }
 }

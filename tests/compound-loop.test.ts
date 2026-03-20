@@ -62,7 +62,7 @@ describe('compound-loop', () => {
       await runCompoundLoop(TEST_HOME, [insight]);
       const result2 = await runCompoundLoop(TEST_HOME, [insight]);
       expect(result2.skipped.length).toBe(1);
-      expect(result2.skipped[0]).toContain('이미 존재');
+      expect(result2.skipped[0]).toContain('already exists');
     });
 
     it('빈 배열이면 아무것도 저장하지 않는다', async () => {
@@ -174,7 +174,7 @@ describe('compound-loop', () => {
     it('동점이면 기본값 personal', () => {
       const result = classifyInsight('일반 제목', '일반 내용');
       expect(result.classification).toBe('personal');
-      expect(result.reason).toContain('기본값');
+      expect(result.reason).toContain('default');
     });
   });
 
@@ -192,35 +192,35 @@ describe('compound-loop', () => {
     it('--help 플래그로 사용법 출력', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleCompound(['--help']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('사용법'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Usage'));
       logSpy.mockRestore();
     });
 
     it('-h 플래그로 사용법 출력', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleCompound(['-h']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('사용법'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Usage'));
       logSpy.mockRestore();
     });
 
     it('--solution으로 수동 인사이트 추가', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleCompound(['--solution', 'Test Solution', 'Test content here']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('저장'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Saved'));
       logSpy.mockRestore();
     });
 
     it('--rule으로 수동 규칙 추가', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleCompound(['--rule', 'Test Rule', 'Rule content']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('저장'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Saved'));
       logSpy.mockRestore();
     });
 
     it('--solution 제목 없으면 안내 출력', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await handleCompound(['--solution']);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('제목이 필요합니다'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('title is required'));
       logSpy.mockRestore();
     });
 
@@ -236,7 +236,7 @@ describe('compound-loop', () => {
       const origIsTTY = process.stdin.isTTY;
       Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
       await handleCompound([]);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('비대화형'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Interactive mode'));
       Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, configurable: true });
       logSpy.mockRestore();
     });

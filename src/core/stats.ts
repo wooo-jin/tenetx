@@ -53,32 +53,32 @@ export async function handleStats(args: string[]): Promise<void> {
   const isWeek = args.includes('--week');
   const isMonth = args.includes('--month');
 
-  let periodLabel = '전체';
+  let periodLabel = 'All';
   let sinceMs: number | undefined;
 
   if (isWeek) {
-    periodLabel = '최근 7일';
+    periodLabel = 'Last 7 days';
     sinceMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
   } else if (isMonth) {
-    periodLabel = '최근 30일';
+    periodLabel = 'Last 30 days';
     sinceMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   }
 
   if (!fs.existsSync(SESSIONS_DIR)) {
-    console.log('\n  Tenetx — 세션 통계\n');
-    console.log('  아직 기록된 세션이 없습니다.');
-    console.log('  tenetx 명령어로 Claude Code를 실행하면 세션이 기록됩니다.\n');
+    console.log('\n  Tenetx — Session Statistics\n');
+    console.log('  No sessions recorded yet.');
+    console.log('  Sessions are recorded when you run Claude Code with tenetx.\n');
     return;
   }
 
   const sessions = loadSessions(sinceMs);
 
-  console.log('\n  Tenetx — 세션 통계\n');
-  console.log(`  기간: ${periodLabel}`);
-  console.log(`  세션 수: ${sessions.length}`);
+  console.log('\n  Tenetx — Session Statistics\n');
+  console.log(`  Period: ${periodLabel}`);
+  console.log(`  Sessions: ${sessions.length}`);
 
   if (sessions.length === 0) {
-    console.log('  해당 기간에 세션이 없습니다.\n');
+    console.log('  No sessions in this period.\n');
     return;
   }
 
@@ -86,8 +86,8 @@ export async function handleStats(args: string[]): Promise<void> {
   const totalMs = sessions.reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
   const avgMs = totalMs / sessions.length;
 
-  console.log(`  총 사용 시간: ${formatDuration(totalMs)}`);
-  console.log(`  평균 세션: ${formatDuration(avgMs)}`);
+  console.log(`  Total usage time: ${formatDuration(totalMs)}`);
+  console.log(`  Average session: ${formatDuration(avgMs)}`);
 
   // 모드별 빈도
   const modeCounts: Record<string, number> = {};
@@ -97,7 +97,7 @@ export async function handleStats(args: string[]): Promise<void> {
   }
 
   const sortedModes = Object.entries(modeCounts).sort((a, b) => b[1] - a[1]);
-  console.log('\n  모드별:');
+  console.log('\n  By mode:');
   for (const [mode, count] of sortedModes) {
     const pct = ((count / sessions.length) * 100).toFixed(1);
     const modeCol = mode.padEnd(12);
@@ -117,9 +117,9 @@ export async function handleStats(args: string[]): Promise<void> {
     .slice(0, 3);
 
   if (sortedCwds.length > 0) {
-    console.log('\n  프로젝트 TOP 3:');
+    console.log('\n  Top 3 projects:');
     for (const [cwd, count] of sortedCwds) {
-      console.log(`    ${cwd.padEnd(40)}${String(count).padStart(3)}회`);
+      console.log(`    ${cwd.padEnd(40)}${String(count).padStart(3)}x`);
     }
   }
 
@@ -129,7 +129,7 @@ export async function handleStats(args: string[]): Promise<void> {
     try {
       const usageFiles = fs.readdirSync(stateDir).filter(f => f.startsWith('token-usage-'));
       if (usageFiles.length > 0) {
-        console.log('\n  토큰 사용량 (최근 세션):');
+        console.log('\n  Token usage (recent sessions):');
         // 최신 3개만 표시
         const sorted = usageFiles
           .map(f => ({ name: f, mtime: fs.statSync(path.join(stateDir, f)).mtimeMs }))
@@ -142,7 +142,7 @@ export async function handleStats(args: string[]): Promise<void> {
             const cost = formatCost(data.estimatedCost ?? 0);
             const calls = data.toolCalls ?? 0;
             const id = (data.sessionId ?? 'unknown').slice(0, 8);
-            console.log(`    ${id}… ${tokens} tokens, ${cost}, ${calls}회 호출`);
+            console.log(`    ${id}… ${tokens} tokens, ${cost}, ${calls} calls`);
           } catch { /* skip */ }
         }
       }

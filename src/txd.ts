@@ -20,15 +20,15 @@ async function main() {
   // txd는 서브커맨드 없이 바로 Claude Code 실행 전용
   const firstRun = isFirstRun();
   if (firstRun) {
-    console.log('\n  Tenetx — 환경을 처음 설정합니다.\n');
-    console.log('  ~/.compound/ 디렉토리와 기본 철학을 생성합니다.');
-    console.log('  이후 `tenetx setup`으로 추가 설정을 완료할 수 있습니다.\n');
+    console.log('\n  Tenetx — Setting up for the first time.\n');
+    console.log('  Creating ~/.compound/ directory and default philosophy.');
+    console.log('  Run `tenetx setup` afterwards to complete additional configuration.\n');
   }
 
   const context = await prepareHarness(process.cwd());
 
   if (firstRun) {
-    console.log('  [완료] 초기 설정이 완료되었습니다.\n');
+    console.log('  [Done] Initial setup complete.\n');
   }
 
   console.log(`[tenetx] Philosophy: ${context.philosophy.name}`);

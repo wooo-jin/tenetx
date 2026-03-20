@@ -38,12 +38,12 @@ export function classifyInsight(title: string, content: string): { classificatio
   const personalScore = personalKeywords.filter(kw => text.includes(kw.toLowerCase())).length;
 
   if (teamScore > personalScore) {
-    return { classification: 'team', reason: `팀 공통 패턴 (${teamScore}개 키워드 매치)` };
+    return { classification: 'team', reason: `team pattern (${teamScore} keyword matches)` };
   }
   if (personalScore > teamScore) {
-    return { classification: 'personal', reason: `개인 스타일 (${personalScore}개 키워드 매치)` };
+    return { classification: 'personal', reason: `personal style (${personalScore} keyword matches)` };
   }
-  return { classification: 'personal', reason: '기본값 (개인)' };
+  return { classification: 'personal', reason: 'default (personal)' };
 }
 
 /**
@@ -64,13 +64,13 @@ export async function runCompoundLoop(cwd: string, insights: CompoundInsight[]):
     try {
       const destPath = getDestPath(insight, scope.team?.name);
       if (!destPath) {
-        skipped.push(`${insight.title}: 저장 경로를 결정할 수 없음`);
+        skipped.push(`${insight.title}: cannot determine save path`);
         continue;
       }
 
       // 중복 체크
       if (fs.existsSync(destPath)) {
-        skipped.push(`${insight.title}: 이미 존재`);
+        skipped.push(`${insight.title}: already exists`);
         continue;
       }
 
@@ -191,15 +191,15 @@ export async function handleCompound(args: string[]): Promise<void> {
   // --help 처리
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
-  사용법: tenetx compound [옵션]
+  Usage: tenetx compound [options]
 
-  옵션 없이 실행하면 대화형 모드로 인사이트를 수집합니다.
+  Running without options enters interactive mode to collect insights.
 
-  수동 추가:
-    tenetx compound --solution "제목" "내용"
-    tenetx compound --rule "제목" "내용"
-    tenetx compound --convention "제목" "내용"
-    tenetx compound --to team        팀 스코프로 저장
+  Manual add:
+    tenetx compound --solution "title" "content"
+    tenetx compound --rule "title" "content"
+    tenetx compound --convention "title" "content"
+    tenetx compound --to team        Save to team scope
 `);
     return;
   }
@@ -213,7 +213,7 @@ export async function handleCompound(args: string[]): Promise<void> {
     return;
   }
 
-  console.log('\n  Compound Loop — 인사이트 축적\n');
+  console.log('\n  Compound Loop — Accumulating insights\n');
   console.log(`  Scope: ${scope.summary}`);
   console.log();
 
@@ -235,8 +235,8 @@ export async function handleCompound(args: string[]): Promise<void> {
   const content = positionalArgs.slice(1).join(' ');
 
   if (!title) {
-    console.log('  제목이 필요합니다.');
-    console.log('  사용법: tenetx compound --solution "제목" "내용"');
+    console.log('  A title is required.');
+    console.log('  Usage: tenetx compound --solution "title" "content"');
     return;
   }
 
@@ -256,28 +256,28 @@ export async function handleCompound(args: string[]): Promise<void> {
   const result = await runCompoundLoop(cwd, [insight]);
 
   for (const s of result.saved) {
-    console.log(`  ✓ 저장: ${s}`);
+    console.log(`  ✓ Saved: ${s}`);
   }
   for (const s of result.skipped) {
-    console.log(`  ─ 건너뜀: ${s}`);
+    console.log(`  ─ Skipped: ${s}`);
   }
   console.log();
 }
 
 async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolveScope>): Promise<void> {
-  console.log('\n  Tenetx Compound — 오늘의 인사이트\n');
+  console.log("\n  Tenetx Compound — Today's insights\n");
   console.log(`  Scope: ${scope.summary}`);
   console.log();
 
   // Non-interactive mode: 대화 없이 안내만 출력
   if (!process.stdin.isTTY) {
-    console.log('  비대화형 환경입니다. 수동 모드로 인사이트를 추가하세요.\n');
-    console.log('  사용법:');
-    console.log('    tenetx compound --solution "제목" "내용"');
-    console.log('    tenetx compound --rule "제목" "내용"');
-    console.log('    tenetx compound --convention "제목" "내용"');
-    console.log('    tenetx compound --to team          팀 스코프로 저장\n');
-    console.log('  대화형 모드: TTY 환경에서 tenetx compound 실행\n');
+    console.log('  Non-interactive environment. Add insights via manual mode.\n');
+    console.log('  Usage:');
+    console.log('    tenetx compound --solution "title" "content"');
+    console.log('    tenetx compound --rule "title" "content"');
+    console.log('    tenetx compound --convention "title" "content"');
+    console.log('    tenetx compound --to team          Save to team scope\n');
+    console.log('  Interactive mode: run tenetx compound in a TTY environment\n');
     return;
   }
 
@@ -287,15 +287,15 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
 
   const insights: CompoundInsight[] = [];
 
-  console.log('  인사이트를 입력하세요. 빈 줄 입력 시 종료.\n');
+  console.log('  Enter insights. Press enter on empty line to finish.\n');
 
   let idx = 1;
   while (true) {
-    const title = await prompt(`  [${idx}] 제목 (빈 줄=종료): `);
+    const title = await prompt(`  [${idx}] Title (empty=quit): `);
     if (!title.trim()) break;
 
-    const content = await prompt('      내용: ');
-    const typeChoiceStr = await prompt('      유형 (1=솔루션 2=규칙 3=컨벤션 4=패턴) [1]: ');
+    const content = await prompt('      Content: ');
+    const typeChoiceStr = await prompt('      Type (1=solution 2=rule 3=convention 4=pattern) [1]: ');
     const typeMap = { '1': 'solution', '2': 'rule', '3': 'convention', '4': 'pattern' } as const;
     const insightType = typeMap[typeChoiceStr.trim() as keyof typeof typeMap] ?? 'solution';
     const { classification, reason } = classifyInsight(title, content);
@@ -318,20 +318,20 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
   }
 
   if (insights.length === 0) {
-    console.log('  인사이트 없음.\n');
+    console.log('  No insights.\n');
     rl.close();
     return;
   }
 
   // Show summary and let user adjust
-  console.log('\n  ── 분류 결과 ──\n');
+  console.log('\n  ── Classification results ──\n');
   for (let i = 0; i < insights.length; i++) {
     const ins = insights[i];
-    const icon = ins.classification === 'team' ? '👥 팀' : '👤 개인';
+    const icon = ins.classification === 'team' ? '👥 Team' : '👤 Personal';
     console.log(`  ${i + 1}. [${icon}] ${ins.title}`);
   }
 
-  console.log('\n  분류를 변경하려면 번호 입력 (예: 2=팀→개인), 엔터=확정');
+  console.log('\n  Enter number to toggle classification (e.g. 2=team→personal), enter to confirm');
   const changes = await prompt('  > ');
   if (changes.trim()) {
     for (const num of changes.split(/[,\s]+/)) {
@@ -349,15 +349,15 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
 
   if (personal.length > 0) {
     const result = await runCompoundLoop(cwd, personal);
-    for (const s of result.saved) console.log(`\n  ✓ 저장: ${s}`);
-    for (const s of result.skipped) console.log(`  ─ 건너뜀: ${s}`);
+    for (const s of result.saved) console.log(`\n  ✓ Saved: ${s}`);
+    for (const s of result.skipped) console.log(`  ─ Skipped: ${s}`);
   }
 
   // Save team to .compound/proposals/ (for later propose)
   if (team.length > 0) {
     saveTeamProposals(team, cwd);
-    console.log(`  ✓ 팀 규칙 후보 ${team.length}건 저장 (.compound/proposals/)`);
-    console.log('  → tenetx propose 로 팀에 제안하세요.\n');
+    console.log(`  ✓ ${team.length} team rule candidate(s) saved (.compound/proposals/)`);
+    console.log('  → Run tenetx propose to share with the team.\n');
   }
 
   rl.close();

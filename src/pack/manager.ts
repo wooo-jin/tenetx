@@ -25,24 +25,24 @@ export async function installPack(source: string, name?: string): Promise<PackMe
   const destDir = path.join(PACKS_DIR, packName);
 
   if (fs.existsSync(destDir)) {
-    throw new Error(`팩 '${packName}'이 이미 설치되어 있습니다. tenetx pack sync ${packName}으로 업데이트하세요.`);
+    throw new Error(`Pack '${packName}' is already installed. Update with: tenetx pack sync ${packName}`);
   }
 
-  console.log(`  소스: ${remote.url} (${remote.type})`);
+  console.log(`  Source: ${remote.url} (${remote.type})`);
 
   switch (remote.type) {
     case 'github':
-      console.log('  GitHub에서 클론 중...');
+      console.log('  Cloning from GitHub...');
       cloneFromGitHub(remote.url, destDir);
       break;
     case 'local':
-      console.log('  로컬 경로에서 복사 중...');
+      console.log('  Copying from local path...');
       copyFromLocal(remote.url, destDir);
       break;
     case 'gdrive':
-      throw new Error('Google Drive 연동은 아직 지원되지 않습니다.');
+      throw new Error('Google Drive integration is not yet supported.');
     case 's3':
-      throw new Error('S3 연동은 아직 지원되지 않습니다.');
+      throw new Error('S3 integration is not yet supported.');
   }
 
   // pack.json 생성/업데이트 (remote 정보 기록)
@@ -82,15 +82,15 @@ export async function installPack(source: string, name?: string): Promise<PackMe
 export async function syncPack(packName: string): Promise<void> {
   const packDir = path.join(PACKS_DIR, packName);
   if (!fs.existsSync(packDir)) {
-    throw new Error(`팩 '${packName}'이 설치되어 있지 않습니다.`);
+    throw new Error(`Pack '${packName}' is not installed.`);
   }
 
   const meta = readPackMeta(packDir);
   if (!meta?.remote) {
-    throw new Error(`팩 '${packName}'에 remote 정보가 없습니다. 로컬 전용 팩입니다.`);
+    throw new Error(`Pack '${packName}' has no remote info. It is a local-only pack.`);
   }
 
-  console.log(`  동기화: ${packName} (${meta.remote.type})`);
+  console.log(`  Syncing: ${packName} (${meta.remote.type})`);
 
   switch (meta.remote.type) {
     case 'github':
@@ -100,7 +100,7 @@ export async function syncPack(packName: string): Promise<void> {
       copyFromLocal(meta.remote.url, packDir);
       break;
     default:
-      throw new Error(`${meta.remote.type} 동기화는 아직 지원되지 않습니다.`);
+      throw new Error(`${meta.remote.type} sync is not yet supported.`);
   }
 
   // provides 카운트 갱신
@@ -116,7 +116,7 @@ export async function syncPack(packName: string): Promise<void> {
   };
   fs.writeFileSync(path.join(packDir, 'pack.json'), JSON.stringify(updatedMeta, null, 2));
 
-  console.log('  동기화 완료.');
+  console.log('  Sync complete.');
 }
 
 /** 모든 팩 동기화 */
@@ -126,7 +126,7 @@ export async function syncAllPacks(): Promise<void> {
   const packs = entries.filter(e => e.isDirectory());
 
   if (packs.length === 0) {
-    console.log('  동기화할 팩이 없습니다.');
+    console.log('  No packs to sync.');
     return;
   }
 
@@ -139,7 +139,7 @@ export async function syncAllPacks(): Promise<void> {
         console.error(`  ✗ ${pack.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else {
-      console.log(`  ─ ${pack.name}: 로컬 전용 (skip)`);
+      console.log(`  ─ ${pack.name}: local only (skip)`);
     }
   }
 }

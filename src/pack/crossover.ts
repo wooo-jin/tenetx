@@ -39,9 +39,9 @@ function classifyFile(filePath: string): 'solution' | 'rule' {
  */
 export async function handlePick(args: string[]): Promise<void> {
   if (args.length === 0) {
-    console.log('  사용법: tenetx pick <file> --from <pack>');
-    console.log('  팩의 솔루션/규칙을 개인(Me) 영역으로 복사합니다.\n');
-    console.log('  예시:');
+    console.log('  Usage: tenetx pick <file> --from <pack>');
+    console.log('  Copies a pack solution/rule to your personal (Me) area.\n');
+    console.log('  Examples:');
     console.log('    tenetx pick api-error-handling --from emr');
     console.log('    tenetx pick convention-naming.md --from emr\n');
     return;
@@ -50,7 +50,7 @@ export async function handlePick(args: string[]): Promise<void> {
   const fileName = args[0];
   const fromIdx = args.indexOf('--from');
   if (fromIdx === -1 || !args[fromIdx + 1]) {
-    console.log('  --from <pack> 옵션이 필요합니다.');
+    console.log('  The --from <pack> option is required.');
     return;
   }
   const packName = args[fromIdx + 1];
@@ -58,12 +58,12 @@ export async function handlePick(args: string[]): Promise<void> {
   // 파일 찾기
   const sourcePath = findFile(packName, fileName);
   if (!sourcePath) {
-    console.log(`  ✗ 팩 '${packName}'에서 '${fileName}'을 찾을 수 없습니다.`);
+    console.log(`  ✗ '${fileName}' not found in pack '${packName}'.`);
 
     // 사용 가능한 파일 목록 표시
     const packDir = path.join(PACKS_DIR, packName);
     if (fs.existsSync(packDir)) {
-      console.log('  사용 가능한 파일:');
+      console.log('  Available files:');
       for (const subdir of ['solutions', 'rules']) {
         const dir = path.join(packDir, subdir);
         if (fs.existsSync(dir)) {
@@ -86,11 +86,11 @@ export async function handlePick(args: string[]): Promise<void> {
   fs.mkdirSync(destDir, { recursive: true });
 
   if (fs.existsSync(destPath)) {
-    console.log(`  ⚠ '${path.basename(sourcePath)}'가 이미 존재합니다. 덮어씁니다.`);
+    console.log(`  ⚠ '${path.basename(sourcePath)}' already exists. Overwriting.`);
   }
 
   fs.copyFileSync(sourcePath, destPath);
-  console.log(`  ✓ ${type === 'solution' ? '솔루션' : '규칙'} pick 완료: ${path.basename(sourcePath)}`);
+  console.log(`  ✓ ${type === 'solution' ? 'Solution' : 'Rule'} picked: ${path.basename(sourcePath)}`);
   console.log(`  → ~/.compound/me/${type === 'solution' ? 'solutions' : 'rules'}/${path.basename(sourcePath)}\n`);
 }
 
@@ -115,12 +115,12 @@ export async function handlePropose(args: string[]): Promise<void> {
   const proposals = loadProposals(proposalsDir);
 
   if (proposals.length === 0) {
-    console.log('\n  제안할 팀 규칙이 없습니다.');
-    console.log('  먼저 tenetx compound 로 인사이트를 추출하세요.\n');
+    console.log('\n  No team rules to propose.');
+    console.log('  Extract insights first with: tenetx compound\n');
     return;
   }
 
-  console.log(`\n  팀 규칙 제안 — ${proposals.length}건\n`);
+  console.log(`\n  Proposing team rules — ${proposals.length} item(s)\n`);
   for (const p of proposals) {
     console.log(`  • ${p.title}: ${p.content.slice(0, 60)}`);
   }
@@ -137,8 +137,8 @@ export async function handlePropose(args: string[]): Promise<void> {
   if (packs.length === 0) {
     // 개인 모드: 로컬 저장으로 폴백
     await proposeViaLocal(proposals, cwd);
-    console.log('  팩이 연결되어 있지 않습니다. 로컬에 저장되었습니다.');
-    console.log('  팀 설정: tenetx init --team\n');
+    console.log('  No packs connected. Saved locally.');
+    console.log('  Team setup: tenetx init --team\n');
     cleanProposals(proposalsDir);
     return;
   }
@@ -148,19 +148,19 @@ export async function handlePropose(args: string[]): Promise<void> {
   if (targetPackName) {
     const found = packs.find(p => p.name === targetPackName);
     if (!found) {
-      console.log(`\n  ✗ 팩 '${targetPackName}'이 연결되어 있지 않습니다.`);
-      console.log('  연결된 팩:');
+      console.log(`\n  ✗ Pack '${targetPackName}' is not connected.`);
+      console.log('  Connected packs:');
       for (const p of packs) {
         console.log(`    • ${p.name} (${p.type})`);
       }
-      console.log('  사용법: tenetx propose --pack <name>\n');
+      console.log('  Usage: tenetx propose --pack <name>\n');
       return;
     }
     targetPack = found;
   } else if (packs.length > 1) {
     // 복수 팩인데 --pack 미지정 → 안내 후 첫 번째 사용
-    console.log(`  연결된 팩이 ${packs.length}개입니다. 첫 번째 팩으로 제안합니다.`);
-    console.log(`  특정 팩 지정: tenetx propose --pack <name>`);
+    console.log(`  ${packs.length} packs connected. Proposing to the first pack.`);
+    console.log(`  Specify a pack: tenetx propose --pack <name>`);
     for (const p of packs) {
       console.log(`    • ${p.name} (${p.type})`);
     }
@@ -170,7 +170,7 @@ export async function handlePropose(args: string[]): Promise<void> {
     targetPack = packs[0];
   }
 
-  console.log(`  대상 팩: ${targetPack.name} (${targetPack.type})\n`);
+  console.log(`  Target pack: ${targetPack.name} (${targetPack.type})\n`);
 
   switch (targetPack.type) {
     case 'github': {
@@ -217,7 +217,7 @@ async function proposeViaGithubPR(_config: PackConnection, proposals: CompoundIn
     execFileSync('git', ['commit', '-m', title], { cwd, stdio: 'pipe' });
 
     const result = execFileSync('gh', ['pr', 'create', '--title', title, '--body', body], { cwd, encoding: 'utf-8', stdio: 'pipe' });
-    console.log(`\n  ✓ PR 생성: ${result.trim()}`);
+    console.log(`\n  ✓ PR created: ${result.trim()}`);
 
     // Switch back to previous branch
     execFileSync('git', ['checkout', '-'], { cwd, stdio: 'pipe' });
@@ -229,12 +229,12 @@ async function proposeViaGithubPR(_config: PackConnection, proposals: CompoundIn
     // gh 미설치 시 로컬 폴백 + 설치 안내
     const isGhMissing = e instanceof Error && e.message.includes('ENOENT');
     if (isGhMissing) {
-      console.log('  gh (GitHub CLI)가 설치되어 있지 않습니다.');
-      console.log('  설치: brew install gh (macOS) / apt install gh (Linux)');
-      console.log('  인증: gh auth login');
+      console.log('  gh (GitHub CLI) is not installed.');
+      console.log('  Install: brew install gh (macOS) / apt install gh (Linux)');
+      console.log('  Authenticate: gh auth login');
       console.log('');
     }
-    console.log('  PR 생성 실패 → 로컬 저장으로 전환');
+    console.log('  PR creation failed → falling back to local save');
     debugLog('crossover', 'gh pr create 실패', e);
     await proposeViaLocal(proposals, cwd);
   }
@@ -250,6 +250,6 @@ async function proposeViaLocal(proposals: CompoundInsight[], cwd: string): Promi
   const filename = `compound-${Date.now()}.md`;
   const content = proposals.map(p => `# ${p.title}\n\n${p.content}`).join('\n\n---\n\n');
   fs.writeFileSync(path.join(rulesDir, filename), content);
-  console.log(`\n  ✓ 팀 규칙 저장: .compound/rules/${filename}`);
-  console.log('  팀장에게 알려주세요.\n');
+  console.log(`\n  ✓ Team rules saved: .compound/rules/${filename}`);
+  console.log('  Let your team lead know.\n');
 }

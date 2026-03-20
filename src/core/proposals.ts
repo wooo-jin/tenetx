@@ -23,22 +23,22 @@ export async function handleProposals(_args: string[]): Promise<void> {
   const cwd = process.cwd();
   const packs = loadPackConfigs(cwd);
 
-  console.log(`\n  ${BOLD}Tenetx — 팀 규칙 제안${RST}\n`);
+  console.log(`\n  ${BOLD}Tenetx — Team Rule Proposals${RST}\n`);
 
   if (packs.length === 0) {
     // 개인 모드: 로컬 proposals만 확인
     const proposalsDir = path.join(cwd, '.compound', 'proposals');
     const proposals = loadProposals(proposalsDir);
     if (proposals.length === 0) {
-      console.log('  대기 중인 제안이 없습니다.');
-      console.log(`  ${DIM}tenetx compound 로 인사이트를 추출하세요.${RST}\n`);
+      console.log('  No pending proposals.');
+      console.log(`  ${DIM}Extract insights with tenetx compound.${RST}\n`);
     } else {
-      console.log(`  로컬 제안 ${proposals.length}건 (팀 미연결)\n`);
+      console.log(`  Local proposals: ${proposals.length} (no team connected)\n`);
       for (const p of proposals) {
         console.log(`  • ${p.title}`);
         if (p.content) console.log(`    ${DIM}${p.content.slice(0, 80)}${RST}`);
       }
-      console.log(`\n  ${DIM}팀 연결: tenetx init --team${RST}\n`);
+      console.log(`\n  ${DIM}Connect team: tenetx init --team${RST}\n`);
     }
     return;
   }
@@ -46,7 +46,7 @@ export async function handleProposals(_args: string[]): Promise<void> {
   // 연결된 팩별로 proposals 표시
   for (const pack of packs) {
     if (pack.type === 'github' && pack.repo) {
-      console.log(`  팩: ${CYAN}${pack.name}${RST} (${pack.repo})\n`);
+      console.log(`  Pack: ${CYAN}${pack.name}${RST} (${pack.repo})\n`);
       try {
         const result = execFileSync('gh', [
           'pr', 'list',
@@ -64,10 +64,10 @@ export async function handleProposals(_args: string[]): Promise<void> {
         }>;
 
         if (prs.length === 0) {
-          console.log('  대기 중인 제안 PR이 없습니다.');
-          console.log(`  ${DIM}tenetx compound → tenetx propose 로 제안하세요.${RST}\n`);
+          console.log('  No pending proposal PRs.');
+          console.log(`  ${DIM}Propose with tenetx compound → tenetx propose.${RST}\n`);
         } else {
-          console.log(`  대기 중인 제안 ${YELLOW}${prs.length}${RST}건:\n`);
+          console.log(`  Pending proposals: ${YELLOW}${prs.length}${RST}\n`);
           for (const pr of prs) {
             const date = pr.createdAt.split('T')[0];
             console.log(`  ${GREEN}#${pr.number}${RST} ${pr.title}`);
@@ -77,12 +77,12 @@ export async function handleProposals(_args: string[]): Promise<void> {
           }
         }
       } catch {
-        console.log(`  ${YELLOW}GitHub PR 조회 실패${RST}`);
-        console.log(`  ${DIM}gh auth login 으로 인증을 확인하세요.${RST}`);
-        console.log(`  ${DIM}또는: gh pr list --repo ${pack.repo}${RST}\n`);
+        console.log(`  ${YELLOW}Failed to fetch GitHub PRs${RST}`);
+        console.log(`  ${DIM}Check authentication with gh auth login.${RST}`);
+        console.log(`  ${DIM}Or run: gh pr list --repo ${pack.repo}${RST}\n`);
       }
     } else {
-      console.log(`  팩: ${CYAN}${pack.name}${RST} (${pack.type})\n`);
+      console.log(`  Pack: ${CYAN}${pack.name}${RST} (${pack.type})\n`);
       showLocalProposals(cwd);
     }
   }
@@ -93,16 +93,16 @@ function showLocalProposals(cwd: string): void {
   const proposals = loadProposals(proposalsDir);
 
   if (proposals.length === 0) {
-    console.log('  대기 중인 로컬 제안이 없습니다.');
-    console.log(`  ${DIM}tenetx compound 로 인사이트를 추출하세요.${RST}\n`);
+    console.log('  No pending local proposals.');
+    console.log(`  ${DIM}Extract insights with tenetx compound.${RST}\n`);
     return;
   }
 
-  console.log(`  로컬 제안 ${YELLOW}${proposals.length}${RST}건:\n`);
+  console.log(`  Local proposals: ${YELLOW}${proposals.length}${RST}\n`);
   for (const p of proposals) {
     const icon = p.classification === 'team' ? '👥' : '👤';
     console.log(`  ${icon} ${BOLD}${p.title}${RST}`);
     if (p.content) console.log(`    ${DIM}${p.content.slice(0, 80)}${RST}`);
   }
-  console.log(`\n  ${DIM}tenetx propose 로 팀에 제안하세요.${RST}\n`);
+  console.log(`\n  ${DIM}Propose to team with tenetx propose.${RST}\n`);
 }

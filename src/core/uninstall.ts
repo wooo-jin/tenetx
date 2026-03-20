@@ -27,7 +27,7 @@ function cleanSettings(): void {
   try {
     settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
   } catch {
-    console.error('[tenetx] settings.json 파싱 실패 — 건너뜁니다.');
+    console.error('[tenetx] Failed to parse settings.json — skipping.');
     return;
   }
 
@@ -88,7 +88,7 @@ function cleanSettings(): void {
   } finally {
     releaseLock();
   }
-  console.log('  ✓ settings.json에서 CH 항목 제거');
+  console.log('  ✓ Removed CH entries from settings.json');
 }
 
 /** 프로젝트 .claude/agents/ch-*.md 삭제 (커스터마이즈된 파일은 보호) */
@@ -113,13 +113,13 @@ function cleanAgents(cwd: string): void {
   }
 
   if (removed > 0) {
-    console.log(`  ✓ ${removed}개 에이전트 파일 제거 (.claude/agents/ch-*.md)`);
+    console.log(`  ✓ Removed ${removed} agent file(s) (.claude/agents/ch-*.md)`);
   }
   if (preserved > 0) {
-    console.log(`  ⚠ ${preserved}개 커스터마이즈된 에이전트 파일 보존 (수동 삭제 필요)`);
+    console.log(`  ⚠ Preserved ${preserved} customized agent file(s) (manual deletion required)`);
   }
   if (removed === 0 && preserved === 0) {
-    console.log('  - 에이전트 파일 없음');
+    console.log('  - No agent files found');
   }
 }
 
@@ -151,9 +151,9 @@ function cleanCompoundRules(cwd: string): void {
   }
 
   if (removedCount > 0) {
-    console.log(`  ✓ ${removedCount}개 규칙 파일 제거`);
+    console.log(`  ✓ Removed ${removedCount} rule file(s)`);
   } else {
-    console.log('  - 규칙 파일 없음');
+    console.log('  - No rule files found');
   }
 }
 
@@ -167,35 +167,35 @@ function cleanClaudeMd(cwd: string): void {
   const endMarker = '<!-- tenetx:end -->';
 
   if (!content.includes(marker)) {
-    console.log('  - CLAUDE.md에 CH 블록 없음');
+    console.log('  - No CH block found in CLAUDE.md');
     return;
   }
 
   const regex = new RegExp(`\\n?${marker}[\\s\\S]*?${endMarker}\\n?`, 'g');
   const cleaned = content.replace(regex, '\n');
   fs.writeFileSync(claudeMdPath, `${cleaned.replace(/\n{3,}/g, '\n\n').trim()}\n`);
-  console.log('  ✓ CLAUDE.md에서 CH 블록 제거');
+  console.log('  ✓ Removed CH block from CLAUDE.md');
 }
 
 /** tenetx uninstall 메인 */
 export async function handleUninstall(cwd: string, options: { force?: boolean }): Promise<void> {
-  console.log('\n[tenetx] Tenetx 제거\n');
-  console.log('다음 항목을 정리합니다:');
-  console.log('  1. ~/.claude/settings.json에서 CH 환경변수/훅/statusLine 제거');
-  console.log('  2. .claude/agents/ch-*.md 에이전트 파일 삭제');
-  console.log('  3. .claude/rules/ 규칙 파일 삭제 (security, golden-principles, anti-pattern, routing, compound)');
-  console.log('  4. CLAUDE.md에서 tenetx 블록 제거');
+  console.log('\n[tenetx] Uninstalling Tenetx\n');
+  console.log('The following items will be cleaned up:');
+  console.log('  1. Remove CH env vars/hooks/statusLine from ~/.claude/settings.json');
+  console.log('  2. Delete .claude/agents/ch-*.md agent files');
+  console.log('  3. Delete .claude/rules/ rule files (security, golden-principles, anti-pattern, routing, compound)');
+  console.log('  4. Remove tenetx block from CLAUDE.md');
   console.log('');
-  console.log('참고: ~/.compound/ 디렉토리는 보존됩니다 (수동 삭제: rm -rf ~/.compound)\n');
+  console.log('Note: ~/.compound/ directory is preserved (manual deletion: rm -rf ~/.compound)\n');
 
   if (!options.force) {
     if (!process.stdin.isTTY) {
-      console.error('[tenetx] non-interactive 환경에서는 --force 플래그를 사용하세요.');
+      console.error('[tenetx] Use --force flag in non-interactive environments.');
       process.exit(1);
     }
     const ok = await confirm('계속하시겠습니까?');
     if (!ok) {
-      console.log('취소되었습니다.');
+      console.log('Cancelled.');
       return;
     }
     console.log('');
@@ -206,5 +206,5 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
   cleanCompoundRules(cwd);
   cleanClaudeMd(cwd);
 
-  console.log('\n[tenetx] 제거 완료. Claude Code를 재시작하면 순수 상태로 동작합니다.\n');
+  console.log('\n[tenetx] Uninstall complete. Restart Claude Code for a clean state.\n');
 }

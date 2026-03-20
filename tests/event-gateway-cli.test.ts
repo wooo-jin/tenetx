@@ -35,7 +35,7 @@ describe('event-gateway CLI', () => {
   it('help 출력 (인자 없음)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleGateway([]);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('사용법'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Usage'));
     logSpy.mockRestore();
   });
 
@@ -44,7 +44,7 @@ describe('event-gateway CLI', () => {
     fs.writeFileSync(GLOBAL_CONFIG_PATH, JSON.stringify({}));
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleGateway(['config', 'https://hooks.example.com/webhook']);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Gateway 설정 완료'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Gateway configured'));
     logSpy.mockRestore();
     // 설정이 저장되었는지 확인
     const config = JSON.parse(fs.readFileSync(GLOBAL_CONFIG_PATH, 'utf-8'));
@@ -55,14 +55,14 @@ describe('event-gateway CLI', () => {
   it('config - 유효하지 않은 URL', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await handleGateway(['config', 'http://insecure.com']);
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('유효하지 않은 URL'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid URL'));
     errSpy.mockRestore();
   });
 
   it('test - gateway 미설정 시', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleGateway(['test']);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('설정되지 않았거나'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('not configured'));
     logSpy.mockRestore();
   });
 
@@ -76,7 +76,7 @@ describe('event-gateway CLI', () => {
     );
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleGateway(['test']);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('테스트 성공'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Test succeeded'));
     fetchSpy.mockRestore();
     logSpy.mockRestore();
   });
@@ -89,7 +89,7 @@ describe('event-gateway CLI', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fail'));
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleGateway(['test']);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('테스트 실패'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Test failed'));
     fetchSpy.mockRestore();
     logSpy.mockRestore();
   });
@@ -101,7 +101,7 @@ describe('event-gateway CLI', () => {
     }));
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleGateway(['disable']);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('비활성화'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('disabled'));
     logSpy.mockRestore();
     const config = JSON.parse(fs.readFileSync(GLOBAL_CONFIG_PATH, 'utf-8'));
     expect(config.gateway.enabled).toBe(false);

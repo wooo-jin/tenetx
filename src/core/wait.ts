@@ -6,20 +6,20 @@ import { notify } from './notify.js';
  */
 export async function handleWait(args: string[]): Promise<void> {
   if (args.length === 0 || args[0] === '--help') {
-    console.log('  사용법: tenetx wait <minutes>');
-    console.log('  옵션:');
-    console.log('    --notify          완료 시 알림 (기본: on)');
-    console.log('    --no-notify       알림 끄기');
-    console.log('    --then "command"  대기 후 실행할 명령\n');
-    console.log('  예시:');
-    console.log('    tenetx wait 5           5분 대기 후 알림');
-    console.log('    tenetx wait 10 --then "tenetx"  10분 후 tenetx 실행\n');
+    console.log('  Usage: tenetx wait <minutes>');
+    console.log('  Options:');
+    console.log('    --notify          Notify on completion (default: on)');
+    console.log('    --no-notify       Disable notification');
+    console.log('    --then "command"  Command to run after waiting\n');
+    console.log('  Examples:');
+    console.log('    tenetx wait 5           Wait 5 minutes then notify');
+    console.log('    tenetx wait 10 --then "tenetx"  Run tenetx after 10 minutes\n');
     return;
   }
 
   const minutes = parseFloat(args[0]);
   if (Number.isNaN(minutes) || minutes <= 0) {
-    console.log('  유효한 분 수를 입력하세요. (예: tenetx wait 5)');
+    console.log('  Please enter a valid number of minutes. (e.g., tenetx wait 5)');
     return;
   }
 
@@ -28,7 +28,7 @@ export async function handleWait(args: string[]): Promise<void> {
   const thenCmd = thenIdx !== -1 ? args.slice(thenIdx + 1).join(' ') : null;
 
   const totalSeconds = Math.round(minutes * 60);
-  console.log(`\n  ⏳ ${minutes}분 대기 시작...`);
+  console.log(`\n  ⏳ Waiting ${minutes} minute(s)...`);
 
   // 카운트다운
   const startTime = Date.now();
@@ -40,11 +40,11 @@ export async function handleWait(args: string[]): Promise<void> {
       const remainMin = Math.floor(remaining / 60000);
       const remainSec = Math.floor((remaining % 60000) / 1000);
 
-      process.stdout.write(`\r  ⏳ 남은 시간: ${remainMin}분 ${remainSec.toString().padStart(2, '0')}초  `);
+      process.stdout.write(`\r  ⏳ Remaining: ${remainMin}m ${remainSec.toString().padStart(2, '0')}s  `);
 
       if (remaining <= 0) {
         clearInterval(interval);
-        process.stdout.write('\r  ✓ 대기 완료!                        \n\n');
+        process.stdout.write('\r  ✓ Wait complete!                        \n\n');
         resolve();
       }
     }, 1000);
@@ -61,7 +61,7 @@ export async function handleWait(args: string[]): Promise<void> {
 
   // then 명령 실행
   if (thenCmd) {
-    console.log(`  실행: ${thenCmd}\n`);
+    console.log(`  Running: ${thenCmd}\n`);
     const { execSync } = await import('node:child_process');
     try {
       execSync(thenCmd, { stdio: 'inherit' });
