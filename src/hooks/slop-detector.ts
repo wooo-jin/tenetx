@@ -9,6 +9,7 @@
 
 import { readStdinJSON } from './shared/read-stdin.js';
 import { debugLog } from '../core/logger.js';
+import { loadHookConfig } from './hook-config.js';
 
 interface PostToolInput {
   tool_name?: string;
@@ -49,6 +50,18 @@ export function detectSlop(text: string): Array<{ message: string; severity: 'wa
 }
 
 async function main(): Promise<void> {
+  const config = loadHookConfig('slop-detector');
+
+  // enabled 플래그: config에서 명시적으로 false이면 비활성화
+  if (config?.enabled === false) {
+    console.log(JSON.stringify({ result: 'approve' }));
+    return;
+  }
+
+  // maxAllowedPatterns: config에서 읽거나 기본값(0 = 1개라도 있으면 경고) 사용
+  const maxAllowedPatterns =
+    typeof config?.maxAllowedPatterns === 'number' ? config.maxAllowedPatterns : 0;
+
   const data = await readStdinJSON<PostToolInput>();
   if (!data) {
     console.log(JSON.stringify({ result: 'approve' }));
@@ -81,7 +94,7 @@ async function main(): Promise<void> {
   try {
     const detected = detectSlop(combined);
 
-    if (detected.length > 0) {
+    if (detected.length > maxAllowedPatterns) {
       const lines = detected.map(d => {
         const icon = d.severity === 'warn' ? '⚠' : 'ℹ';
         return `- ${icon} ${d.message}`;

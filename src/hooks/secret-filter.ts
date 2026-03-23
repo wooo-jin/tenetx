@@ -7,6 +7,7 @@
  */
 
 import { readStdinJSON } from './shared/read-stdin.js';
+import { loadHookConfig } from './hook-config.js';
 
 interface PostToolInput {
   tool_name?: string;
@@ -44,6 +45,14 @@ export function detectSecrets(text: string): SecretPattern[] {
 }
 
 async function main(): Promise<void> {
+  const config = loadHookConfig('secret-filter');
+
+  // enabled 플래그: config에서 명시적으로 false이면 비활성화 (기본 true)
+  if (config?.enabled === false) {
+    console.log(JSON.stringify({ result: 'approve' }));
+    return;
+  }
+
   const data = await readStdinJSON<PostToolInput>();
   if (!data) {
     console.log(JSON.stringify({ result: 'approve' }));

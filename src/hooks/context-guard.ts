@@ -16,6 +16,7 @@ import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { loadHookConfig } from './hook-config.js';
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
@@ -110,11 +111,16 @@ async function main(): Promise<void> {
 
   // UserPromptSubmit 훅: 대화 길이 추적
   if (input.prompt) {
+    const config = loadHookConfig('context-guard');
+    // maxTokens가 설정되어 있으면 chars threshold로 사용 (토큰 ≈ 4자 기준 환산)
+    const charsThreshold =
+      typeof config?.maxTokens === 'number' ? config.maxTokens * 4 : undefined;
+
     const state = loadContextState(sessionId);
     state.promptCount++;
     state.totalChars += input.prompt.length;
 
-    if (shouldWarn(state)) {
+    if (shouldWarn(state, charsThreshold !== undefined ? { charsThreshold } : {})) {
       state.lastWarningAt = Date.now();
       saveContextState(state);
       console.log(JSON.stringify({

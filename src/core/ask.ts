@@ -54,18 +54,39 @@ export async function handleAsk(args: string[]): Promise<void> {
     return;
   }
 
-  // --compare: 모든 프로바이더 병렬 호출 + 비교 출력
+  // --compare / --all: 모든 프로바이더 병렬 호출 + 합성/비교 출력
   if (askAll || compare) {
     const results = await callAllProviders(prompt, model);
     if (results.length === 0) {
       console.log('  No available providers.');
       return;
     }
-    for (const r of results) {
-      printProviderResult(r);
-    }
-    if (compare && results.filter(r => !r.error).length >= 2) {
-      printComparison(results.filter(r => !r.error));
+
+    const validResults = results.filter(r => !r.error && r.content.length > 0);
+
+    // Use synthesizer when 2+ valid responses available
+    if (validResults.length >= 2) {
+      const { synthesize } = await import('../engine/synthesizer.js');
+      const synthesis = synthesize(results, prompt);
+
+      if (askAll) {
+        // --all: Show synthesized result
+        console.log(synthesis.synthesizedContent);
+      } else {
+        // --compare: Show individual results + evaluation + agreement
+        for (const r of results) {
+          printProviderResult(r);
+        }
+        printSynthesisComparison(synthesis);
+      }
+    } else {
+      // Not enough valid responses — show raw results + basic comparison
+      for (const r of results) {
+        printProviderResult(r);
+      }
+      if (compare && validResults.length >= 2) {
+        printComparison(validResults);
+      }
     }
     return;
   }
@@ -230,6 +251,44 @@ function printProviderResult(r: ProviderResponse): void {
     console.log(`  ${DIM}[${r.latencyMs}ms · ~${r.tokenEstimate ?? '?'}tok]${RST}`);
     console.log(`  ${r.content}\n`);
   }
+}
+
+function printSynthesisComparison(synthesis: {
+  strategy: string;
+  evaluations: Array<{ provider: string; scores: { relevance: number; completeness: number; codeQuality: number; confidence: number }; overallScore: number; issues: string[] }>;
+  agreement: { consensus: string[]; uniqueInsights: Array<{ provider: string; insight: string }>; contradictions: Array<{ providers: string[]; description: string }>; agreementScore: number };
+  bestProvider: string;
+  taskType?: string;
+}): void {
+  console.log(`\n  ─── Synthesis Analysis ───`);
+  console.log(`  ${DIM}Strategy: ${synthesis.strategy} | Task: ${synthesis.taskType ?? 'general'} | Agreement: ${(synthesis.agreement.agreementScore * 100).toFixed(0)}%${RST}`);
+  console.log(`  ${GREEN}Best provider${RST}: ${synthesis.bestProvider}\n`);
+
+  // Score table
+  console.log(`  ${'Provider'.padEnd(12)} ${'Relevance'.padEnd(12)} ${'Complete'.padEnd(12)} ${'CodeQual'.padEnd(12)} ${'Confidence'.padEnd(12)} ${'Overall'.padEnd(10)}`);
+  console.log(`  ${'-'.repeat(12)} ${'-'.repeat(12)} ${'-'.repeat(12)} ${'-'.repeat(12)} ${'-'.repeat(12)} ${'-'.repeat(10)}`);
+  for (const ev of synthesis.evaluations) {
+    const s = ev.scores;
+    console.log(
+      `  ${ev.provider.padEnd(12)} ${`${(s.relevance * 100).toFixed(0)}%`.padEnd(12)} ${`${(s.completeness * 100).toFixed(0)}%`.padEnd(12)} ${`${(s.codeQuality * 100).toFixed(0)}%`.padEnd(12)} ${`${(s.confidence * 100).toFixed(0)}%`.padEnd(12)} ${BOLD}${(ev.overallScore * 100).toFixed(0)}%${RST}`
+    );
+  }
+
+  if (synthesis.agreement.consensus.length > 0) {
+    console.log(`\n  ${CYAN}Consensus points${RST}:`);
+    for (const point of synthesis.agreement.consensus.slice(0, 5)) {
+      console.log(`    - ${point.slice(0, 100)}`);
+    }
+  }
+
+  if (synthesis.agreement.contradictions.length > 0) {
+    console.log(`\n  ${YELLOW}Contradictions${RST}:`);
+    for (const c of synthesis.agreement.contradictions.slice(0, 3)) {
+      console.log(`    - ${c.providers.join(' vs ')}: ${c.description}`);
+    }
+  }
+
+  console.log();
 }
 
 function printComparison(results: ProviderResponse[]): void {

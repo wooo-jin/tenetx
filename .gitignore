@@ -20,6 +20,7 @@ Thumbs.db
 # Environment
 .env
 .env.*
+.mcp.json
 
 # Tenet (auto-generated, do not commit)
 .claude/agents/ch-*.md

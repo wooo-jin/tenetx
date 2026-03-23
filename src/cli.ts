@@ -8,10 +8,13 @@ if (nodeVersion < 18) {
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { prepareHarness, isFirstRun } from './core/harness.js';
 import { toggleDashboard, runDashboard } from './core/dashboard.js';
 import { spawnClaude } from './core/spawn.js';
+import { t, setLocale, type Locale } from './core/i18n.js';
+import { loadGlobalConfig, saveGlobalConfig } from './core/global-config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkgJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf-8'));
@@ -131,6 +134,24 @@ const commands: Command[] = [
     },
   },
   {
+    name: 'lab',
+    description: 'Adaptive optimization (metrics|suggest|history|snapshot|experiment|cost|evolve|patterns|reset)',
+    category: 'command',
+    handler: async (args) => {
+      const { handleLab } = await import('./lab/cli.js');
+      await handleLab(args);
+    },
+  },
+  {
+    name: 'cost',
+    description: 'Session cost tracking (shorthand for lab cost)',
+    category: 'command',
+    handler: async (args) => {
+      const { printCostSummary } = await import('./lab/cost-tracker.js');
+      printCostSummary(args);
+    },
+  },
+  {
     name: 'pick',
     description: 'Cherry-pick insight to Me (<src> --from <pack>)',
     category: 'command',
@@ -192,6 +213,15 @@ const commands: Command[] = [
     handler: async (args) => {
       const { handleProviders } = await import('./core/ask.js');
       await handleProviders(args);
+    },
+  },
+  {
+    name: 'synth',
+    description: 'Multi-model synthesis (status|weights|history)',
+    category: 'command',
+    handler: async (args) => {
+      const { handleSynth } = await import('./engine/synthesizer.js');
+      await handleSynth(args);
     },
   },
   {
@@ -304,6 +334,24 @@ const commands: Command[] = [
     },
   },
   {
+    name: 'forge',
+    description: 'Signal-based personalization (--scan-only|--profile|--adjust|--export)',
+    category: 'command',
+    handler: async (args) => {
+      const { handleForge } = await import('./forge/cli.js');
+      await handleForge(args);
+    },
+  },
+  {
+    name: 'me',
+    description: 'Personal dashboard: profile, evolution, patterns, agent tuning, cost',
+    category: 'command',
+    handler: async (args) => {
+      const { runMeDashboard } = await import('./forge/me-dashboard.js');
+      await runMeDashboard(args);
+    },
+  },
+  {
     name: 'gateway',
     description: 'Event gateway (config <url>|test|disable)',
     category: 'command',
@@ -331,6 +379,15 @@ const commands: Command[] = [
     },
   },
   {
+    name: 'remix',
+    description: 'Harness remix (browse|inspect|pick|status|update|publish)',
+    category: 'command',
+    handler: async (args) => {
+      const { handleRemix } = await import('./remix/cli.js');
+      await handleRemix(args);
+    },
+  },
+  {
     name: 'uninstall',
     description: 'Remove CH from settings/agents/CLAUDE.md [--force]',
     category: 'command',
@@ -345,6 +402,29 @@ function findCommand(name: string): Command | undefined {
   return commands.find(
     (c) => c.name === name || (c.aliases?.includes(name))
   );
+}
+
+// ---------------------------------------------------------------------------
+// Language prompt (first run)
+// ---------------------------------------------------------------------------
+
+async function promptLocale(): Promise<Locale> {
+  // non-TTY: 기본 영어
+  if (!process.stdin.isTTY) return 'en';
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  console.log('\n  ╔══════════════════════════════════════════════╗');
+  console.log('  ║  Select Language / 언어 선택                ║');
+  console.log('  ╚══════════════════════════════════════════════╝\n');
+  console.log('  1) English');
+  console.log('  2) 한국어\n');
+
+  return new Promise<Locale>((resolve) => {
+    rl.question('  Select / 선택 [1]: ', (answer) => {
+      rl.close();
+      resolve(answer.trim() === '2' ? 'ko' : 'en');
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -372,32 +452,41 @@ async function main() {
   try {
     // First run detection: show welcome if ~/.compound/ doesn't exist
     const firstRun = isFirstRun();
+    let selectedLocale: Locale | undefined;
+
     if (firstRun) {
+      // 첫 실행: 언어 선택
+      selectedLocale = await promptLocale();
+      setLocale(selectedLocale);
+
       console.log(`
   ╔══════════════════════════════════════════════╗
-  ║       Welcome to Tenetx!                    ║
+  ║  ${t('welcome.title')}║
   ╚══════════════════════════════════════════════╝
 
-  Tenetx injects your development philosophy into Claude Code.
-  Declare principles, and hooks, model routing, and agents are
-  configured automatically.
+${t('welcome.desc')}
 
-  Setting up the default environment now...`);
+${t('welcome.setting_up')}`);
     }
 
     const context = await prepareHarness(process.cwd());
 
-    if (firstRun) {
+    if (firstRun && selectedLocale) {
+      // 디렉토리 생성 후 locale 저장
+      const config = loadGlobalConfig();
+      config.locale = selectedLocale;
+      saveGlobalConfig(config);
+
       console.log(`
-  ✓ Initial setup complete!
+${t('welcome.complete')}
 
-  Next steps:
-    tenetx init              Detect project type → generate philosophy
-    tenetx init --team       Start in team mode (share philosophy)
-    tenetx philosophy show   View current philosophy
-    tenetx doctor            Run diagnostics
+${t('welcome.next_steps')}
+${t('welcome.cmd.init')}
+${t('welcome.cmd.init_team')}
+${t('welcome.cmd.philosophy')}
+${t('welcome.cmd.doctor')}
 
-  Learn more: https://github.com/wooo-jin/tenetx
+${t('welcome.learn_more')}
 `);
     }
 
@@ -426,22 +515,22 @@ async function main() {
 
     // User-friendly error message conversion
     if (msg.includes('ENOENT') && msg.includes('claude')) {
-      console.error('\n  [tenetx] Claude Code is not installed.');
-      console.error('  Install: https://docs.anthropic.com/en/docs/claude-code');
-      console.error('  Verify: tenetx doctor\n');
+      console.error(t('error.no_claude'));
+      console.error(t('error.install_claude'));
+      console.error(t('error.verify'));
     } else if (msg.includes('ENOENT') && msg.includes('git')) {
-      console.error('\n  [tenetx] Git is not installed.');
-      console.error('  Install: https://git-scm.com/downloads\n');
+      console.error(t('error.no_git'));
+      console.error(t('error.install_git'));
     } else if (msg.includes('ENOENT') && msg.includes('node')) {
-      console.error('\n  [tenetx] Node.js 18 or higher is required.');
+      console.error(t('error.no_node'));
       console.error(`  Current: ${process.version}\n`);
     } else if (msg.includes('EACCES') || msg.includes('EPERM')) {
-      console.error('\n  [tenetx] Permission denied. Check file permissions or use sudo.');
+      console.error(t('error.permission'));
       console.error(`  Details: ${msg}\n`);
     } else {
-      console.error('\n  [tenetx] Error:', msg);
-      console.error('  If the problem persists: run tenetx doctor for diagnostics.');
-      console.error('  Issues: https://github.com/wooo-jin/tenetx/issues\n');
+      console.error(t('error.generic'), msg);
+      console.error(t('error.persist'));
+      console.error(t('error.issues'));
     }
     process.exit(1);
   }

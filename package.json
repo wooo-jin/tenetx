@@ -22,14 +22,16 @@
   },
   "author": "jang-ujin",
   "license": "MIT",
-  "description": "Philosophy-driven Claude Code harness — declare principles, generate workflows",
+  "description": "The AI coding tool that adapts to you — personalized harness for Claude Code",
   "keywords": [
     "claude-code",
     "tenetx",
-    "philosophy",
-    "compound-engineering",
+    "personalization",
+    "ai-harness",
     "workflow",
-    "ai-agent"
+    "ai-agent",
+    "forge",
+    "compound-engineering"
   ],
   "repository": {
     "type": "git",

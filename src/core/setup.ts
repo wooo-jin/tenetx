@@ -7,6 +7,7 @@ import { initDefaultPhilosophy, loadPhilosophy, DEFAULT_PHILOSOPHY } from './phi
 import { loadGlobalConfig, saveGlobalConfig } from './global-config.js';
 import { validateWebhookUrl, loadNotifyConfig, saveNotifyConfig } from './notify.js';
 import { sampleUserHistory, generatePhilosophy, formatPhilosophy } from './philosophy-generator.js';
+import { t, setLocale, getLocale, type Locale } from './i18n.js';
 
 function prompt(rl: readline.Interface, question: string): Promise<string> {
   return new Promise((resolve) => rl.question(question, resolve));
@@ -24,7 +25,7 @@ async function promptChoice(rl: readline.Interface, question: string, choices: s
     if (!Number.isNaN(num) && num >= 1 && num <= choices.length) {
       return num - 1;
     }
-    console.log(`  Please enter a number between 1 and ${choices.length}.`);
+    console.log(t('setup.prompt_range', String(choices.length)));
   }
 }
 
@@ -47,82 +48,95 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
     initDefaultPhilosophy();
     config.modelRouting = config.modelRouting ?? 'default';
     saveGlobalConfig(config);
-    console.log('[tenetx] Initial setup complete with defaults (non-interactive)');
-    console.log('  ✓ Directories created, default philosophy, routing: default');
-    console.log('  Interactive setup: tenetx setup (in TTY environment)');
+    console.log(t('setup.non_interactive1'));
+    console.log(t('setup.non_interactive2'));
+    console.log(t('setup.non_interactive3'));
     return;
   }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const config = loadGlobalConfig();
 
+  // ─── Step 0: 언어 선택 ───
+  console.log(`\n${t('setup.step.lang')}`);
+  console.log('  1) English');
+  console.log('  2) 한국어\n');
+
+  const currentLocale = getLocale();
+  const langDefault = currentLocale === 'ko' ? 1 : 0;
+  const langIdx = await promptChoice(rl, '  Select / 선택 [' + (langDefault + 1) + ']: ', ['English', '한국어'], langDefault);
+  const locale: Locale = langIdx === 1 ? 'ko' : 'en';
+  config.locale = locale;
+  setLocale(locale);
+  console.log(`  ✓ ${locale === 'ko' ? '한국어' : 'English'}\n`);
+
   console.log(`
   ╔══════════════════════════════════════╗
-  ║     Tenetx — Initial Setup          ║
+  ║  ${t('setup.title')}║
   ╚══════════════════════════════════════╝
 `);
 
-  // ─── Step 0: 디렉토리 생성 ───
+  // ─── Step 0.5: 디렉토리 생성 ───
   const dirs = [COMPOUND_HOME, ME_DIR, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR];
   for (const dir of dirs) {
     fs.mkdirSync(dir, { recursive: true });
   }
   initDefaultPhilosophy();
-  console.log('  ✓ Directory structure created\n');
+  console.log(`${t('setup.dir_created')}\n`);
 
   // ─── Step 1: Profile ───
-  console.log('  ── 1/5. Profile ──');
-  const name = await prompt(rl, '  Name (optional, press Enter to skip): ');
+  console.log(t('setup.step.profile'));
+  const name = await prompt(rl, t('setup.profile_name'));
   if (name.trim()) {
     config.name = name.trim();
     console.log(`  ✓ ${config.name}\n`);
   } else {
-    console.log('  → Skipped\n');
+    console.log(`${t('setup.skipped')}\n`);
   }
 
   // ─── Step 2: Development Philosophy ───
-  console.log('  ── 2/5. Development Philosophy ──');
-  console.log('  Analyzes your Claude Code conversation history');
-  console.log('  to auto-generate a philosophy matching your dev style.');
-  console.log('  (More messages = more accurate philosophy)\n');
+  console.log(t('setup.step.philosophy'));
+  console.log(t('setup.philosophy.desc1'));
+  console.log(t('setup.philosophy.desc2'));
+  console.log(`${t('setup.philosophy.desc3')}\n`);
 
   const messages = sampleUserHistory();
   if (messages.length > 0) {
-    console.log(`  Found ${messages.length} conversation messages.`);
-    const wantGenerate = await promptYesNo(rl, '  Generate philosophy via AI analysis?', true);
+    console.log(t('setup.philosophy.found', String(messages.length)));
+    const wantGenerate = await promptYesNo(rl, t('setup.philosophy.generate'), true);
 
     if (wantGenerate) {
-      console.log('\n  Analyzing... (inferring patterns using Claude Code)\n');
+      console.log(t('setup.philosophy.analyzing'));
       const generated = generatePhilosophy(messages);
 
       if (generated) {
-        console.log('  ── Analysis Result ──\n');
+        console.log(`${t('setup.philosophy.result')}\n`);
         console.log(formatPhilosophy(generated));
 
-        const accept = await promptChoice(rl, '  1) Use as-is  2) Edit first  3) Use default [1]: ', ['as-is', 'edit', 'default'], 0);
+        const accept = await promptChoice(rl, t('setup.philosophy.choices'), ['as-is', 'edit', 'default'], 0);
 
         if (accept === 0) {
           fs.writeFileSync(ME_PHILOSOPHY, JSON.stringify(generated, null, 2));
-          console.log(`  ✓ Philosophy "${generated.name}" saved\n`);
+          console.log(`${t('setup.philosophy.saved', generated.name)}\n`);
         } else if (accept === 1) {
-          console.log('\n  You can edit each principle. Press Enter to keep original.\n');
+          console.log(t('setup.philosophy.edit_intro'));
 
-          const newName = await prompt(rl, `  Philosophy name [${generated.name}]: `);
+          const newName = await prompt(rl, t('setup.philosophy.name_prompt', generated.name));
           if (newName.trim()) generated.name = newName.trim();
 
-          const newDesc = await prompt(rl, `  Description [${generated.description ?? ''}]: `);
+          const newDesc = await prompt(rl, t('setup.philosophy.desc_prompt', generated.description ?? ''));
           if (newDesc.trim()) generated.description = newDesc.trim();
 
           for (const [key, principle] of Object.entries(generated.principles)) {
             console.log(`\n  [${key}]`);
-            console.log(`    Current belief: ${principle.belief}`);
-            const newBelief = await prompt(rl, '    Edit (Enter=keep): ');
+            console.log(t('setup.philosophy.belief', principle.belief));
+            const newBelief = await prompt(rl, t('setup.philosophy.edit_keep'));
             if (newBelief.trim()) principle.belief = newBelief.trim();
 
             for (let i = 0; i < principle.generates.length; i++) {
               const gen = principle.generates[i];
               const display = typeof gen === 'string' ? gen : JSON.stringify(gen);
-              const keep = await promptYesNo(rl, `    → Keep "${display}"?`, true);
+              const keep = await promptYesNo(rl, t('setup.philosophy.keep_item', display), true);
               if (!keep) {
                 principle.generates.splice(i, 1);
                 i--;
@@ -132,7 +146,7 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
 
           const removeKeys: string[] = [];
           for (const key of Object.keys(generated.principles)) {
-            const keep = await promptYesNo(rl, `\n  Keep principle [${key}]?`, true);
+            const keep = await promptYesNo(rl, t('setup.philosophy.keep_principle', key), true);
             if (!keep) removeKeys.push(key);
           }
           for (const key of removeKeys) {
@@ -140,80 +154,91 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
           }
 
           fs.writeFileSync(ME_PHILOSOPHY, JSON.stringify(generated, null, 2));
-          console.log(`\n  ✓ Philosophy "${generated.name}" saved\n`);
+          console.log(`\n${t('setup.philosophy.saved', generated.name)}\n`);
         } else {
-          console.log('  → Using default philosophy\n');
+          console.log(`${t('setup.philosophy.using_default')}\n`);
         }
       } else {
-        console.log('  [!] Philosophy generation failed. Using default philosophy.\n');
+        console.log(`${t('setup.philosophy.gen_failed')}\n`);
       }
     } else {
-      console.log('  → Using default philosophy (edit later with tenetx philosophy edit)\n');
+      console.log(`${t('setup.philosophy.skip')}\n`);
     }
   } else {
-    console.log('  No Claude Code conversation history found.');
-    console.log('  Starting with default philosophy. Run tenetx setup again after');
-    console.log('  some usage to generate a philosophy from your history.\n');
+    console.log(t('setup.philosophy.no_history1'));
+    console.log(t('setup.philosophy.no_history2'));
+    console.log(`${t('setup.philosophy.no_history3')}\n`);
   }
 
   // ─── Step 3: Model Routing ───
-  console.log('  ── 3/5. Model Routing ──');
-  console.log('  Automatically distributes AI models by task type.\n');
+  console.log(t('setup.step.routing'));
+  console.log(t('setup.routing.desc'));
 
   const routingChoices = [
-    'default      — explore:Sonnet, implement:Opus, search:Haiku (recommended)',
-    'cost-saving  — mostly Sonnet, Opus only for core design',
-    'max-quality  — mostly Opus (higher cost)',
+    t('setup.routing.1'),
+    t('setup.routing.2'),
+    t('setup.routing.3'),
   ];
   for (let i = 0; i < routingChoices.length; i++) {
     const marker = i === 0 ? ' (default)' : '';
     console.log(`  ${i + 1}) ${routingChoices[i]}${marker}`);
   }
   console.log();
-  const routingIdx = await promptChoice(rl, '  Select [1]: ', routingChoices, 0);
+  const routingIdx = await promptChoice(rl, t('setup.select'), routingChoices, 0);
   config.modelRouting = (['default', 'cost-saving', 'max-quality'] as const)[routingIdx];
   console.log(`  ✓ ${config.modelRouting}\n`);
 
   // ─── Step 4: Notifications ───
-  console.log('  ── 4/5. Notifications ──');
-  console.log('  Receive notifications on task completion or errors.\n');
+  console.log(t('setup.step.notify'));
+  console.log(t('setup.notify.desc'));
 
-  const wantNotify = await promptYesNo(rl, '  Set up external notifications?', false);
+  const wantNotify = await promptYesNo(rl, t('setup.notify.ask'), false);
   if (wantNotify) {
     await setupNotifications(rl);
   } else {
-    console.log('  → Skipped (configure later with tenetx notify config)\n');
+    console.log(`${t('setup.notify.skipped')}\n`);
   }
 
   // ─── Step 5: Permission Mode ───
-  console.log('  ── 5/5. Permission Mode ──');
-  console.log('  Using --dangerously-skip-permissions by default allows');
-  console.log('  autonomous operation without tool approval prompts.');
-  console.log('  (You can also use txd command for the same effect)\n');
+  console.log(t('setup.step.permission'));
+  console.log(t('setup.perm.desc1'));
+  console.log(t('setup.perm.desc2'));
+  console.log(t('setup.perm.desc3'));
 
-  const skipPerms = await promptYesNo(rl, '  Always skip permissions when running tenetx?', false);
+  const skipPerms = await promptYesNo(rl, t('setup.perm.ask'), false);
   config.dangerouslySkipPermissions = skipPerms;
   if (skipPerms) {
-    console.log('  ✓ --dangerously-skip-permissions applied automatically\n');
+    console.log(`${t('setup.perm.on')}\n`);
   } else {
-    console.log('  ✓ Default permission mode (use txd when needed)\n');
+    console.log(`${t('setup.perm.off')}\n`);
   }
 
   // ─── Save ───
   saveGlobalConfig(config);
 
-  console.log('  ══════════════════════════════════════');
-  console.log('  Setup complete!');
-  console.log();
-  console.log('  Getting started:');
-  console.log('    tenetx              Run Claude Code');
+  console.log(t('setup.done.line'));
+  console.log(t('setup.done'));
+  console.log(t('setup.getting_started'));
+  console.log(t('setup.cmd.run'));
   if (!skipPerms) {
-    console.log('    txd             Run with skip-permissions');
+    console.log(t('setup.cmd.txd'));
   }
-  console.log('    tenetx philosophy   View/edit philosophy');
-  console.log('    tenetx doctor       Run diagnostics');
-  console.log('    tenetx setup        Run this setup again');
+  console.log(t('setup.cmd.philosophy'));
+  console.log(t('setup.cmd.doctor'));
+  console.log(t('setup.cmd.setup'));
   console.log();
+
+  // ─── Forge Offer ───
+  const wantForge = await promptYesNo(rl, '  Would you like to personalize your harness? (tenetx forge)', true);
+  if (wantForge) {
+    console.log('\n  [Running tenetx forge...]\n');
+    rl.close();
+    const { handleForge } = await import('../forge/cli.js');
+    await handleForge([]);
+    return;
+  } else {
+    console.log('  Skipped. Run `tenetx forge` anytime to personalize.\n');
+  }
 
   rl.close();
 }
@@ -225,43 +250,43 @@ async function setupNotifications(rl: readline.Interface): Promise<void> {
     console.log(`  ${i + 1}) ${notifyChoices[i]}`);
   }
   console.log();
-  const channelIdx = await promptChoice(rl, '  Select channel [1]: ', notifyChoices, 0);
+  const channelIdx = await promptChoice(rl, t('setup.select'), notifyChoices, 0);
 
   const notifyConfig = loadNotifyConfig();
   notifyConfig.enabled = true;
 
   switch (channelIdx) {
     case 0: { // Discord
-      const webhook = await prompt(rl, '  Discord webhook URL: ');
+      const webhook = await prompt(rl, t('notify.discord.webhook'));
       if (webhook.trim() && validateWebhookUrl(webhook.trim())) {
         notifyConfig.discord = { webhook: webhook.trim() };
         saveNotifyConfig(notifyConfig);
-        console.log('  ✓ Discord notification configured\n');
+        console.log(`${t('notify.discord.ok')}\n`);
       } else {
-        console.log('  ✗ Invalid URL (HTTPS required). Configure later: tenetx notify config discord <url>\n');
+        console.log(`${t('notify.discord.fail')}\n`);
       }
       break;
     }
     case 1: { // Slack
-      const webhook = await prompt(rl, '  Slack webhook URL: ');
+      const webhook = await prompt(rl, t('notify.slack.webhook'));
       if (webhook.trim() && validateWebhookUrl(webhook.trim())) {
         notifyConfig.slack = { webhook: webhook.trim() };
         saveNotifyConfig(notifyConfig);
-        console.log('  ✓ Slack notification configured\n');
+        console.log(`${t('notify.slack.ok')}\n`);
       } else {
-        console.log('  ✗ Invalid URL (HTTPS required). Configure later: tenetx notify config slack <url>\n');
+        console.log(`${t('notify.slack.fail')}\n`);
       }
       break;
     }
     case 2: { // Telegram
-      const botToken = await prompt(rl, '  Telegram Bot Token: ');
-      const chatId = await prompt(rl, '  Telegram Chat ID: ');
+      const botToken = await prompt(rl, t('notify.telegram.token'));
+      const chatId = await prompt(rl, t('notify.telegram.chat'));
       if (botToken.trim() && chatId.trim()) {
         notifyConfig.telegram = { botToken: botToken.trim(), chatId: chatId.trim() };
         saveNotifyConfig(notifyConfig);
-        console.log('  ✓ Telegram notification configured\n');
+        console.log(`${t('notify.telegram.ok')}\n`);
       } else {
-        console.log('  ✗ Required values are empty. Configure later: tenetx notify config telegram <token> <chatId>\n');
+        console.log(`${t('notify.telegram.fail')}\n`);
       }
       break;
     }

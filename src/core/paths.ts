@@ -30,6 +30,21 @@ export const SESSIONS_DIR = path.join(COMPOUND_HOME, 'sessions');
 /** ~/.compound/config.json — 글로벌 설정 */
 export const GLOBAL_CONFIG = path.join(COMPOUND_HOME, 'config.json');
 
+/** ~/.compound/lab/ — Lab 적응형 최적화 엔진 데이터 */
+export const LAB_DIR = path.join(COMPOUND_HOME, 'lab');
+
+/** ~/.compound/lab/events.jsonl — Lab 이벤트 로그 (JSONL) */
+export const LAB_EVENTS = path.join(LAB_DIR, 'events.jsonl');
+
+/** ~/.compound/remix/ — Remix 데이터 디렉토리 */
+export const REMIX_DIR = path.join(COMPOUND_HOME, 'remix');
+
+/** ~/.compound/remix/provenance.json — 리믹스 컴포넌트 출처 추적 */
+export const REMIX_PROVENANCE = path.join(REMIX_DIR, 'provenance.json');
+
+/** ~/.compound/me/forge-profile.json — 글로벌 Forge 프로필 */
+export const FORGE_PROFILE = path.join(ME_DIR, 'forge-profile.json');
+
 /** 모든 실행 모드 이름 (cancel/recovery 시 사용) */
 export const ALL_MODES = [
   'ralph', 'autopilot', 'ultrawork', 'team', 'pipeline',
@@ -49,4 +64,9 @@ export function packLinkPath(cwd: string): string {
 /** {repo}/.compound/philosophy.json — 프로젝트별 철학 */
 export function projectPhilosophyPath(cwd: string): string {
   return path.join(projectDir(cwd), 'philosophy.json');
+}
+
+/** {repo}/.compound/forge-profile.json — 프로젝트별 Forge 프로필 */
+export function projectForgeProfilePath(cwd: string): string {
+  return path.join(projectDir(cwd), 'forge-profile.json');
 }

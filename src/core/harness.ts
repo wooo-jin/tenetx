@@ -1,32 +1,32 @@
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as crypto from 'node:crypto';
-import { loadPhilosophyForProject, initDefaultPhilosophy } from './philosophy-loader.js';
-import { resolveScope } from './scope-resolver.js';
-import { generateClaudeRuleFiles, buildEnv, registerTmuxBindings } from './config-injector.js';
-import { COMPOUND_HOME, ME_DIR, ME_SOLUTIONS, ME_RULES, SESSIONS_DIR } from './paths.js';
-import { startSessionLog } from './session-logger.js';
-import { ModelRouter } from '../engine/router.js';
-import type { RoutingPreset } from '../engine/router.js';
-import type { HarnessContext } from './types.js';
-import { debugLog } from './logger.js';
-import { cleanStaleStateFiles } from './state-gc.js';
-import { loadGlobalConfig } from './global-config.js';
-import { autoSyncIfNeeded, loadPackConfigs } from './pack-config.js';
-import { checkSelfUpdate } from './version-check.js';
-import { PACKS_DIR } from './paths.js';
 import { loadPackWorkflows, registerPackWorkflows } from '../engine/modes.js';
+import type { RoutingPreset } from '../engine/router.js';
+import { ModelRouter } from '../engine/router.js';
+import { resetCurrentSession } from '../lab/cost-tracker.js';
+import { buildEnv, generateClaudeRuleFiles, registerTmuxBindings } from './config-injector.js';
+import { loadGlobalConfig } from './global-config.js';
+import { debugLog } from './logger.js';
+import { autoSyncIfNeeded, loadPackConfigs } from './pack-config.js';
+import { COMPOUND_HOME, ME_DIR, ME_RULES, ME_SOLUTIONS, PACKS_DIR, SESSIONS_DIR } from './paths.js';
+import { initDefaultPhilosophy, loadPhilosophyForProject } from './philosophy-loader.js';
+import { resolveScope } from './scope-resolver.js';
+import { startSessionLog } from './session-logger.js';
 import {
-  CLAUDE_DIR,
-  SETTINGS_PATH,
-  SETTINGS_BACKUP_PATH,
   acquireLock,
-  releaseLock,
   atomicWriteFileSync,
+  CLAUDE_DIR,
+  releaseLock,
   rollbackSettings,
+  SETTINGS_BACKUP_PATH,
+  SETTINGS_PATH,
 } from './settings-lock.js';
+import { cleanStaleStateFiles } from './state-gc.js';
+import type { HarnessContext } from './types.js';
+import { checkSelfUpdate } from './version-check.js';
 
 /** tenetx 패키지 루트 */
 function getPackageRoot(): string {
@@ -72,7 +72,9 @@ function injectSettings(env: Record<string, string>): void {
       settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
       // 파싱 성공한 경우에만 백업 생성 (깨진 파일 백업 방지)
       fs.copyFileSync(SETTINGS_PATH, SETTINGS_BACKUP_PATH);
-    } catch (e) { debugLog('harness', 'settings.json 파싱 실패, 빈 설정으로 시작', e); }
+    } catch (e) {
+      debugLog('harness', 'settings.json 파싱 실패, 빈 설정으로 시작', e);
+    }
   }
 
   // 기존 env에 하네스 환경변수 병합
@@ -84,7 +86,7 @@ function injectSettings(env: Record<string, string>): void {
   const existingStatusLine = settings.statusLine as { type?: string; command?: string } | undefined;
   const isTenetxStatusLine =
     !existingStatusLine ||
-    !existingStatusLine.command ||   // undefined, null, '' 모두 교체 대상
+    !existingStatusLine.command || // undefined, null, '' 모두 교체 대상
     existingStatusLine.command.startsWith('tenetx');
   if (isTenetxStatusLine) {
     settings.statusLine = {
@@ -96,7 +98,7 @@ function injectSettings(env: Record<string, string>): void {
   // 훅 주입: Claude Code hooks 시스템에 등록
   // hooks 스키마: { "EventName": [{ "matcher": "...", "hooks": [{ "type": "command", ... }] }] }
   const pkgRoot = getPackageRoot();
-  const hooksConfig = settings.hooks as Record<string, unknown[]> ?? {};
+  const hooksConfig = (settings.hooks as Record<string, unknown[]>) ?? {};
 
   // dist 경로의 훅 스크립트
   const intentClassifierPath = path.join(pkgRoot, 'dist', 'hooks', 'intent-classifier.js');
@@ -129,7 +131,7 @@ function injectSettings(env: Record<string, string>): void {
     // 래핑 형식: { matcher, hooks: [{ command }] }
     const hooks = entry.hooks as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(hooks)) {
-      return hooks.some(h => typeof h.command === 'string' && matchesHookPath(h.command));
+      return hooks.some((h) => typeof h.command === 'string' && matchesHookPath(h.command));
     }
     return false;
   }
@@ -147,12 +149,11 @@ function injectSettings(env: Record<string, string>): void {
     return Array.isArray(val) ? val : [];
   }
   function filterOutCH(arr: unknown): Array<Record<string, unknown>> {
-    return ensureArray(arr).filter(h => !isCHHook(h));
+    return ensureArray(arr).filter((h) => !isCHHook(h));
   }
 
   // UserPromptSubmit 훅
-  const promptHooks = filterOutCH(
-    hooksConfig.UserPromptSubmit);
+  const promptHooks = filterOutCH(hooksConfig.UserPromptSubmit);
   if (fs.existsSync(intentClassifierPath)) {
     promptHooks.push(makeHookEntry(`node "${intentClassifierPath}"`, 3000));
   }
@@ -174,24 +175,21 @@ function injectSettings(env: Record<string, string>): void {
   hooksConfig.UserPromptSubmit = promptHooks;
 
   // SessionStart 훅
-  const sessionHooks = filterOutCH(
-    hooksConfig.SessionStart);
+  const sessionHooks = filterOutCH(hooksConfig.SessionStart);
   if (fs.existsSync(sessionRecoveryPath)) {
     sessionHooks.push(makeHookEntry(`node "${sessionRecoveryPath}"`, 3000));
   }
   hooksConfig.SessionStart = sessionHooks;
 
   // Stop 훅 (에러 감지 + context limit 경고)
-  const stopHooks = filterOutCH(
-    hooksConfig.Stop);
+  const stopHooks = filterOutCH(hooksConfig.Stop);
   if (fs.existsSync(contextGuardPath)) {
     stopHooks.push(makeHookEntry(`node "${contextGuardPath}"`, 3000));
   }
   hooksConfig.Stop = stopHooks;
 
   // PreToolUse 훅 (위험 명령어 차단 + 모드 리마인더 + DB 가드 + 레이트 리미터)
-  const preToolHooks = filterOutCH(
-    hooksConfig.PreToolUse);
+  const preToolHooks = filterOutCH(hooksConfig.PreToolUse);
   if (fs.existsSync(preToolUsePath)) {
     preToolHooks.push(makeHookEntry(`node "${preToolUsePath}"`, 3000));
   }
@@ -204,8 +202,7 @@ function injectSettings(env: Record<string, string>): void {
   hooksConfig.PreToolUse = preToolHooks;
 
   // PostToolUse 훅 (파일 변경 추적 + 에러 감지 + 시크릿 필터)
-  const postToolHooks = filterOutCH(
-    hooksConfig.PostToolUse);
+  const postToolHooks = filterOutCH(hooksConfig.PostToolUse);
   if (fs.existsSync(postToolUsePath)) {
     postToolHooks.push(makeHookEntry(`node "${postToolUsePath}"`, 3000));
   }
@@ -218,40 +215,35 @@ function injectSettings(env: Record<string, string>): void {
   hooksConfig.PostToolUse = postToolHooks;
 
   // SubagentStart 훅
-  const subagentStartHooks = filterOutCH(
-    hooksConfig.SubagentStart);
+  const subagentStartHooks = filterOutCH(hooksConfig.SubagentStart);
   if (fs.existsSync(subagentTrackerPath)) {
     subagentStartHooks.push(makeHookEntry(`node "${subagentTrackerPath}" start`, 2000));
   }
   hooksConfig.SubagentStart = subagentStartHooks;
 
   // SubagentStop 훅
-  const subagentStopHooks = filterOutCH(
-    hooksConfig.SubagentStop);
+  const subagentStopHooks = filterOutCH(hooksConfig.SubagentStop);
   if (fs.existsSync(subagentTrackerPath)) {
     subagentStopHooks.push(makeHookEntry(`node "${subagentTrackerPath}" stop`, 2000));
   }
   hooksConfig.SubagentStop = subagentStopHooks;
 
   // PreCompact 훅 (컨텍스트 압축 전 상태 보존)
-  const preCompactHooks = filterOutCH(
-    hooksConfig.PreCompact);
+  const preCompactHooks = filterOutCH(hooksConfig.PreCompact);
   if (fs.existsSync(preCompactPath)) {
     preCompactHooks.push(makeHookEntry(`node "${preCompactPath}"`, 3000));
   }
   hooksConfig.PreCompact = preCompactHooks;
 
   // PermissionRequest 훅 (권한 요청 정책)
-  const permissionHooks = filterOutCH(
-    hooksConfig.PermissionRequest);
+  const permissionHooks = filterOutCH(hooksConfig.PermissionRequest);
   if (fs.existsSync(permissionHandlerPath)) {
     permissionHooks.push(makeHookEntry(`node "${permissionHandlerPath}"`, 2000));
   }
   hooksConfig.PermissionRequest = permissionHooks;
 
   // PostToolUseFailure 훅 (도구 실패 시 복구 안내)
-  const postToolFailureHooks = filterOutCH(
-    hooksConfig.PostToolUseFailure);
+  const postToolFailureHooks = filterOutCH(hooksConfig.PostToolUseFailure);
   if (fs.existsSync(postToolFailurePath)) {
     postToolFailureHooks.push(makeHookEntry(`node "${postToolFailurePath}"`, 3000));
   }
@@ -284,7 +276,9 @@ function loadAgentHashes(): Record<string, string> {
     if (fs.existsSync(AGENT_HASHES_PATH)) {
       return JSON.parse(fs.readFileSync(AGENT_HASHES_PATH, 'utf-8'));
     }
-  } catch (e) { debugLog('harness', '에이전트 해시 맵 로드 실패', e); }
+  } catch (e) {
+    debugLog('harness', '에이전트 해시 맵 로드 실패', e);
+  }
   return {};
 }
 
@@ -293,7 +287,9 @@ function saveAgentHashes(hashes: Record<string, string>): void {
   try {
     fs.mkdirSync(path.dirname(AGENT_HASHES_PATH), { recursive: true });
     fs.writeFileSync(AGENT_HASHES_PATH, JSON.stringify(hashes, null, 2));
-  } catch (e) { debugLog('harness', '에이전트 해시 맵 저장 실패', e); }
+  } catch (e) {
+    debugLog('harness', '에이전트 해시 맵 저장 실패', e);
+  }
 }
 
 /** 연결된 팩의 커스텀 워크플로우를 모드 시스템에 등록 */
@@ -321,21 +317,120 @@ function loadAndRegisterPackWorkflows(cwd: string): string[] {
   return warnings;
 }
 
+/** forge 오버레이 맵 타입 (agentName -> 오버레이) */
+type OverlayMap = Map<string, { behaviorModifiers: string[]; parameters: Record<string, number> }>;
+
+/** forge 스킬 오버레이 맵 타입 (skillName -> 오버레이) */
+type SkillOverlayMap = Map<
+  string,
+  { behaviorModifiers: string[]; parameters: Record<string, number | string | boolean> }
+>;
+
+/** 에이전트 콘텐츠에 forge 오버레이를 적용 */
+function applyForgeOverlay(content: string, agentName: string, overlayMap: OverlayMap): string {
+  const overlay = overlayMap.get(agentName);
+  if (!overlay || overlay.behaviorModifiers.length === 0) return content;
+
+  // 기존 오버레이 제거
+  const cleaned = content.replace(
+    /\n*<!-- forge-overlay-start -->[\s\S]*?<!-- forge-overlay-end -->\n*/g,
+    '',
+  );
+
+  const overlayLines = [
+    '',
+    '<!-- forge-overlay-start -->',
+    '## Forge Profile Tuning',
+    '',
+    `Strictness: ${overlay.parameters.strictness.toFixed(2)} | ` +
+      `Verbosity: ${overlay.parameters.verbosity.toFixed(2)} | ` +
+      `Autonomy: ${overlay.parameters.autonomy.toFixed(2)} | ` +
+      `Depth: ${overlay.parameters.depth.toFixed(2)}`,
+    '',
+    '### Behavioral Directives',
+  ];
+  for (const modifier of overlay.behaviorModifiers) {
+    overlayLines.push(`- ${modifier}`);
+  }
+  overlayLines.push('<!-- forge-overlay-end -->');
+
+  // </Agent_Prompt> 직전에 삽입
+  const insertPoint = cleaned.lastIndexOf('</Agent_Prompt>');
+  if (insertPoint >= 0) {
+    return `${cleaned.slice(0, insertPoint)}${overlayLines.join('\n')}\n\n${cleaned.slice(insertPoint)}`;
+  }
+
+  // Agent_Prompt 태그가 없으면 끝에 추가
+  return `${cleaned}\n${overlayLines.join('\n')}\n`;
+}
+
+/** 스킬 콘텐츠에 forge 오버레이를 적용 */
+function applySkillForgeOverlay(
+  content: string,
+  skillName: string,
+  overlayMap: SkillOverlayMap,
+): string {
+  const overlay = overlayMap.get(skillName);
+  if (!overlay || overlay.behaviorModifiers.length === 0) return content;
+
+  // 기존 오버레이 제거
+  const cleaned = content.replace(
+    /\n*<!-- forge-overlay-start -->[\s\S]*?<!-- forge-overlay-end -->\n*/g,
+    '',
+  );
+
+  const paramLine = Object.entries(overlay.parameters)
+    .map(([k, v]) => `${k}: ${typeof v === 'number' ? (v as number).toFixed(2) : v}`)
+    .join(' | ');
+
+  const overlayLines = [
+    '',
+    '<!-- forge-overlay-start -->',
+    '## Forge Profile Tuning',
+    '',
+    paramLine,
+    '',
+    '### Behavioral Directives',
+  ];
+  for (const modifier of overlay.behaviorModifiers) {
+    overlayLines.push(`- ${modifier}`);
+  }
+  overlayLines.push('<!-- forge-overlay-end -->');
+
+  // YAML 프론트매터 직후에 삽입 (---\n...\n---\n 패턴)
+  const frontmatterEnd = content.match(/^---\n[\s\S]*?\n---\n/);
+  if (frontmatterEnd) {
+    const idx = frontmatterEnd[0].length;
+    return `${cleaned.slice(0, idx)}${overlayLines.join('\n')}\n\n${cleaned.slice(idx)}`;
+  }
+
+  // 프론트매터가 없으면 앞에 추가
+  return `${overlayLines.join('\n')}\n\n${cleaned}`;
+}
+
 /** 에이전트 소스 디렉토리에서 대상 디렉토리로 복사 (해시 기반 보호) */
 function installAgentsFromDir(
   sourceDir: string,
   targetDir: string,
   prefix: string,
   hashes: Record<string, string>,
+  overlayMap?: OverlayMap,
 ): void {
   if (!fs.existsSync(sourceDir)) return;
 
-  const files = fs.readdirSync(sourceDir).filter(f => f.endsWith('.md'));
+  const files = fs.readdirSync(sourceDir).filter((f) => f.endsWith('.md'));
   for (const file of files) {
     const src = path.join(sourceDir, file);
     const dstName = `${prefix}${file}`;
     const dst = path.join(targetDir, dstName);
-    const content = fs.readFileSync(src, 'utf-8');
+    let content = fs.readFileSync(src, 'utf-8');
+
+    // forge 오버레이 적용
+    if (overlayMap && overlayMap.size > 0) {
+      const agentName = file.replace('.md', '');
+      content = applyForgeOverlay(content, agentName, overlayMap);
+    }
+
     const newHash = contentHash(content);
 
     if (fs.existsSync(dst)) {
@@ -344,9 +439,13 @@ function installAgentsFromDir(
         hashes[dstName] = newHash;
         continue;
       }
-      const existingHash = contentHash(existing);
+      // 오버레이 부분 제외 후 원본 비교로 사용자 수정 판별
+      const stripOverlay = (s: string) =>
+        s.replace(/\n*<!-- forge-overlay-start -->[\s\S]*?<!-- forge-overlay-end -->\n*/g, '');
+      const existingStripped = stripOverlay(existing);
+      const sourceOriginal = fs.readFileSync(src, 'utf-8');
       const recordedHash = hashes[dstName];
-      if (recordedHash && existingHash !== recordedHash) {
+      if (recordedHash && contentHash(existingStripped) !== contentHash(sourceOriginal)) {
         debugLog('harness', `에이전트 파일 보호: ${dstName} (사용자 수정 감지)`);
         continue;
       }
@@ -362,7 +461,7 @@ function installAgentsFromDir(
 }
 
 /** 에이전트 정의 파일 설치 — 패키지 내장 + 연결된 팩에서 프로젝트 .claude/agents/ 에 복사 */
-function installAgents(cwd: string): void {
+function installAgents(cwd: string, overlayMap?: OverlayMap): void {
   const pkgRoot = getPackageRoot();
   const targetDir = path.join(cwd, '.claude', 'agents');
 
@@ -372,7 +471,7 @@ function installAgents(cwd: string): void {
 
   try {
     // 1. 패키지 내장 에이전트 (ch- 프리픽스)
-    installAgentsFromDir(path.join(pkgRoot, 'agents'), targetDir, 'ch-', hashes);
+    installAgentsFromDir(path.join(pkgRoot, 'agents'), targetDir, 'ch-', hashes, overlayMap);
 
     // 2. 연결된 팩 에이전트 (pack-{name}- 프리픽스)
     const connectedPacks = loadPackConfigs(cwd);
@@ -380,7 +479,7 @@ function installAgents(cwd: string): void {
       const nsDir = path.join(cwd, '.compound', 'packs', pack.name, 'agents');
       const globalDir = path.join(PACKS_DIR, pack.name, 'agents');
       const agentDir = fs.existsSync(nsDir) ? nsDir : globalDir;
-      installAgentsFromDir(agentDir, targetDir, `pack-${pack.name}-`, hashes);
+      installAgentsFromDir(agentDir, targetDir, `pack-${pack.name}-`, hashes, overlayMap);
     }
 
     saveAgentHashes(hashes);
@@ -402,7 +501,11 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
   // 마이그레이션: 이전 위치(.claude/compound-rules.md) 파일 제거
   const legacyPath = path.join(cwd, '.claude', 'compound-rules.md');
   if (fs.existsSync(legacyPath)) {
-    try { fs.unlinkSync(legacyPath); } catch (e) { debugLog('harness', '레거시 규칙 파일 삭제 실패', e); }
+    try {
+      fs.unlinkSync(legacyPath);
+    } catch (e) {
+      debugLog('harness', '레거시 규칙 파일 삭제 실패', e);
+    }
   }
 
   // 기존 CLAUDE.md에서 이전 마커 블록 제거 (마이그레이션)
@@ -414,7 +517,10 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
     const content = fs.readFileSync(claudeMdPath, 'utf-8');
     if (content.includes(marker)) {
       const regex = new RegExp(`\\n*${marker}[\\s\\S]*?${endMarker}\\n*`, 'g');
-      const cleaned = content.replace(regex, '\n').replace(/\n{3,}/g, '\n\n').trim();
+      const cleaned = content
+        .replace(regex, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
       fs.writeFileSync(claudeMdPath, cleaned ? `${cleaned}\n` : '');
     }
   }
@@ -432,6 +538,7 @@ function ensureGitignore(cwd: string): void {
     '.claude/rules/anti-pattern.md',
     '.claude/rules/routing.md',
     '.claude/rules/compound.md',
+    '.claude/rules/forge-*.md',
     '.compound/project-map.json',
     '.claude/commands/tenetx/',
     '.compound/notepad.md',
@@ -475,7 +582,7 @@ function safeWriteCommand(cmdPath: string, content: string): boolean {
 function cleanupStaleCommands(commandsDir: string, validFiles: Set<string>): number {
   if (!fs.existsSync(commandsDir)) return 0;
   let removed = 0;
-  for (const file of fs.readdirSync(commandsDir).filter(f => f.endsWith('.md'))) {
+  for (const file of fs.readdirSync(commandsDir).filter((f) => f.endsWith('.md'))) {
     if (validFiles.has(file)) continue;
     const filePath = path.join(commandsDir, file);
     try {
@@ -484,13 +591,15 @@ function cleanupStaleCommands(commandsDir: string, validFiles: Set<string>): num
         fs.unlinkSync(filePath);
         removed++;
       }
-    } catch (e) { debugLog('harness', `stale 명령 파일 정리 실패: ${file}`, e); }
+    } catch (e) {
+      debugLog('harness', `stale 명령 파일 정리 실패: ${file}`, e);
+    }
   }
   return removed;
 }
 
 /** 스킬을 Claude Code 슬래시 명령(/tenetx:xxx)으로 설치 */
-function installSlashCommands(cwd: string): void {
+function installSlashCommands(cwd: string, skillOverlayMap?: SkillOverlayMap): void {
   const pkgRoot = getPackageRoot();
   const skillsDir = path.join(pkgRoot, 'skills');
   const homeDir = os.homedir();
@@ -504,14 +613,18 @@ function installSlashCommands(cwd: string): void {
   fs.mkdirSync(globalCommandsDir, { recursive: true });
 
   // 1. 코어 스킬 → 글로벌 설치
-  const skills = fs.readdirSync(skillsDir).filter(f => f.endsWith('.md'));
+  const skills = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.md'));
   const validGlobalFiles = new Set<string>();
   let installed = 0;
 
   for (const file of skills) {
     validGlobalFiles.add(file);
     const skillName = file.replace('.md', '');
-    const skillContent = fs.readFileSync(path.join(skillsDir, file), 'utf-8');
+    let skillContent = fs.readFileSync(path.join(skillsDir, file), 'utf-8');
+    // forge 스킬 오버레이 적용
+    if (skillOverlayMap && skillOverlayMap.size > 0) {
+      skillContent = applySkillForgeOverlay(skillContent, skillName, skillOverlayMap);
+    }
     const cmdContent = buildCommandContent(skillContent, skillName);
     if (safeWriteCommand(path.join(globalCommandsDir, file), cmdContent)) {
       installed++;
@@ -528,9 +641,11 @@ function installSlashCommands(cwd: string): void {
     for (const pack of connectedPacks) {
       const localPackSkillsDir = path.join(cwd, '.compound', 'packs', pack.name, 'skills');
       const globalPackSkillsDir = path.join(PACKS_DIR, pack.name, 'skills');
-      const packSkillsDir = fs.existsSync(localPackSkillsDir) ? localPackSkillsDir : globalPackSkillsDir;
+      const packSkillsDir = fs.existsSync(localPackSkillsDir)
+        ? localPackSkillsDir
+        : globalPackSkillsDir;
       if (!fs.existsSync(packSkillsDir)) continue;
-      const packSkills = fs.readdirSync(packSkillsDir).filter(f => f.endsWith('.md'));
+      const packSkills = fs.readdirSync(packSkillsDir).filter((f) => f.endsWith('.md'));
       for (const file of packSkills) {
         const fileName = `pack-${pack.name}-${file}`;
         validLocalFiles.add(fileName);
@@ -542,13 +657,18 @@ function installSlashCommands(cwd: string): void {
         }
       }
     }
-  } catch (e) { debugLog('harness', '팩 스킬 로컬 설치 실패', e); }
+  } catch (e) {
+    debugLog('harness', '팩 스킬 로컬 설치 실패', e);
+  }
 
   // 3. 삭제된 스킬 정리 (tenetx-managed 파일만)
   const removedGlobal = cleanupStaleCommands(globalCommandsDir, validGlobalFiles);
   const removedLocal = cleanupStaleCommands(localCommandsDir, validLocalFiles);
 
-  debugLog('harness', `슬래시 명령 설치: ${installed}개 설치, ${removedGlobal + removedLocal}개 정리`);
+  debugLog(
+    'harness',
+    `슬래시 명령 설치: ${installed}개 설치, ${removedGlobal + removedLocal}개 정리`,
+  );
 }
 
 /** 메인 하네스 준비 함수 */
@@ -579,9 +699,13 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     // 6. 컨텍스트 구성
     const inTmux = !!process.env.TMUX;
     const context: HarnessContext = {
-      philosophy, philosophySource, scope, cwd, inTmux,
+      philosophy,
+      philosophySource,
+      scope,
+      cwd,
+      inTmux,
       modelRouting: Object.fromEntries(
-        Object.entries(modelRouting).map(([k, v]) => [k, v as string[]])
+        Object.entries(modelRouting).map(([k, v]) => [k, v as string[]]),
       ),
       signalRoutingEnabled: true,
       routingPreset: routingPreset ?? 'default',
@@ -591,19 +715,78 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     const env = buildEnv(context);
     injectSettings(env);
 
-    // 8. 에이전트 설치 + 팩 워크플로우 등록
-    installAgents(cwd);
+    // 8. Forge 프로필 로드 → 에이전트 오버레이 + 스킬 오버레이 + 튜닝된 규칙 생성
+    let forgeOverlayMap: OverlayMap | undefined;
+    let forgeSkillOverlayMap: SkillOverlayMap | undefined;
+    let forgeTunedRules: Array<{ filename: string; content: string }> = [];
+    try {
+      const { loadForgeProfile } = await import('../forge/profile.js');
+      const { generateConfig: forgeGenerateConfig } = await import('../forge/generator.js');
+      const profile = loadForgeProfile(cwd);
+      if (profile) {
+        const forgeConfig = forgeGenerateConfig(profile.dimensions);
+        // 에이전트 오버레이 맵 구성
+        if (forgeConfig.agentOverlays.length > 0) {
+          forgeOverlayMap = new Map();
+          for (const overlay of forgeConfig.agentOverlays) {
+            forgeOverlayMap.set(overlay.agentName, {
+              behaviorModifiers: overlay.behaviorModifiers,
+              parameters: overlay.parameters,
+            });
+          }
+          debugLog('harness', `Forge 오버레이 ${forgeConfig.agentOverlays.length}개 적용`);
+        }
+        // 스킬 오버레이 맵 구성
+        if (forgeConfig.skillOverlays.length > 0) {
+          forgeSkillOverlayMap = new Map();
+          for (const overlay of forgeConfig.skillOverlays) {
+            forgeSkillOverlayMap.set(overlay.skillName, {
+              behaviorModifiers: overlay.behaviorModifiers,
+              parameters: overlay.parameters,
+            });
+          }
+          debugLog('harness', `Forge 스킬 오버레이 ${forgeConfig.skillOverlays.length}개 적용`);
+        }
+        // 튜닝된 규칙 수집
+        forgeTunedRules = forgeConfig.tunedRules;
+        // hookTuning → ~/.compound/hook-config.json 저장
+        if (forgeConfig.hookTuning?.length) {
+          try {
+            const hookConfigPath = path.join(COMPOUND_HOME, 'hook-config.json');
+            const hookConfig: Record<string, unknown> = {};
+            for (const tuning of forgeConfig.hookTuning) {
+              hookConfig[tuning.hookName] = { enabled: tuning.enabled, ...tuning.parameters };
+            }
+            const tmp = hookConfigPath + '.tmp';
+            fs.writeFileSync(tmp, JSON.stringify(hookConfig, null, 2));
+            fs.renameSync(tmp, hookConfigPath);
+            debugLog('harness', `Hook 설정 저장: ${forgeConfig.hookTuning.length}개`);
+          } catch (e) {
+            debugLog('harness', 'hook-config.json 저장 실패 (정상 동작에 영향 없음)', e);
+          }
+        }
+      }
+    } catch (e) {
+      debugLog('harness', 'Forge 프로필 로드 실패 (정상 동작에 영향 없음)', e);
+    }
+
+    // 8.5. 에이전트 설치 (forge 오버레이 포함) + 팩 워크플로우 등록
+    installAgents(cwd, forgeOverlayMap);
     const workflowWarnings = loadAndRegisterPackWorkflows(cwd);
     for (const w of workflowWarnings) {
       console.error(`[tenetx] ${w}`);
     }
 
-    // 9. 규칙 파일 주입 (5개 분할)
+    // 9. 규칙 파일 주입 (기본 5개 + forge 튜닝 규칙)
     const ruleFiles = generateClaudeRuleFiles(context);
+    // forge 튜닝 규칙 병합
+    for (const tunedRule of forgeTunedRules) {
+      ruleFiles[tunedRule.filename] = tunedRule.content;
+    }
     injectClaudeRuleFiles(cwd, ruleFiles);
 
-    // 9.5. 슬래시 명령 설치 (/project:autopilot 등)
-    installSlashCommands(cwd);
+    // 9.5. 슬래시 명령 설치 (/project:autopilot 등, forge 스킬 오버레이 포함)
+    installSlashCommands(cwd, forgeSkillOverlayMap);
 
     // 10. tmux 바인딩 등록
     if (inTmux) {
@@ -632,6 +815,52 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
 
     // 14. 세션 로그 시작
     startSessionLog(context);
+
+    // 15. 비용 추적 세션 초기화 (lab/cost)
+    resetCurrentSession('default');
+
+    // 16. Auto-learn: evolve forge profile from lab data (at most once/day)
+    try {
+      const {
+        tryAutoLearn,
+        loadLastNotification,
+        saveLastNotification,
+      } = await import('../lab/auto-learn.js');
+      const evolveResult = await tryAutoLearn();
+      if (evolveResult?.changed && evolveResult.previousVector && evolveResult.newVector) {
+        const prev = evolveResult.previousVector;
+        const next = evolveResult.newVector;
+        const changedKeys = Object.keys(prev).filter(
+          k => Math.abs((prev[k] ?? 0) - (next[k] ?? 0)) > 0.001,
+        );
+        const sortedKeys = [...changedKeys].sort();
+
+        // Dedup: skip if the same set of dimension keys was already notified
+        const lastNotif = loadLastNotification();
+        const alreadyNotified =
+          lastNotif !== null &&
+          JSON.stringify(lastNotif.dimensionKeys) === JSON.stringify(sortedKeys);
+
+        if (!alreadyNotified && changedKeys.length > 0) {
+          const { DIMENSION_META } = await import('../forge/dimensions.js');
+          console.log('  [forge] Profile evolved:');
+          const maxLines = 5;
+          for (const key of changedKeys.slice(0, maxLines)) {
+            const meta = DIMENSION_META.find(d => d.key === key);
+            const label = meta?.label ?? key;
+            const fromVal = (prev[key] ?? 0).toFixed(2);
+            const toVal = (next[key] ?? 0).toFixed(2);
+            const adj = evolveResult.adjustments.find(a => a.dimension === key);
+            const evidence = adj?.evidence ?? '';
+            const evidencePart = evidence ? ` (${evidence})` : '';
+            console.log(`    ${label} ${fromVal} \u2192 ${toVal}${evidencePart}`);
+          }
+          saveLastNotification({ timestamp: new Date().toISOString(), dimensionKeys: sortedKeys });
+        }
+      }
+    } catch (e) {
+      debugLog('harness', 'Auto-learn import/run failed (non-fatal)', e);
+    }
 
     return context;
   } catch (err) {

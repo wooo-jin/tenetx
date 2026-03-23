@@ -1,19 +1,21 @@
-# 테넷엑스 — 원칙 기반 Claude Code 하네스
-
-[English README](README.md)
-
 <p align="center">
-  <img src="assets/banner.svg" alt="Tenetx" width="100%"/>
+  <img src="https://raw.githubusercontent.com/wooo-jin/tenetx/main/assets/banner.svg" alt="Tenetx" width="100%"/>
 </p>
 
 <p align="center">
-  <strong>원칙을 선언하세요. 워크플로우를 생성하세요. 복리로 성장하세요.</strong>
+  <strong>쓸수록 나에게 맞춰지는 AI 코딩 도구.</strong>
 </p>
 
 <p align="center">
-  <a href="#설치">설치</a> &middot;
-  <a href="#철학">철학</a> &middot;
-  <a href="#사용법">사용법</a> &middot;
+  <a href="README.md">English</a> &middot;
+  <a href="README.zh.md">简体中文</a> &middot;
+  <a href="README.ja.md">日本語</a>
+</p>
+
+<p align="center">
+  <a href="#빠른-시작">빠른 시작</a> &middot;
+  <a href="#왜-테넷엑스인가">왜 테넷엑스인가</a> &middot;
+  <a href="#핵심-기능">핵심 기능</a> &middot;
   <a href="#아키텍처">아키텍처</a>
 </p>
 
@@ -21,50 +23,53 @@
 
 ## 테넷엑스란?
 
-**테넷엑스**는 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)를 위한 **원칙 기반 하네스**입니다. 설정 파일을 일일이 수정하는 대신, 엔지니어링 원칙을 선언하면 훅, 모델 라우팅, 경고, 에이전트, 스킬이 자동으로 생성됩니다.
+다른 도구는 **그들의** 워크플로우를 줍니다.
+테넷엑스는 **당신의** 워크플로우를 만들고 — 사용할수록 진화시킵니다.
 
 ```
-$ claude                        $ tenetx
-│                                │
-│ 기본 Claude Code               │ 테넷엑스가 먼저 실행
-│ 범용 설정                       │  ├── philosophy.yaml 로드
-│                                │  ├── 스코프 결정 (Me / Team / Project)
-│                                │  ├── 지식 팩 동기화
-│                                │  ├── 훅 & 라우팅 생성
-│                                │  └── Claude Code 실행 (설정 적용)
-│                                │
-│ 범용 도구                       │ 내 도구
+$ tenetx forge
+  [1] 프로젝트 스캔 (git, 테스트, CI, 의존성)
+  [2] 작업 스타일에 대한 10가지 질문
+  [3] 나만의 하네스 생성
+
+$ tenetx                    # 평소처럼 작업
+                             # Lab이 조용히 효과를 추적
+
+$ tenetx me                 # 내 하네스가 어떻게 진화했는지 확인
+  품질 초점    [########··] 0.80  thorough
+  자율성 선호  [####······] 0.45  supervised
+  → code-reviewer: strict 모드 (SOLID + 네이밍 + 엣지 케이스)
+  → 모델 라우팅: 리뷰에 opus 우선
 ```
 
-**Claude Code를 수정하지 않습니다.** Claude Code가 읽는 설정(hooks, CLAUDE.md, statusLine)을 철학에 맞게 구성해서 주입합니다.
-
-### 왜 테넷엑스인가?
-
-- **원칙 기반**: 설정이 아니라 신념을 선언하세요. 워크플로우는 자동으로 생성됩니다.
-- **성장 지향**: 모든 세션에서 패턴을 추출하는 복리 엔지니어링 루프.
-- **팀 인식**: 개인 → 팀 → 조직 간에 지식(팩)을 매끄럽게 이동.
-- **프로덕션 준비**: 1204개 테스트(100% 통과), 3-lane 19개 에이전트, 8개 MCP 서버, 16-signal 모델 라우팅.
+**Claude Code를 수정하지 않습니다.** Claude Code가 읽는 설정(hooks, CLAUDE.md, statusLine)을 당신에게 맞게 구성해서 주입합니다.
 
 ---
 
-## 설치
+## 왜 테넷엑스인가?
+
+1. **나에게 맞춰진다** — Forge가 작업 스타일을 프로파일링. Lab이 진화시킨다. 모든 에이전트, 스킬, 훅이 내 차원에 반응.
+2. **닫힌 학습 루프** — 사용 → 추적 → 패턴 감지 → 프로필 조정 → 설정 재생성. 자동. 매일.
+3. **의존하지 않고 배운다** — Remix로 다른 사람의 에이전트/스킬/규칙을 선택적으로 가져올 수 있다. 도구 전체를 갈아타지 않는다.
+4. **팀 인식** — 개인 → 팀 → 조직 간 지식(팩) 이동.
+
+---
+
+## 빠른 시작
 
 ### 요구사항
 
 - **Node.js** >= 18
 - **Claude Code** 설치 및 인증 완료
 
-### 빠른 시작
+### 설치 및 실행
 
 ```bash
-# 전역 설치
 npm install -g tenetx
-
-# 초기 설정 — 3가지 질문, 30초
-tenetx setup
-
-# 내 원칙이 적용된 Claude Code 실행
-tenetx
+tenetx setup              # 기본 설정
+tenetx forge              # 개인화 (스캔 + 인터뷰)
+tenetx                    # 나만의 하네스로 실행
+tenetx me                 # 내 프로필 확인
 ```
 
 ### Claude Code 플러그인으로 설치
@@ -75,107 +80,84 @@ tenetx install --plugin
 
 ---
 
-## 철학
+## 핵심 기능
 
-핵심 아이디어: **설정을 구성하는 게 아니라 신념을 선언하면 워크플로우가 생성됩니다.**
+### Forge — 나만의 하네스
 
-### philosophy.yaml
+Forge는 프로젝트와 작업 스타일을 분석해서 나만의 하네스를 만든다.
 
-```yaml
-name: "내-엔지니어링"
-author: "이름"
+1. **프로젝트 스캔** — git 히스토리, 테스트 프레임워크, CI 파이프라인, 의존성 구조를 읽는다.
+2. **인터뷰** — 코드 품질, 자율성, 위험 허용도 등 10가지 질문으로 작업 성향을 파악한다.
+3. **하네스 생성** — 스캔 결과와 인터뷰 응답을 결합해 `philosophy.yaml`, 훅, 라우팅, 에이전트 설정을 생성한다.
 
-principles:
-  understand-before-act:
-    belief: "이해 없이 행동하면 비용이 기하급수적으로 증가한다"
-    generates:
-      - "모든 작업은 탐색 → 계획 → 구현 순서"
-      - "롤백 시 변경 범위를 먼저 평가"
-      - hook: "UserPromptSubmit → 관련 매뉴얼 자동 로드"
-
-  decompose-to-control:
-    belief: "큰 작업은 분해되어야 통제 가능하다"
-    generates:
-      - "작업을 PLANS / CONTEXT / CHECKLIST로 분해"
-      - alert: "같은 파일 5회 이상 편집 시 경고"
-
-  capitalize-on-failure:
-    belief: "같은 실수를 두 번 하는 건 시스템의 실패다"
-    generates:
-      - "모든 세션 후 compound로 패턴 추출"
-      - "실패에서 예방 규칙 자동 생성"
-
-  focus-resources-on-judgment:
-    belief: "자원은 판단이 필요한 곳에 집중되어야 한다"
-    generates:
-      - routing: "탐색 → Sonnet, 구현 → Opus"
-      - alert: "세션 비용 $10 초과 시 경고"
-
-  knowledge-comes-to-you:
-    belief: "개발자는 결정 시점에 지식이 필요하다"
-    generates:
-      - "편집 중 관련 솔루션 자동 제안"
-      - "팩 지식을 프롬프트에 자동 주입"
+```bash
+tenetx forge                    # 처음부터 시작
+tenetx forge --rescan           # 프로젝트 변경 후 재스캔
 ```
 
-5개의 원칙이 자동으로 훅, 경고, 라우팅, compound 규칙을 생성합니다. 수동 설정은 필요 없습니다.
+### Lab — 진화하는 하네스
+
+Lab은 세션 중 행동을 조용히 추적하고, Forge 프로필을 자동으로 조정한다.
+
+- 어떤 리뷰 피드백을 수용하고 무시하는지 관찰
+- 모델별 수정 비율과 재시도 패턴 분석
+- 8개 행동 패턴 감지기가 실시간으로 차원 값을 보정
+
+닫힌 루프: **사용 → 추적 → 패턴 감지 → 프로필 조정 → 설정 재생성**
+
+### Remix — 남에게서 배우기
+
+다른 사람의 하네스에서 원하는 컴포넌트만 가져온다.
+
+```bash
+tenetx remix browse                    # 공유된 컴포넌트 탐색
+tenetx remix import <component>        # 선택한 컴포넌트 가져오기
+```
+
+도구 전체를 갈아타지 않고, 에이전트 하나, 스킬 하나, 규칙 하나를 선택적으로 체리픽할 수 있다.
+
+### Me 대시보드
+
+`tenetx me`로 내 프로필이 어떻게 진화하고 있는지 확인한다.
+
+```
+$ tenetx me
+  품질 초점       [########··] 0.80  thorough
+  자율성 선호     [####······] 0.45  supervised
+  위험 감수도     [######····] 0.60  moderate
+  추상화 수준     [###·······] 0.35  pragmatic
+  커뮤니케이션    [#######···] 0.70  leaning terse
+
+  → code-reviewer: strict 모드 활성
+  → 모델 라우팅: 리뷰에 opus 우선, 탐색에 haiku
+  → 최근 조정: 품질 초점 0.72 → 0.80 (리뷰 수용률 기반)
+```
+
+5개 연속 개인화 차원이 모든 에이전트와 스킬의 동작을 실시간으로 조정한다.
 
 ---
 
-## 빠른 시작 경로
+## 다중 모델 합성
 
-### 개인 개발자
+작업 유형에 따라 최적 모델을 자동 선택한다.
 
-```bash
-tenetx setup                    # 기본값 수락
-tenetx                          # 내 원칙으로 실행
-# 세션 종료
-tenetx compound                 # 패턴 추출 및 재사용
+```
+┌─────────┬─────────────────────────────────────┐
+│  Haiku  │  탐색, 파일 검색, 단순 질의          │
+├─────────┼─────────────────────────────────────┤
+│ Sonnet  │  코드 리뷰, 분석, 설계               │
+├─────────┼─────────────────────────────────────┤
+│  Opus   │  구현, 아키텍처, 디버깅              │
+└─────────┴─────────────────────────────────────┘
 ```
 
-### 소규모 팀 (5-10명)
-
-```bash
-# 팀 리드
-tenetx init --team --yes        # 자동 감지 + .compound/pack.json 생성
-git add .compound/ && git commit -m "chore: add tenetx team pack"
-
-# 팀원들
-git pull && tenetx              # 팀 원칙 자동 로드
-
-# 업무 종료
-tenetx compound                 # 인사이트 추출 → 자동 분류 (개인/팀)
-tenetx propose                  # 팀 지식 제안 생성
-tenetx proposals                # 팀 리드가 검토 및 병합
-```
-
-### 대규모 조직
-
-```bash
-# 초기 설정
-tenetx init --team --pack-repo org/tenetx-pack-emr --yes
-tenetx init --extends           # 또는 상속 사용
-
-# 매일
-tenetx                          # 최신 팀 규칙 자동 동기화
-```
+16-signal 스코어링(어휘, 구조, 맥락, 패턴 기반)으로 라우팅하며, 개인 차원 프로필에 따라 우선순위가 조정된다. 신뢰도 점수로 모델 선택 근거를 추적할 수 있다.
 
 ---
 
-## 사용법
+## 실행 모드
 
-### 기본 명령어
-
-```bash
-tenetx                              # 하네스 적용 후 실행
-tenetx "차트 API 리팩토링"           # 프롬프트와 함께 시작
-tenetx --resume                     # 이전 세션 재개
-tenetx --offline                    # 네트워크 없이 실행
-```
-
-### 실행 모드 (9가지 모드, 21개 스킬)
-
-각 모드는 철학적 원칙과 매핑됩니다:
+9가지 모드, 21개 스킬. 각 모드는 개인 차원에 맞게 동작이 조정된다.
 
 | 플래그 | 모드 | 설명 |
 |--------|------|------|
@@ -198,7 +180,7 @@ tenetx deep-interview "핵심 문제가 뭘까?"
 
 ### 매직 키워드
 
-플래그 없이 프롬프트에 직접 입력하세요:
+플래그 없이 프롬프트에 직접 입력할 수 있다.
 
 ```
 autopilot <작업>      autopilot 모드 활성화
@@ -212,25 +194,65 @@ deep-interview        소크라테스 명확화
 canceltenetx           모든 모드 취소
 ```
 
-### 모델 라우팅 (16-Signal 스코어링)
+---
 
-작업 유형에 따라 최적 모델을 자동 선택합니다:
+## 모델 라우팅
 
+16-signal 스코어링으로 작업마다 최적 모델을 자동 선택한다. 개인 차원 프로필이 라우팅 가중치를 조정한다.
+
+| 작업 유형 | 기본 모델 | 차원 오버라이드 예시 |
+|----------|----------|-------------------|
+| 탐색, 파일 검색 | Haiku | — |
+| 코드 리뷰, 분석 | Sonnet | 품질 초점 > 0.7이면 Opus로 에스컬레이션 |
+| 구현, 아키텍처, 디버깅 | Opus | — |
+
+---
+
+## 팩 시스템
+
+지식은 3가지 스코프로 나뉘어 성장한다.
+
+| 스코프 | 위치 | 로드 시기 |
+|--------|------|----------|
+| **Me** | `~/.compound/me/` | 항상 |
+| **Team** | `~/.compound/packs/<name>/` | 팀 리포지토리에서 |
+| **Project** | `{repo}/.compound/` | 해당 리포지토리에서 |
+
+```bash
+tenetx pack install https://github.com/your-org/pack-backend
+tenetx pack sync
+tenetx pick api-caching --from backend        # 솔루션을 내 컬렉션으로
+tenetx propose retry-pattern --to backend     # 내 패턴을 팀에 제안
+tenetx pack list
 ```
-┌─────────┬─────────────────────────────────────┐
-│  Haiku  │  탐색, 파일 검색, 단순 질의          │
-├─────────┼─────────────────────────────────────┤
-│ Sonnet  │  코드 리뷰, 분석, 설계               │
-├─────────┼─────────────────────────────────────┤
-│  Opus   │  구현, 아키텍처, 디버깅              │
-└─────────┴─────────────────────────────────────┘
+
+**팩 상속**: `extends`를 사용해 다른 팩의 규칙을 상속받을 수 있다.
+
+```yaml
+extends:
+  - github: https://github.com/your-org/tenetx-pack-core
+  - local: ~/mycompany-standards
 ```
 
-16-signal 스코어링(어휘, 구조, 맥락, 패턴 기반)으로 라우팅하며, 철학 선언 우선순위가 최우선입니다.
+---
 
-### 실시간 감시
+## 에이전트
 
-세션을 모니터링하고 문제가 복리로 증가하기 전에 경고합니다:
+19개 에이전트가 3-lane으로 구성된다. 모든 에이전트는 개인 차원 프로필에 따라 동작이 튜닝된다.
+
+| Lane | 에이전트 | 역할 |
+|------|----------|------|
+| **BUILD** | explore → analyst → planner → architect → debugger → executor → verifier → code-simplifier → refactoring-expert | 탐색 → 구현 → 검증 |
+| **REVIEW** | code-reviewer, security-reviewer, critic | 품질 보증 (3개) |
+| **DOMAIN** | designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git-master | 전문 분야 (7개) |
+
+예: 품질 초점 차원이 높으면 code-reviewer가 strict 모드로 전환되어 SOLID 원칙, 네이밍, 엣지 케이스까지 검토한다.
+
+---
+
+## 실시간 감시
+
+세션을 모니터링하고 문제가 커지기 전에 경고한다.
 
 | 감시 대상 | 조건 | 경고 |
 |----------|------|------|
@@ -240,62 +262,86 @@ canceltenetx           모든 모드 취소
 | 컨텍스트 | 70%+ 사용 | 시각적 경고 |
 | 지식 | 관련 솔루션 존재 | 재사용 제안 |
 
-### 팩 시스템 (3가지 스코프, inline/github/local)
+---
 
-지식은 3가지 스코프로 나뉘어 복리로 성장합니다:
+## Compound 루프
 
-```bash
-# 팀 지식 팩 설치
-tenetx pack install https://github.com/your-org/pack-backend
-
-# 최신 지식 동기화
-tenetx pack sync
-
-# 팀 솔루션을 내 컬렉션으로 가져오기
-tenetx pick api-caching --from backend
-
-# 내 패턴을 팀에 제안
-tenetx propose retry-pattern --to backend
-
-# 팩 내용 보기
-tenetx pack list
-```
-
-**팩 상속**: philosophy.yaml에서 `extends`를 사용하여 다른 팩의 규칙을 상속받으세요:
-
-```yaml
-extends:
-  - github: https://github.com/your-org/tenetx-pack-core
-  - local: ~/mycompany-standards
-```
-
-### Compound 루프 (개인/팀 자동 분류)
-
-의미 있는 작업 후 인사이트를 추출하고 축적하세요:
+의미 있는 작업 후 인사이트를 추출하고 축적한다.
 
 ```bash
 tenetx compound
 ```
 
-다음을 분석하여 추출합니다:
+다음을 분석하여 추출한다:
 - **패턴** — 재사용할 가치가 있는 반복 접근법
 - **솔루션** — 문맥이 있는 구체적 해결책
 - **규칙** — 실패에서 배운 예방 규칙
 - **골든 프롬프트** — 효과적인 프롬프트 템플릿
 
-추출된 지식은 자동으로 개인 또는 팀 수준으로 분류됩니다.
-
-### 거버넌스 대시보드
-
-```bash
-tenetx dashboard
-```
-
-실시간 에이전트 활동, 스킬 사용, 모델 라우팅, 세션 비용, 팀 제안 활동을 봅니다.
+추출된 지식은 자동으로 개인 또는 팀 수준으로 분류된다.
 
 ---
 
-## 모든 명령어 (45+)
+## 팀 워크플로우
+
+### 소규모 팀 (5-10명)
+
+```bash
+# 팀 리드
+tenetx init --team --yes
+git add .compound/ && git commit -m "chore: add tenetx team pack"
+
+# 팀원
+git pull && tenetx
+
+# 업무 종료
+tenetx compound                 # 인사이트 추출
+tenetx propose                  # 팀 지식 제안
+tenetx proposals                # 팀 리드가 검토
+```
+
+### 대규모 조직
+
+```bash
+tenetx init --team --pack-repo org/tenetx-pack-emr --yes
+tenetx init --extends           # 상속 사용
+tenetx                          # 최신 팀 규칙 자동 동기화
+```
+
+---
+
+## 아키텍처
+
+<p align="center">
+  <img src="assets/architecture.svg" alt="테넷엑스 아키텍처" width="100%"/>
+</p>
+
+### Layer 0: 내 프로필 (WHO)
+
+Forge가 생성한 5차원 개인 프로필. 모든 하위 계층의 동작을 결정하는 기준점이다. Lab이 세션마다 자동으로 보정한다.
+
+### Layer 1: Forge + Lab (ADAPT)
+
+Forge는 프로필을 기반으로 하네스를 생성하고, Lab은 사용 패턴을 추적하여 프로필을 진화시킨다. 닫힌 루프로 연결된다.
+
+### Layer 2: 워크플로우 엔진 (HOW)
+
+프로필에 맞게 조정된 실행 환경:
+
+- **9가지 실행 모드** — 단순 채팅부터 자율 파이프라인까지
+- **21개 스킬** — 차원 인식 스킬 6개 포함
+- **3-tier 모델 라우팅** — 16-signal 스코어링 + 차원 가중치
+- **17개 훅**, 10가지 이벤트 타입, 3개 보안 훅
+- **8개 MCP 서버** (JSON-RPC 2.0)
+- **실시간 모니터** + Compound 루프
+
+### Layer 3: 팩 + 리믹스 (SHARE)
+
+개인 지식을 팀으로, 팀 지식을 조직으로 이동. Remix로 외부 컴포넌트를 선택적으로 가져온다.
+
+---
+
+## 모든 명령어
 
 ### 핵심
 
@@ -303,20 +349,20 @@ tenetx dashboard
 |--------|------|
 | `tenetx` | 하네스 적용 후 시작 |
 | `tenetx "프롬프트"` | 프롬프트와 함께 시작 |
-| `tenetx setup` | 초기 설정 (글로벌) |
-| `tenetx setup --project` | 프로젝트별 원칙 (`--pack`, `--extends`, `--yes`) |
+| `tenetx setup` | 초기 설정 |
+| `tenetx forge` | 개인화 (스캔 + 인터뷰) |
+| `tenetx me` | 내 프로필 확인 |
 | `tenetx --resume` | 이전 세션 재개 |
-| `tenetx init` | 프로젝트 타입 자동 감지 → 맞춤 철학 생성 |
-| `tenetx init --team` | 팀 팩 초기화 (리포지토리) |
 
-### 철학 & 설정
+### Forge & Lab
 
 | 명령어 | 목적 |
 |--------|------|
-| `tenetx philosophy show` | 현재 원칙 표시 |
+| `tenetx forge` | 프로젝트 스캔 + 인터뷰 → 하네스 생성 |
+| `tenetx forge --rescan` | 프로젝트 변경 후 재스캔 |
+| `tenetx me` | 현재 차원 프로필 확인 |
+| `tenetx philosophy show` | 현재 철학 표시 |
 | `tenetx philosophy edit` | philosophy.yaml 편집 |
-| `tenetx philosophy validate` | 문법 검증 |
-| `tenetx init --extends` | 팩 상속 사용 |
 
 ### 팩 관리
 
@@ -325,13 +371,9 @@ tenetx dashboard
 | `tenetx pack list` | 설치된 팩 목록 |
 | `tenetx pack install <source>` | 팩 설치 (GitHub URL, `owner/repo`, 로컬 경로) |
 | `tenetx pack sync [name]` | 전체 또는 특정 팩 동기화 |
-| `tenetx pack init <name>` | 새 팩 생성 (`--from-project`, `--starter`) |
-| `tenetx pack add <name>` | 프로젝트에 팩 연결 (`--repo`, `--type`, `--path`) |
-| `tenetx pack remove <name>` | 프로젝트에서 팩 연결 해제 |
-| `tenetx pack connected` | 현재 프로젝트에 연결된 팩 목록 |
+| `tenetx pack init <name>` | 새 팩 생성 |
 | `tenetx pack setup <source>` | 원클릭 셋업 (설치→연결→동기화→의존성 검사) |
-| `tenetx pack lock` | 팩 버전 고정 (`pack.lock` 생성) |
-| `tenetx pack unlock` | 팩 버전 고정 해제 (`pack.lock` 삭제) |
+| `tenetx pack lock` | 팩 버전 고정 |
 | `tenetx pack outdated` | 업데이트 가능한 팩 확인 |
 
 ### 지식 공유
@@ -341,15 +383,16 @@ tenetx dashboard
 | `tenetx pick <pattern> --from <pack>` | 솔루션을 개인 컬렉션으로 선택 |
 | `tenetx propose <pattern> --to <pack>` | 개인 패턴을 팀에 제안 |
 | `tenetx proposals` | 팀 제안 검토 |
-| `tenetx compound` | 세션 인사이트 추출 (개인/팀 자동 분류) |
-| `tenetx rules` | 개인 및 팀 규칙 조회 |
+| `tenetx compound` | 세션 인사이트 추출 |
+| `tenetx remix browse` | 공유 컴포넌트 탐색 |
+| `tenetx remix import <component>` | 컴포넌트 가져오기 |
 
 ### AI & 프로바이더
 
 | 명령어 | 목적 |
 |--------|------|
 | `tenetx ask "질문"` | 다중 제공자 질문 (`--compare`, `--fallback`) |
-| `tenetx providers` | AI 프로바이더 관리 (enable/disable/model/auth) |
+| `tenetx providers` | AI 프로바이더 관리 |
 | `tenetx worker` | AI Workers (spawn/list/kill/output) |
 
 ### 세션 & 모니터링
@@ -360,200 +403,33 @@ tenetx dashboard
 | `tenetx stats [--week]` | 세션 통계 |
 | `tenetx session` | 세션 관리 (search/list/show) |
 | `tenetx dashboard` | 거버넌스 대시보드 |
-| `tenetx governance` | 거버넌스 리포트 (`--json`, `--trend`) |
-| `tenetx gateway` | 이벤트 게이트웨이 (config/test/disable) |
-| `tenetx notepad` | 노트패드 (show/add/clear) |
+| `tenetx governance` | 거버넌스 리포트 |
 
-### 인프라
+### 인프라 & 유틸리티
 
 | 명령어 | 목적 |
 |--------|------|
-| `tenetx mcp` | MCP 서버 관리 (list/templates/add/remove) |
-| `tenetx marketplace` | 플러그인 마켓플레이스 (search/install/list/remove) |
-| `tenetx worktree` | Git worktree 관리 (list/create/remove/teleport) |
-| `tenetx scan` | 프로젝트 구조 스캔 (`--constraints`, `--md`) |
-| `tenetx verify` | 자동 검증 루프 (build+test+constraints) |
-
-### 유틸리티
-
-| 명령어 | 목적 |
-|--------|------|
+| `tenetx mcp` | MCP 서버 관리 |
+| `tenetx marketplace` | 플러그인 마켓플레이스 |
+| `tenetx worktree` | Git worktree 관리 |
+| `tenetx scan` | 프로젝트 구조 스캔 |
+| `tenetx verify` | 자동 검증 루프 |
 | `tenetx doctor` | 환경 진단 |
 | `tenetx notify "메시지"` | 알림 전송 (Discord/Slack/Telegram) |
-| `tenetx wait <minutes>` | 레이트 리밋 대기 + 알림 |
-| `tenetx install --plugin` | Claude Code 플러그인 설치 |
-| `tenetx uninstall` | 제거 (`--force`) |
-| `tenetx help` | 전체 도움말 |
-
----
-
-## 아키텍처
-
-<p align="center">
-  <img src="assets/architecture.svg" alt="테넷엑스 아키텍처" width="100%"/>
-</p>
-
-### Layer 0: 철학 (WHY)
-
-`philosophy.yaml`은 원칙을 선언합니다. 각 원칙은 `belief`와 `generates` 속성을 가지며 — 시스템은 이를 바탕으로 훅, 라우팅, 경고, compound 규칙을 도출합니다.
-
-### Layer 1: 워크플로우 엔진 (HOW)
-
-엔진은 철학을 실행 가능한 컴포넌트로 번역합니다:
-
-- **9가지 실행 모드** — 단순 채팅부터 전체 자율 파이프라인까지
-- **21개 스킬** — autopilot, ralph, team, ultrawork, pipeline, ccg, ralplan, deep-interview, tdd, code-review, security-review, compound, debug-detective, ecomode, git-master, migrate, pack-builder, ralph-craft, cancel-ralph, refactor, benchmark
-- **3-tier 모델 라우팅** — Haiku / Sonnet / Opus (16-signal 스코어링)
-- **17개 훅** — UserPromptSubmit, SessionStart, PreToolUse, PostToolUse, PostToolFailure, PreCompact 등
-- **10가지 이벤트 타입** — 포괄적 관찰 가능성 (startup, hook_trigger, model_routing 등)
-- **3개 보안 훅** — permission-handler, secret-filter, db-guard
-- **실시간 모니터** — 비용, 편집, 컨텍스트 사용 추적
-- **Compound 루프** — 패턴 추출 및 지식 축적
-
-### Layer 2: 팩 (KNOW + SHARE)
-
-지식은 3가지 스코프로 조직되어 있습니다:
-
-| 스코프 | 위치 | 로드 시기 |
-|--------|------|----------|
-| **Me** | `~/.compound/me/` | 항상 |
-| **Team** | `~/.compound/packs/<name>/` | 팀 리포지토리에서 |
-| **Project** | `{repo}/.compound/` | 해당 리포지토리에서 |
-
-팩은 GitHub, Google Drive, S3 또는 로컬 디렉토리로 동기화됩니다. `extends`를 통한 철학 상속을 지원합니다.
-
-### 내장 에이전트 (3-lane 19개)
-
-3-lane으로 구조화된 파이프라인을 위해 구성됩니다:
-
-| Lane | 에이전트 | 목적 |
-|------|----------|------|
-| **BUILD** | explore → analyst → planner → architect → debugger → executor → verifier → code-simplifier → refactoring-expert | 탐색 → 구현 → 검증 |
-| **REVIEW** | code-reviewer, security-reviewer, critic | 품질 보증 (3개) |
-| **DOMAIN** | designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git-master | 전문 분야 (7개) |
-
-### 내장 MCP 서버 (8개, JSON-RPC 2.0)
-
-테넷엑스는 실행 가능한 MCP 서버를 제공합니다:
-
-```
-lsp-bridge              언어 서버 감지 & 호출
-ast-search              AST 기반 코드 구조 검색
-test-runner             테스트 프레임워크 감지 & 실행
-repo-index              프로젝트 구조 인덱싱
-secrets-scan            시크릿/토큰/키 감지 (마스킹 포함)
-python-repl             Python 환경 감지 & 실행
-file-watcher             최근 수정 파일 추적
-dependency-analyzer     패키지 의존성 분석
-```
-
-### 내장 스킬 (21개)
-
-```
-autopilot        ralph           team            ultrawork        pipeline
-ccg              ralplan         deep-interview  tdd              code-review
-security-review  compound        debug-detective ecomode          git-master
-migrate          pack-builder    ralph-craft     cancel-ralph     refactor
-benchmark
-```
-
----
-
-## 동작 방식
-
-```
-tenetx "차트 API 리팩토링"
-  │
-  ├── 1. philosophy.yaml 로드
-  │      └── 5개 이상 원칙 → 훅, 라우팅, 경고, compound 규칙 생성
-  │
-  ├── 2. 스코프 결정
-  │      └── Me (항상) + Team (리포지토리에 있으면) + Project (.compound/에 있으면)
-  │
-  ├── 3. 팩 동기화
-  │      └── 최신 팀 지식 + 상속 검증
-  │
-  ├── 4. 세션 설정
-  │      ├── 17개 훅을 ~/.claude/settings.json에 주입
-  │      ├── 16-signal 모델 라우팅을 env에 설정
-  │      ├── 에이전트 & 스킬 설치
-  │      ├── 10가지 이벤트 타입 관찰 가능성 설정
-  │      └── 상태 라인 + 거버넌스 대시보드 설정
-  │
-  └── 5. Claude Code 실행
-         └── 모든 설정이 적용된 상태로 실행
-```
-
----
-
-## 팀 워크플로우 예제
-
-### 1일: 설정 (15분)
-
-```bash
-# 팀 리드가 리포지토리 전체 원칙 초기화
-tenetx init --team --yes
-
-# .compound/pack.json, philosophy.yaml, .compound/rules.yaml 생성
-git add .compound/ && git commit -m "chore: add tenetx team pack"
-```
-
-### 1일-N: 매일 사용
-
-```bash
-# 팀원이 동기화 후 실행
-git pull
-tenetx "검색 버그 수정"
-
-# 세션 종료
-tenetx compound                 # 추출: 패턴, 솔루션, 규칙, 골든 프롬프트
-```
-
-### 1일-N: 지식 공유
-
-```bash
-# 개인 솔루션 → 팀 제안
-tenetx propose caching-strategy --to core-pack
-
-# 팀 리드가 제안 검토
-tenetx proposals               # UI: 제안 규칙, 제안 훅, 신뢰도 점수
-# (승인/거절 인터페이스)
-
-# 최신 지식 자동 동기화
-tenetx pack sync
-```
-
----
-
-## 샘플 철학 팩 (5개)
-
-테넷엑스는 5개의 초급자용 철학 팩을 포함합니다:
-
-1. **frontend** — 컴포넌트 분리, 접근성, 반응형 디자인, 성능 최적화
-2. **backend** — API 계약, 데이터 무결성, 에러 처리, 관측성
-3. **devops** — IaC, 관측성, 장애 복구, CI/CD
-4. **security** — OWASP, 최소 권한, 감사 추적, 암호화
-5. **data** — 파이프라인 검증, 스키마 진화, 재현성, 테스트
-
-시작점으로 사용할 수 있습니다:
-
-```bash
-tenetx init --yes                         # 프로젝트 타입 자동 감지
-tenetx setup --project --pack backend     # 또는 직접 선택
-```
 
 ---
 
 ## 통계
 
-- **1204개 테스트** (75개 테스트 파일, 100% 통과)
-- **19개 에이전트** (3-lane: BUILD 9, REVIEW 3, DOMAIN 7)
-- **21개 스킬**과 9가지 실행 모드
-- **17개 훅**, 10가지 이벤트 타입, 3개 보안 훅
-- **8개 내장 MCP 서버** (실행 가능, JSON-RPC 2.0)
+- **1208개 테스트** (75개 테스트 파일)
+- **19개 차원 튜닝 에이전트** (3-lane: BUILD 9, REVIEW 3, DOMAIN 7)
+- **21개 스킬** (6개 차원 인식)
+- **5개 연속 개인화 차원**
+- **8개 행동 패턴 감지기**
+- **9가지 실행 모드**
 - **16-signal 모델 라우팅** (Haiku/Sonnet/Opus)
-- **5개 샘플 철학 팩** (frontend, backend, devops, security, data)
-- **45개 이상 CLI 명령어** (setup, philosophy, pack, compound, ask, scan, verify, stats, dashboard, doctor, notify, mcp, marketplace, session, worktree 등)
+- **8개 내장 MCP 서버** (JSON-RPC 2.0)
+- **3-tier 팩 시스템** (Me/Team/Project)
 
 ---
 
@@ -561,16 +437,7 @@ tenetx setup --project --pack backend     # 또는 직접 선택
 
 테넷엑스는 [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) (Yeachan Heo)로부터 큰 영감을 받았습니다. 다중 에이전트 오케스트레이션 패턴, 매직 키워드 시스템, 실행 모드, 그리고 하네스 계층을 통해 Claude Code를 향상시키는 전체적 비전이 OMC의 선구적 작업에 크게 영향을 받았습니다.
 
-oh-my-claudecode에서 적응한 핵심 개념:
-- 전문화된 역할을 가진 다중 에이전트 오케스트레이션
-- 실행 모드 (autopilot, ralph, team, ultrawork)
-- 훅을 통한 매직 키워드 감지
-- 교차-AI 통합을 위한 tmux 기반 CLI 워커
-- 세션 모니터링 및 알림 시스템
-
-테넷엑스는 **원칙 기반 접근법** — 엔지니어링 원칙을 선언하여 워크플로우를 자동 생성하고, 팀 지식 축적을 위한 **compound 엔지니어링 루프**로 차별화됩니다.
-
-또한 사전 설정된 개발 스위트에 대한 깔끔한 "oh-my-zsh for Claude Code" 접근법인 [Claude Forge](https://github.com/sangrokjung/claude-forge)를 인정합니다.
+또한 사전 설정된 개발 스위트에 대한 깔끔한 접근법인 [Claude Forge](https://github.com/sangrokjung/claude-forge)를 인정합니다.
 
 ---
 

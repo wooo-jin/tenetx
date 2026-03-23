@@ -14,7 +14,8 @@ import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles } from '../engine/token-tracker.js';
+import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles, estimateTokens } from '../engine/token-tracker.js';
+import { recordTokenUsage as recordLabCost } from '../lab/cost-tracker.js';
 import { runConstraintsOnFile, formatViolations } from '../engine/constraints/constraint-runner.js';
 import { saveCheckpoint } from './session-recovery.js';
 
@@ -149,6 +150,14 @@ async function main(): Promise<void> {
   try {
     const inputStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput);
     const usage = recordToolUsage(sessionId, inputStr, toolResponse, data.model_id);
+
+    // Lab cost tracker에도 기록 (모델별 정밀 비용 추적)
+    try {
+      const modelKey = data.model_id ?? 'sonnet';
+      const inTok = estimateTokens(inputStr);
+      const outTok = estimateTokens(toolResponse);
+      recordLabCost(sessionId, modelKey, inTok, outTok);
+    } catch { /* non-critical */ }
 
     // 100회마다 오래된 usage 파일 정리 (매 호출 I/O 방지)
     if (usage.toolCalls % 100 === 0) cleanStaleUsageFiles();

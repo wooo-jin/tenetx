@@ -14,7 +14,7 @@ import { debugLog } from './logger.js';
 
 export type AgentPreference = 'claude' | 'codex' | 'either';
 
-interface TaskProfile {
+export interface TaskProfile {
   /** 작업 설명 */
   task: string;
   /** 추천 에이전트 */

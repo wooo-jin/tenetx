@@ -1,0 +1,452 @@
+/**
+ * Tenetx Lab — Auto-Learning Engine
+ *
+ * Connects lab -> forge: observes behavioral patterns from lab events,
+ * translates them into dimension adjustments, and evolves the forge profile.
+ * Creates a closed feedback loop where the harness automatically
+ * evolves based on usage data.
+ *
+ * Conservative by design: small adjustments, high evidence thresholds,
+ * exponential moving average smoothing.
+ */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { debugLog } from '../core/logger.js';
+import { readEvents } from './store.js';
+import { detectPatterns, patternsToDimensionAdjustments } from './pattern-detector.js';
+import { track } from './tracker.js';
+import type {
+  LabEvent,
+  DimensionAdjustment,
+  EvolutionRecord,
+  BehavioralPattern,
+  LastEvolveInfo,
+} from './types.js';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const LAB_DIR = path.join(os.homedir(), '.compound', 'lab');
+const EVOLUTION_HISTORY_PATH = path.join(LAB_DIR, 'evolution-history.json');
+const PATTERNS_PATH = path.join(LAB_DIR, 'patterns.json');
+const LAST_EVOLVE_PATH = path.join(LAB_DIR, 'last-evolve.json');
+export const LAST_NOTIFICATION_PATH = path.join(LAB_DIR, 'last-notification.json');
+
+/** Minimum events required before auto-learning triggers */
+const MIN_EVENTS_THRESHOLD = 30;
+
+/** Maximum single adjustment per cycle */
+const MAX_DELTA_PER_CYCLE = 0.15;
+
+/** EMA learning rate: new = old + delta * LEARNING_RATE */
+const LEARNING_RATE = 0.25;
+
+/** Default analysis window: 30 days */
+const DEFAULT_WINDOW_DAYS = 30;
+
+/** Minimum hours between auto-learn runs */
+const MIN_HOURS_BETWEEN_RUNS = 24;
+
+// ---------------------------------------------------------------------------
+// Storage Helpers
+// ---------------------------------------------------------------------------
+
+function ensureDir(dir: string): void {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+function atomicWrite(filePath: string, data: unknown): void {
+  const dir = path.dirname(filePath);
+  ensureDir(dir);
+  const tmpFile = `${filePath}.tmp.${process.pid}`;
+  try {
+    fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
+    fs.renameSync(tmpFile, filePath);
+  } catch (e) {
+    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    throw e;
+  }
+}
+
+function safeReadJSON<T>(filePath: string, fallback: T): T {
+  try {
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
+    }
+  } catch (e) {
+    debugLog('auto-learn', `JSON read failed: ${filePath}`, e);
+  }
+  return fallback;
+}
+
+// ---------------------------------------------------------------------------
+// Evolution History
+// ---------------------------------------------------------------------------
+
+export function loadEvolutionHistory(): EvolutionRecord[] {
+  return safeReadJSON<EvolutionRecord[]>(EVOLUTION_HISTORY_PATH, []);
+}
+
+function saveEvolutionHistory(records: EvolutionRecord[]): void {
+  atomicWrite(EVOLUTION_HISTORY_PATH, records);
+}
+
+// ---------------------------------------------------------------------------
+// Patterns
+// ---------------------------------------------------------------------------
+
+export function loadStoredPatterns(): BehavioralPattern[] {
+  return safeReadJSON<BehavioralPattern[]>(PATTERNS_PATH, []);
+}
+
+function savePatterns(patterns: BehavioralPattern[]): void {
+  atomicWrite(PATTERNS_PATH, patterns);
+}
+
+// ---------------------------------------------------------------------------
+// Last Evolve Info
+// ---------------------------------------------------------------------------
+
+export function loadLastEvolveInfo(): LastEvolveInfo | null {
+  return safeReadJSON<LastEvolveInfo | null>(LAST_EVOLVE_PATH, null);
+}
+
+function saveLastEvolveInfo(info: LastEvolveInfo): void {
+  atomicWrite(LAST_EVOLVE_PATH, info);
+}
+
+// ---------------------------------------------------------------------------
+// Last Notification (dedup guard)
+// ---------------------------------------------------------------------------
+
+interface LastNotification {
+  timestamp: string;
+  /** Sorted dimension keys that changed */
+  dimensionKeys: string[];
+}
+
+export function loadLastNotification(): LastNotification | null {
+  return safeReadJSON<LastNotification | null>(LAST_NOTIFICATION_PATH, null);
+}
+
+export function saveLastNotification(info: LastNotification): void {
+  atomicWrite(LAST_NOTIFICATION_PATH, info);
+}
+
+// ---------------------------------------------------------------------------
+// Core Auto-Learning Logic
+// ---------------------------------------------------------------------------
+
+/**
+ * Analyze events and compute raw dimension adjustments.
+ * Does NOT apply smoothing — returns raw pattern-based deltas.
+ */
+function analyzeEvents(events: LabEvent[]): {
+  adjustments: DimensionAdjustment[];
+  patterns: BehavioralPattern[];
+} {
+  const patterns = detectPatterns(events, 0.3);
+  const adjustments = patternsToDimensionAdjustments(patterns);
+
+  // Clamp each adjustment to MAX_DELTA_PER_CYCLE
+  for (const adj of adjustments) {
+    adj.delta = Math.max(-MAX_DELTA_PER_CYCLE, Math.min(MAX_DELTA_PER_CYCLE, adj.delta));
+  }
+
+  return { adjustments, patterns };
+}
+
+/**
+ * Apply smoothing via exponential moving average.
+ * new_value = old_value * RETENTION + (old_value + delta) * LEARNING_RATE
+ * Which simplifies to: new_value = old_value + delta * LEARNING_RATE
+ */
+function applySmoothedAdjustments(
+  currentVector: Record<string, number>,
+  adjustments: DimensionAdjustment[],
+): Record<string, number> {
+  const result = { ...currentVector };
+
+  // Merge adjustments by dimension (sum deltas for same dimension)
+  const mergedDeltas = new Map<string, number>();
+  for (const adj of adjustments) {
+    const existing = mergedDeltas.get(adj.dimension) ?? 0;
+    mergedDeltas.set(adj.dimension, existing + adj.delta);
+  }
+
+  for (const [dimension, rawDelta] of mergedDeltas) {
+    if (!(dimension in result)) continue;
+
+    // Clamp merged delta
+    const clampedDelta = Math.max(-MAX_DELTA_PER_CYCLE, Math.min(MAX_DELTA_PER_CYCLE, rawDelta));
+
+    // Apply EMA smoothing
+    const smoothedDelta = clampedDelta * LEARNING_RATE;
+    const oldValue = result[dimension] ?? 0.5;
+    result[dimension] = Math.max(0, Math.min(1, oldValue + smoothedDelta));
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/** Result of an auto-learn cycle */
+export interface EvolveResult {
+  /** Whether any adjustments were made */
+  changed: boolean;
+  /** Adjustments computed (may be empty) */
+  adjustments: DimensionAdjustment[];
+  /** Detected behavioral patterns */
+  patterns: BehavioralPattern[];
+  /** Previous dimension vector (null if no profile) */
+  previousVector: Record<string, number> | null;
+  /** New dimension vector (null if dry-run or no profile) */
+  newVector: Record<string, number> | null;
+  /** Number of events analyzed */
+  totalEventsAnalyzed: number;
+  /** Reason if no changes */
+  reason?: string;
+}
+
+/**
+ * Run one auto-learning cycle.
+ *
+ * @param dryRun If true, compute adjustments but don't apply
+ * @param windowDays Analysis window (default 30 days)
+ * @returns Evolution result with adjustments and patterns
+ */
+export async function runEvolveCycle(
+  dryRun: boolean = false,
+  windowDays: number = DEFAULT_WINDOW_DAYS,
+): Promise<EvolveResult> {
+  try {
+    // 1. Load events from the analysis window
+    const sinceMs = Date.now() - windowDays * 24 * 60 * 60 * 1000;
+    const events = readEvents(sinceMs);
+
+    if (events.length < MIN_EVENTS_THRESHOLD) {
+      return {
+        changed: false,
+        adjustments: [],
+        patterns: [],
+        previousVector: null,
+        newVector: null,
+        totalEventsAnalyzed: events.length,
+        reason: `Insufficient events: ${events.length} (minimum: ${MIN_EVENTS_THRESHOLD})`,
+      };
+    }
+
+    // 2. Detect patterns and compute adjustments
+    const { adjustments, patterns } = analyzeEvents(events);
+
+    // Always save detected patterns
+    savePatterns(patterns);
+
+    if (adjustments.length === 0) {
+      saveLastEvolveInfo({
+        timestamp: new Date().toISOString(),
+        eventsAnalyzed: events.length,
+        adjustmentCount: 0,
+        dryRun,
+      });
+      return {
+        changed: false,
+        adjustments: [],
+        patterns,
+        previousVector: null,
+        newVector: null,
+        totalEventsAnalyzed: events.length,
+        reason: 'No actionable patterns detected',
+      };
+    }
+
+    // 3. Load current forge profile (top-level static import is safe here)
+    const { loadForgeProfile, saveForgeProfile, GLOBAL_FORGE_PROFILE } =
+      await import('../forge/profile.js');
+
+    const profile = loadForgeProfile();
+    if (!profile) {
+      return {
+        changed: false,
+        adjustments,
+        patterns,
+        previousVector: null,
+        newVector: null,
+        totalEventsAnalyzed: events.length,
+        reason: 'No forge profile found. Run "tenetx forge" first.',
+      };
+    }
+
+    const previousVector = { ...profile.dimensions };
+
+    if (dryRun) {
+      // Compute what would change without saving
+      const newVector = applySmoothedAdjustments(previousVector, adjustments);
+      return {
+        changed: hasVectorChanged(previousVector, newVector),
+        adjustments,
+        patterns,
+        previousVector,
+        newVector,
+        totalEventsAnalyzed: events.length,
+      };
+    }
+
+    // 4. Apply smoothed adjustments
+    const newVector = applySmoothedAdjustments(previousVector, adjustments);
+    const changed = hasVectorChanged(previousVector, newVector);
+
+    if (changed) {
+      // Update profile dimensions
+      profile.dimensions = newVector as typeof profile.dimensions;
+
+      // Save updated profile
+      saveForgeProfile(profile, GLOBAL_FORGE_PROFILE);
+
+      // 5. Record evolution history
+      const record: EvolutionRecord = {
+        timestamp: new Date().toISOString(),
+        adjustments,
+        previousVector,
+        newVector,
+        eventWindowDays: windowDays,
+        totalEventsAnalyzed: events.length,
+      };
+      const history = loadEvolutionHistory();
+      history.push(record);
+      // Keep last 100 records
+      if (history.length > 100) {
+        history.splice(0, history.length - 100);
+      }
+      saveEvolutionHistory(history);
+
+      // 6. Re-generate harness config and record snapshot
+      try {
+        await regenerateHarnessConfig(profile);
+      } catch (e) {
+        debugLog('auto-learn', 'Failed to regenerate harness config', e);
+      }
+
+      // 7. Track this auto-learn event in lab
+      track('auto-evolve', 'system', {
+        adjustmentCount: adjustments.length,
+        eventsAnalyzed: events.length,
+        dimensions: Object.keys(newVector)
+          .filter(k => previousVector[k] !== newVector[k])
+          .map(k => `${k}: ${previousVector[k]?.toFixed(3)} -> ${newVector[k]?.toFixed(3)}`),
+      });
+    }
+
+    // 8. Save last evolve info
+    saveLastEvolveInfo({
+      timestamp: new Date().toISOString(),
+      eventsAnalyzed: events.length,
+      adjustmentCount: changed ? adjustments.length : 0,
+      dryRun: false,
+    });
+
+    return {
+      changed,
+      adjustments,
+      patterns,
+      previousVector,
+      newVector,
+      totalEventsAnalyzed: events.length,
+    };
+  } catch (e) {
+    debugLog('auto-learn', 'Evolution cycle failed', e);
+    return {
+      changed: false,
+      adjustments: [],
+      patterns: [],
+      previousVector: null,
+      newVector: null,
+      totalEventsAnalyzed: 0,
+      reason: `Error: ${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+}
+
+/**
+ * Check if auto-learn should run (called from harness startup).
+ * Conditions:
+ * - At least MIN_HOURS_BETWEEN_RUNS since last run
+ * - At least MIN_EVENTS_THRESHOLD new events since last run
+ */
+export function shouldAutoLearnRun(): boolean {
+  try {
+    const lastInfo = loadLastEvolveInfo();
+    if (!lastInfo) return true; // Never ran before
+
+    const lastRunMs = new Date(lastInfo.timestamp).getTime();
+    const hoursSinceLastRun = (Date.now() - lastRunMs) / (1000 * 60 * 60);
+    if (hoursSinceLastRun < MIN_HOURS_BETWEEN_RUNS) return false;
+
+    // Check if enough new events accumulated
+    const events = readEvents(lastRunMs);
+    return events.length >= MIN_EVENTS_THRESHOLD;
+  } catch (e) {
+    debugLog('auto-learn', 'Failed to check auto-learn eligibility', e);
+    return false;
+  }
+}
+
+/**
+ * Run auto-learn if conditions are met (non-blocking, error-safe).
+ * Called from harness startup.
+ * Returns EvolveResult if a cycle ran, null if skipped.
+ */
+export async function tryAutoLearn(): Promise<EvolveResult | null> {
+  try {
+    if (!shouldAutoLearnRun()) return null;
+    return await runEvolveCycle(false);
+  } catch (e) {
+    // Never crash harness startup
+    debugLog('auto-learn', 'Auto-learn failed silently', e);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Internal Helpers
+// ---------------------------------------------------------------------------
+
+function hasVectorChanged(
+  prev: Record<string, number>,
+  next: Record<string, number>,
+): boolean {
+  for (const key of Object.keys(prev)) {
+    if (Math.abs((prev[key] ?? 0) - (next[key] ?? 0)) > 0.001) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Re-generate harness config from updated profile and create snapshot.
+ */
+async function regenerateHarnessConfig(
+  profile: { dimensions: Record<string, number> },
+): Promise<void> {
+  try {
+    const { generateConfig } = await import('../forge/generator.js');
+    const { createSnapshot } = await import('./history.js');
+
+    // Generate new derived config (validates the profile still works)
+    generateConfig(profile.dimensions as never);
+
+    // Create a snapshot to record the auto-evolution
+    createSnapshot('auto-evolve');
+
+    debugLog('auto-learn', 'Harness config regenerated after auto-evolution');
+  } catch (e) {
+    debugLog('auto-learn', 'Config regeneration failed', e);
+  }
+}

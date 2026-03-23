@@ -2,16 +2,16 @@
   "$schema": "https://claude.ai/schemas/claude-plugin.json",
   "name": "tenetx",
   "version": "1.6.3",
-  "description": "Philosophy-driven Claude Code harness — 원칙 선언형 워크플로우 프레임워크",
+  "description": "The AI coding tool that adapts to you — personalized harness for Claude Code",
   "author": "jang-ujin",
   "license": "MIT",
   "homepage": "https://github.com/wooo-jin/tenetx",
   "keywords": [
     "claude-code",
     "harness",
-    "philosophy",
-    "workflow",
-    "compound-engineering"
+    "personalization",
+    "ai-harness",
+    "forge"
   ],
   "hooks": {
     "UserPromptSubmit": [

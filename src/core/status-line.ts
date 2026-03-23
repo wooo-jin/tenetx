@@ -15,6 +15,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { debugLog } from './logger.js';
 import { loadTokenUsage, formatCost, formatTokenCount } from '../engine/token-tracker.js';
+import { readHudCostString } from '../lab/cost-tracker.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -639,14 +640,21 @@ export async function printStatus(): Promise<void> {
     line2Parts.push(`${CYAN}${pack}${RST}`);
   }
 
-  // 토큰/비용 표시 (세션 ID가 없으면 'default' 사용)
+  // 토큰/비용 표시: Lab cost tracker 우선 (정밀 모델별 가격), fallback으로 기존 token-tracker
   try {
-    const sessionId = process.env.COMPOUND_SESSION_ID ?? 'default';
-    const usage = loadTokenUsage(sessionId);
-    if (usage.toolCalls > 0) {
-      const totalTokens = formatTokenCount(usage.inputTokens + usage.outputTokens);
-      const cost = formatCost(usage.estimatedCost);
-      line2Parts.push(`${DIM}${totalTokens} ${cost}${RST}`);
+    const labCost = readHudCostString();
+    if (labCost) {
+      line2Parts.push(`${YELLOW}💰${RST} ${DIM}${labCost}${RST}`);
+    } else {
+      const sessionId = process.env.COMPOUND_SESSION_ID ?? 'default';
+      const tokenUsage = loadTokenUsage(sessionId);
+      if (tokenUsage.toolCalls > 0) {
+        const totalTokens = formatTokenCount(tokenUsage.inputTokens + tokenUsage.outputTokens);
+        const cost = formatCost(tokenUsage.estimatedCost);
+        line2Parts.push(`${YELLOW}💰${RST} ${DIM}${totalTokens} (~${cost})${RST}`);
+      } else {
+        line2Parts.push(`${YELLOW}💰${RST} ${DIM}tracking...${RST}`);
+      }
     }
   } catch { /* ignore */ }
 
