@@ -10,7 +10,7 @@
   <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://www.npmjs.com/package/tenetx"><img src="https://img.shields.io/npm/v/tenetx.svg" alt="npm version"/></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
-  <a href="./coverage/"><img src="https://img.shields.io/badge/tests-1208-brightgreen.svg" alt="Tests: 1208"/></a>
+  <a href="./coverage/"><img src="https://img.shields.io/badge/tests-1465-brightgreen.svg" alt="Tests: 1465"/></a>
 </p>
 
 <p align="center">
@@ -83,7 +83,7 @@ tenetx install --plugin
 ### What it looks like
 
 <p align="center">
-  <img src="assets/demo-preview.svg" alt="Tenetx in action" width="700"/>
+  <img src="https://raw.githubusercontent.com/wooo-jin/tenetx/main/assets/demo-preview.svg" alt="Tenetx in action" width="700"/>
 </p>
 
 > To record a full demo, install [VHS](https://github.com/charmbracelet/vhs) and run `vhs demo/demo.tape`
@@ -264,7 +264,7 @@ A developer with Quality=0.80 gets a strict code-reviewer that checks SOLID prin
 ## Architecture
 
 <p align="center">
-  <img src="assets/architecture.svg" alt="Tenetx Architecture" width="100%"/>
+  <img src="https://raw.githubusercontent.com/wooo-jin/tenetx/main/assets/architecture.svg" alt="Tenetx Architecture" width="100%"/>
 </p>
 
 ### Layer 0: Your Profile (WHO)
@@ -293,7 +293,7 @@ Move knowledge between personal, team, and org scopes. Cherry-pick from others v
 
 | Metric | Count |
 |--------|-------|
-| Tests | 1208 across 75 test files |
+| Tests | 1465 across 92 test files |
 | Agents | 19 (dimension-tuned, 3 lanes) |
 | Skills | 21 (6 dimension-aware) |
 | Personalization dimensions | 5 continuous |
