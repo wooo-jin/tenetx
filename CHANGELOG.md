@@ -5,6 +5,31 @@ All notable changes to tenetx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2026-03-23
+
+### Fixed
+- **CRITICAL**: Fix ESM import side-effect causing double JSON output in `skill-injector` and `post-tool-use` hooks — root cause of Stop hook errors across environments
+- **CRITICAL**: Fix "cancel ralph" activating ralph mode instead of canceling — keyword pattern priority conflict
+- **CRITICAL**: Fix path traversal vulnerability via unsanitized `session_id` in file paths (7 hooks affected)
+- Fix Stop hook timeout race condition — 0ms margin between plugin timeout and stdin read timeout
+- Fix non-atomic file writes causing state corruption under concurrent sessions (9 hooks)
+- Fix `readStdinJSON` missing `process.stdin.resume()` causing silent timeout in some Node.js environments
+- Fix `readStdinJSON` having no input size limit (potential memory exhaustion)
+- Fix user-supplied regex patterns in `dangerous-patterns.json` vulnerable to ReDoS
+- Fix `ralph` keyword false positive matching on casual mentions
+- Fix `pipeline` keyword requiring "pipeline mode" suffix — standalone "pipeline" now works
+- Fix `migrate` and `refactor` keywords triggering on casual mentions — now require explicit mode invocation
+- Fix inject-type keywords (`tdd`, `code-review`, etc.) causing double injection via both keyword-detector and skill-injector
+- Fix `plugin.json` version stuck at `0.2.0` — now synced with `package.json`
+
+### Added
+- `--version` / `-V` CLI flag
+- `sanitize-id.ts` shared utility for safe file path construction
+- `atomic-write.ts` shared utility for corruption-resistant state writes
+- `isSafeRegex()` validation for user-supplied regex patterns
+- Ecomode entry in CLI help text and magic keywords section
+- `cancel-ralph` keyword pattern for targeted ralph cancellation
+
 ## [1.6.2] - 2026-03-20
 
 ### Fixed

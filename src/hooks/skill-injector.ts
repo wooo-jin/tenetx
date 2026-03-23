@@ -29,15 +29,17 @@ import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
+import { sanitizeId } from './shared/sanitize-id.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { PACKS_DIR } from '../core/paths.js';
 import { KEYWORD_PATTERNS } from './keyword-detector.js';
 
-/** keyword-detector가 처리하는 스킬 이름 집합 (이중 주입 방지) */
+/** keyword-detector가 처리하는 키워드 이름 집합 (skill + inject 모두 포함, 이중 주입 방지) */
 const KEYWORD_DETECTOR_SKILL_NAMES: Set<string> = new Set(
   KEYWORD_PATTERNS
-    .filter(p => p.skill != null)
-    .map(p => p.skill!)
+    .filter(p => p.type === 'skill' || p.type === 'inject')
+    .map(p => p.skill ?? p.keyword)
 );
 
 export interface SkillMeta {
@@ -59,7 +61,7 @@ const MAX_SKILLS_PER_SESSION = 5;
 
 /** 파일 기반 세션 캐시 (훅은 매번 새 프로세스로 실행되므로 in-memory 불가) */
 function getSessionCachePath(sessionId: string): string {
-  return path.join(STATE_DIR, `skill-cache-${sessionId}.json`);
+  return path.join(STATE_DIR, `skill-cache-${sanitizeId(sessionId)}.json`);
 }
 
 function loadSessionCache(sessionId: string): Set<string> {
@@ -79,11 +81,10 @@ function loadSessionCache(sessionId: string): Set<string> {
 }
 
 function saveSessionCache(sessionId: string, injected: Set<string>): void {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  fs.writeFileSync(getSessionCachePath(sessionId), JSON.stringify({
+  atomicWriteJSON(getSessionCachePath(sessionId), {
     injected: [...injected],
     updatedAt: new Date().toISOString(),
-  }))
+  })
 }
 
 /** YAML frontmatter 파싱 (간단한 구현) */

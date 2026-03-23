@@ -63,6 +63,7 @@ function runCommand(command: string, cwd: string): { success: boolean; output: s
       timeout: 120_000,
       stdio: ['pipe', 'pipe', 'pipe'],
       encoding: 'utf-8',
+      shell: '/bin/sh',  // 명시적 쉘 지정 (injection surface 축소)
     });
     return { success: true, output: output.slice(0, 2000) };
   } catch (err) {

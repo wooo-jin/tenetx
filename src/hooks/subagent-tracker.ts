@@ -12,6 +12,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { sanitizeId } from './shared/sanitize-id.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -31,7 +33,7 @@ interface AgentsState {
 }
 
 function getAgentsStatePath(sessionId: string): string {
-  return path.join(STATE_DIR, `active-agents-${sessionId}.json`);
+  return path.join(STATE_DIR, `active-agents-${sanitizeId(sessionId)}.json`);
 }
 
 function loadAgentsState(sessionId: string): AgentsState {
@@ -51,8 +53,7 @@ function saveAgentsState(state: AgentsState): void {
     if (!a.stoppedAt) return true; // 활성 에이전트는 유지
     return now - new Date(a.stoppedAt).getTime() < AGENT_GC_AGE_MS;
   });
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  fs.writeFileSync(getAgentsStatePath(state.sessionId), JSON.stringify(state));
+  atomicWriteJSON(getAgentsStatePath(state.sessionId), state);
 }
 
 async function main(): Promise<void> {

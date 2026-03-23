@@ -13,6 +13,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 // debugLog는 향후 확장용으로 import 유지 가능하지만, 현재 미사용
 import { readStdinJSON } from './shared/read-stdin.js';
+import { sanitizeId } from './shared/sanitize-id.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -31,7 +33,7 @@ interface FailureState {
 }
 
 function getFailureStatePath(sessionId: string): string {
-  return path.join(STATE_DIR, `tool-failures-${sessionId}.json`);
+  return path.join(STATE_DIR, `tool-failures-${sanitizeId(sessionId)}.json`);
 }
 
 function loadFailureState(sessionId: string): FailureState {
@@ -46,8 +48,7 @@ function loadFailureState(sessionId: string): FailureState {
 }
 
 function saveFailureState(state: FailureState): void {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  fs.writeFileSync(getFailureStatePath(state.sessionId), JSON.stringify(state));
+  atomicWriteJSON(getFailureStatePath(state.sessionId), state);
 }
 
 /** 실패 카운터 증가 (context-signals.json) */
@@ -62,8 +63,7 @@ function incrementFailureSignal(sessionId: string): void {
     signals.sessionId = sessionId;
     signals.previousFailures = ((signals.previousFailures as number) ?? 0) + 1;
     signals.updatedAt = new Date().toISOString();
-    fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(signalsPath, JSON.stringify(signals));
+    atomicWriteJSON(signalsPath, signals);
   } catch { /* ignore */ }
 }
 

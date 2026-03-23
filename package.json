@@ -1,6 +1,6 @@
 {
   "name": "tenetx",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "main": "dist/cli.js",
   "types": "./dist/cli.d.ts",
   "exports": {

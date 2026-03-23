@@ -9,6 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'db-guard-fail-counter.json');
@@ -72,8 +73,7 @@ function getAndIncrementFailCount(): number {
     } else {
       count = 1;
     }
-    fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(FAIL_COUNTER_PATH, JSON.stringify({ count, updatedAt: new Date().toISOString() }));
+    atomicWriteJSON(FAIL_COUNTER_PATH, { count, updatedAt: new Date().toISOString() });
     return count;
   } catch { return 1; }
 }

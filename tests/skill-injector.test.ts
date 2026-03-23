@@ -118,9 +118,9 @@ describe('matchSkills', () => {
   });
 
   it('대소문자 무시 매칭', () => {
+    // tdd는 keyword-detector가 처리하므로 skill-injector에서 제외됨 (이중 주입 방지)
     const matched = matchSkills('TDD 방식으로 구현', skills);
-    expect(matched).toHaveLength(1);
-    expect(matched[0].name).toBe('tdd');
+    expect(matched).toHaveLength(0);
   });
 
   it('매칭 없음', () => {

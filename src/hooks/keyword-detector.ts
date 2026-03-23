@@ -22,6 +22,7 @@ import { loadPhilosophyForProject } from '../core/philosophy-loader.js';
 import { loadGlobalConfig } from '../core/global-config.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { PACKS_DIR } from '../core/paths.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
@@ -51,11 +52,12 @@ export const KEYWORD_PATTERNS: Array<{
   type: 'skill' | 'inject' | 'cancel';
   skill?: string;
 }> = [
-  // 취소
+  // 취소 — cancel-ralph 등 복합 취소를 단일 키워드보다 먼저 매칭
   { pattern: /\b(canceltenetx|stoptenetx|cancel[- ]?compound)\b/i, keyword: 'cancel', type: 'cancel' },
+  { pattern: /\bcancel[- ]?ralph\b|랄프\s*(?:취소|중단|종료|멈춰)/i, keyword: 'cancel-ralph', type: 'cancel' },
 
-  // 핵심 모드 — "team"은 단독 사용 시 오탐 가능하므로 명시적 패턴만
-  { pattern: /\bralph\b/i, keyword: 'ralph', type: 'skill', skill: 'ralph' },
+  // 핵심 모드 — ralph는 명시적 모드 호출만 매칭 (false positive 방지)
+  { pattern: /(?:^|\n)\s*ralph\b|ralph\s+(?:mode|모드|해|해줘|시작|실행)/i, keyword: 'ralph', type: 'skill', skill: 'ralph' },
   { pattern: /\bautopilot\b/i, keyword: 'autopilot', type: 'skill', skill: 'autopilot' },
   { pattern: /(?:\bteam[- ]?mode\b|(?:^|\s)--team\b)/i, keyword: 'team', type: 'skill', skill: 'team' },
 
@@ -64,7 +66,7 @@ export const KEYWORD_PATTERNS: Array<{
   { pattern: /\bccg\b/i, keyword: 'ccg', type: 'skill', skill: 'ccg' },
   { pattern: /\bralplan\b/i, keyword: 'ralplan', type: 'skill', skill: 'ralplan' },
   { pattern: /\bdeep[- ]?interview\b/i, keyword: 'deep-interview', type: 'skill', skill: 'deep-interview' },
-  { pattern: /\bpipeline[- ]?mode\b/i, keyword: 'pipeline', type: 'skill', skill: 'pipeline' },
+  { pattern: /\bpipeline\b/i, keyword: 'pipeline', type: 'skill', skill: 'pipeline' },
   { pattern: /\b(ecomode|에코\s*모드|토큰\s*절약)\b/i, keyword: 'ecomode', type: 'skill', skill: 'ecomode' },
 
   // 인젝션 모드
@@ -74,12 +76,12 @@ export const KEYWORD_PATTERNS: Array<{
   { pattern: /(?:code[- ]?review|코드\s*리뷰)\s*(?:해|해줘|시작|해봐|부탁|mode|모드)/i, keyword: 'code-review', type: 'inject' },
   { pattern: /(?:security[- ]?review|보안\s*리뷰|보안\s*검토)\s*(?:해|해줘|시작|해봐|부탁|mode|모드)/i, keyword: 'security-review', type: 'inject' },
 
-  // 실용 스킬
+  // 실용 스킬 — 명시적 모드 호출만 매칭 (일상 단어 false positive 방지)
   { pattern: /\bgit[- ]?master\b/i, keyword: 'git-master', type: 'inject' },
-  { pattern: /\b(benchmark|벤치마크|성능\s*측정)\b/i, keyword: 'benchmark', type: 'inject' },
-  { pattern: /\b(migrate|마이그레이션)\b/i, keyword: 'migrate', type: 'inject' },
+  { pattern: /\b(benchmark|벤치마크)\s*(?:mode|모드|해|해줘|시작|실행|돌려)|성능\s*측정/i, keyword: 'benchmark', type: 'inject' },
+  { pattern: /\b(migrate|마이그레이션)\s*(?:mode|모드|해|해줘|시작|실행|진행)/i, keyword: 'migrate', type: 'inject' },
   { pattern: /\b(debug[- ]?detective|디버그\s*탐정|체계적\s*디버깅)\b/i, keyword: 'debug-detective', type: 'inject' },
-  { pattern: /\b(refactor(?:ing)?|리팩토링|리팩터)\b/i, keyword: 'refactor', type: 'inject' },
+  { pattern: /\b(refactor|리팩토링|리팩터)\s*(?:mode|모드|해|해줘|시작|실행|진행)/i, keyword: 'refactor', type: 'inject' },
 ];
 
 // ── 인젝션 메시지 ──
@@ -279,8 +281,7 @@ export function detectKeyword(prompt: string): KeywordMatch | null {
 // ── 상태 관리 ──
 
 function saveState(key: string, data: unknown): void {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  fs.writeFileSync(path.join(STATE_DIR, `${key}.json`), JSON.stringify(data, null, 2));
+  atomicWriteJSON(path.join(STATE_DIR, `${key}.json`), data);
 }
 
 function clearState(key: string): void {
@@ -346,19 +347,26 @@ async function main(): Promise<void> {
   }
 
   if (match.type === 'cancel') {
-    // 모든 모드 상태 초기화 (ralplan, deep-interview 포함)
-    for (const mode of ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview', 'ecomode']) {
-      clearState(`${mode}-state`);
-    }
-    // ralph-loop 플러그인 상태 파일도 삭제
     const cancelCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
-    const ralphLoopState = path.join(cancelCwd, '.claude', 'ralph-loop.local.md');
-    try { fs.unlinkSync(ralphLoopState); } catch { /* 파일 없으면 무시 */ }
+
+    if (match.keyword === 'cancel-ralph') {
+      // ralph만 취소
+      clearState('ralph-state');
+      const ralphLoopState = path.join(cancelCwd, '.claude', 'ralph-loop.local.md');
+      try { fs.unlinkSync(ralphLoopState); } catch { /* 파일 없으면 무시 */ }
+    } else {
+      // 모든 모드 상태 초기화 (ralplan, deep-interview 포함)
+      for (const mode of ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview', 'ecomode']) {
+        clearState(`${mode}-state`);
+      }
+      const ralphLoopState = path.join(cancelCwd, '.claude', 'ralph-loop.local.md');
+      try { fs.unlinkSync(ralphLoopState); } catch { /* 파일 없으면 무시 */ }
+    }
     // skill-cache 파일도 정리 (재주입 가능하도록)
     cleanSkillCaches();
     console.log(JSON.stringify({
       result: 'approve',
-      message: match.message,
+      message: match.message ?? '[Tenetx] Mode cancelled.',
     }));
     return;
   }
@@ -423,7 +431,10 @@ async function main(): Promise<void> {
   console.log(JSON.stringify({ result: 'approve' }));
 }
 
-main().catch((e) => {
-  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
-});
+// ESM main guard: 다른 모듈에서 import 시 main() 실행 방지
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
+    console.log(JSON.stringify({ result: 'approve' }));
+  });
+}

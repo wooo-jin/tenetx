@@ -1,7 +1,7 @@
 {
   "$schema": "https://claude.ai/schemas/claude-plugin.json",
   "name": "tenetx",
-  "version": "0.2.0",
+  "version": "1.6.3",
   "description": "Philosophy-driven Claude Code harness — 원칙 선언형 워크플로우 프레임워크",
   "author": "jang-ujin",
   "license": "MIT",
@@ -36,7 +36,7 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/context-guard.js\"", "timeout": 3000 }
+          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/context-guard.js\"", "timeout": 5000 }
         ]
       }
     ],

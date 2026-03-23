@@ -5,9 +5,12 @@
  * (for await of process.stdin은 일부 환경에서 hang 발생)
  */
 
+const MAX_STDIN_BYTES = 10 * 1024 * 1024; // 10MB — 메모리 고갈 방지
+
 /** stdin에서 JSON 데이터를 읽어 파싱. 실패 시 null 반환. */
-export async function readStdinJSON<T = Record<string, unknown>>(timeoutMs = 3000): Promise<T | null> {
+export async function readStdinJSON<T = Record<string, unknown>>(timeoutMs = 2000): Promise<T | null> {
   const chunks: Buffer[] = [];
+  let totalSize = 0;
   let settled = false;
 
   const raw = await new Promise<string>((resolve) => {
@@ -15,15 +18,32 @@ export async function readStdinJSON<T = Record<string, unknown>>(timeoutMs = 300
       if (!settled) {
         settled = true;
         process.stdin.removeAllListeners();
+        process.stdin.pause();
         resolve(Buffer.concat(chunks).toString('utf-8'));
       }
     }, timeoutMs);
 
+    // 일부 Node.js 환경에서 stdin이 paused 상태로 시작 — 명시적 resume 필요
+    if (typeof process.stdin.resume === 'function') {
+      process.stdin.resume();
+    }
+
     process.stdin.on('data', (chunk: Buffer | string) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalSize += buf.length;
+      if (totalSize > MAX_STDIN_BYTES) {
+        // 크기 초과 시 즉시 종료
+        if (!settled) { settled = true; clearTimeout(timeout); resolve(''); }
+        return;
+      }
+      chunks.push(buf);
     });
     process.stdin.on('end', () => {
-      if (!settled) { settled = true; clearTimeout(timeout); resolve(Buffer.concat(chunks).toString('utf-8')); }
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeout);
+        resolve(Buffer.concat(chunks).toString('utf-8'));
+      }
     });
     process.stdin.on('error', () => {
       if (!settled) { settled = true; clearTimeout(timeout); resolve(''); }

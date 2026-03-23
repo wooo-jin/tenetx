@@ -15,6 +15,8 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { matchSolutions } from '../engine/solution-matcher.js';
 import { resolveScope } from '../core/scope-resolver.js';
 import { debugLog } from '../core/logger.js';
+import { sanitizeId } from './shared/sanitize-id.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 interface HookInput {
   prompt: string;
@@ -28,7 +30,7 @@ const MAX_SOLUTION_LENGTH = 1500; // 솔루션당 최대 글자 수
 
 /** 세션별 이미 주입된 솔루션 추적 (중복 방지) */
 function getSessionCachePath(sessionId: string): string {
-  return path.join(STATE_DIR, `solution-cache-${sessionId}.json`);
+  return path.join(STATE_DIR, `solution-cache-${sanitizeId(sessionId)}.json`);
 }
 
 function loadSessionCache(sessionId: string): Set<string> {
@@ -47,11 +49,10 @@ function loadSessionCache(sessionId: string): Set<string> {
 }
 
 function saveSessionCache(sessionId: string, injected: Set<string>): void {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  fs.writeFileSync(getSessionCachePath(sessionId), JSON.stringify({
+  atomicWriteJSON(getSessionCachePath(sessionId), {
     injected: [...injected],
     updatedAt: new Date().toISOString(),
-  }));
+  });
 }
 
 /** 솔루션 파일 내용을 읽어서 요약 + 본문 반환 */

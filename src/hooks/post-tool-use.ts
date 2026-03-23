@@ -12,6 +12,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { sanitizeId } from './shared/sanitize-id.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles } from '../engine/token-tracker.js';
 import { runConstraintsOnFile, formatViolations } from '../engine/constraints/constraint-runner.js';
 import { saveCheckpoint } from './session-recovery.js';
@@ -38,7 +40,7 @@ interface ModifiedFilesState {
 
 /** 세션별 파일 경로 */
 function getModifiedFilesPath(sessionId: string): string {
-  return path.join(STATE_DIR, `modified-files-${sessionId}.json`);
+  return path.join(STATE_DIR, `modified-files-${sanitizeId(sessionId)}.json`);
 }
 
 /** 수정된 파일 목록 로드 */
@@ -54,8 +56,7 @@ function loadModifiedFiles(sessionId: string): ModifiedFilesState {
 
 /** 수정된 파일 목록 저장 */
 function saveModifiedFiles(state: ModifiedFilesState): void {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  fs.writeFileSync(getModifiedFilesPath(state.sessionId), JSON.stringify(state));
+  atomicWriteJSON(getModifiedFilesPath(state.sessionId), state);
 }
 
 /** 에러 패턴 감지 */
@@ -105,8 +106,7 @@ function incrementFailureCounter(sessionId: string): void {
     signals.sessionId = sessionId;
     signals.previousFailures = ((signals.previousFailures as number) ?? 0) + 1;
     signals.updatedAt = new Date().toISOString();
-    fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(CONTEXT_SIGNALS_PATH, JSON.stringify(signals));
+    atomicWriteJSON(CONTEXT_SIGNALS_PATH, signals);
   } catch { /* ignore */ }
 }
 

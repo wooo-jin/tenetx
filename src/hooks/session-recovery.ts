@@ -10,7 +10,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { debugLog } from '../core/logger.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -27,9 +29,8 @@ export interface Checkpoint {
 /** 체크포인트 저장 */
 export function saveCheckpoint(data: Checkpoint): void {
   try {
-    fs.mkdirSync(STATE_DIR, { recursive: true });
     const filePath = path.join(STATE_DIR, `checkpoint-${data.sessionId}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(data));
+    atomicWriteJSON(filePath, data);
   } catch (e) {
     debugLog('session-recovery', '체크포인트 저장 실패', e);
   }
@@ -259,7 +260,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((e) => {
-  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
-});
+// ESM main guard: 다른 모듈에서 import 시 main() 실행 방지
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
+    console.log(JSON.stringify({ result: 'approve' }));
+  });
+}

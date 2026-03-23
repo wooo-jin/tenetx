@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'pre-tool-fail-counter.json');
@@ -31,6 +32,19 @@ interface DangerousPatternEntry {
   pattern: RegExp;
   description: string;
   severity: 'block' | 'warn';
+}
+
+/** RegExp 안전성 검증 (ReDoS 방지) — 짧은 문자열로 빠른 테스트 */
+function isSafeRegex(pattern: string, flags: string): boolean {
+  try {
+    const re = new RegExp(pattern, flags);
+    const testStr = 'a'.repeat(30);
+    const start = Date.now();
+    re.test(testStr);
+    return Date.now() - start < 100; // 100ms 이내여야 안전
+  } catch {
+    return false;
+  }
 }
 
 /** JSON에서 패턴 로드 (패키지 내장 + 사용자 커스텀 병합) */
@@ -65,6 +79,10 @@ function loadDangerousPatterns(): DangerousPatternEntry[] {
       const custom: Array<{ pattern: string; description: string; severity: string; flags?: string }> =
         JSON.parse(fs.readFileSync(customPath, 'utf-8'));
       for (const entry of custom) {
+        if (!isSafeRegex(entry.pattern, entry.flags ?? '')) {
+          debugLog('pre-tool-use', `사용자 커스텀 패턴 건너뜀 (ReDoS 위험): ${entry.description}`);
+          continue;
+        }
         results.push({
           pattern: new RegExp(entry.pattern, entry.flags ?? ''),
           description: entry.description,
@@ -120,8 +138,7 @@ function shouldShowReminderIO(): boolean {
       // 파일 없음 = 최초 호출: 1부터 시작하여 10번째 호출에 첫 리마인더 표시
       count = 1;
     }
-    fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(REMINDER_COUNTER_PATH, JSON.stringify({ count }));
+    atomicWriteJSON(REMINDER_COUNTER_PATH, { count });
     return shouldShowReminder(count);
   } catch {
     return false;
@@ -162,8 +179,7 @@ function getAndIncrementFailCount(): number {
     } else {
       count = 1;
     }
-    fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(FAIL_COUNTER_PATH, JSON.stringify({ count, updatedAt: new Date().toISOString() }));
+    atomicWriteJSON(FAIL_COUNTER_PATH, { count, updatedAt: new Date().toISOString() });
     return count;
   } catch { return 1; }
 }

@@ -12,6 +12,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { sanitizeId } from './shared/sanitize-id.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -63,7 +64,7 @@ function isAutopilotActive(): boolean {
 /** 권한 요청 로그 기록 */
 function logPermissionRequest(sessionId: string, toolName: string, decision: string): void {
   try {
-    const logPath = path.join(STATE_DIR, `permissions-${sessionId}.jsonl`);
+    const logPath = path.join(STATE_DIR, `permissions-${sanitizeId(sessionId)}.jsonl`);
     fs.mkdirSync(STATE_DIR, { recursive: true });
     const entry = JSON.stringify({
       timestamp: new Date().toISOString(),

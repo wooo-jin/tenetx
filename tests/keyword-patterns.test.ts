@@ -40,11 +40,11 @@ describe('keyword patterns', () => {
     expect(detectKeyword('--team 플래그')?.keyword).toBe('team');
   });
 
-  it('"pipeline"만으로는 매칭하지 않는다', () => {
-    expect(detectKeyword('CI/CD pipeline 설정')).toBeNull();
+  it('"pipeline" 단독으로 매칭한다', () => {
+    expect(detectKeyword('CI/CD pipeline 설정')?.keyword).toBe('pipeline');
   });
 
-  it('"pipeline mode"는 매칭한다', () => {
+  it('"pipeline mode"도 매칭한다', () => {
     expect(detectKeyword('pipeline mode 실행')?.keyword).toBe('pipeline');
   });
 
@@ -117,11 +117,19 @@ describe('keyword patterns', () => {
     expect(detectKeyword('리팩터 해줘')).toBeNull();
   });
 
-  it('영문 키워드 migrate는 정상 매칭된다', () => {
-    expect(detectKeyword('migrate the database')?.keyword).toBe('migrate');
+  it('영문 키워드 migrate + 명시적 동작은 매칭된다', () => {
+    expect(detectKeyword('migrate 해줘')?.keyword).toBe('migrate');
   });
 
-  it('영문 키워드 refactoring은 정상 매칭된다', () => {
-    expect(detectKeyword('refactoring 시작')?.keyword).toBe('refactor');
+  it('영문 키워드 migrate 단독은 매칭하지 않는다 (false positive 방지)', () => {
+    expect(detectKeyword('migrate the database')).toBeNull();
+  });
+
+  it('영문 키워드 refactor + 명시적 동작은 매칭된다', () => {
+    expect(detectKeyword('refactor 시작')?.keyword).toBe('refactor');
+  });
+
+  it('영문 키워드 refactoring 단독은 매칭하지 않는다 (false positive 방지)', () => {
+    expect(detectKeyword('refactoring is needed')).toBeNull();
   });
 });

@@ -15,6 +15,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
@@ -63,8 +64,7 @@ function loadContextState(sessionId: string): ContextState {
 }
 
 function saveContextState(state: ContextState): void {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  fs.writeFileSync(CONTEXT_STATE_PATH, JSON.stringify(state));
+  atomicWriteJSON(CONTEXT_STATE_PATH, state);
 }
 
 async function main(): Promise<void> {

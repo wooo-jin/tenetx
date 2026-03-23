@@ -64,7 +64,7 @@ export async function handleWait(args: string[]): Promise<void> {
     console.log(`  Running: ${thenCmd}\n`);
     const { execSync } = await import('node:child_process');
     try {
-      execSync(thenCmd, { stdio: 'inherit' });
+      execSync(thenCmd, { stdio: 'inherit', shell: '/bin/sh' });
     } catch { /* expected: 사용자 명령의 exit code는 무시 */ }
   }
 }

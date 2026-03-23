@@ -352,9 +352,13 @@ function findCommand(name: string): Command | undefined {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  // Handle help first (special case not in command array)
+  // Handle help / version first (special cases not in command array)
   if (args[0] === 'help' || args[0] === '--help' || args[0] === '-h') {
     printHelp();
+    return;
+  }
+  if (args[0] === '--version' || args[0] === '-V') {
+    console.log(PKG_VERSION);
     return;
   }
 
@@ -466,6 +470,7 @@ function printHelp() {
     tenetx --ccg                    Claude-Codex-Gemini tri-model synthesis
     tenetx --ralplan                Consensus planning (Planner→Architect→Critic)
     tenetx --deep-interview         Socratic requirement clarification
+    tenetx --eco (-e)               Token-saving eco mode
 
   Magic Keywords (in prompt):
     autopilot <task>            Activate autopilot mode
@@ -476,6 +481,7 @@ function printHelp() {
     ultrathink                  Extended reasoning mode
     deepsearch                  Deep codebase search
     tdd                         TDD mode
+    ecomode/에코모드             Token-saving eco mode
     canceltenetx                    Cancel all modes
 
   Commands:`);
