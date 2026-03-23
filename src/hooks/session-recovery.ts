@@ -13,6 +13,7 @@ import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { debugLog } from '../core/logger.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { sanitizeId } from './shared/sanitize-id.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -29,7 +30,7 @@ export interface Checkpoint {
 /** 체크포인트 저장 */
 export function saveCheckpoint(data: Checkpoint): void {
   try {
-    const filePath = path.join(STATE_DIR, `checkpoint-${data.sessionId}.json`);
+    const filePath = path.join(STATE_DIR, `checkpoint-${sanitizeId(data.sessionId)}.json`);
     atomicWriteJSON(filePath, data);
   } catch (e) {
     debugLog('session-recovery', '체크포인트 저장 실패', e);
@@ -61,7 +62,7 @@ function isValidModeState(data: unknown): data is ModeState {
 /** 체크포인트 로드 */
 export function loadCheckpoint(sessionId: string): Checkpoint | null {
   try {
-    const filePath = path.join(STATE_DIR, `checkpoint-${sessionId}.json`);
+    const filePath = path.join(STATE_DIR, `checkpoint-${sanitizeId(sessionId)}.json`);
     if (fs.existsSync(filePath)) {
       const data: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       if (!isValidCheckpoint(data)) {
@@ -261,7 +262,7 @@ async function main(): Promise<void> {
 }
 
 // ESM main guard: 다른 모듈에서 import 시 main() 실행 방지
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((e) => {
     process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
     console.log(JSON.stringify({ result: 'approve' }));

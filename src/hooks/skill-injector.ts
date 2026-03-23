@@ -84,7 +84,7 @@ function saveSessionCache(sessionId: string, injected: Set<string>): void {
   atomicWriteJSON(getSessionCachePath(sessionId), {
     injected: [...injected],
     updatedAt: new Date().toISOString(),
-  })
+  });
 }
 
 /** YAML frontmatter 파싱 (간단한 구현) */

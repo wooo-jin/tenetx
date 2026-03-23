@@ -159,8 +159,8 @@ describe('keyword-detector 스킬 이중 주입 방지', () => {
   // keyword-detector가 담당하는 스킬 이름 집합
   const keywordDetectorSkillNames = new Set(
     KEYWORD_PATTERNS
-      .filter(p => p.skill != null)
-      .map(p => p.skill!)
+      .filter(p => p.type === 'skill' || p.type === 'inject')
+      .map(p => p.skill ?? p.keyword)
   );
 
   it('keyword-detector가 처리하는 스킬 목록이 비어있지 않다', () => {

@@ -138,12 +138,11 @@ function markPendingCompound(sessionId: string): void {
     if (state.promptCount < 5) return; // 너무 짧은 세션은 건너뛰기
 
     const markerPath = path.join(STATE_DIR, 'pending-compound.json');
-    fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(markerPath, JSON.stringify({
+    atomicWriteJSON(markerPath, {
       sessionId,
       promptCount: state.promptCount,
       timestamp: new Date().toISOString(),
-    }));
+    });
   } catch (e) {
     debugLog('context-guard', 'pending-compound 마커 생성 실패', e);
   }

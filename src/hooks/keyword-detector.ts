@@ -57,7 +57,7 @@ export const KEYWORD_PATTERNS: Array<{
   { pattern: /\bcancel[- ]?ralph\b|랄프\s*(?:취소|중단|종료|멈춰)/i, keyword: 'cancel-ralph', type: 'cancel' },
 
   // 핵심 모드 — ralph는 명시적 모드 호출만 매칭 (false positive 방지)
-  { pattern: /(?:^|\n)\s*ralph\b|ralph\s+(?:mode|모드|해|해줘|시작|실행)/i, keyword: 'ralph', type: 'skill', skill: 'ralph' },
+  { pattern: /(?:^|\n)\s*ralph\s*$|ralph\s+(?:mode|모드|해|해줘|시작|실행)/im, keyword: 'ralph', type: 'skill', skill: 'ralph' },
   { pattern: /\bautopilot\b/i, keyword: 'autopilot', type: 'skill', skill: 'autopilot' },
   { pattern: /(?:\bteam[- ]?mode\b|(?:^|\s)--team\b)/i, keyword: 'team', type: 'skill', skill: 'team' },
 
@@ -432,7 +432,7 @@ async function main(): Promise<void> {
 }
 
 // ESM main guard: 다른 모듈에서 import 시 main() 실행 방지
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((e) => {
     process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
     console.log(JSON.stringify({ result: 'approve' }));

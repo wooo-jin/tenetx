@@ -34,14 +34,19 @@ interface DangerousPatternEntry {
   severity: 'block' | 'warn';
 }
 
-/** RegExp 안전성 검증 (ReDoS 방지) — 짧은 문자열로 빠른 테스트 */
+/** RegExp 안전성 검증 (ReDoS 방지) — 매칭/비매칭 양쪽 모두 테스트 */
 function isSafeRegex(pattern: string, flags: string): boolean {
   try {
     const re = new RegExp(pattern, flags);
-    const testStr = 'a'.repeat(30);
-    const start = Date.now();
+    const testStr = 'a'.repeat(25);
+    // 매칭 성공 케이스
+    let start = Date.now();
     re.test(testStr);
-    return Date.now() - start < 100; // 100ms 이내여야 안전
+    if (Date.now() - start >= 100) return false;
+    // 매칭 실패 케이스 (ReDoS는 주로 여기서 발생)
+    start = Date.now();
+    re.test(testStr + '!');
+    return Date.now() - start < 100;
   } catch {
     return false;
   }

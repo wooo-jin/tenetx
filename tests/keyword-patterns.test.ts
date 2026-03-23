@@ -11,8 +11,18 @@ describe('keyword patterns', () => {
   });
 
   // 정상 매칭
-  it('ralph를 정확히 감지한다', () => {
-    expect(detectKeyword('ralph 이것 구현해')?.keyword).toBe('ralph');
+  it('ralph 단독 입력을 감지한다', () => {
+    expect(detectKeyword('ralph')?.keyword).toBe('ralph');
+  });
+
+  it('ralph + 모드 키워드를 감지한다', () => {
+    expect(detectKeyword('ralph 해줘 이것 구현')?.keyword).toBe('ralph');
+    expect(detectKeyword('ralph 시작')?.keyword).toBe('ralph');
+  });
+
+  it('ralph가 문장 중간에 있으면 매칭하지 않는다 (false positive 방지)', () => {
+    expect(detectKeyword('Ralph Waldo Emerson was a philosopher')).toBeNull();
+    expect(detectKeyword('ask ralph about this')).toBeNull();
   });
 
   it('autopilot을 감지한다', () => {

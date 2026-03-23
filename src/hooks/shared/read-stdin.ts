@@ -32,8 +32,13 @@ export async function readStdinJSON<T = Record<string, unknown>>(timeoutMs = 200
       const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       totalSize += buf.length;
       if (totalSize > MAX_STDIN_BYTES) {
-        // 크기 초과 시 즉시 종료
-        if (!settled) { settled = true; clearTimeout(timeout); resolve(''); }
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          process.stdin.removeAllListeners();
+          if (typeof process.stdin.pause === 'function') process.stdin.pause();
+          resolve('');
+        }
         return;
       }
       chunks.push(buf);

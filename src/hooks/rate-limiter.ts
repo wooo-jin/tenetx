@@ -10,6 +10,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const RATE_LIMIT_PATH = path.join(STATE_DIR, 'rate-limit.json');
@@ -42,10 +43,7 @@ export function loadRateLimitState(): RateLimitState {
 
 /** 상태 파일 저장 (atomic write로 동시 세션 안전) */
 export function saveRateLimitState(state: RateLimitState): void {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  const tmpFile = `${RATE_LIMIT_PATH}.tmp.${process.pid}`;
-  fs.writeFileSync(tmpFile, JSON.stringify(state));
-  fs.renameSync(tmpFile, RATE_LIMIT_PATH);
+  atomicWriteJSON(RATE_LIMIT_PATH, state);
 }
 
 /** 오래된 호출 기록 정리 + 제한 초과 여부 판정 (순수 함수) */
