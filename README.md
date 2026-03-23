@@ -10,7 +10,7 @@
   <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://www.npmjs.com/package/tenetx"><img src="https://img.shields.io/npm/v/tenetx.svg" alt="npm version"/></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
-  <a href="./coverage/"><img src="https://img.shields.io/badge/tests-1465-brightgreen.svg" alt="Tests: 1465"/></a>
+  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-1465-brightgreen.svg" alt="Tests: 1465"/></a>
 </p>
 
 <p align="center">
