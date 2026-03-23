@@ -5,6 +5,34 @@ All notable changes to tenetx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-03-23
+
+### Added
+- **Forge** — signal-based personalization engine: project scanning, 10-question interview, 5 continuous dimensions (qualityFocus, autonomyPreference, riskTolerance, abstractionLevel, communicationStyle), generates agent overlays, skill tuning, rules, hook parameters, philosophy, and routing config
+- **Lab** — adaptive optimization engine: JSONL event tracking, 8 behavioral pattern detectors, auto-learning closed loop (Lab → Forge, EMA 0.25, daily), component effectiveness scoring, A/B experiments, session cost tracking with HUD integration
+- **Remix** — harness composition: browse/search published harnesses, cherry-pick individual components (agent/skill/hook/rule/principle), conflict detection (hash-based), provenance tracking
+- **Multi-model Synthesizer** — heuristic response evaluation (4-axis scoring), agreement analysis, task-type-weighted provider synthesis, provider performance tracking
+- **AST-grep integration** — real AST parsing via `sg` CLI with regex fallback, pre-built patterns for TypeScript/Python/Go/Rust, `tenetx ast` CLI
+- **LSP integration** — JSON-RPC 2.0 over stdio client, auto-detects tsserver/pylsp/gopls/rust-analyzer/jdtls, hover/definition/references/diagnostics, `tenetx lsp` CLI
+- **`tenetx me`** — personal dashboard showing profile, evolution history, detected patterns, agent tuning, session cost
+- **`tenetx forge`** — onboarding UX with live dimension visualization after each interview answer
+- **`tenetx lab evolve`** — manual/auto learning cycle with dry-run support
+- **`tenetx lab cost`** / **`tenetx cost`** — session cost tracking and reporting
+- **`tenetx synth`** — multi-model synthesis status, weights, and history
+- **hookTuning pipeline** — forge generates hook parameters → hook-config.json → actual hooks (slop-detector, context-guard, secret-filter) read and apply them
+- **Skill-tuner** — 6 skills (autopilot, ralph, team, ultrawork, code-review, tdd) respond to forge dimensions
+- **Auto-learn notification** — profile evolution changes displayed on harness startup
+- **Setup → Forge integration** — `tenetx setup` offers forge personalization at the end
+- 257 new tests (14 files) covering forge, lab, remix, evaluator, synthesizer, LSP
+
+### Changed
+- README rewritten for all 4 languages (EN/KO/ZH/JA) with new positioning: "The AI coding tool that adapts to you"
+- package.json and plugin.json description updated to new positioning
+- Interview deltas increased (±0.10~0.30) for meaningful profile divergence
+- Auto-learn constants tuned: LEARNING_RATE 0.15→0.25, MAX_DELTA 0.1→0.15, MIN_EVENTS 50→30
+- Agent overlays enriched from 1-3 line fragments to 3-5 sentence behavioral briefings
+- LSP request timeout increased to 30s for large project indexing
+
 ## [1.6.3] - 2026-03-23
 
 ### Fixed
