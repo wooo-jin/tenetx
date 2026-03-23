@@ -56,7 +56,7 @@ export interface LspClient {
 
 // ── Helpers ──
 
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /** 로컬 경로를 file:// URI로 변환 */
 export function pathToUri(filePath: string): string {
