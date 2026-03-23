@@ -94,6 +94,17 @@ export interface ArchitectureSignals {
   hasChangelog: boolean;
   /** 모노레포 여부 */
   isMonorepo: boolean;
+  /** AST 분석 결과 (ast-grep 사용 가능 시) */
+  ast?: {
+    /** 함수 수 (AST 정확 측정) */
+    functionCount: number;
+    /** 클래스 수 */
+    classCount: number;
+    /** try-catch 블록 수 */
+    tryCatchCount: number;
+    /** ast-grep 사용 여부 */
+    engine: 'ast-grep' | 'regex';
+  };
 }
 
 /** 프로젝트 스캔 종합 결과 */

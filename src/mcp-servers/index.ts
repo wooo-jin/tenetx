@@ -31,7 +31,7 @@ export function getBuiltinServer(name: string): McpServerDefinition | undefined 
 
 // Re-export types and helpers
 export type { McpServerDefinition, SearchResult, SecretFinding, DependencyReport } from './types.js';
-export { detectLanguageServer } from './lsp-bridge.js';
+export { detectLanguageServer, lspHover, lspDefinition, lspReferences, lspDiagnostics, lspStatus, lspShutdown } from './lsp-bridge.js';
 export { astSearch } from './ast-search.js';
 export { detectTestFramework } from './test-runner.js';
 export { generateRepoIndex } from './repo-index.js';

@@ -396,6 +396,24 @@ const commands: Command[] = [
       await handleUninstall(process.cwd(), { force: args.includes('--force') });
     },
   },
+  {
+    name: 'ast',
+    description: 'AST-based code search (search|functions|classes|calls|status)',
+    category: 'command',
+    handler: async (args) => {
+      const { handleAst } = await import('./engine/ast-cli.js');
+      await handleAst(args);
+    },
+  },
+  {
+    name: 'lsp',
+    description: 'Language Server Protocol (status|hover|definition|references|diagnostics)',
+    category: 'command',
+    handler: async (args) => {
+      const { handleLsp } = await import('./core/lsp-cli.js');
+      await handleLsp(args);
+    },
+  },
 ];
 
 function findCommand(name: string): Command | undefined {

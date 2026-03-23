@@ -16,6 +16,11 @@ import type {
   CodeStyleSignals,
   ArchitectureSignals,
 } from './types.js';
+import {
+  isAstGrepAvailable,
+  astGrepSearch,
+  AST_PATTERNS,
+} from '../engine/ast-adapter.js';
 
 // ── Git Signals ─────────────────────────────────────
 
@@ -281,15 +286,62 @@ function scanArchitecture(cwd: string): ArchitectureSignals {
   return { maxDirDepth, srcDirCount, hasDocs, hasReadme, hasChangelog, isMonorepo };
 }
 
+// ── AST-enhanced Architecture ───────────────────────
+
+/** ast-grep이 사용 가능하면 AST 분석 결과를 ArchitectureSignals에 추가 */
+async function enrichWithAst(arch: ArchitectureSignals, cwd: string): Promise<ArchitectureSignals> {
+  if (!isAstGrepAvailable()) {
+    return arch;
+  }
+
+  try {
+    const [functions, asyncFunctions, classes, tryCatches] = await Promise.all([
+      astGrepSearch({ pattern: AST_PATTERNS.typescript.function, language: 'ts', cwd }),
+      astGrepSearch({ pattern: AST_PATTERNS.typescript.asyncFunction, language: 'ts', cwd }),
+      astGrepSearch({ pattern: AST_PATTERNS.typescript.class, language: 'ts', cwd }),
+      astGrepSearch({ pattern: AST_PATTERNS.typescript.tryCatch, language: 'ts', cwd }),
+    ]);
+
+    arch.ast = {
+      functionCount: functions.length + asyncFunctions.length,
+      classCount: classes.length,
+      tryCatchCount: tryCatches.length,
+      engine: 'ast-grep',
+    };
+  } catch {
+    // AST 분석 실패 시 무시
+  }
+
+  return arch;
+}
+
 // ── Public API ──────────────────────────────────────
 
 /** 프로젝트를 전체 스캔하여 ProjectSignals 반환 */
 export function scanProject(cwd: string): ProjectSignals {
+  const arch = scanArchitecture(cwd);
+
+  // ast-grep 강화는 비동기이므로 동기 API에서는 기본값 사용
+  // scanProjectAsync를 사용하면 AST 분석 포함
   return {
     git: scanGit(cwd),
     dependencies: scanDependencies(cwd),
     codeStyle: scanCodeStyle(cwd),
-    architecture: scanArchitecture(cwd),
+    architecture: arch,
+    scannedAt: new Date().toISOString(),
+  };
+}
+
+/** AST 분석을 포함한 비동기 스캔 */
+export async function scanProjectAsync(cwd: string): Promise<ProjectSignals> {
+  const arch = scanArchitecture(cwd);
+  const enrichedArch = await enrichWithAst(arch, cwd);
+
+  return {
+    git: scanGit(cwd),
+    dependencies: scanDependencies(cwd),
+    codeStyle: scanCodeStyle(cwd),
+    architecture: enrichedArch,
     scannedAt: new Date().toISOString(),
   };
 }
@@ -323,6 +375,10 @@ export function formatScanResult(signals: ProjectSignals): string {
   lines.push(`    dir depth: ${signals.architecture.maxDirDepth}, src dirs: ${signals.architecture.srcDirCount}`);
   lines.push(`    docs: ${signals.architecture.hasDocs}, readme: ${signals.architecture.hasReadme}, changelog: ${signals.architecture.hasChangelog}`);
   lines.push(`    monorepo: ${signals.architecture.isMonorepo}`);
+  if (signals.architecture.ast) {
+    const a = signals.architecture.ast;
+    lines.push(`    ast (${a.engine}): functions ${a.functionCount}, classes ${a.classCount}, try-catch ${a.tryCatchCount}`);
+  }
 
   return lines.join('\n');
 }
