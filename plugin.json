@@ -1,7 +1,7 @@
 {
   "$schema": "https://claude.ai/schemas/claude-plugin.json",
   "name": "tenetx",
-  "version": "1.6.3",
+  "version": "1.7.0",
   "description": "The AI coding tool that adapts to you — personalized harness for Claude Code",
   "author": "jang-ujin",
   "license": "MIT",
@@ -18,9 +18,21 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/keyword-detector.js\"", "timeout": 5000 },
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/skill-injector.js\"", "timeout": 3000 },
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/context-guard.js\"", "timeout": 2000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/keyword-detector.js\"",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/skill-injector.js\"",
+            "timeout": 3000
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/context-guard.js\"",
+            "timeout": 2000
+          }
         ]
       }
     ],
@@ -28,7 +40,11 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/session-recovery.js\"", "timeout": 3000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/session-recovery.js\"",
+            "timeout": 3000
+          }
         ]
       }
     ],
@@ -36,7 +52,11 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/context-guard.js\"", "timeout": 5000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/context-guard.js\"",
+            "timeout": 5000
+          }
         ]
       }
     ],
@@ -44,9 +64,21 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/pre-tool-use.js\"", "timeout": 3000 },
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/db-guard.js\"", "timeout": 3000 },
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/rate-limiter.js\"", "timeout": 2000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/pre-tool-use.js\"",
+            "timeout": 3000
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/db-guard.js\"",
+            "timeout": 3000
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/rate-limiter.js\"",
+            "timeout": 2000
+          }
         ]
       }
     ],
@@ -54,8 +86,16 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/post-tool-use.js\"", "timeout": 3000 },
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/secret-filter.js\"", "timeout": 3000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/post-tool-use.js\"",
+            "timeout": 3000
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/secret-filter.js\"",
+            "timeout": 3000
+          }
         ]
       }
     ],
@@ -63,7 +103,11 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/subagent-tracker.js\" start", "timeout": 2000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/subagent-tracker.js\" start",
+            "timeout": 2000
+          }
         ]
       }
     ],
@@ -71,7 +115,11 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/subagent-tracker.js\" stop", "timeout": 2000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/subagent-tracker.js\" stop",
+            "timeout": 2000
+          }
         ]
       }
     ],
@@ -79,7 +127,11 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/pre-compact.js\"", "timeout": 3000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/pre-compact.js\"",
+            "timeout": 3000
+          }
         ]
       }
     ],
@@ -87,7 +139,11 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/permission-handler.js\"", "timeout": 2000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/permission-handler.js\"",
+            "timeout": 2000
+          }
         ]
       }
     ],
@@ -95,7 +151,11 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "node \"${PLUGIN_DIR}/dist/hooks/post-tool-failure.js\"", "timeout": 3000 }
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_DIR}/dist/hooks/post-tool-failure.js\"",
+            "timeout": 3000
+          }
         ]
       }
     ]
