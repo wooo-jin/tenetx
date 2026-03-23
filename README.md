@@ -130,7 +130,7 @@ Lab runs silently in the background. It watches how you work and adjusts your pr
 
 - **Passive event tracking** — no interruptions, no surveys
 - **8 behavioral pattern detectors** — review style, edit frequency, model preference, autonomy level, and more
-- **Auto-learning** — profile dimensions shift max +/-0.1 per day (EMA 0.15) to prevent whiplash
+- **Auto-learning** — profile dimensions shift max +/-0.1 per day (EMA 0.25) to prevent whiplash
 - **Session cost tracking** — per-session and cumulative, displayed in the HUD
 - **A/B experiments** — Lab can test config variants and measure which works better for you
 
@@ -248,6 +248,32 @@ Every agent adapts its behavior based on your Forge profile:
 | **DOMAIN** | designer, test-engineer, writer, qa-tester, performance-reviewer, scientist, git-master | Specialized expertise |
 
 A developer with Quality=0.80 gets a strict code-reviewer that checks SOLID principles, naming, and edge cases. A developer with Quality=0.40 gets a reviewer focused on correctness only.
+
+### Code Intelligence (AST + LSP)
+
+Tenetx integrates real code understanding tools when available:
+
+**AST-grep** — structural code search using actual syntax trees, not regex:
+
+```bash
+tenetx ast search "function $NAME($$$)" --lang ts   # Find all functions
+tenetx ast classes                                    # List all classes
+tenetx ast calls handleForge                          # Find all call sites
+tenetx ast status                                     # Check if sg is installed
+```
+
+Falls back to regex when `sg` (ast-grep CLI) is not installed. Supports TypeScript, Python, Go, Rust patterns.
+
+**LSP** — real language server integration for type-aware operations:
+
+```bash
+tenetx lsp status                              # Detected servers
+tenetx lsp hover src/forge/types.ts 14 10      # Type info at position
+tenetx lsp definition src/cli.ts 50 20         # Go to definition
+tenetx lsp references src/core/paths.ts 7 13   # Find all references
+```
+
+Auto-detects installed language servers (tsserver, pylsp, gopls, rust-analyzer, jdtls). Falls back gracefully when none available.
 
 ### Real-time Monitoring
 
