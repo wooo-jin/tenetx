@@ -165,6 +165,36 @@ function checkCompoundNegative(toolName: string, toolResponse: string, sessionId
   }
 }
 
+/** Compound v3: Micro-extraction — detect success moments and return hint */
+function getCompoundSuccessHint(toolName: string, toolResponse: string, sessionId: string): string {
+  if (toolName !== 'Bash' || !toolResponse) return '';
+  if (detectErrorPattern(toolResponse)) return '';
+
+  const hints: string[] = [];
+
+  if (/\d+\s*(passed|tests?\s*passed)|all\s*tests?\s*pass/i.test(toolResponse) && !/fail|error/i.test(toolResponse)) {
+    hints.push('Tests passed — record effective patterns with /compound');
+  }
+  if (/build\s*(succeeded|success|done)|compiled?\s*successfully/i.test(toolResponse)) {
+    hints.push('Build success — record implementation patterns with /compound');
+  }
+
+  // Error resolution detection: had previous failures, now succeeding
+  try {
+    if (fs.existsSync(CONTEXT_SIGNALS_PATH)) {
+      const signals = JSON.parse(fs.readFileSync(CONTEXT_SIGNALS_PATH, 'utf-8'));
+      if (signals.sessionId === sessionId && ((signals.previousFailures as number) ?? 0) >= 2) {
+        hints.push('Error resolved after multiple failures — record the root cause and fix with /compound');
+        signals.previousFailures = 0;
+        atomicWriteJSON(CONTEXT_SIGNALS_PATH, signals);
+      }
+    }
+  } catch { /* ignore */ }
+
+  if (hints.length === 0) return '';
+  return `<compound-success-hint>\n${hints.map(h => `- ${h}`).join('\n')}\n</compound-success-hint>`;
+}
+
 /** Update negative evidence counter in solution file */
 function updateNegativeEvidence(solutionName: string): void {
   try {
@@ -311,6 +341,12 @@ async function main(): Promise<void> {
     if (modState.toolCallCount % 20 === 0) {
       checkWorkflowCompletion(sessionId);
     }
+  } catch { /* non-blocking */ }
+
+  // Compound v3: Micro-extraction hints on success moments (non-blocking)
+  try {
+    const successHint = getCompoundSuccessHint(toolName, toolResponse, sessionId);
+    if (successHint) messages.push(successHint);
   } catch { /* non-blocking */ }
 
   // 상태 저장 (toolCallCount 포함)
