@@ -1,61 +1,83 @@
 ---
 name: compound
-description: Compound Engineering (복리화) — 작업 패턴을 추출하여 솔루션으로 축적
+description: Compound Engineering — extract reusable patterns from this session's work
 triggers:
   - "복리화"
   - "compound"
   - "패턴 추출"
   - "솔루션 축적"
+  - "what did we learn"
+  - "배운 것 정리"
 ---
 
 <Purpose>
-작업 완료 후 복리화 단계를 실행합니다.
-세션에서 수행한 작업을 분석하여 패턴, 솔루션, 컨벤션을 추출하고,
-`tenetx compound` CLI를 통해 올바른 경로(~/.compound/me/)에 축적합니다.
+이 세션에서 수행한 작업을 분석하여 재사용 가능한 지식을 추출하고 축적합니다.
+당신은 이 대화의 전체 맥락을 갖고 있으므로, git diff만으로는 알 수 없는 "왜"를 포함할 수 있습니다.
 </Purpose>
 
 <Steps>
-## Phase 1: 컨텍스트 수집
-```bash
-git diff --stat HEAD~1
-git diff HEAD~1
-git log --oneline -5
-```
-`.claude/.modified-files.json`도 참조.
+## Phase 1: 세션 분석
 
-## Phase 2: 분석
-### 솔루션 추출
-- 재사용 가능한 패턴 식별 (패턴명, 적용 상황, 코드 스니펫, 주의사항)
+이 세션의 대화를 돌아보며 다음을 식별하세요:
 
-### 예방 규칙 도출
-- CLAUDE.md 규칙 / 린트 규칙 / 타입 강화 / 테스트 추가 제안
+### 솔루션 (재사용 가능한 패턴)
+- 어떤 기술적 결정을 내렸는가? 왜?
+- 어떤 접근법이 효과적이었는가?
+- 시도했다가 실패한 것은? (anti-pattern)
+- 반복될 수 있는 패턴이 있는가?
 
-## Phase 3: 축적 — `tenetx compound` CLI 사용
+### 트러블슈팅 (문제 해결 지식)
+- 어떤 에러/문제를 만났는가?
+- 근본 원인은 무엇이었는가?
+- 해결 방법은?
+- 다음에 같은 문제를 만나면 바로 적용할 수 있는 해결 절차는?
 
-추출한 각 인사이트를 타입별로 CLI 명령어로 저장합니다:
+### 의사결정 (선택의 근거)
+- 기술 스택/라이브러리 선택의 이유
+- 아키텍처 결정의 배경
+- 트레이드오프와 그 판단 근거
+
+## Phase 2: 품질 게이트
+
+추출 전 각 항목을 검증하세요:
+
+1. **재사용 가능한가?** — 이 프로젝트에만 해당하는 것은 제외 (scope: project로 표시)
+2. **구체적인가?** — "좋은 코드를 작성하자" 같은 일반론은 제외
+3. **실행 가능한가?** — 다음에 적용할 수 있는 구체적 내용이 있는가?
+4. **독성이 없는가?** — @ts-ignore, --force, 임시 우회 같은 패턴은 제외
+
+## Phase 3: 축적
+
+추출한 각 인사이트를 CLI 명령어로 저장합니다:
 
 ```bash
 # 솔루션 (재사용 가능한 패턴)
-tenetx compound --solution "제목" "내용"
+tenetx compound --solution "제목" "왜 이 접근법을 사용했고, 언제 적용하는지 포함한 상세 설명"
 
-# 규칙 (예방 규칙)
-tenetx compound --rule "제목" "내용"
+# 트러블슈팅 (에러 → 원인 → 해결)
+tenetx compound --solution "에러명-해결법" "에러 상황, 근본 원인, 해결 절차를 포함"
 
-# 컨벤션 (코딩 관례)
-tenetx compound --convention "제목" "내용"
+# 의사결정 (선택의 근거)
+tenetx compound --solution "기술선택-이유" "어떤 대안이 있었고 왜 이것을 선택했는지"
 
-# 팀 스코프로 저장 (팀 전체에 공유할 인사이트)
-tenetx compound --solution "제목" "내용" --to team
+# 안티패턴 (피해야 할 것)
+tenetx compound --solution "피해야-할-패턴" "왜 이 접근이 실패했고 대신 무엇을 해야 하는지"
 ```
 
-**중요**: 반드시 위 CLI 명령어로 저장하세요. 직접 파일을 생성하지 마세요.
-이렇게 해야 `Me(N)` 스코프 카운트에 정확히 반영됩니다.
+**중요**:
+- 각 솔루션의 내용에 **"왜"**를 반드시 포함하세요
+- 제목은 구체적으로 (예: "React-useCallback-memo-최적화" O, "성능개선" X)
+- 내용은 다른 세션에서 이 솔루션을 보고 바로 적용할 수 있을 정도로 상세하게
+- 단순 타이포/1줄 수정 세션이면 → "복리화 불필요" 후 종료
 
 ## Phase 4: 리포트
-세션 요약, 추출 패턴, 예방 규칙, CLAUDE.md 업데이트 제안 (직접 수정 X)
 
-## 판정
-단순 타이포/1줄 수정 → "복리화 불필요" 후 종료
+```
+📊 세션 복리화 완료
+├─ 추출: N개 솔루션
+├─ 유형: pattern X개, troubleshoot Y개, decision Z개
+└─ 저장: ~/.compound/me/solutions/
+```
 </Steps>
 
 $ARGUMENTS

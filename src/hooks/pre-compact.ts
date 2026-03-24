@@ -99,13 +99,28 @@ async function main(): Promise<void> {
   // 오래된 handoff 정리
   cleanOldHandoffs();
 
+  const compoundHint = `
+<compound-auto-extract>
+[Tenetx] 컨텍스트 압축이 시작됩니다. 압축 전에 이 세션에서 배운 것을 축적하세요.
+
+이 대화에서 재사용 가능한 패턴이 있다면 다음 명령어로 저장하세요:
+tenetx compound --solution "제목" "내용 (왜 이 접근을 사용했는지 포함)"
+
+추출 기준:
+- 다른 프로젝트/세션에서도 적용 가능한 것만
+- 일회성 우회/핫픽스는 제외
+- 추출할 것이 없으면 무시하고 작업을 계속하세요
+
+이 메시지는 자동 생성되었습니다. 강제가 아닌 제안입니다.
+</compound-auto-extract>`;
+
   // 스냅샷 저장
   try {
     const snapshotPath = saveCompactionSnapshot(sessionId);
     if (snapshotPath) {
       console.log(JSON.stringify({
         result: 'approve',
-        message: `<compound-compact-info>\n[Tenetx] Pre-compaction state snapshot saved: ${path.basename(snapshotPath)}\nActive modes are preserved after compaction.\n</compound-compact-info>`,
+        message: `<compound-compact-info>\n[Tenetx] Pre-compaction state snapshot saved: ${path.basename(snapshotPath)}\nActive modes are preserved after compaction.\n</compound-compact-info>\n${compoundHint}`,
       }));
       return;
     }
@@ -113,7 +128,7 @@ async function main(): Promise<void> {
     debugLog('pre-compact', '스냅샷 저장 실패', e);
   }
 
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(JSON.stringify({ result: 'approve', message: compoundHint }));
 }
 
 main().catch((e) => {
