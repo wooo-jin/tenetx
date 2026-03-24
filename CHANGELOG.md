@@ -203,7 +203,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bilingual documentation (EN/KO)
 - Core CLI commands: `txd` entrypoint
 
-[Unreleased]: https://github.com/wooo-jin/tenetx/compare/v1.6.2...HEAD
+[Unreleased]: https://github.com/wooo-jin/tenetx/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/wooo-jin/tenetx/compare/v1.7.0...v2.0.0
+[1.7.0]: https://github.com/wooo-jin/tenetx/compare/v1.6.3...v1.7.0
+[1.6.3]: https://github.com/wooo-jin/tenetx/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/wooo-jin/tenetx/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/wooo-jin/tenetx/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/wooo-jin/tenetx/compare/v1.4.0...v1.6.0

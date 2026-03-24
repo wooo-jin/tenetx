@@ -246,9 +246,10 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
 
 /** Update evidence counter in a solution file using parse-modify-serialize (safe approach) */
 /** Exported for use by solution-injector */
-export function updateSolutionEvidence(solutionName: string, field: 'reflected' | 'negative' | 'injected' | 'sessions' | 'reExtracted'): void {
+export async function updateSolutionEvidence(solutionName: string, field: 'reflected' | 'negative' | 'injected' | 'sessions' | 'reExtracted'): Promise<void> {
   try {
-    const { parseSolutionV3, serializeSolutionV3 } = require('../engine/solution-format.js') as typeof import('../engine/solution-format.js');
+    // Dynamic import for ESM compatibility (require() fails in "type": "module")
+    const { parseSolutionV3, serializeSolutionV3 } = await import('../engine/solution-format.js');
     const solutionDirs = [
       path.join(os.homedir(), '.compound', 'me', 'solutions'),
       path.join(os.homedir(), '.compound', 'me', 'rules'),

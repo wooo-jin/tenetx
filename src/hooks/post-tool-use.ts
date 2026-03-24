@@ -196,9 +196,9 @@ function getCompoundSuccessHint(toolName: string, toolResponse: string, sessionI
 }
 
 /** Update negative evidence counter in solution file */
-function updateNegativeEvidence(solutionName: string): void {
+async function updateNegativeEvidence(solutionName: string): Promise<void> {
   try {
-    const { parseSolutionV3, serializeSolutionV3 } = require('../engine/solution-format.js') as typeof import('../engine/solution-format.js');
+    const { parseSolutionV3, serializeSolutionV3 } = await import('../engine/solution-format.js');
     const dirs = [
       path.join(os.homedir(), '.compound', 'me', 'solutions'),
       path.join(os.homedir(), '.compound', 'me', 'rules'),
