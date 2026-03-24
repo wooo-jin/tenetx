@@ -137,7 +137,8 @@ export function trackDownload(packName: string, registryRepo?: string): void {
       fs.writeFileSync(regPath, JSON.stringify(registry, null, 2) + '\n');
       execSync('git add -A', { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });
       try {
-        execSync(`git commit -m "stats: download ${packName}"`, { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });
+        const safeName = packName.replace(/[^a-zA-Z0-9가-힣_-]/g, '');
+        execSync(`git commit -m "stats: download ${safeName}"`, { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });
         execSync('git push', { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe', timeout: 15000 });
       } catch { /* no changes or push failed — non-blocking */ }
     }

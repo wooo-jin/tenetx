@@ -158,7 +158,7 @@ function checkCompoundNegative(toolName: string, toolResponse: string, sessionId
       });
 
       // Update evidence.negative in solution file
-      updateNegativeEvidence(sol.name);
+      updateNegativeEvidence(sol.name).catch(e => debugLog('post-tool-use', 'negative evidence 실패', e));
     }
   } catch (e) {
     debugLog('post-tool-use', 'compound negative 체크 실패', e);
