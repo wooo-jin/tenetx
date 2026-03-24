@@ -19,6 +19,7 @@ import { recordTokenUsage as recordLabCost } from '../lab/cost-tracker.js';
 import { runConstraintsOnFile, formatViolations } from '../engine/constraints/constraint-runner.js';
 import { saveCheckpoint } from './session-recovery.js';
 import { track } from '../lab/tracker.js';
+import { recordWriteContent } from '../engine/prompt-learner.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -275,6 +276,13 @@ async function main(): Promise<void> {
         debugLog('post-tool-use', '파일 변경 추적 실패', e);
       }
     }
+
+    // Record write content for non-developer pattern learning (non-blocking)
+    try {
+      const fp = String(toolInput.file_path ?? toolInput.filePath ?? '');
+      const content = String(toolInput.content ?? toolInput.new_string ?? '');
+      if (fp && content) recordWriteContent(fp, content, sessionId);
+    } catch { /* non-blocking */ }
   }
 
   // Bash 도구 실행 결과 에러 감지

@@ -270,6 +270,24 @@ async function main(): Promise<void> {
     }
   } catch { /* non-blocking */ }
 
+  // Compound v3: Detect content patterns from write history
+  try {
+    const { detectContentPatterns } = await import('../engine/prompt-learner.js');
+    const contentPatterns = detectContentPatterns(sessionId);
+    if (contentPatterns.created.length > 0) {
+      debugLog('session-recovery', `새 콘텐츠 패턴 감지: ${contentPatterns.created.join(', ')}`);
+    }
+  } catch { /* non-blocking */ }
+
+  // Compound v3: Detect workflow patterns from mode usage
+  try {
+    const { detectWorkflowPatterns } = await import('../engine/prompt-learner.js');
+    const workflowPatterns = detectWorkflowPatterns(sessionId);
+    if (workflowPatterns.created.length > 0) {
+      debugLog('session-recovery', `새 워크플로우 패턴 감지: ${workflowPatterns.created.join(', ')}`);
+    }
+  } catch { /* non-blocking */ }
+
   // Compound v3: Run lifecycle check once per day
   try {
     const { runLifecycleCheck } = await import('../engine/compound-lifecycle.js');
