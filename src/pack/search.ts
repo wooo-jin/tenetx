@@ -6,6 +6,7 @@
 
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -125,7 +126,7 @@ export function trackDownload(packName: string, registryRepo?: string): void {
   const repo = registryRepo ?? DEFAULT_REGISTRY_REPO;
   try {
     // Clone registry, increment, push
-    const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'tenetx-dl-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-dl-'));
     execSync(`gh repo clone ${repo} "${tmpDir}/reg"`, { stdio: 'pipe', timeout: 15000 });
 
     const regPath = path.join(tmpDir, 'reg', 'registry.json');

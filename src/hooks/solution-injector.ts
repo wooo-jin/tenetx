@@ -168,7 +168,7 @@ async function main(): Promise<void> {
   try {
     const { updateSolutionEvidence } = await import('./pre-tool-use.js');
     for (const sol of toInject) {
-      updateSolutionEvidence(sol.name, 'injected');
+      await updateSolutionEvidence(sol.name, 'injected');
     }
   } catch { /* non-blocking */ }
 

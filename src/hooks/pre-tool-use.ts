@@ -196,7 +196,7 @@ function resetFailCount(): void {
 }
 
 /** Compound v3: detect if Edit/Write code reflects injected solution identifiers */
-function checkCompoundReflection(toolName: string, toolInput: Record<string, unknown>, sessionId: string): void {
+async function checkCompoundReflection(toolName: string, toolInput: Record<string, unknown>, sessionId: string): Promise<void> {
   // Only check Edit and Write tools
   if (toolName !== 'Edit' && toolName !== 'Write') return;
 
@@ -228,11 +228,11 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
         });
 
         // Update evidence in solution file
-        updateSolutionEvidence(sol.name, 'reflected');
+        await updateSolutionEvidence(sol.name, 'reflected');
 
         // Update sessions counter once per session per solution
         if (!sol._sessionCounted) {
-          updateSolutionEvidence(sol.name, 'sessions');
+          await updateSolutionEvidence(sol.name, 'sessions');
           sol._sessionCounted = true;
           // Persist the flag back to injection-cache
           atomicWriteJSON(cachePath, cache);
@@ -318,7 +318,7 @@ async function main(): Promise<void> {
   }
 
   // Compound v3: Code Reflection check (non-blocking)
-  try { checkCompoundReflection(toolName, toolInput, sessionId); } catch { /* non-blocking */ }
+  checkCompoundReflection(toolName, toolInput, sessionId).catch(() => { /* non-blocking */ });
 
   // 활성 모드 리마인더 (10회 호출당 1회 — 결정적 카운터 기반)
   const reminders = getActiveReminders();
