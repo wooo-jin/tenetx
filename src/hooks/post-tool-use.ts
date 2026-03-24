@@ -20,6 +20,7 @@ import { runConstraintsOnFile, formatViolations } from '../engine/constraints/co
 import { saveCheckpoint } from './session-recovery.js';
 import { track } from '../lab/tracker.js';
 import { recordWriteContent } from '../engine/prompt-learner.js';
+import { incrementWorkflowCounter, checkWorkflowCompletion } from '../engine/workflow-compound.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -302,6 +303,15 @@ async function main(): Promise<void> {
 
   // Compound v3: Negative signal check (non-blocking)
   try { checkCompoundNegative(toolName, toolResponse, sessionId); } catch { /* non-blocking */ }
+
+  // Workflow-compound integration: track tool calls and check completion
+  try {
+    incrementWorkflowCounter('toolCall');
+    // Check for workflow completion every 20 tool calls
+    if (modState.toolCallCount % 20 === 0) {
+      checkWorkflowCompletion(sessionId);
+    }
+  } catch { /* non-blocking */ }
 
   // 상태 저장 (toolCallCount 포함)
   saveModifiedFiles(modState);

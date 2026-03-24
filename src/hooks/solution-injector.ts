@@ -19,6 +19,7 @@ import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { filterSolutionContent } from './prompt-injection-filter.js';
 import { recordPrompt } from '../engine/prompt-learner.js';
+import { incrementWorkflowCounter } from '../engine/workflow-compound.js';
 import { track } from '../lab/tracker.js';
 
 interface HookInput {
@@ -90,6 +91,7 @@ async function main(): Promise<void> {
 
   // Record prompt for pattern learning (non-blocking)
   try { recordPrompt(input.prompt, sessionId); } catch { /* non-blocking */ }
+  try { incrementWorkflowCounter('prompt'); } catch { /* non-blocking */ }
 
   const injected = loadSessionCache(sessionId);
 

@@ -17,6 +17,7 @@ import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
 import { recordModeUsage } from '../engine/prompt-learner.js';
+import { recordModeStart } from '../engine/workflow-compound.js';
 import { ModelRouter } from '../engine/router.js';
 import type { RoutingPreset } from '../engine/router.js';
 import { loadPhilosophyForProject } from '../core/philosophy-loader.js';
@@ -375,6 +376,7 @@ async function main(): Promise<void> {
   if (match.type === 'inject') {
     // Compound: mode usage 기록
     try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch { /* non-blocking */ }
+    try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch { /* non-blocking */ }
     // 메시지 주입
     console.log(JSON.stringify({
       result: 'approve',
@@ -387,6 +389,7 @@ async function main(): Promise<void> {
   if (match.skill) {
     // Compound: mode usage 기록
     try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch { /* non-blocking */ }
+    try { recordModeStart(match.skill, input.session_id ?? 'unknown'); } catch { /* non-blocking */ }
     const skillContent = loadSkillContent(match.skill);
     const effectiveCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
     const modelRec = getModelRecommendation(match.prompt ?? input.prompt, effectiveCwd);

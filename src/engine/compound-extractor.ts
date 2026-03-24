@@ -232,6 +232,128 @@ function extractFromDiff(gitLog: string, gitDiff: string): ExtractedSolution[] {
   return solutions.slice(0, 3); // max 3
 }
 
+/** Extract patterns from accumulated session context (prompts + writes + diff) */
+function extractFromSessionContext(
+  gitLog: string,
+  gitDiff: string,
+): ExtractedSolution[] {
+  const solutions: ExtractedSolution[] = [];
+
+  // Load recent prompts
+  const promptHistoryPath = path.join(STATE_DIR, 'prompt-history.jsonl');
+  let prompts: string[] = [];
+  try {
+    if (fs.existsSync(promptHistoryPath)) {
+      const lines = fs.readFileSync(promptHistoryPath, 'utf-8').split('\n').filter(Boolean);
+      prompts = lines.slice(-50).map(l => {
+        try { return JSON.parse(l).prompt as string; } catch { return ''; }
+      }).filter(Boolean);
+    }
+  } catch { /* ignore */ }
+
+  // Load recent writes
+  const writeHistoryPath = path.join(STATE_DIR, 'write-history.jsonl');
+  let writes: Array<{ filePath: string; contentSnippet: string; fileExtension: string }> = [];
+  try {
+    if (fs.existsSync(writeHistoryPath)) {
+      const lines = fs.readFileSync(writeHistoryPath, 'utf-8').split('\n').filter(Boolean);
+      writes = lines.slice(-30).map(l => {
+        try { return JSON.parse(l); } catch { return null; }
+      }).filter(Boolean);
+    }
+  } catch { /* ignore */ }
+
+  // 1. Detect recurring request patterns from prompts
+  // Group similar prompts by extracting key action words
+  const actionPatterns: Record<string, number> = {};
+  for (const p of prompts) {
+    // Extract "verb + object" patterns
+    const verbPatterns = p.match(/(?:만들|작성|수정|추가|삭제|리팩|테스트|검토|분석|설계|배포|fix|create|add|remove|refactor|test|review|analyze|design|deploy)\w*/gi);
+    if (verbPatterns) {
+      for (const vp of verbPatterns) {
+        const key = vp.toLowerCase().slice(0, 20);
+        actionPatterns[key] = (actionPatterns[key] ?? 0) + 1;
+      }
+    }
+  }
+
+  // Find dominant action patterns (appear 3+ times)
+  const dominantActions = Object.entries(actionPatterns)
+    .filter(([, count]) => count >= 3)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  if (dominantActions.length > 0) {
+    const actionList = dominantActions.map(([action, count]) => `${action}(${count}회)`).join(', ');
+    solutions.push({
+      name: 'recurring-task-pattern',
+      type: 'decision',
+      tags: ['workflow', 'recurring', ...dominantActions.map(([a]) => a)],
+      identifiers: [],
+      context: 'Frequently requested actions across sessions',
+      content: `User frequently requests: ${actionList}. Consider automating or templating these recurring tasks.`,
+    });
+  }
+
+  // 2. Detect file co-modification patterns from writes
+  // Which files are always modified together?
+  const sessionFiles: Record<string, Set<string>> = {};
+  for (const w of writes) {
+    const dir = w.filePath.split('/').slice(-2, -1)[0] ?? '';
+    const ext = w.fileExtension;
+    const key = `${dir}/${ext}`;
+    if (!sessionFiles[key]) sessionFiles[key] = new Set();
+    sessionFiles[key].add(w.filePath);
+  }
+
+  // Find directories with many modifications
+  const fileGroups: Record<string, string[]> = {};
+  for (const [key, files] of Object.entries(sessionFiles)) {
+    if (files.size >= 3) {
+      fileGroups[key] = [...files].slice(0, 5);
+    }
+  }
+
+  if (Object.keys(fileGroups).length > 0) {
+    const hotspots = Object.entries(fileGroups)
+      .map(([dir, files]) => `${dir}: ${files.length} files`)
+      .join(', ');
+    solutions.push({
+      name: 'modification-hotspot',
+      type: 'pattern',
+      tags: ['workflow', 'hotspot', 'files', ...Object.keys(fileGroups).slice(0, 3)],
+      identifiers: Object.values(fileGroups).flat().map(f => f.split('/').pop() ?? '').filter(n => n.length >= 4).slice(0, 5),
+      context: 'Frequently modified file areas',
+      content: `Active development areas: ${hotspots}. These areas may benefit from better abstractions or tooling.`,
+    });
+  }
+
+  // 3. Detect decision patterns from prompt + diff correlation
+  // When user asks about X and diff shows Y, the decision is "for X, use Y"
+  const techDecisions: string[] = [];
+  const techTerms = ['react', 'vue', 'next', 'express', 'fastify', 'prisma', 'drizzle', 'zustand', 'redux', 'tailwind', 'styled', 'vitest', 'jest', 'playwright', 'cypress'];
+  for (const term of techTerms) {
+    const inPrompts = prompts.some(p => p.toLowerCase().includes(term));
+    const inDiff = gitDiff.toLowerCase().includes(term);
+    if (inPrompts && inDiff) {
+      techDecisions.push(term);
+    }
+  }
+
+  if (techDecisions.length >= 2) {
+    solutions.push({
+      name: 'tech-stack-decision',
+      type: 'decision',
+      tags: ['stack', 'technology', ...techDecisions.slice(0, 5)],
+      identifiers: techDecisions.filter(t => t.length >= 4).slice(0, 5),
+      context: 'Technology choices confirmed by both discussion and implementation',
+      content: `Active technology stack: ${techDecisions.join(', ')}. Both discussed in prompts and present in code changes.`,
+    });
+  }
+
+  return solutions;
+}
+
 function findCommonPrefix(strings: string[]): string {
   if (strings.length === 0) return '';
   let prefix = strings[0];
@@ -359,8 +481,10 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   // Get diff for extraction prompt
   const gitDiff = getGitDiff(cwd, state.lastCommitSha);
 
-  // Local extraction (no LLM needed)
-  const extracted = extractFromDiff(gitLog, gitDiff);
+  // Combine git diff analysis + session context analysis
+  const diffPatterns = extractFromDiff(gitLog, gitDiff);
+  const contextPatterns = extractFromSessionContext(gitLog, gitDiff);
+  const extracted = [...diffPatterns, ...contextPatterns].slice(0, 3); // max 3 total
 
   if (extracted.length > 0) {
     const { saved, skipped } = processExtractionResults(JSON.stringify(extracted), sessionId);
