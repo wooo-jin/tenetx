@@ -55,11 +55,25 @@ const commands: Command[] = [
   {
     name: 'init',
     aliases: ['setup'],
-    description: 'Initialize project (alias: setup). Use `tenetx forge` for full personalization.',
-    category: 'internal',
+    description: 'Initialize for a platform (codex|gemini|opencode|copilot)',
+    category: 'command',
     handler: async (args) => {
-      const { handleInit } = await import('./core/init.js');
-      await handleInit(args);
+      if (args[0] && ['codex', 'gemini', 'opencode', 'copilot'].includes(args[0])) {
+        const { handlePlatformInit } = await import('./platform/cli.js');
+        await handlePlatformInit(args);
+      } else {
+        const { handleInit } = await import('./core/init.js');
+        await handleInit(args);
+      }
+    },
+  },
+  {
+    name: 'sync',
+    description: 'Sync solutions to another platform (codex|gemini|opencode|copilot)',
+    category: 'command',
+    handler: async (args) => {
+      const { handlePlatformSync } = await import('./platform/cli.js');
+      await handlePlatformSync(args);
     },
   },
   {

@@ -196,7 +196,7 @@ function resetFailCount(): void {
 }
 
 /** Compound v3: detect if Edit/Write code reflects injected solution identifiers */
-function checkCompoundReflection(toolName: string, toolInput: Record<string, unknown>, sessionId: string): void {
+async function checkCompoundReflection(toolName: string, toolInput: Record<string, unknown>, sessionId: string): Promise<void> {
   // Only check Edit and Write tools
   if (toolName !== 'Edit' && toolName !== 'Write') return;
 
@@ -228,11 +228,11 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
         });
 
         // Update evidence in solution file
-        updateSolutionEvidence(sol.name, 'reflected');
+        await updateSolutionEvidence(sol.name, 'reflected');
 
         // Update sessions counter once per session per solution
         if (!sol._sessionCounted) {
-          updateSolutionEvidence(sol.name, 'sessions');
+          await updateSolutionEvidence(sol.name, 'sessions');
           sol._sessionCounted = true;
           // Persist the flag back to injection-cache
           atomicWriteJSON(cachePath, cache);
@@ -246,9 +246,10 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
 
 /** Update evidence counter in a solution file using parse-modify-serialize (safe approach) */
 /** Exported for use by solution-injector */
-export function updateSolutionEvidence(solutionName: string, field: 'reflected' | 'negative' | 'injected' | 'sessions' | 'reExtracted'): void {
+export async function updateSolutionEvidence(solutionName: string, field: 'reflected' | 'negative' | 'injected' | 'sessions' | 'reExtracted'): Promise<void> {
   try {
-    const { parseSolutionV3, serializeSolutionV3 } = require('../engine/solution-format.js') as typeof import('../engine/solution-format.js');
+    // Dynamic import for ESM compatibility (require() fails in "type": "module")
+    const { parseSolutionV3, serializeSolutionV3 } = await import('../engine/solution-format.js');
     const solutionDirs = [
       path.join(os.homedir(), '.compound', 'me', 'solutions'),
       path.join(os.homedir(), '.compound', 'me', 'rules'),
@@ -317,7 +318,7 @@ async function main(): Promise<void> {
   }
 
   // Compound v3: Code Reflection check (non-blocking)
-  try { checkCompoundReflection(toolName, toolInput, sessionId); } catch { /* non-blocking */ }
+  checkCompoundReflection(toolName, toolInput, sessionId).catch(() => { /* non-blocking */ });
 
   // 활성 모드 리마인더 (10회 호출당 1회 — 결정적 카운터 기반)
   const reminders = getActiveReminders();

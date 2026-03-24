@@ -36,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `session-recovery.ts` — SessionStart triggers extraction + daily lifecycle check
 - `state-gc.ts` — injection-cache pattern added for GC
 
+### Multi-Platform (experimental)
+- `tenetx init codex|gemini|opencode|copilot` — platform-specific hook generation
+- `tenetx sync <platform>` — sync verified solutions to platform instruction files
+- Gemini CLI: 6 hook scripts (highest non-Claude parity)
+- Copilot CLI: 4 hook scripts + CLAUDE.md native compatibility
+- OpenCode: TS plugin scaffold with compound learning logic
+- Codex CLI: 3 hooks (platform limitation) + AGENTS.md sync
+- Note: Uses generated shell scripts calling tenetx engine. Native packages planned for v2.2.0
+
 ### Dependencies
 - Added `js-yaml` ^4.1.0 (YAML frontmatter parsing with JSON_SCHEMA safety)
 
@@ -194,7 +203,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bilingual documentation (EN/KO)
 - Core CLI commands: `txd` entrypoint
 
-[Unreleased]: https://github.com/wooo-jin/tenetx/compare/v1.6.2...HEAD
+[Unreleased]: https://github.com/wooo-jin/tenetx/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/wooo-jin/tenetx/compare/v1.7.0...v2.0.0
+[1.7.0]: https://github.com/wooo-jin/tenetx/compare/v1.6.3...v1.7.0
+[1.6.3]: https://github.com/wooo-jin/tenetx/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/wooo-jin/tenetx/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/wooo-jin/tenetx/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/wooo-jin/tenetx/compare/v1.4.0...v1.6.0
