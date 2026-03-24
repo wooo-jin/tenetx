@@ -11,7 +11,12 @@ import * as path from 'node:path';
 import { STATE_DIR } from './paths.js';
 import { debugLog } from './logger.js';
 
-/** GC 대상 파일 패턴 (접두어 기반) */
+/**
+ * GC 대상 파일 패턴 (접두어 기반)
+ *
+ * Note: prompt-history.jsonl is a single append-only file (not session-scoped),
+ * so it does not need GC. It self-rotates at 500 lines in prompt-learner.ts.
+ */
 export const GC_FILE_PATTERNS = [
   'permissions-',       // permissions-{sessionId}.jsonl
   'modified-files-',    // modified-files-{sessionId}.json

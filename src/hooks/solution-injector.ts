@@ -18,6 +18,7 @@ import { debugLog } from '../core/logger.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { filterSolutionContent } from './prompt-injection-filter.js';
+import { recordPrompt } from '../engine/prompt-learner.js';
 import { track } from '../lab/tracker.js';
 
 interface HookInput {
@@ -86,6 +87,10 @@ async function main(): Promise<void> {
   }
 
   const sessionId = input.session_id ?? 'default';
+
+  // Record prompt for pattern learning (non-blocking)
+  try { recordPrompt(input.prompt, sessionId); } catch { /* non-blocking */ }
+
   const injected = loadSessionCache(sessionId);
 
   if (injected.size >= MAX_SOLUTIONS_PER_SESSION) {

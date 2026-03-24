@@ -261,6 +261,15 @@ async function main(): Promise<void> {
     }
   } catch { /* non-blocking */ }
 
+  // Compound v3: Detect preference patterns from prompt history
+  try {
+    const { detectPreferencePatterns } = await import('../engine/prompt-learner.js');
+    const patterns = detectPreferencePatterns(sessionId);
+    if (patterns.created.length > 0) {
+      debugLog('session-recovery', `새 선호도 패턴 감지: ${patterns.created.join(', ')}`);
+    }
+  } catch { /* non-blocking */ }
+
   // Compound v3: Run lifecycle check once per day
   try {
     const { runLifecycleCheck } = await import('../engine/compound-lifecycle.js');
