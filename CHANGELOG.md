@@ -36,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `session-recovery.ts` — SessionStart triggers extraction + daily lifecycle check
 - `state-gc.ts` — injection-cache pattern added for GC
 
+### Multi-Platform (experimental)
+- `tenetx init codex|gemini|opencode|copilot` — platform-specific hook generation
+- `tenetx sync <platform>` — sync verified solutions to platform instruction files
+- Gemini CLI: 6 hook scripts (highest non-Claude parity)
+- Copilot CLI: 4 hook scripts + CLAUDE.md native compatibility
+- OpenCode: TS plugin scaffold with compound learning logic
+- Codex CLI: 3 hooks (platform limitation) + AGENTS.md sync
+- Note: Uses generated shell scripts calling tenetx engine. Native packages planned for v2.2.0
+
 ### Dependencies
 - Added `js-yaml` ^4.1.0 (YAML frontmatter parsing with JSON_SCHEMA safety)
 

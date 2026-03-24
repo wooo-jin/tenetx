@@ -172,6 +172,34 @@ Registry: [wooo-jin/tenetx-registry](https://github.com/wooo-jin/tenetx-registry
 
 ---
 
+## Multi-Platform Support
+
+tenetx's compound engine works best on **Claude Code** (full 17-feature integration). Other platforms are supported via solution sync + platform-specific hooks:
+
+```bash
+tenetx init codex      # Codex CLI
+tenetx init gemini     # Gemini CLI
+tenetx init opencode   # OpenCode
+tenetx init copilot    # Copilot CLI
+
+tenetx sync <platform> # Sync verified solutions
+```
+
+| Feature | Claude Code | Gemini | Copilot | OpenCode | Codex |
+|---------|:-----------:|:------:|:-------:|:--------:|:-----:|
+| Solution injection | Full | Hook | Sync | Plugin | Sync |
+| Code Reflection | Full | Hook | Hook | Plugin | - |
+| Negative signals | Full | Hook | Hook | Plugin | - |
+| Danger blocking | Full | Hook | Hook | Plugin | - |
+| Prompt learning | Full | Hook | Hook | - | Hook |
+| Auto-extraction | Full | Hook | Hook | Plugin | Hook |
+| Lifecycle | Full | Full | Full | Full | Full |
+| Pre-compact hint | Full | Hook | - | Plugin | - |
+
+> **Note**: Non-Claude platforms use generated hook scripts that call tenetx's engine. Native platform packages (@tenetx/gemini-extension, @tenetx/opencode-plugin) are planned for v2.2.0.
+
+---
+
 ## Advanced Features
 
 <details>
