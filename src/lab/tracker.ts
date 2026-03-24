@@ -214,3 +214,32 @@ export function trackSessionMetrics(
     model: model ?? 'unknown',
   });
 }
+
+// ---------------------------------------------------------------------------
+// Compound Track Functions
+// ---------------------------------------------------------------------------
+
+export function trackCompoundInjected(
+  sessionId: string,
+  solutionName: string,
+  status: string,
+  confidence: number,
+): void {
+  track('compound-injected', sessionId, { solutionName, status, confidence });
+}
+
+export function trackCompoundReflected(
+  sessionId: string,
+  solutionName: string,
+  matchedIdentifiers: number,
+): void {
+  track('compound-reflected', sessionId, { solutionName, matchedIdentifiers });
+}
+
+export function trackCompoundNegative(
+  sessionId: string,
+  solutionName: string,
+  signal: string,
+): void {
+  track('compound-negative', sessionId, { solutionName, signal });
+}

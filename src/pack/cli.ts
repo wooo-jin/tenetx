@@ -64,6 +64,11 @@ export async function handlePack(args: string[]): Promise<void> {
           if (parts.length > 0) console.log(`  ${parts.join(' · ')}`);
         }
         console.log();
+        // Track download count (best-effort, non-blocking)
+        try {
+          const { trackDownload } = await import('./search.js');
+          trackDownload(meta.name);
+        } catch { /* non-blocking */ }
         break;
       }
 
@@ -137,6 +142,33 @@ export async function handlePack(args: string[]): Promise<void> {
         console.log(`\n  Next steps:`);
         console.log(`    1. Run tenetx and say "fill the pack" — AI will help.`);
         console.log(`    2. Or edit ~/.compound/packs/${name}/ files directly.\n`);
+        break;
+      }
+
+      case 'publish': {
+        const publishName = args[1];
+        if (!publishName || publishName.startsWith('-')) {
+          console.log('  Usage: tenetx pack publish <pack-name> [--dry-run]');
+          console.log('  Examples:');
+          console.log('    tenetx pack publish my-react-patterns');
+          console.log('    tenetx pack publish my-pack --dry-run');
+          return;
+        }
+        const { publishPack } = await import('./publish.js');
+        const dryRun = args.includes('--dry-run');
+        await publishPack(publishName, { dryRun });
+        break;
+      }
+
+      case 'search': {
+        const query = args[1];
+        if (!query) {
+          const { listRegistryPacks } = await import('./search.js');
+          listRegistryPacks();
+        } else {
+          const { searchPacks } = await import('./search.js');
+          searchPacks(query);
+        }
         break;
       }
 
@@ -494,7 +526,9 @@ function listPacks(): void {
 }
 
 function printPackHelp(): void {
-  console.log('  Usage: tenetx pack <list|install|add|remove|connected|setup|lock|unlock|outdated|sync|init>');
+  console.log('  Usage: tenetx pack <subcommand>');
+  console.log();
+  console.log('  Management:');
   console.log('    list              List installed packs');
   console.log('    install <source>  Install a pack (GitHub, local)');
   console.log('    add <name>        Connect a pack to the project (--repo, --type)');
@@ -506,4 +540,10 @@ function printPackHelp(): void {
   console.log('    outdated          Check for updatable packs');
   console.log('    sync [name]       Sync packs (all or specific)');
   console.log('    init <name>       Create a new pack');
+  console.log();
+  console.log('  Marketplace:');
+  console.log('    search <query>              Search packs in registry');
+  console.log('    search                      List all packs in registry');
+  console.log('    publish <name>              Publish pack to GitHub + registry');
+  console.log('    publish <name> --dry-run    Preview without publishing');
 }

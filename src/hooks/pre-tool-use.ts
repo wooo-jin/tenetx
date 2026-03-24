@@ -14,6 +14,8 @@ import * as os from 'node:os';
 import { debugLog } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { sanitizeId } from './shared/sanitize-id.js';
+import { track } from '../lab/tracker.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'pre-tool-fail-counter.json');
@@ -193,6 +195,90 @@ function resetFailCount(): void {
   try { if (fs.existsSync(FAIL_COUNTER_PATH)) fs.unlinkSync(FAIL_COUNTER_PATH); } catch { /* ignore */ }
 }
 
+/** Compound v3: detect if Edit/Write code reflects injected solution identifiers */
+function checkCompoundReflection(toolName: string, toolInput: Record<string, unknown>, sessionId: string): void {
+  // Only check Edit and Write tools
+  if (toolName !== 'Edit' && toolName !== 'Write') return;
+
+  const code = String(toolInput.new_string ?? toolInput.content ?? '');
+  if (!code || code.length < 10) return;
+
+  // Load injection cache
+  const cachePath = path.join(STATE_DIR, `injection-cache-${sanitizeId(sessionId)}.json`);
+  if (!fs.existsSync(cachePath)) return;
+
+  try {
+    const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+    if (!Array.isArray(cache.solutions)) return;
+
+    for (const sol of cache.solutions) {
+      if (!Array.isArray(sol.identifiers) || sol.identifiers.length === 0) continue;
+
+      // Require at least 2 identifiers to match (reduce false positives)
+      const minMatch = Math.min(2, sol.identifiers.length);
+      const matchCount = sol.identifiers.filter(
+        (id: string) => id.length >= 4 && code.includes(id)
+      ).length;
+
+      if (matchCount >= minMatch) {
+        track('compound-reflected', sessionId, {
+          solutionName: sol.name,
+          matchedIdentifiers: matchCount,
+          totalIdentifiers: sol.identifiers.length,
+        });
+
+        // Update evidence in solution file
+        updateSolutionEvidence(sol.name, 'reflected');
+
+        // Update sessions counter once per session per solution
+        if (!sol._sessionCounted) {
+          updateSolutionEvidence(sol.name, 'sessions');
+          sol._sessionCounted = true;
+          // Persist the flag back to injection-cache
+          atomicWriteJSON(cachePath, cache);
+        }
+      }
+    }
+  } catch (e) {
+    debugLog('pre-tool-use', 'compound reflection 체크 실패', e);
+  }
+}
+
+/** Update evidence counter in a solution file using parse-modify-serialize (safe approach) */
+/** Exported for use by solution-injector */
+export function updateSolutionEvidence(solutionName: string, field: 'reflected' | 'negative' | 'injected' | 'sessions' | 'reExtracted'): void {
+  try {
+    const { parseSolutionV3, serializeSolutionV3 } = require('../engine/solution-format.js') as typeof import('../engine/solution-format.js');
+    const solutionDirs = [
+      path.join(os.homedir(), '.compound', 'me', 'solutions'),
+      path.join(os.homedir(), '.compound', 'me', 'rules'),
+    ];
+
+    for (const dir of solutionDirs) {
+      if (!fs.existsSync(dir)) continue;
+      const files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
+      for (const file of files) {
+        const filePath = path.join(dir, file);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        if (!content.includes(`name: "${solutionName}"`) && !content.includes(`name: ${solutionName}`)) continue;
+
+        // Found — parse, modify, serialize (safe approach, no regex on content)
+        const solution = parseSolutionV3(content);
+        if (!solution) return;
+        const ev = solution.frontmatter.evidence;
+        if (field in ev) {
+          (ev as unknown as Record<string, number>)[field] = ((ev as unknown as Record<string, number>)[field] ?? 0) + 1;
+        }
+        solution.frontmatter.updated = new Date().toISOString().split('T')[0];
+        fs.writeFileSync(filePath, serializeSolutionV3(solution), 'utf-8');
+        return;
+      }
+    }
+  } catch (e) {
+    debugLog('pre-tool-use', `evidence 업데이트 실패: ${solutionName}`, e);
+  }
+}
+
 async function main(): Promise<void> {
   const data = await readStdinJSON<PreToolInput>();
   if (!data) {
@@ -211,6 +297,7 @@ async function main(): Promise<void> {
 
   const toolName = data.tool_name ?? data.toolName ?? '';
   const toolInput = data.tool_input ?? data.toolInput ?? {};
+  const sessionId = data.session_id ?? 'default';
 
   // Bash 도구: 위험 명령어 감지
   const check = checkDangerousCommand(toolName, toolInput);
@@ -228,6 +315,9 @@ async function main(): Promise<void> {
     }));
     return;
   }
+
+  // Compound v3: Code Reflection check (non-blocking)
+  try { checkCompoundReflection(toolName, toolInput, sessionId); } catch { /* non-blocking */ }
 
   // 활성 모드 리마인더 (10회 호출당 1회 — 결정적 카운터 기반)
   const reminders = getActiveReminders();

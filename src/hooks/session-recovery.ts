@@ -251,6 +251,35 @@ async function main(): Promise<void> {
     } catch (e) { debugLog('session-recovery', 'handoff 파일 읽기 실패', e); }
   }
 
+  // Compound v3: Trigger lazy extraction if new commits exist
+  const sessionId = `session-${Date.now()}`;
+  try {
+    const { runExtraction, isExtractionPaused } = await import('../engine/compound-extractor.js');
+    if (!isExtractionPaused()) {
+      const cwd = process.env.COMPOUND_CWD ?? process.cwd();
+      await runExtraction(cwd, sessionId);
+    }
+  } catch { /* non-blocking */ }
+
+  // Compound v3: Run lifecycle check once per day
+  try {
+    const { runLifecycleCheck } = await import('../engine/compound-lifecycle.js');
+    const lastLifecyclePath = path.join(STATE_DIR, 'last-lifecycle.json');
+    let shouldRun = true;
+    try {
+      if (fs.existsSync(lastLifecyclePath)) {
+        const data = JSON.parse(fs.readFileSync(lastLifecyclePath, 'utf-8'));
+        const last = new Date(data.lastRun).getTime();
+        shouldRun = Date.now() - last > 24 * 60 * 60 * 1000;
+      }
+    } catch { /* run anyway */ }
+    if (shouldRun) {
+      runLifecycleCheck(sessionId);
+      const { atomicWriteJSON: writeJSON } = await import('./shared/atomic-write.js');
+      writeJSON(lastLifecyclePath, { lastRun: new Date().toISOString() });
+    }
+  } catch { /* non-blocking */ }
+
   if (recoveryMessages.length > 0) {
     console.log(JSON.stringify({
       result: 'approve',

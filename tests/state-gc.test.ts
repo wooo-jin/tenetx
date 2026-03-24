@@ -159,12 +159,14 @@ describe('cleanStaleStateFiles()', () => {
     expect(DEFAULT_MAX_AGE_MS).toBe(48 * 60 * 60 * 1000);
   });
 
-  it('GC_FILE_PATTERNS에 4개 패턴이 포함되어 있다', () => {
-    expect(GC_FILE_PATTERNS).toHaveLength(4);
+  it('GC_FILE_PATTERNS에 6개 패턴이 포함되어 있다', () => {
+    expect(GC_FILE_PATTERNS).toHaveLength(6);
     expect(GC_FILE_PATTERNS).toContain('permissions-');
     expect(GC_FILE_PATTERNS).toContain('modified-files-');
     expect(GC_FILE_PATTERNS).toContain('skill-cache-');
     expect(GC_FILE_PATTERNS).toContain('token-usage-');
+    expect(GC_FILE_PATTERNS).toContain('solution-cache-');
+    expect(GC_FILE_PATTERNS).toContain('injection-cache-');
   });
 
   it('active: true인 상태 파일은 GC에서 보호된다 (10I)', () => {

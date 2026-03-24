@@ -1,6 +1,6 @@
 {
   "name": "tenetx",
-  "version": "1.7.0",
+  "version": "2.0.0",
   "main": "dist/cli.js",
   "types": "./dist/cli.d.ts",
   "exports": {
@@ -60,6 +60,7 @@
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.19.15",
     "@types/react": "^18.3.28",
     "@vitest/coverage-v8": "^4.1.0",
@@ -68,6 +69,7 @@
   },
   "dependencies": {
     "ink": "^5.2.1",
+    "js-yaml": "^4.1.1",
     "react": "^18.3.1"
   }
 }

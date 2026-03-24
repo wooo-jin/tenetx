@@ -17,7 +17,14 @@ export type LabEventType =
   | 'user-override'
   | 'session-metrics'
   | 'synthesis'
-  | 'auto-evolve';
+  | 'auto-evolve'
+  // Compound Engine v3
+  | 'compound-injected'
+  | 'compound-reflected'
+  | 'compound-negative'
+  | 'compound-extracted'
+  | 'compound-promoted'
+  | 'compound-demoted';
 
 export interface LabEvent {
   /** Unique event ID */

@@ -54,44 +54,18 @@ const commands: Command[] = [
   },
   {
     name: 'init',
-    description: 'Auto-detect project type and initialize philosophy',
-    category: 'command',
+    aliases: ['setup'],
+    description: 'Initialize project (alias: setup). Use `tenetx forge` for full personalization.',
+    category: 'internal',
     handler: async (args) => {
       const { handleInit } = await import('./core/init.js');
       await handleInit(args);
     },
   },
   {
-    name: 'setup',
-    description: 'Initial setup (global) / --project [--pack|--extends <name>] / --yes',
-    category: 'command',
-    handler: async (args) => {
-      const isYes = args.includes('--yes') || args.includes('-y');
-      if (args.includes('--project')) {
-        const packIdx = args.indexOf('--pack');
-        const pack = packIdx !== -1 ? args[packIdx + 1] : undefined;
-        if (packIdx !== -1 && (!pack || pack.startsWith('--'))) {
-          console.error('[tenetx] --pack option requires a value. Example: --pack my-pack');
-          process.exit(1);
-        }
-        const extendsIdx = args.indexOf('--extends');
-        const extendsFrom = extendsIdx !== -1 ? args[extendsIdx + 1] : undefined;
-        if (extendsIdx !== -1 && (!extendsFrom || extendsFrom.startsWith('--'))) {
-          console.error('[tenetx] --extends option requires a value. Example: --extends base-pack');
-          process.exit(1);
-        }
-        const { runProjectSetup } = await import('./core/setup.js');
-        await runProjectSetup(process.cwd(), { pack, extends: extendsFrom, yes: isYes });
-      } else {
-        const { runSetup } = await import('./core/setup.js');
-        await runSetup({ yes: isYes });
-      }
-    },
-  },
-  {
     name: 'philosophy',
     description: 'Manage philosophy (show|edit)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handlePhilosophy } = await import('./core/philosophy-cli.js');
       await handlePhilosophy(args);
@@ -109,7 +83,7 @@ const commands: Command[] = [
   {
     name: 'scan',
     description: 'Scan project structure / --constraints / --init-constraints / --md',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleScan } = await import('./core/scan.js');
       await handleScan(args);
@@ -118,7 +92,7 @@ const commands: Command[] = [
   {
     name: 'verify',
     description: 'Auto verify loop (build+test+constraints) / --review / --gardening / --all',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleVerify } = await import('./core/verify.js');
       await handleVerify(args);
@@ -126,8 +100,8 @@ const commands: Command[] = [
   },
   {
     name: 'stats',
-    description: 'Session statistics [--week]',
-    category: 'command',
+    description: 'Session statistics [--week] (see: tenetx me)',
+    category: 'internal',
     handler: async (args) => {
       const { handleStats } = await import('./core/stats.js');
       await handleStats(args);
@@ -145,7 +119,7 @@ const commands: Command[] = [
   {
     name: 'cost',
     description: 'Session cost tracking (shorthand for lab cost)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { printCostSummary } = await import('./lab/cost-tracker.js');
       printCostSummary(args);
@@ -154,7 +128,7 @@ const commands: Command[] = [
   {
     name: 'pick',
     description: 'Cherry-pick insight to Me (<src> --from <pack>)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handlePick } = await import('./pack/crossover.js');
       await handlePick(args);
@@ -163,7 +137,7 @@ const commands: Command[] = [
   {
     name: 'propose',
     description: 'Propose insight to team [--pack <name>]',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handlePropose } = await import('./pack/crossover.js');
       await handlePropose(args);
@@ -172,7 +146,7 @@ const commands: Command[] = [
   {
     name: 'proposals',
     description: 'View pending team rule proposals',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleProposals } = await import('./core/proposals.js');
       await handleProposals(args);
@@ -190,7 +164,7 @@ const commands: Command[] = [
   {
     name: 'ask',
     description: 'Multi-provider question ("question" --compare --fallback)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleAsk } = await import('./core/ask.js');
       await handleAsk(args);
@@ -200,7 +174,7 @@ const commands: Command[] = [
     name: 'codex-spawn',
     aliases: ['codex'],
     description: 'Spawn Codex as teammate in tmux panel',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleCodexSpawn } = await import('./core/codex-spawn.js');
       await handleCodexSpawn(args);
@@ -209,7 +183,7 @@ const commands: Command[] = [
   {
     name: 'providers',
     description: 'Manage providers (enable/disable/model/auth)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleProviders } = await import('./core/ask.js');
       await handleProviders(args);
@@ -218,7 +192,7 @@ const commands: Command[] = [
   {
     name: 'synth',
     description: 'Multi-model synthesis (status|weights|history)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleSynth } = await import('./engine/synthesizer.js');
       await handleSynth(args);
@@ -227,7 +201,7 @@ const commands: Command[] = [
   {
     name: 'wait',
     description: 'Rate limit wait + notify (<minutes>)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleWait } = await import('./core/wait.js');
       await handleWait(args);
@@ -236,7 +210,7 @@ const commands: Command[] = [
   {
     name: 'notify',
     description: 'Send notification / config <channel>',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleNotify } = await import('./core/notify.js');
       await handleNotify(args);
@@ -245,7 +219,7 @@ const commands: Command[] = [
   {
     name: 'status',
     description: 'Print current status line',
-    category: 'command',
+    category: 'internal',
     handler: async (_args) => {
       const { printStatus } = await import('./core/status-line.js');
       await printStatus();
@@ -254,7 +228,7 @@ const commands: Command[] = [
   {
     name: 'doctor',
     description: 'Diagnostics',
-    category: 'command',
+    category: 'internal',
     handler: async (_args) => {
       const { runDoctor } = await import('./core/doctor.js');
       await runDoctor();
@@ -263,7 +237,7 @@ const commands: Command[] = [
   {
     name: 'install',
     description: 'Install as .claude-plugin format (--plugin required)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       if (!args.includes('--plugin')) {
         console.error('Usage: tenetx install --plugin');
@@ -282,7 +256,7 @@ const commands: Command[] = [
   {
     name: 'mcp',
     description: 'Manage MCP servers (list|templates|add <name>|remove <name>)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleMcp } = await import('./core/mcp-config.js');
       await handleMcp(args);
@@ -290,8 +264,8 @@ const commands: Command[] = [
   },
   {
     name: 'marketplace',
-    description: 'Plugin marketplace (search|install|list|remove)',
-    category: 'command',
+    description: 'Plugin marketplace (see: tenetx pack search)',
+    category: 'internal',
     handler: async (args) => {
       const { handleMarketplace } = await import('./core/marketplace.js');
       await handleMarketplace(args);
@@ -300,7 +274,7 @@ const commands: Command[] = [
   {
     name: 'session',
     description: 'Session management (search|list|show)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleSession } = await import('./core/session-search.js');
       await handleSession(args);
@@ -309,7 +283,7 @@ const commands: Command[] = [
   {
     name: 'worktree',
     description: 'Git worktree management (list|create|remove|teleport)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleWorktree } = await import('./core/worktree.js');
       await handleWorktree(args);
@@ -318,7 +292,7 @@ const commands: Command[] = [
   {
     name: 'notepad',
     description: 'Notepad (show|add|clear)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleNotepad } = await import('./core/notepad.js');
       await handleNotepad(args);
@@ -327,7 +301,7 @@ const commands: Command[] = [
   {
     name: 'rules',
     description: 'View personal and team rules',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleRules } = await import('./core/rules-viewer.js');
       await handleRules(args);
@@ -354,7 +328,7 @@ const commands: Command[] = [
   {
     name: 'gateway',
     description: 'Event gateway (config <url>|test|disable)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleGateway } = await import('./engine/event-gateway.js');
       await handleGateway(args);
@@ -363,7 +337,7 @@ const commands: Command[] = [
   {
     name: 'worker',
     description: 'AI Workers (spawn|list|kill|output)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleWorker } = await import('./core/ai-worker.js');
       await handleWorker(args);
@@ -372,7 +346,7 @@ const commands: Command[] = [
   {
     name: 'governance',
     description: 'Governance report (--json|--trend)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleGovernance } = await import('./engine/governance.js');
       await handleGovernance(args);
@@ -381,7 +355,7 @@ const commands: Command[] = [
   {
     name: 'remix',
     description: 'Harness remix (browse|inspect|pick|status|update|publish)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleRemix } = await import('./remix/cli.js');
       await handleRemix(args);
@@ -390,7 +364,7 @@ const commands: Command[] = [
   {
     name: 'uninstall',
     description: 'Remove CH from settings/agents/CLAUDE.md [--force]',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleUninstall } = await import('./core/uninstall.js');
       await handleUninstall(process.cwd(), { force: args.includes('--force') });
@@ -399,7 +373,7 @@ const commands: Command[] = [
   {
     name: 'ast',
     description: 'AST-based code search (search|functions|classes|calls|status)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleAst } = await import('./engine/ast-cli.js');
       await handleAst(args);
@@ -408,7 +382,7 @@ const commands: Command[] = [
   {
     name: 'lsp',
     description: 'Language Server Protocol (status|hover|definition|references|diagnostics)',
-    category: 'command',
+    category: 'internal',
     handler: async (args) => {
       const { handleLsp } = await import('./core/lsp-cli.js');
       await handleLsp(args);

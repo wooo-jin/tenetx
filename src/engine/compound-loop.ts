@@ -2,6 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ME_SOLUTIONS, ME_RULES, PACKS_DIR } from '../core/paths.js';
 import { resolveScope } from '../core/scope-resolver.js';
+import { serializeSolutionV3, extractTags, DEFAULT_EVIDENCE, slugify } from './solution-format.js';
+import type { SolutionV3, SolutionType } from './solution-format.js';
 
 export interface CompoundInsight {
   id: string;
@@ -114,29 +116,58 @@ function getDestPath(insight: CompoundInsight, teamPackName?: string): string | 
   return path.join(dir, fileName);
 }
 
-function formatInsight(insight: CompoundInsight): string {
-  const lines: string[] = [
-    `# ${insight.title}`,
-    '',
-    `> Type: ${insight.type}`,
-    `> Scope: ${insight.scope}`,
-    `> Classification: ${insight.classification}`,
-    `> Created: ${new Date().toISOString().split('T')[0]}`,
-    '',
-    insight.content,
-    '',
-  ];
-  return lines.join('\n');
+/** Map v1 CompoundInsight type to v3 SolutionType */
+function mapInsightType(type: CompoundInsight['type']): SolutionType {
+  switch (type) {
+    case 'solution': return 'pattern';
+    case 'pattern': return 'pattern';
+    case 'rule': return 'decision';
+    case 'convention': return 'decision';
+    default: return 'pattern';
+  }
 }
 
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9가-힣\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 60);
+/** Infer identifiers from title and content for Code Reflection matching */
+function inferIdentifiers(title: string, content: string): string[] {
+  const text = `${title} ${content}`;
+  // Extract PascalCase words (likely class/component names)
+  const pascalCase = text.match(/\b[A-Z][a-zA-Z0-9]{3,}\b/g) ?? [];
+  // Extract camelCase words starting with lowercase (likely function names)
+  const camelCase = text.match(/\b[a-z][a-zA-Z0-9]{3,}(?=[A-Z])\w*/g) ?? [];
+  // Extract quoted strings that look like identifiers
+  const quoted = text.match(/['"`]([a-zA-Z][a-zA-Z0-9-]{3,})['"`]/g)?.map(s => s.slice(1, -1)) ?? [];
+
+  const all = [...new Set([...pascalCase, ...camelCase, ...quoted])]
+    .filter(id => id.length >= 4 && id.length <= 50);
+
+  return all.slice(0, 10); // max 10 identifiers
 }
+
+function formatInsight(insight: CompoundInsight): string {
+  const today = new Date().toISOString().split('T')[0];
+  const solution: SolutionV3 = {
+    frontmatter: {
+      name: slugify(insight.title),
+      version: 1,
+      status: 'candidate',
+      confidence: 0.5,
+      type: mapInsightType(insight.type),
+      scope: insight.scope as 'me' | 'team' | 'project',
+      tags: extractTags(insight.title + ' ' + insight.content),
+      identifiers: inferIdentifiers(insight.title, insight.content),
+      evidence: { ...DEFAULT_EVIDENCE },
+      created: today,
+      updated: today,
+      supersedes: null,
+      extractedBy: insight.source === 'manual' ? 'manual' : 'auto',
+    },
+    context: '',
+    content: insight.content,
+  };
+  return serializeSolutionV3(solution);
+}
+
+// slugify is imported from solution-format.ts (single source of truth)
 
 /** 팀 제안으로 저장 (.compound/proposals/) */
 export function saveTeamProposals(insights: CompoundInsight[], cwd: string): void {
@@ -200,12 +231,138 @@ export async function handleCompound(args: string[]): Promise<void> {
     tenetx compound --rule "title" "content"
     tenetx compound --convention "title" "content"
     tenetx compound --to team        Save to team scope
+
+  Inspect & manage:
+    tenetx compound list             List all solutions with status
+    tenetx compound inspect <name>   Show solution details
+    tenetx compound remove <name>    Remove a solution
+    tenetx compound rollback --since 2026-03-20
+                                     Rollback unused solutions since date
+
+  Lifecycle:
+    tenetx compound --lifecycle      Run promotion/demotion/circuit-breaker check
+    tenetx compound --verify <name>  Manually promote solution to verified
+
+  Auto-extraction:
+    tenetx compound --pause-auto     Pause auto-extraction
+    tenetx compound --resume-auto    Resume auto-extraction
 `);
     return;
   }
 
+  // --pause-auto / --resume-auto
+  if (args.includes('--pause-auto') || args.includes('pause-auto')) {
+    const { pauseExtraction } = await import('./compound-extractor.js');
+    pauseExtraction();
+    console.log('  자동 추출이 중단되었습니다. resume-auto로 재개할 수 있습니다.\n');
+    return;
+  }
+
+  if (args.includes('--resume-auto') || args.includes('resume-auto')) {
+    const { resumeExtraction } = await import('./compound-extractor.js');
+    resumeExtraction();
+    console.log('  자동 추출이 재개되었습니다.\n');
+    return;
+  }
+
+  // --- lifecycle command ---
+  if (args.includes('--lifecycle') || args.includes('lifecycle')) {
+    const { runLifecycleCheck } = await import('./compound-lifecycle.js');
+    const result = runLifecycleCheck();
+    console.log('\n  Compound Lifecycle Check\n');
+    if (result.promoted.length) {
+      console.log('  Promoted:');
+      for (const p of result.promoted) console.log(`    ↑ ${p}`);
+    }
+    if (result.demoted.length) {
+      console.log('  Demoted:');
+      for (const d of result.demoted) console.log(`    ↓ ${d}`);
+    }
+    if (result.retired.length) {
+      console.log('  Retired:');
+      for (const r of result.retired) console.log(`    ✗ ${r}`);
+    }
+    if (result.contradictions.length) {
+      console.log('  Contradictions:');
+      for (const c of result.contradictions) console.log(`    ⚠ ${c}`);
+    }
+    if (!result.promoted.length && !result.demoted.length && !result.retired.length && !result.contradictions.length) {
+      console.log('  No lifecycle changes needed.\n');
+    }
+    console.log();
+    return;
+  }
+
+  // --- verify command ---
+  if (args.includes('--verify')) {
+    const nameIdx = args.indexOf('--verify') + 1;
+    const name = args[nameIdx];
+    if (!name || name.startsWith('--')) {
+      console.log('  Usage: tenetx compound --verify <solution-name>\n');
+      return;
+    }
+    const { verifySolution } = await import('./compound-lifecycle.js');
+    if (verifySolution(name)) {
+      console.log(`  ✓ "${name}" verified 상태로 승격됨\n`);
+    } else {
+      console.log(`  ✗ "${name}" 솔루션을 찾을 수 없거나 업데이트 실패\n`);
+    }
+    return;
+  }
+
+  // --- list command ---
+  if (args.includes('list') || args.includes('--list')) {
+    const { listSolutions } = await import('./compound-cli.js');
+    listSolutions();
+    return;
+  }
+
+  // --- inspect command ---
+  if (args.includes('inspect') || args.includes('--inspect')) {
+    const nameIdx = Math.max(args.indexOf('inspect'), args.indexOf('--inspect')) + 1;
+    const name = args[nameIdx];
+    if (!name || name.startsWith('--')) {
+      console.log('  Usage: tenetx compound inspect <solution-name>\n');
+      return;
+    }
+    const { inspectSolution } = await import('./compound-cli.js');
+    inspectSolution(name);
+    return;
+  }
+
+  // --- remove command ---
+  if (args.includes('remove') || args.includes('--remove')) {
+    const nameIdx = Math.max(args.indexOf('remove'), args.indexOf('--remove')) + 1;
+    const name = args[nameIdx];
+    if (!name || name.startsWith('--')) {
+      console.log('  Usage: tenetx compound remove <solution-name>\n');
+      return;
+    }
+    const { removeSolution } = await import('./compound-cli.js');
+    removeSolution(name);
+    return;
+  }
+
+  // --- rollback command ---
+  if (args.includes('rollback') || args.includes('--rollback')) {
+    const sinceIdx = args.indexOf('--since');
+    const since = sinceIdx !== -1 ? args[sinceIdx + 1] : undefined;
+    if (!since) {
+      console.log('  Usage: tenetx compound rollback --since 2026-03-20\n');
+      return;
+    }
+    const { rollbackSolutions } = await import('./compound-cli.js');
+    rollbackSolutions(since);
+    return;
+  }
+
   // 인자가 없거나 알 수 없는 플래그만 있으면 대화형 모드
-  const knownFlags = ['--solution', '--rule', '--convention', '--pattern', '--to'];
+  const knownFlags = [
+    '--solution', '--rule', '--convention', '--pattern', '--to', '--pause-auto', '--resume-auto',
+    '--lifecycle', '--verify',
+    'list', 'inspect', 'remove', 'rollback', 'lifecycle',
+    '--list', '--inspect', '--remove', '--rollback', '--since',
+  ];
   const hasTypeFlag = knownFlags.some(f => args.includes(f));
 
   if (args.length === 0 || !hasTypeFlag) {

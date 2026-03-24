@@ -1,110 +1,106 @@
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ME_SOLUTIONS, PACKS_DIR } from '../core/paths.js';
 import type { ScopeInfo } from '../core/types.js';
+import { extractTags } from './solution-format.js';
+import { getOrBuildIndex } from './solution-index.js';
+import type { SolutionDirConfig } from './solution-index.js';
+import type { SolutionStatus, SolutionType } from './solution-format.js';
 
 export interface SolutionMatch {
   name: string;
   path: string;
   scope: 'me' | 'team' | 'project';
-  relevance: number;  // 0-1
+  relevance: number;
   summary: string;
+  // v3 fields
+  status: SolutionStatus;
+  confidence: number;
+  type: SolutionType;
+  tags: string[];
+  identifiers: string[];
+  matchedTags: string[];
 }
 
-/** 솔루션 파일에서 메타 추출 */
-function parseSolution(filePath: string): { name: string; summary: string; keywords: string[] } {
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const name = path.basename(filePath, '.md');
-
-  // 첫 줄 = 요약
-  const lines = content.split('\n').filter(l => l.trim());
-  const summary = lines[0]?.replace(/^#+\s*/, '').trim() ?? name;
-
-  // 키워드 추출: 파일명 + 내용의 주요 단어
-  const keywords = [
-    ...name.split(/[-_]/).map(s => s.toLowerCase()),
-    ...content.toLowerCase()
-      .replace(/[^가-힣a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter(w => w.length > 2),
-  ];
-
-  return { name, summary, keywords: [...new Set(keywords)] };
+/** Internal loaded solution with scope from directory config */
+interface LoadedSolution {
+  name: string;
+  status: SolutionStatus;
+  confidence: number;
+  type: SolutionType;
+  tags: string[];
+  identifiers: string[];
+  filePath: string;
+  scope: 'me' | 'team' | 'project';
 }
 
-/** 디렉토리의 모든 솔루션 로드 */
-function loadSolutions(dir: string, scope: SolutionMatch['scope']): Array<ReturnType<typeof parseSolution> & { path: string; scope: SolutionMatch['scope'] }> {
-  if (!fs.existsSync(dir)) return [];
-  try {
-    return fs.readdirSync(dir)
-      .filter(f => f.endsWith('.md'))
-      .map(f => ({
-        ...parseSolution(path.join(dir, f)),
-        path: path.join(dir, f),
-        scope,
-      }));
-  } catch {
-    return [];
-  }
-}
-
-/** 텍스트에서 키워드 추출 (순수 함수) */
+/** @deprecated Use extractTags instead */
 export function extractKeywords(text: string): string[] {
-  return text.toLowerCase()
-    .replace(/[^가-힣a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 2);
+  return extractTags(text);
 }
 
-/** 프롬프트와 솔루션 키워드 간 관련성 계산 */
-export function calculateRelevance(prompt: string, keywords: string[]): number {
-  const promptWords = prompt.toLowerCase()
-    .replace(/[^가-힣a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 2);
-
-  if (promptWords.length === 0 || keywords.length === 0) return 0;
-
-  let matches = 0;
-  for (const word of promptWords) {
-    if (keywords.some(kw => kw.includes(word) || word.includes(kw))) {
-      matches++;
-    }
+export function calculateRelevance(promptTags: string[], solutionTags: string[], confidence: number): { relevance: number; matchedTags: string[] };
+/** @deprecated */
+export function calculateRelevance(prompt: string, keywords: string[]): number;
+export function calculateRelevance(
+  promptOrTags: string | string[],
+  keywordsOrTags: string[],
+  confidence?: number,
+): number | { relevance: number; matchedTags: string[] } {
+  if (typeof promptOrTags === 'string') {
+    // Legacy mode: substring matching for backwards compatibility
+    const promptTags = extractTags(promptOrTags);
+    const intersection = keywordsOrTags.filter(kw =>
+      promptTags.some(pt => pt === kw || (pt.length > 3 && kw.length > 3 && (pt.startsWith(kw) || kw.startsWith(pt)))),
+    );
+    return Math.min(1, intersection.length / Math.max(promptTags.length * 0.5, 1));
   }
-
-  return Math.min(1, matches / Math.max(promptWords.length * 0.3, 1));
+  // v3 mode
+  const intersection = keywordsOrTags.filter(t => promptOrTags.includes(t));
+  if (intersection.length < 2) return { relevance: 0, matchedTags: [] };
+  const tagScore = intersection.length / Math.max(keywordsOrTags.length, 1);
+  return { relevance: tagScore * (confidence ?? 1), matchedTags: intersection };
 }
 
 /**
- * 작업 프롬프트에 관련된 솔루션 매칭
- * knowledge-comes-to-you 원칙: 필요한 지식은 찾아와야 한다
+ * Match solutions relevant to the given prompt.
+ * knowledge-comes-to-you principle: knowledge should come to you.
  */
 export function matchSolutions(prompt: string, scope: ScopeInfo, cwd: string): SolutionMatch[] {
-  const allSolutions: Array<ReturnType<typeof parseSolution> & { path: string; scope: SolutionMatch['scope'] }> = [];
-
-  // Me 솔루션
-  allSolutions.push(...loadSolutions(ME_SOLUTIONS, 'me'));
-
-  // Team 솔루션
+  // Build solution dirs for index cache
+  const dirs: SolutionDirConfig[] = [
+    { dir: ME_SOLUTIONS, scope: 'me' },
+  ];
   if (scope.team) {
-    allSolutions.push(...loadSolutions(path.join(PACKS_DIR, scope.team.name, 'solutions'), 'team'));
+    dirs.push({ dir: path.join(PACKS_DIR, scope.team.name, 'solutions'), scope: 'team' });
   }
+  dirs.push({ dir: path.join(cwd, '.compound', 'solutions'), scope: 'project' });
 
-  // Project 솔루션
-  allSolutions.push(...loadSolutions(path.join(cwd, '.compound', 'solutions'), 'project'));
+  // Use cached index (rebuilt only when dirs change)
+  const index = getOrBuildIndex(dirs);
+  const allSolutions: LoadedSolution[] = index.entries.map(e => ({ ...e }));
 
-  // 관련성 계산 및 정렬
+  const promptTags = extractTags(prompt);
+
   const matches: SolutionMatch[] = allSolutions
-    .map(sol => ({
-      name: sol.name,
-      path: sol.path,
-      scope: sol.scope,
-      relevance: calculateRelevance(prompt, sol.keywords),
-      summary: sol.summary,
-    }))
-    .filter(m => m.relevance > 0.1)
+    .map(sol => {
+      const result = calculateRelevance(promptTags, sol.tags, sol.confidence) as { relevance: number; matchedTags: string[] };
+      return {
+        name: sol.name,
+        path: sol.filePath,
+        scope: sol.scope,
+        relevance: result.relevance,
+        summary: sol.name,
+        status: sol.status,
+        confidence: sol.confidence,
+        type: sol.type,
+        tags: sol.tags,
+        identifiers: sol.identifiers,
+        matchedTags: result.matchedTags,
+      };
+    })
+    .filter(m => m.matchedTags.length >= 2)
     .sort((a, b) => b.relevance - a.relevance)
-    .slice(0, 5);  // 최대 5개
+    .slice(0, 5);
 
   return matches;
 }

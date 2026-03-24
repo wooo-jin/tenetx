@@ -18,6 +18,7 @@ import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles, es
 import { recordTokenUsage as recordLabCost } from '../lab/cost-tracker.js';
 import { runConstraintsOnFile, formatViolations } from '../engine/constraints/constraint-runner.js';
 import { saveCheckpoint } from './session-recovery.js';
+import { track } from '../lab/tracker.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -109,6 +110,81 @@ function incrementFailureCounter(sessionId: string): void {
     signals.updatedAt = new Date().toISOString();
     atomicWriteJSON(CONTEXT_SIGNALS_PATH, signals);
   } catch { /* ignore */ }
+}
+
+/** Compound v3: detect negative signals after tool execution */
+function checkCompoundNegative(toolName: string, toolResponse: string, sessionId: string): void {
+  // Only check Bash tool responses for errors
+  if (toolName !== 'Bash') return;
+  if (!toolResponse || toolResponse.length < 5) return;
+
+  // Check for build/test failure patterns
+  const negativePatterns = [
+    /error\s*TS\d+/i,           // TypeScript errors
+    /BUILD FAILED/i,
+    /test.*fail/i,
+    /FAIL\s+tests?\//i,         // Vitest/Jest test failures
+    /npm ERR!/i,
+    /exit code [1-9]/i,
+    /compilation error/i,
+    /SyntaxError/i,
+  ];
+
+  const isNegative = negativePatterns.some(p => p.test(toolResponse));
+  if (!isNegative) return;
+
+  // Load injection cache to find recently injected solutions
+  const cachePath = path.join(STATE_DIR, `injection-cache-${sanitizeId(sessionId)}.json`);
+  if (!fs.existsSync(cachePath)) return;
+
+  try {
+    const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+    if (!Array.isArray(cache.solutions)) return;
+
+    // Only attribute to experiment solutions (verified+ are trusted)
+    const experiments = cache.solutions.filter((s: { status: string }) => s.status === 'experiment');
+    for (const sol of experiments) {
+      track('compound-negative', sessionId, {
+        solutionName: sol.name,
+        signal: 'build-or-test-failure',
+        toolResponse: toolResponse.slice(0, 200),
+      });
+
+      // Update evidence.negative in solution file
+      updateNegativeEvidence(sol.name);
+    }
+  } catch (e) {
+    debugLog('post-tool-use', 'compound negative 체크 실패', e);
+  }
+}
+
+/** Update negative evidence counter in solution file */
+function updateNegativeEvidence(solutionName: string): void {
+  try {
+    const { parseSolutionV3, serializeSolutionV3 } = require('../engine/solution-format.js') as typeof import('../engine/solution-format.js');
+    const dirs = [
+      path.join(os.homedir(), '.compound', 'me', 'solutions'),
+      path.join(os.homedir(), '.compound', 'me', 'rules'),
+    ];
+    for (const dir of dirs) {
+      if (!fs.existsSync(dir)) continue;
+      const files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
+      for (const file of files) {
+        const filePath = path.join(dir, file);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        if (!content.includes(`name: "${solutionName}"`) && !content.includes(`name: ${solutionName}`)) continue;
+
+        const solution = parseSolutionV3(content);
+        if (!solution) return;
+        solution.frontmatter.evidence.negative += 1;
+        solution.frontmatter.updated = new Date().toISOString().split('T')[0];
+        fs.writeFileSync(filePath, serializeSolutionV3(solution), 'utf-8');
+        return;
+      }
+    }
+  } catch (e) {
+    debugLog('post-tool-use', `negative evidence 업데이트 실패: ${solutionName}`, e);
+  }
 }
 
 async function main(): Promise<void> {
@@ -210,6 +286,9 @@ async function main(): Promise<void> {
       messages.push(`<compound-tool-info>\n[Tenetx] Error pattern detected in execution result: "${errorMatch.description}". Review may be needed.\n</compound-tool-info>`);
     }
   }
+
+  // Compound v3: Negative signal check (non-blocking)
+  try { checkCompoundNegative(toolName, toolResponse, sessionId); } catch { /* non-blocking */ }
 
   // 상태 저장 (toolCallCount 포함)
   saveModifiedFiles(modState);

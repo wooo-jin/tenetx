@@ -5,6 +5,40 @@ All notable changes to tenetx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-24
+
+### Added
+- **Compound Engine v3** — evidence-based cross-session learning system
+  - **Solution Format v3** — YAML frontmatter with version, status, confidence, tags, identifiers, evidence counters
+  - **Code Reflection** — PreToolUse hook detects when injected solution identifiers appear in Edit/Write code
+  - **Negative Signal Detection** — PostToolUse hook detects build/test failures and attributes to experiment solutions
+  - **Extraction Engine** — git-diff-based automatic pattern extraction with 4-stage quality gates (structure, toxicity, dedup, re-extraction)
+  - **Lifecycle Management** — experiment → candidate → verified → mature with evidence-driven promotion and confidence-based demotion
+  - **Circuit Breaker** — experiment solutions with 2+ negative signals auto-retired
+  - **Contradiction Detection** — flags solutions with 70%+ tag overlap but disjoint identifiers
+  - **Prompt Injection Defense** — 13 injection patterns, Unicode NFKC normalization, XML tag escaping
+  - **Solution Index Cache** — in-memory mtime-based cache for matching performance
+  - **V1→V3 Migration** — automatic format upgrade on first access with symlink protection
+  - **CLI** — `compound list`, `inspect`, `remove`, `rollback`, `--verify`, `--lifecycle`, `pause-auto`, `resume-auto`
+- **Pack Marketplace** — GitHub-based community pack sharing
+  - `tenetx pack publish <name>` — publish verified solutions to GitHub + registry PR
+  - `tenetx pack search <query>` — search community registry
+  - Registry: [wooo-jin/tenetx-registry](https://github.com/wooo-jin/tenetx-registry)
+- **Lab compound events** — 6 new event types (compound-injected, compound-reflected, compound-negative, compound-extracted, compound-promoted, compound-demoted)
+- 83 new tests (solution-format, prompt-injection-filter, solution-index, compound-lifecycle, compound-extractor)
+
+### Changed
+- `solution-matcher.ts` — tags-based matching replaces keyword substring matching
+- `solution-injector.ts` — v3 format with status/confidence/type in XML output, experiment 1/prompt limit, cumulative injection-cache
+- `compound-loop.ts` — v3 YAML frontmatter output, `inferIdentifiers()` for manual solutions, `slugify` deduplicated
+- `pre-tool-use.ts` — Code Reflection + evidence update via parse-modify-serialize
+- `post-tool-use.ts` — negative signal detection + evidence update
+- `session-recovery.ts` — SessionStart triggers extraction + daily lifecycle check
+- `state-gc.ts` — injection-cache pattern added for GC
+
+### Dependencies
+- Added `js-yaml` ^4.1.0 (YAML frontmatter parsing with JSON_SCHEMA safety)
+
 ## [1.7.0] - 2026-03-23
 
 ### Added

@@ -17,6 +17,8 @@ export const GC_FILE_PATTERNS = [
   'modified-files-',    // modified-files-{sessionId}.json
   'skill-cache-',       // skill-cache-{sessionId}.json
   'token-usage-',       // token-usage-{sessionId}.json
+  'solution-cache-',    // solution-cache-{sessionId}.json
+  'injection-cache-',   // injection-cache-{sessionId}.json (Phase 2)
 ] as const;
 
 /** -state.json 접미어 패턴 (모드 상태 파일) */
