@@ -145,6 +145,11 @@ function checkCompoundNegative(toolName: string, toolResponse: string, sessionId
     // Only attribute to experiment solutions (verified+ are trusted)
     const experiments = cache.solutions.filter((s: { status: string }) => s.status === 'experiment');
     for (const sol of experiments) {
+      // Only attribute if error output is related to this solution
+      const allTerms = [...(sol.identifiers ?? []), ...(sol.tags ?? [])].filter((t: string) => t.length >= 4);
+      const isRelated = allTerms.length === 0 || allTerms.some((term: string) => toolResponse.toLowerCase().includes(term.toLowerCase()));
+      if (!isRelated) continue;
+
       track('compound-negative', sessionId, {
         solutionName: sol.name,
         signal: 'build-or-test-failure',

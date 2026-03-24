@@ -54,19 +54,19 @@ const PREFERENCE_PATTERNS: PatternRule[] = [
     name: 'prefer-table-format',
     description: '정보를 표 형식으로 정리합니다',
     patterns: [/표로\s*(정리|만들|작성)/i, /table\s*format/i, /마크다운\s*표/i, /테이블로/i],
-    tags: ['format', 'table', 'markdown', 'preference'],
+    tags: ['format', 'table', 'markdown', 'preference', '표', '정리'],
   },
   {
     name: 'prefer-concise',
     description: '간결하고 짧게 응답합니다',
     patterns: [/간결하게/i, /짧게/i, /간단하게/i, /concise/i, /brief/i, /short/i],
-    tags: ['style', 'concise', 'brief', 'preference'],
+    tags: ['style', 'concise', 'brief', 'preference', '간결', '짧게'],
   },
   {
     name: 'prefer-detailed',
     description: '상세하고 자세하게 설명합니다',
     patterns: [/자세하게/i, /상세하게/i, /detailed/i, /explain\s*(in\s*)?detail/i, /풀어서/i],
-    tags: ['style', 'detailed', 'verbose', 'preference'],
+    tags: ['style', 'detailed', 'verbose', 'preference', '상세', '자세'],
   },
   {
     name: 'prefer-code-comments',
@@ -78,13 +78,13 @@ const PREFERENCE_PATTERNS: PatternRule[] = [
     name: 'prefer-step-by-step',
     description: '단계별로 설명합니다',
     patterns: [/단계별/i, /step\s*by\s*step/i, /하나씩/i, /차근차근/i],
-    tags: ['style', 'step-by-step', 'preference'],
+    tags: ['style', 'step-by-step', 'preference', '단계별'],
   },
   {
     name: 'prefer-examples',
     description: '예시를 포함하여 설명합니다',
     patterns: [/예시\s*(포함|추가|들어|보여)/i, /with\s*examples?/i, /example/i, /예를\s*들/i],
-    tags: ['style', 'examples', 'preference'],
+    tags: ['style', 'examples', 'preference', '예시'],
   },
 
   // ── Document/Writing patterns ──
@@ -98,7 +98,7 @@ const PREFERENCE_PATTERNS: PatternRule[] = [
     name: 'prefer-bullet-points',
     description: '불릿 포인트로 정리합니다',
     patterns: [/불릿/i, /bullet/i, /리스트로/i, /목록으로/i, /나열/i],
-    tags: ['format', 'bullet', 'list', 'preference'],
+    tags: ['format', 'bullet', 'list', 'preference', '목록', '리스트'],
   },
   {
     name: 'prefer-headers',
@@ -110,7 +110,7 @@ const PREFERENCE_PATTERNS: PatternRule[] = [
     name: 'prefer-summary-first',
     description: '요약을 먼저 보여주고 상세는 아래에',
     patterns: [/요약.*먼저/i, /summary\s*first/i, /TL;?DR/i, /핵심.*먼저/i],
-    tags: ['style', 'summary', 'structure', 'preference'],
+    tags: ['style', 'summary', 'structure', 'preference', '요약'],
   },
 
   // ── Analysis/PM patterns ──
@@ -118,25 +118,25 @@ const PREFERENCE_PATTERNS: PatternRule[] = [
     name: 'prefer-pros-cons',
     description: '장단점을 비교하여 분석합니다',
     patterns: [/장단점/i, /pros\s*(and|&)\s*cons/i, /장점.*단점/i, /비교.*분석/i],
-    tags: ['analysis', 'comparison', 'pros-cons', 'preference'],
+    tags: ['analysis', 'comparison', 'pros-cons', 'preference', '장단점', '비교'],
   },
   {
     name: 'prefer-data-driven',
     description: '데이터/수치 기반으로 설명합니다',
     patterns: [/데이터.*기반/i, /수치/i, /통계/i, /data.driven/i, /numbers/i, /metrics/i],
-    tags: ['analysis', 'data', 'metrics', 'preference'],
+    tags: ['analysis', 'data', 'metrics', 'preference', '데이터', '수치'],
   },
   {
     name: 'prefer-actionable',
     description: '실행 가능한 액션 아이템을 포함합니다',
     patterns: [/액션\s*아이템/i, /action\s*item/i, /실행.*방안/i, /next\s*step/i, /다음\s*단계/i, /할\s*일/i],
-    tags: ['output', 'actionable', 'tasks', 'preference'],
+    tags: ['output', 'actionable', 'tasks', 'preference', '실행', '액션'],
   },
   {
     name: 'prefer-timeline',
     description: '타임라인/일정을 포함합니다',
     patterns: [/타임라인/i, /일정/i, /timeline/i, /schedule/i, /마일스톤/i, /milestone/i],
-    tags: ['planning', 'timeline', 'schedule', 'preference'],
+    tags: ['planning', 'timeline', 'schedule', 'preference', '일정', '타임라인'],
   },
 
   // ── Communication style patterns ──
@@ -144,13 +144,13 @@ const PREFERENCE_PATTERNS: PatternRule[] = [
     name: 'prefer-formal',
     description: '격식체/공식적 톤으로 작성합니다',
     patterns: [/격식/i, /공식/i, /formal/i, /존댓말/i, /~습니다/i],
-    tags: ['tone', 'formal', 'professional', 'preference'],
+    tags: ['tone', 'formal', 'professional', 'preference', '격식', '공식'],
   },
   {
     name: 'prefer-casual',
     description: '편한 톤으로 작성합니다',
     patterns: [/편하게/i, /casual/i, /반말/i, /~해$/im, /친근/i],
-    tags: ['tone', 'casual', 'informal', 'preference'],
+    tags: ['tone', 'casual', 'informal', 'preference', '편하게'],
   },
   {
     name: 'prefer-emoji',
@@ -170,7 +170,7 @@ const PREFERENCE_PATTERNS: PatternRule[] = [
     name: 'prefer-visual-diagram',
     description: '다이어그램/시각화를 포함합니다',
     patterns: [/다이어그램/i, /시각화/i, /diagram/i, /flowchart/i, /mermaid/i, /그림으로/i],
-    tags: ['visual', 'diagram', 'mermaid', 'preference'],
+    tags: ['visual', 'diagram', 'mermaid', 'preference', '다이어그램', '시각화'],
   },
   {
     name: 'prefer-mockup',

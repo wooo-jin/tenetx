@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execSync } from 'node:child_process';
-import { serializeSolutionV3, DEFAULT_EVIDENCE } from './solution-format.js';
+import { serializeSolutionV3, DEFAULT_EVIDENCE, extractTags } from './solution-format.js';
 import type { SolutionV3, SolutionType } from './solution-format.js';
 import { track } from '../lab/tracker.js';
 import { debugLog } from '../core/logger.js';
@@ -145,32 +145,102 @@ function gate3(sol: ExtractedSolution): 'new' | 're-extract' | 'duplicate' {
   return 'new';
 }
 
-/** Build the extraction prompt */
-function buildExtractionPrompt(gitLog: string, gitDiff: string): string {
-  return `아래 git diff와 커밋 메시지를 분석하여 재사용 가능한 코딩 패턴을 추출하세요.
+/** Simple local extraction from git diff (no LLM needed) */
+function extractFromDiff(gitLog: string, gitDiff: string): ExtractedSolution[] {
+  const solutions: ExtractedSolution[] = [];
 
-추출 기준:
-- 다른 프로젝트에서도 적용 가능한 구조적 패턴만
-- 프로젝트 고유 로직(비즈니스 로직, 특정 API 엔드포인트)은 제외
-- 일회성 수정, 타이포 수정, 설정 변경은 제외
-- 추출할 것이 없으면 반드시 빈 배열 [] 반환
-- identifiers는 코드에 나타날 구체적 클래스/함수/API명 (4글자 이상)
+  // 1. Detect new files/modules created
+  const newFiles = gitDiff.match(/^\+\+\+ b\/(.+)$/gm);
+  if (newFiles && newFiles.length >= 2) {
+    const fileNames = newFiles.map(f => f.replace('+++ b/', ''));
+    const ext = path.extname(fileNames[0]);
+    const dir = path.dirname(fileNames[0]).split('/').pop() ?? '';
+    if (ext && dir) {
+      const basenames = fileNames.map(f => path.basename(f, ext));
+      const commonPrefix = findCommonPrefix(basenames);
+      if (commonPrefix.length >= 3) {
+        solutions.push({
+          name: `module-${commonPrefix}-pattern`,
+          type: 'pattern',
+          tags: extractTags(fileNames.join(' ') + ' ' + dir),
+          identifiers: basenames.filter(b => b.length >= 4).slice(0, 5),
+          context: `File organization pattern in ${dir}/`,
+          content: `Files follow the naming pattern: ${commonPrefix}*${ext} in ${dir}/`,
+        });
+      }
+    }
+  }
 
-JSON 배열로 반환 (최대 3개):
-[{
-  "name": "kebab-case-이름",
-  "type": "pattern|decision|troubleshoot|anti-pattern",
-  "tags": ["최대", "5개"],
-  "identifiers": ["구체적식별자"],
-  "context": "적용 상황 1줄",
-  "content": "실행 가능한 내용 (최대 500자)"
-}]
+  // 2. Detect error handling patterns from diff
+  const errorPatterns = gitDiff.match(/^\+.*(?:try\s*\{|catch\s*[({]|\.catch\(|throw new|Error\()/gm);
+  if (errorPatterns && errorPatterns.length >= 3) {
+    const sample = errorPatterns.slice(0, 3).map(l => l.replace(/^\+\s*/, '').trim());
+    solutions.push({
+      name: 'error-handling-pattern',
+      type: 'pattern',
+      tags: ['error', 'handling', 'try-catch', 'pattern'],
+      identifiers: sample.filter(s => s.length >= 4).slice(0, 3),
+      context: 'Error handling approach used in this codebase',
+      content: `Consistent error handling: ${sample.join('; ')}`.slice(0, 500),
+    });
+  }
 
---- Git Log ---
-${gitLog}
+  // 3. Detect import/dependency patterns
+  const imports = gitDiff.match(/^\+\s*import\s+.+from\s+['"]([^'"]+)['"]/gm);
+  if (imports && imports.length >= 3) {
+    const packages = imports
+      .map(i => i.match(/from\s+['"]([^'"]+)['"]/)?.[1])
+      .filter((p): p is string => !!p && !p.startsWith('.'))
+      .filter((v, i, a) => a.indexOf(v) === i);
 
---- Git Diff (truncated) ---
-${gitDiff}`;
+    if (packages.length >= 2) {
+      solutions.push({
+        name: 'dependency-stack',
+        type: 'decision',
+        tags: ['dependency', 'stack', ...packages.slice(0, 3)],
+        identifiers: packages.filter(p => p.length >= 4).slice(0, 5),
+        context: 'Technology stack and dependency choices',
+        content: `Project uses: ${packages.join(', ')}`,
+      });
+    }
+  }
+
+  // 4. Detect from commit messages
+  const commitKeywords: Record<string, { type: ExtractedSolution['type']; tags: string[] }> = {
+    'fix': { type: 'troubleshoot', tags: ['bugfix', 'troubleshoot'] },
+    'refactor': { type: 'pattern', tags: ['refactor', 'cleanup'] },
+    'test': { type: 'pattern', tags: ['testing', 'tdd'] },
+    'security': { type: 'pattern', tags: ['security', 'hardening'] },
+  };
+
+  for (const [keyword, meta] of Object.entries(commitKeywords)) {
+    const re = new RegExp(`^[a-f0-9]+\\s+${keyword}[:\\s](.+)$`, 'gim');
+    const matches = [...gitLog.matchAll(re)];
+    if (matches.length >= 2) {
+      const descriptions = matches.map(m => m[1].trim()).slice(0, 3);
+      solutions.push({
+        name: `${keyword}-pattern`,
+        type: meta.type,
+        tags: [...meta.tags, keyword],
+        identifiers: [],
+        context: `Recurring ${keyword} pattern from commit history`,
+        content: descriptions.join('. ').slice(0, 500),
+      });
+    }
+  }
+
+  return solutions.slice(0, 3); // max 3
+}
+
+function findCommonPrefix(strings: string[]): string {
+  if (strings.length === 0) return '';
+  let prefix = strings[0];
+  for (const s of strings.slice(1)) {
+    while (!s.startsWith(prefix) && prefix.length > 0) {
+      prefix = prefix.slice(0, -1);
+    }
+  }
+  return prefix.replace(/-$/, '');
 }
 
 /** Save an extracted solution as experiment */
@@ -289,15 +359,14 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   // Get diff for extraction prompt
   const gitDiff = getGitDiff(cwd, state.lastCommitSha);
 
-  // Build prompt — save for the SessionStart hook / CLI layer to pick up
-  const promptPath = path.join(STATE_DIR, 'extraction-prompt.json');
-  atomicWriteJSON(promptPath, {
-    prompt: buildExtractionPrompt(gitLog, gitDiff),
-    cwd,
-    sessionId,
-    headSha,
-    createdAt: new Date().toISOString(),
-  });
+  // Local extraction (no LLM needed)
+  const extracted = extractFromDiff(gitLog, gitDiff);
+
+  if (extracted.length > 0) {
+    const { saved, skipped } = processExtractionResults(JSON.stringify(extracted), sessionId);
+    result.extracted = saved;
+    result.skipped = skipped;
+  }
 
   // Update extraction state
   state.lastCommitSha = headSha;
@@ -305,9 +374,9 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   state.extractionsToday++;
   saveLastExtraction(state);
 
-  debugLog('compound-extractor', `extraction-prompt 생성 완료 (${stats.files} files, ${stats.lines} lines)`);
+  debugLog('compound-extractor', `로컬 추출 완료: ${result.extracted.length} saved, ${result.skipped.length} skipped (${stats.files} files, ${stats.lines} lines)`);
 
-  return { ...result, reason: 'extraction-prompt 생성 완료 (LLM 호출 대기)' };
+  return result;
 }
 
 /** Process LLM extraction results (called after LLM returns) */
