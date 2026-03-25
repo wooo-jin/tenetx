@@ -50,7 +50,7 @@ tenetx                    # Work normally. Learning is automatic.
 
 ### Prerequisites
 
-- **Node.js** >= 18
+- **Node.js** >= 20
 - **Claude Code** installed and authenticated
   > Tenetx wraps Claude Code and depends on its hook API. Future Claude Code updates may require tenetx updates.
 
