@@ -43,7 +43,7 @@ function loadFailureState(sessionId: string): FailureState {
       const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
       if (data.sessionId === sessionId) return data;
     }
-  } catch { /* ignore */ }
+  } catch { /* failure state parse failure — starting fresh, failure history for this session is lost */ }
   return { sessionId, failures: {} };
 }
 
@@ -64,7 +64,7 @@ function incrementFailureSignal(sessionId: string): void {
     signals.previousFailures = ((signals.previousFailures as number) ?? 0) + 1;
     signals.updatedAt = new Date().toISOString();
     atomicWriteJSON(signalsPath, signals);
-  } catch { /* ignore */ }
+  } catch { /* context-signals.json write failure — failure counter lost, model routing escalation may not trigger */ }
 }
 
 /** 에러 메시지 기반 복구 제안 */

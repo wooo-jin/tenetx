@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,7 +20,7 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
-      - name: Coverage Report
+      - name: Coverage Check
         if: matrix.node-version == 20
-        run: npx vitest run --coverage.enabled --coverage.reporter=text --coverage.reporter=json-summary
+        run: npx vitest run --coverage
       - run: npm pack --dry-run

@@ -43,7 +43,7 @@ function scanSolutions(): SolutionSummary[] {
           filePath,
         });
       }
-    } catch { continue; }
+    } catch { }
   }
 
   return summaries;
@@ -73,7 +73,8 @@ export function listSolutions(): void {
   // Group by status
   const groups: Record<string, SolutionSummary[]> = {};
   for (const sol of solutions) {
-    (groups[sol.status] ??= []).push(sol);
+    if (!groups[sol.status]) groups[sol.status] = [];
+    groups[sol.status].push(sol);
   }
 
   const order = ['mature', 'verified', 'candidate', 'experiment', 'retired'];
@@ -151,7 +152,7 @@ export function removeSolution(name: string): void {
 /** Rollback auto-extracted solutions since a given date */
 export function rollbackSolutions(sinceDate: string): void {
   const since = new Date(sinceDate);
-  if (isNaN(since.getTime())) {
+  if (Number.isNaN(since.getTime())) {
     console.log(`\n  Invalid date: ${sinceDate}\n`);
     return;
   }

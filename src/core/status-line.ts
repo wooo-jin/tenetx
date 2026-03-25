@@ -656,7 +656,7 @@ export async function printStatus(): Promise<void> {
         line2Parts.push(`${YELLOW}💰${RST} ${DIM}tracking...${RST}`);
       }
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('status-line', 'cost tracker read failed — cost section omitted from status line', e); }
 
   const line2 = `${DIM}${line2Parts.join(` ${DIM}·${RST} `)}${RST}`;
 

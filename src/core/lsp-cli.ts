@@ -5,7 +5,7 @@
  */
 
 import * as path from 'node:path';
-import { detectAvailableServers, getServerForFile } from '../engine/lsp-detector.js';
+import { detectAvailableServers, } from '../engine/lsp-detector.js';
 import { getLspManager, shutdownGlobalLspManager } from '../engine/lsp-manager.js';
 import { uriToPath } from '../engine/lsp-client.js';
 
@@ -89,7 +89,7 @@ function parseFileLineCol(args: string[]): { file: string; line: number; col: nu
   const line = parseInt(args[1], 10);
   const col = parseInt(args[2], 10);
 
-  if (isNaN(line) || isNaN(col)) {
+  if (Number.isNaN(line) || Number.isNaN(col)) {
     console.error('  Line and column must be numbers');
     return null;
   }

@@ -356,7 +356,7 @@ async function callCodexCli(prompt: string, model: string, timeout: number): Pro
     return '(no Codex output)';
   } catch (e) {
     // 임시 파일 정리
-    try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpOut); } catch (unlinkErr) { debugLog('provider', 'tmp output file cleanup failed after codex error', unlinkErr); }
     throw new Error(`codex CLI: ${e instanceof Error ? e.message : String(e)}`);
   }
 }

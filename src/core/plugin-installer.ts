@@ -113,7 +113,7 @@ function registerPluginInSettings(pluginDir: string): void {
   if (fs.existsSync(settingsPath)) {
     try {
       settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-    } catch { /* start fresh */ }
+    } catch (e) { debugLog('plugin-installer', 'settings.json parse failed — starting with empty settings', e); }
   }
 
   const plugins = (settings.plugins as string[]) ?? [];

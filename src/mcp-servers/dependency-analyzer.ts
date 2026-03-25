@@ -65,7 +65,7 @@ export function analyzeDependencies(cwd: string): DependencyReport {
         outdatedCheck: true,
         lockfilePresent: fs.existsSync(path.join(cwd, 'requirements-lock.txt')),
       };
-    } catch { /* ignore */ }
+    } catch { /* requirements.txt read failure — pip dep count skipped, falls through to other package manager detection */ }
   }
 
   // cargo (Cargo.toml)
@@ -87,7 +87,7 @@ export function analyzeDependencies(cwd: string): DependencyReport {
         outdatedCheck: true,
         lockfilePresent: fs.existsSync(path.join(cwd, 'Cargo.lock')),
       };
-    } catch { /* ignore */ }
+    } catch { /* Cargo.toml read failure — cargo dep count skipped, falls through to other package manager detection */ }
   }
 
   // go (go.mod)
@@ -104,7 +104,7 @@ export function analyzeDependencies(cwd: string): DependencyReport {
         outdatedCheck: true,
         lockfilePresent: fs.existsSync(path.join(cwd, 'go.sum')),
       };
-    } catch { /* ignore */ }
+    } catch { /* go.mod read failure — go dep count skipped, returns null package manager */ }
   }
 
   return {

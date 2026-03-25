@@ -90,7 +90,7 @@ export function cleanStaleCheckpoints(maxAgeMs: number = 24 * 60 * 60 * 1000): n
         const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         if (!isValidCheckpoint(parsed)) {
           // 구조 검증 실패한 파일도 정리
-          try { fs.unlinkSync(filePath); cleaned++; } catch { /* ignore */ }
+          try { fs.unlinkSync(filePath); cleaned++; } catch (e) { debugLog('session-recovery', `invalid checkpoint unlink failed: ${filePath}`, e); }
           continue;
         }
         const age = now - new Date(parsed.timestamp).getTime();
@@ -100,7 +100,7 @@ export function cleanStaleCheckpoints(maxAgeMs: number = 24 * 60 * 60 * 1000): n
         }
       } catch {
         // 파싱 실패한 파일도 정리
-        try { fs.unlinkSync(filePath); cleaned++; } catch { /* ignore */ }
+        try { fs.unlinkSync(filePath); cleaned++; } catch (e) { debugLog('session-recovery', `corrupt checkpoint unlink failed: ${filePath}`, e); }
       }
     }
   } catch (e) {
@@ -259,7 +259,7 @@ async function main(): Promise<void> {
       const cwd = process.env.COMPOUND_CWD ?? process.cwd();
       await runExtraction(cwd, sessionId);
     }
-  } catch { /* non-blocking */ }
+  } catch (e) { debugLog('session-recovery', 'lazy extraction 실패', e); }
 
   // Compound v3: Detect preference patterns from prompt history
   try {
@@ -268,7 +268,7 @@ async function main(): Promise<void> {
     if (patterns.created.length > 0) {
       debugLog('session-recovery', `새 선호도 패턴 감지: ${patterns.created.join(', ')}`);
     }
-  } catch { /* non-blocking */ }
+  } catch (e) { debugLog('session-recovery', 'preference pattern detection 실패', e); }
 
   // Compound v3: Detect content patterns from write history
   try {
@@ -277,7 +277,7 @@ async function main(): Promise<void> {
     if (contentPatterns.created.length > 0) {
       debugLog('session-recovery', `새 콘텐츠 패턴 감지: ${contentPatterns.created.join(', ')}`);
     }
-  } catch { /* non-blocking */ }
+  } catch (e) { debugLog('session-recovery', 'content pattern detection 실패', e); }
 
   // Compound v3: Detect workflow patterns from mode usage
   try {
@@ -286,7 +286,7 @@ async function main(): Promise<void> {
     if (workflowPatterns.created.length > 0) {
       debugLog('session-recovery', `새 워크플로우 패턴 감지: ${workflowPatterns.created.join(', ')}`);
     }
-  } catch { /* non-blocking */ }
+  } catch (e) { debugLog('session-recovery', 'workflow pattern detection 실패', e); }
 
   // Compound v3: Run lifecycle check once per day
   try {
@@ -299,13 +299,13 @@ async function main(): Promise<void> {
         const last = new Date(data.lastRun).getTime();
         shouldRun = Date.now() - last > 24 * 60 * 60 * 1000;
       }
-    } catch { /* run anyway */ }
+    } catch { /* last-lifecycle.json parse failure — run lifecycle check anyway */ }
     if (shouldRun) {
       runLifecycleCheck(sessionId);
       const { atomicWriteJSON: writeJSON } = await import('./shared/atomic-write.js');
       writeJSON(lastLifecyclePath, { lastRun: new Date().toISOString() });
     }
-  } catch { /* non-blocking */ }
+  } catch (e) { debugLog('session-recovery', 'lifecycle check 실패', e); }
 
   if (recoveryMessages.length > 0) {
     console.log(JSON.stringify({

@@ -24,7 +24,8 @@ export type LabEventType =
   | 'compound-negative'
   | 'compound-extracted'
   | 'compound-promoted'
-  | 'compound-demoted';
+  | 'compound-demoted'
+  | 'compound-precision';
 
 export interface LabEvent {
   /** Unique event ID */

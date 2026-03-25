@@ -118,7 +118,7 @@ const SKILL_GENERATORS: Record<string, SkillOverlayGenerator> = {
     const autonomy = dims.autonomyPreference ?? 0.5;
     const risk = dims.riskTolerance ?? 0.5;
     const comm = dims.communicationStyle ?? 0.5;
-    const quality = dims.qualityFocus ?? 0.5;
+    const _quality = dims.qualityFocus ?? 0.5;
 
     const modifiers: string[] = [];
 

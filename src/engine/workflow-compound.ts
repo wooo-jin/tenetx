@@ -50,7 +50,7 @@ export function incrementWorkflowCounter(type: 'prompt' | 'toolCall'): void {
     if (type === 'prompt') state.promptCount++;
     else state.toolCallCount++;
     fs.writeFileSync(WORKFLOW_STATE_PATH, JSON.stringify(state));
-  } catch { /* non-blocking */ }
+  } catch (e) { debugLog('workflow-compound', 'workflow 카운터 증가 실패 — 통계 손실 가능', e); }
 }
 
 /** Check if a workflow completed successfully and extract a workflow pattern */
@@ -118,7 +118,7 @@ export function checkWorkflowCompletion(sessionId: string): void {
 }
 
 function clearWorkflowState(): void {
-  try { fs.unlinkSync(WORKFLOW_STATE_PATH); } catch { /* ignore */ }
+  try { fs.unlinkSync(WORKFLOW_STATE_PATH); } catch (e) { debugLog('workflow-compound', 'workflow 상태 파일 삭제 실패 — 다음 실행에서 재시도', e); }
 }
 
 interface WorkflowInsight {
@@ -129,7 +129,7 @@ interface WorkflowInsight {
 }
 
 function generateWorkflowInsight(state: WorkflowState, durationMin: number): WorkflowInsight | null {
-  const mode = state.activeMode!;
+  const mode = state.activeMode ?? '';
   const efficiency = state.toolCallCount > 0
     ? `${state.promptCount} prompts, ${state.toolCallCount} tool calls in ${durationMin}min`
     : '';

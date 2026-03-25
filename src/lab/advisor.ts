@@ -139,7 +139,7 @@ function detectDeescalationOpportunities(
     const primaryModel = Object.entries(modelCounts)
       .sort((a, b) => b[1] - a[1])[0]?.[0];
 
-    if (primaryModel && primaryModel.includes('opus') && m.avgDurationMs < 5000) {
+    if (primaryModel?.includes('opus') && m.avgDurationMs < 5000) {
       suggestions.push(createSuggestion(
         'deescalate-model',
         `De-escalate model for agent: ${m.name}`,

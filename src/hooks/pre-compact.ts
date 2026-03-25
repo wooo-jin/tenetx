@@ -32,7 +32,7 @@ function collectActiveStates(): Array<{ mode: string; data: Record<string, unkno
         if (data.active) {
           active.push({ mode: f.replace('-state.json', ''), data });
         }
-      } catch { /* skip */ }
+      } catch (e) { debugLog('pre-compact', `상태 파일 파싱 실패 — skip`, e); }
     }
   } catch (e) {
     debugLog('pre-compact', '상태 디렉토리 읽기 실패', e);
@@ -88,7 +88,7 @@ function cleanOldHandoffs(): void {
         fs.unlinkSync(p);
       }
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('pre-compact', 'old handoff cleanup failed — stale files may remain in handoffs dir', e); }
 }
 
 async function main(): Promise<void> {

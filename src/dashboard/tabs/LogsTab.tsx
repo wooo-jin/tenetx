@@ -44,9 +44,10 @@ export function LogsTab({ data }: LogsTabProps) {
               const projectName = session.project ? path.basename(session.project) : '-';
               const durStr = session.durationMinutes != null ? `${session.durationMinutes}m` : '-';
               const modeStr = session.mode ?? '-';
+              const sessionKey = `${session.date.toISOString()}-${i}`;
 
               return (
-                <Text key={i}>
+                <Text key={sessionKey}>
                   <Text color={isToday ? 'green' : undefined} dimColor={!isToday}>
                     {dateStr.padEnd(13)}
                   </Text>

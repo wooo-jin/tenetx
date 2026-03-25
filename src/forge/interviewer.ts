@@ -8,7 +8,7 @@
 
 import * as readline from 'node:readline';
 import type { ForgeQuestion, ProjectSignals, DimensionVector } from './types.js';
-import { defaultDimensionVector, applyDeltas, clampDimension, CORE_DIMENSIONS } from './dimensions.js';
+import { defaultDimensionVector, applyDeltas, } from './dimensions.js';
 
 // ── Question Bank ───────────────────────────────────
 

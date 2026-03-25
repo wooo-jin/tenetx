@@ -66,7 +66,7 @@ function atomicWrite(filePath: string, data: unknown): void {
     fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
     fs.renameSync(tmpFile, filePath);
   } catch (e) {
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpFile); } catch (unlinkErr) { debugLog('auto-learn', 'tmp file cleanup failed after write error', unlinkErr); }
     throw e;
   }
 }

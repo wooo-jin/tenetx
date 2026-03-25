@@ -130,7 +130,7 @@ export function detectProjectType(cwd: string): DetectionResult {
           signals.push(`data: ${lib}`);
         }
       }
-    } catch { /* ignore */ }
+    } catch { /* requirements.txt read failure — data library detection skipped, score stays 0 */ }
   }
   if (fs.existsSync(path.join(cwd, 'notebooks')) || fs.readdirSync(cwd).some(f => f.endsWith('.ipynb'))) {
     dataScore += 25;

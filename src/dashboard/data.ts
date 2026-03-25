@@ -99,7 +99,7 @@ export function getTodaySessionCount(sessions: SessionRecord[]): number {
 
 /** Average session duration (minutes) */
 export function getAvgDuration(sessions: SessionRecord[]): number {
-  const withDuration = sessions.filter(s => s.durationMinutes != null && s.durationMinutes! > 0);
+  const withDuration = sessions.filter(s => s.durationMinutes != null && s.durationMinutes > 0);
   if (withDuration.length === 0) return 0;
   const total = withDuration.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0);
   return Math.round(total / withDuration.length);

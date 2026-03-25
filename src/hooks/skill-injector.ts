@@ -198,7 +198,7 @@ function collectSkills(): SkillMeta[] {
         skills.push(skill);
       } else {
         // 팩 스킬이 무시된 경우 기록
-        const winnerDir = seen.get(skill.name)!;
+        const winnerDir = seen.get(skill.name) ?? '';
         if (dir.includes('/packs/') || winnerDir.includes('/packs/')) {
           overrides.push({ name: skill.name, winner: winnerDir, loser: dir });
         }

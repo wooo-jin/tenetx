@@ -10,7 +10,7 @@
   <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://www.npmjs.com/package/tenetx"><img src="https://img.shields.io/npm/v/tenetx.svg" alt="npm version"/></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
-  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-1548-brightgreen.svg" alt="Tests: 1548"/></a>
+  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-1555_across_98_files-brightgreen.svg" alt="Tests: 1555"/></a>
 </p>
 
 <p align="center">
@@ -52,6 +52,18 @@ tenetx                    # Work normally. Learning is automatic.
 
 - **Node.js** >= 18
 - **Claude Code** installed and authenticated
+  > Tenetx wraps Claude Code and depends on its hook API. Future Claude Code updates may require tenetx updates.
+
+### When to Use Tenetx
+
+| Scenario | Fit |
+|----------|-----|
+| Long-running project with repeating patterns | Great |
+| Personal workflow optimization | Great |
+| Lightweight harness (3 runtime deps) | Great |
+| One-off scripts or throwaway code | Not ideal |
+| Environment without Claude Code | Not supported |
+| Team-wide standardization (use OMC instead) | Not the focus |
 
 ---
 
@@ -255,6 +267,17 @@ Ask all configured providers, get confidence-scored synthesis.
 
 </details>
 
+<details>
+<summary>txd — Skip Permissions Shortcut</summary>
+
+```bash
+txd                   # Equivalent to: tenetx --dangerously-skip-permissions
+```
+
+**Warning**: `txd` disables ALL Claude Code permission checks. Tools execute without confirmation. Only use in trusted, isolated environments (e.g., disposable containers, personal dev machines with no sensitive data). Never use in production or shared environments.
+
+</details>
+
 ---
 
 ## Architecture
@@ -276,7 +299,7 @@ Ask all configured providers, get confidence-scored synthesis.
 
 | Metric | Count |
 |--------|-------|
-| Tests | 1548 across 97 files |
+| Tests | 1555 across 98 files |
 | Agents | 19 (dimension-tuned) |
 | Skills | 21 (6 dimension-aware) |
 | Compound quality gates | 4 |

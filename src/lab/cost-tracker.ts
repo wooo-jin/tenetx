@@ -55,7 +55,7 @@ interface SessionsStore {
 function ensureDir(): void {
   try {
     fs.mkdirSync(LAB_COST_DIR, { recursive: true });
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('cost-tracker', 'LAB_COST_DIR 생성 실패', e); }
 }
 
 // ── Pricing helpers ──
@@ -287,7 +287,7 @@ function loadCurrentSession(sessionId: string): SessionCost {
       const data: SessionCost = JSON.parse(raw);
       if (data.sessionId === sessionId) return data;
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('cost-tracker', 'current session file read failed — starting empty session', e); }
   return createEmptySession(sessionId);
 }
 

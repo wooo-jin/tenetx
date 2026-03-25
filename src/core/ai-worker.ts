@@ -194,13 +194,13 @@ export function killWorker(id: string): boolean {
   if (worker.pid && isProcessAlive(worker.pid)) {
     try {
       process.kill(worker.pid, 'SIGTERM');
-    } catch { /* ignore */ }
+    } catch { /* SIGTERM send failed — process may have already exited, continue cleanup */ }
   }
 
   if (worker.tmuxPane) {
     try {
       execFileSync('tmux', ['kill-pane', '-t', worker.tmuxPane], { stdio: 'pipe' });
-    } catch { /* ignore */ }
+    } catch { /* tmux kill-pane failed — pane may already be closed, continue cleanup */ }
   }
 
   worker.status = 'done';
@@ -236,7 +236,7 @@ export function cleanOldWorkers(): void {
     if (w.status !== 'running' && age < cutoff) {
       // 출력 파일도 삭제
       const outputFile = path.join(WORKER_OUTPUT_DIR, `${w.id}.txt`);
-      try { fs.unlinkSync(outputFile); } catch { /* ignore */ }
+      try { fs.unlinkSync(outputFile); } catch { /* output file cleanup — leftover file is harmless if unlink fails */ }
       return false;
     }
     return true;

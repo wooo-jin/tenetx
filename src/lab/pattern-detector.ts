@@ -42,7 +42,7 @@ function makePattern(
   };
 }
 
-function eventTimestamp(event: LabEvent): string {
+function _eventTimestamp(event: LabEvent): string {
   return event.timestamp;
 }
 

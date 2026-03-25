@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COMPOUND_HOME, ME_DIR, ME_SOLUTIONS, ME_RULES, ME_PHILOSOPHY, PACKS_DIR, SESSIONS_DIR, projectPhilosophyPath } from './paths.js';
 import { initDefaultPhilosophy, loadPhilosophy, DEFAULT_PHILOSOPHY } from './philosophy-loader.js';
+import type { Philosophy } from './types.js';
 import { loadGlobalConfig, saveGlobalConfig } from './global-config.js';
 import { validateWebhookUrl, loadNotifyConfig, saveNotifyConfig } from './notify.js';
 import { sampleUserHistory, generatePhilosophy, formatPhilosophy } from './philosophy-generator.js';
@@ -64,7 +65,7 @@ export async function runSetup(options?: { yes?: boolean }): Promise<void> {
 
   const currentLocale = getLocale();
   const langDefault = currentLocale === 'ko' ? 1 : 0;
-  const langIdx = await promptChoice(rl, '  Select / 선택 [' + (langDefault + 1) + ']: ', ['English', '한국어'], langDefault);
+  const langIdx = await promptChoice(rl, `  Select / 선택 [${langDefault + 1}]: `, ['English', '한국어'], langDefault);
   const locale: Locale = langIdx === 1 ? 'ko' : 'en';
   config.locale = locale;
   setLocale(locale);
@@ -387,7 +388,7 @@ export async function runProjectSetup(cwd: string, options?: { pack?: string; ex
   console.log();
   const sourceIdx = await promptChoice(rl, '  Select [1]: ', sourceChoices, 0);
 
-  let philosophy;
+  let philosophy: Philosophy;
   if (sourceIdx === 0) {
     philosophy = JSON.parse(JSON.stringify(globalPhil)); // deep clone
   } else if (sourceIdx === 1) {

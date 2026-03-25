@@ -223,8 +223,8 @@ async function proposeViaGithubPR(_config: PackConnection, proposals: CompoundIn
     execFileSync('git', ['checkout', '-'], { cwd, stdio: 'pipe' });
   } catch (e) {
     // git branch 복원
-    try { execFileSync('git', ['checkout', '-'], { cwd, stdio: 'pipe' }); } catch { /* best effort */ }
-    try { execFileSync('git', ['branch', '-D', branchName], { cwd, stdio: 'pipe' }); } catch { /* best effort */ }
+    try { execFileSync('git', ['checkout', '-'], { cwd, stdio: 'pipe' }); } catch (checkoutErr) { debugLog('crossover', 'git checkout - failed during error recovery — branch cleanup may be incomplete', checkoutErr); }
+    try { execFileSync('git', ['branch', '-D', branchName], { cwd, stdio: 'pipe' }); } catch (deleteErr) { debugLog('crossover', `git branch -D ${branchName} failed — temp branch may remain`, deleteErr); }
 
     // gh 미설치 시 로컬 폴백 + 설치 안내
     const isGhMissing = e instanceof Error && e.message.includes('ENOENT');

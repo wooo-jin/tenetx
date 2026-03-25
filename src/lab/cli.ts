@@ -123,7 +123,7 @@ function showDashboard(): void {
   for (const m of metrics.slice(0, 20)) {
     const name = padRight(m.name.slice(0, 23), 24);
     const kind = padRight(m.kind, 8);
-    const score = padLeft(String(m.effectivenessScore), 4) + '%';
+    const score = `${padLeft(String(m.effectivenessScore), 4)}%`;
     const trend = padRight(trendIcon(m.trend), 6);
     const uses = padLeft(String(m.invocationCount), 5);
     const success = `${Math.round(m.successRate * 100)}%`;
@@ -367,8 +367,6 @@ function handleExperiment(args: string[]): void {
         : `\n  Experiment "${id}" not found or not running.\n`);
       break;
     }
-
-    case 'status':
     default: {
       const experiments = getAllExperiments();
       console.log('\n  Tenetx Lab — Experiments\n');

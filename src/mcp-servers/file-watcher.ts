@@ -37,7 +37,7 @@ function walkDir(dir: string, results: { file: string; mtime: Date }[]): void {
         const filePath = path.join(dir, entry.name);
         const stat = fs.statSync(filePath);
         results.push({ file: filePath, mtime: stat.mtime });
-      } catch { /* ignore */ }
+      } catch { /* file stat failure — skip this entry, overall walk continues with remaining files */ }
     }
   }
 }
