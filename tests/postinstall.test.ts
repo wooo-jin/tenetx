@@ -158,28 +158,54 @@ describe('postinstall', () => {
   // ── Plugin registration ──
 
   describe('plugin', () => {
-    it('should register tenetx as Claude Code plugin', () => {
+    it('should create .claude-plugin/plugin.json in cache dir', () => {
       runPostinstall();
 
-      const pluginDir = path.join(TEST_HOME, '.claude', 'plugins', 'tenetx');
-      expect(fs.existsSync(path.join(pluginDir, 'plugin.json'))).toBe(true);
+      // ~/.claude/plugins/cache/tenetx-local/tenetx/{version}/.claude-plugin/plugin.json
+      const cacheBase = path.join(TEST_HOME, '.claude', 'plugins', 'cache', 'tenetx-local', 'tenetx');
+      expect(fs.existsSync(cacheBase)).toBe(true);
+      const versions = fs.readdirSync(cacheBase);
+      expect(versions.length).toBeGreaterThan(0);
+      const pluginJson = path.join(cacheBase, versions[0], '.claude-plugin', 'plugin.json');
+      expect(fs.existsSync(pluginJson)).toBe(true);
     });
 
-    it('should add plugin to settings.json plugins array', () => {
+    it('should register in installed_plugins.json', () => {
+      runPostinstall();
+
+      const installedPath = path.join(TEST_HOME, '.claude', 'plugins', 'installed_plugins.json');
+      expect(fs.existsSync(installedPath)).toBe(true);
+      const data = JSON.parse(fs.readFileSync(installedPath, 'utf-8'));
+      expect(data.plugins['tenetx@tenetx-local']).toBeDefined();
+      expect(data.plugins['tenetx@tenetx-local'][0].scope).toBe('user');
+    });
+
+    it('should add to enabledPlugins in settings.json', () => {
       runPostinstall();
 
       const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      expect(settings.plugins).toBeDefined();
-      expect(settings.plugins.some((p: string) => p.includes('tenetx'))).toBe(true);
+      expect(settings.enabledPlugins?.['tenetx@tenetx-local']).toBe(true);
     });
 
-    it('should not duplicate plugin on reinstall', () => {
+    it('should create commands/ symlink pointing to skills/', () => {
+      runPostinstall();
+
+      const cacheBase = path.join(TEST_HOME, '.claude', 'plugins', 'cache', 'tenetx-local', 'tenetx');
+      const versions = fs.readdirSync(cacheBase);
+      const commandsDir = path.join(cacheBase, versions[0], 'commands');
+      expect(fs.existsSync(commandsDir)).toBe(true);
+      // commands/ 안에 스킬 파일이 있어야 함
+      const files = fs.readdirSync(commandsDir).filter((f: string) => f.endsWith('.md'));
+      expect(files.length).toBeGreaterThan(0);
+    });
+
+    it('should not duplicate on reinstall', () => {
       runPostinstall();
       runPostinstall();
 
-      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      const tenetxPlugins = settings.plugins.filter((p: string) => p.includes('tenetx'));
-      expect(tenetxPlugins.length).toBe(1);
+      const installedPath = path.join(TEST_HOME, '.claude', 'plugins', 'installed_plugins.json');
+      const data = JSON.parse(fs.readFileSync(installedPath, 'utf-8'));
+      expect(data.plugins['tenetx@tenetx-local'].length).toBe(1);
     });
   });
 
