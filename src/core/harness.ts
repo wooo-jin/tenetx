@@ -601,7 +601,7 @@ function cleanupStaleCommands(commandsDir: string, validFiles: Set<string>): num
 /** 스킬을 Claude Code 슬래시 명령(/tenetx:xxx)으로 설치 */
 function installSlashCommands(cwd: string, skillOverlayMap?: SkillOverlayMap): void {
   const pkgRoot = getPackageRoot();
-  const skillsDir = path.join(pkgRoot, 'skills');
+  const skillsDir = path.join(pkgRoot, 'commands');
   const homeDir = os.homedir();
 
   // 글로벌: ~/.claude/commands/tenetx/ (모든 프로젝트에서 /tenetx:xxx 사용 가능)

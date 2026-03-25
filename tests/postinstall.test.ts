@@ -14,7 +14,7 @@ vi.mock('node:os', async (importOriginal) => {
 const COMMANDS_DIR = path.join(TEST_HOME, '.claude', 'commands', 'tenetx');
 const SETTINGS_PATH = path.join(TEST_HOME, '.claude', 'settings.json');
 const COMPOUND_HOME = path.join(TEST_HOME, '.compound');
-const SKILLS_DIR = path.resolve(__dirname, '..', 'skills');
+const SKILLS_DIR = path.resolve(__dirname, '..', 'commands');
 
 function runPostinstall() {
   const { execFileSync } = require('node:child_process');

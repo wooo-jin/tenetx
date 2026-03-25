@@ -78,7 +78,7 @@ function fixOwnership(...paths) {
 const HOME = resolveHome();
 
 // ── Paths ──
-const SKILLS_DIR = join(PKG_ROOT, 'skills');
+const SKILLS_DIR = join(PKG_ROOT, 'commands');
 const DIST_HOOKS = join(PKG_ROOT, 'dist', 'hooks');
 const COMMANDS_DIR = join(HOME, '.claude', 'commands', 'tenetx');
 const CLAUDE_DIR = join(HOME, '.claude');
@@ -143,7 +143,7 @@ function registerPlugin() {
   // commands/ 디렉토리에 스킬 파일 복사 (프론트매터를 Claude Code 표준으로 변환)
   // symlink 대신 복사하는 이유: sudo 설치 시 권한/경로 문제 방지
   const commandsDst = join(CACHE_DIR, 'commands');
-  const skillsSrc = join(PKG_ROOT, 'skills');
+  const skillsSrc = join(PKG_ROOT, 'commands');
   if (existsSync(skillsSrc)) {
     // 기존 symlink 제거
     if (existsSync(commandsDst)) {
