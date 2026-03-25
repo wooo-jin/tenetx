@@ -5,6 +5,46 @@ All notable changes to tenetx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-03-25
+
+### Added
+- **Compound Engine integrity improvements**
+  - **Code Reflection false positive prevention** — identifier minimum length raised from 4 to 6 characters, reducing false `reflected++` from common words
+  - **"Why" context in auto-extraction** — extracted solutions now include git commit messages, addressing the "git diff only shows what, not why" gap
+  - **Staleness detection** — `checkIdentifierStaleness()` verifies solution identifiers still exist in codebase via grep
+  - **Extraction precision metrics** — `compound-precision` lab event emitted during lifecycle checks for tracking promotion/retirement rates
+- **Token injection guardrail** — `MAX_INJECTED_CHARS_PER_SESSION = 8000` (~2K tokens) caps per-session injection cost, tracked in session cache
+- **E2E hook pipeline tests** — 7 integration tests verifying actual hook stdin→stdout JSON protocol (solution-injector, keyword-detector, pre-tool-use, slop-detector, db-guard)
+- **txd security warning** — CLI now emits 3-line warning on startup when permissions are skipped
+- **Documentation**
+  - Open source readiness review feedback (P0/P1/P2 prioritized)
+  - Action plan v2.1 (7 phases, 33 items, 18 success criteria)
+  - ADR-001: large file decomposition plan
+  - ADR-002: EMA learning rate parameter rationale
+  - Auto vs manual extraction tradeoff guide
+  - oh-my-claudecode coexistence guide
+  - Case study template for dogfooding data
+  - Good first issues list (6 issues)
+
+### Fixed
+- **3 failing tests** — slop-detector-main.test.ts depended on local `~/.compound/hook-config.json` (now mocked)
+- **106 empty catch blocks → 0** — all replaced with `debugLog()` or descriptive comments explaining why safe to ignore
+- **70 biome lint warnings → 0** — `noAssignInExpressions`, non-null assertions, array index keys, etc.
+- **CI coverage double-run** — merged `npm test` + `--coverage` into single vitest invocation to prevent mock state corruption
+
+### Changed
+- **Coverage thresholds** — aligned vitest.config.ts with actual coverage (35% lines) instead of unrealistic 85%. CI now enforces thresholds.
+- **Node.js requirement** — 18 → 20 (vitest v4/rolldown requires `node:util.styleText`)
+- **CI matrix** — removed Node 18, kept Node 20 + 22
+- **CONTRIBUTING.md** — replaced "No linter yet" with Biome instructions, added architecture diagram
+- **README** — added vendor lock-in notice, "When to Use" table, txd warning section
+- **Multi-language READMEs** — synced KO/ZH/JA with all English changes
+- **GitHub Actions** — checkout v4→v6, setup-node v4→v6
+
+### Dependencies
+- `@types/node` ^22.19.15 → ^25.5.0
+- `@vitest/coverage-v8` ^4.1.0 → ^4.1.1
+
 ## [2.0.0] - 2026-03-24
 
 ### Added
