@@ -16,11 +16,32 @@
 import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..');
-const HOME = homedir();
+
+/**
+ * sudo npm i -g 시 homedir()이 /root를 반환하는 문제 해결.
+ * SUDO_USER가 있으면 실제 유저의 홈 디렉토리를 찾는다.
+ */
+function resolveHome() {
+  const sudoUser = process.env.SUDO_USER;
+  if (sudoUser && process.getuid?.() === 0) {
+    try {
+      // getent passwd로 실제 유저 홈 조회 (Linux/macOS 공통)
+      const entry = execSync(`getent passwd ${sudoUser}`, { encoding: 'utf-8' }).trim();
+      const home = entry.split(':')[5];
+      if (home) return home;
+    } catch { /* fallback */ }
+    // fallback: /home/{user} (Linux 기본)
+    return join('/home', sudoUser);
+  }
+  return homedir();
+}
+
+const HOME = resolveHome();
 
 // ── Paths ──
 const SKILLS_DIR = join(PKG_ROOT, 'skills');
