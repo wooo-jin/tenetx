@@ -112,56 +112,76 @@ function ensureDirectories() {
 }
 
 // ── 2. Register as Claude Code plugin ──
-// Claude Code는 플러그인 시스템으로 skills/agents를 로드.
-// ~/.claude/plugins/tenetx/plugin.json이 있어야 스킬이 보임.
+// Claude Code는 installed_plugins.json + .claude-plugin/plugin.json 구조로 플러그인 로드.
+// commands/ 디렉토리의 .md 파일을 스킬로 인식.
+// 참고: claude-hud 등 동작하는 플러그인의 실제 구조를 그대로 따름.
 function registerPlugin() {
   const manifestPath = join(PKG_ROOT, 'plugin.json');
   if (!existsSync(manifestPath)) return false;
 
-  mkdirSync(PLUGIN_DIR, { recursive: true });
+  // 플러그인 캐시 경로: ~/.claude/plugins/cache/tenetx-local/tenetx/{version}/
+  const pkg = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf-8'));
+  const version = pkg.version ?? '0.0.0';
+  const CACHE_DIR = join(PLUGINS_DIR, 'cache', 'tenetx-local', 'tenetx', version);
 
-  // plugin.json의 ${PLUGIN_DIR}를 실제 패키지 경로로 치환
-  const raw = readFileSync(manifestPath, 'utf-8');
-  const pkgRootNormalized = PKG_ROOT.replace(/\\/g, '/');
-  const resolved = raw.replace(/\$\{PLUGIN_DIR\}/g, pkgRootNormalized);
-  writeFileSync(join(PLUGIN_DIR, 'plugin.json'), resolved);
+  mkdirSync(CACHE_DIR, { recursive: true });
 
-  // 심볼릭 링크: dist, agents, commands(=skills) → 패키지 실제 경로
-  // Claude Code 플러그인은 commands/ 디렉토리에서 스킬을 로드함
-  const links = [
-    { src: join(PKG_ROOT, 'dist'), dst: join(PLUGIN_DIR, 'dist') },
-    { src: join(PKG_ROOT, 'agents'), dst: join(PLUGIN_DIR, 'agents') },
-    { src: join(PKG_ROOT, 'skills'), dst: join(PLUGIN_DIR, 'commands') },
-  ];
+  // .claude-plugin/plugin.json 생성 (Claude Code 표준 구조)
+  const claudePluginDir = join(CACHE_DIR, '.claude-plugin');
+  mkdirSync(claudePluginDir, { recursive: true });
 
-  for (const { src, dst } of links) {
-    if (!existsSync(src)) continue;
-    if (existsSync(dst)) {
+  const pluginMeta = {
+    name: 'tenetx',
+    description: pkg.description ?? 'Personalized harness for Claude Code',
+    version,
+    author: { name: pkg.author ?? 'jang-ujin' },
+    homepage: pkg.repository?.url?.replace('git+', '').replace('.git', '') ?? '',
+    license: pkg.license ?? 'MIT',
+  };
+  writeFileSync(join(claudePluginDir, 'plugin.json'), JSON.stringify(pluginMeta, null, 2));
+
+  // commands/ 디렉토리 심볼릭 링크 (skills/ → commands/)
+  const commandsDst = join(CACHE_DIR, 'commands');
+  if (existsSync(join(PKG_ROOT, 'skills'))) {
+    if (existsSync(commandsDst)) {
       try {
-        const stat = lstatSync(dst);
-        if (stat.isSymbolicLink()) unlinkSync(dst);
-        else continue; // 실제 디렉토리면 건너뛰기
-      } catch { continue; }
+        if (lstatSync(commandsDst).isSymbolicLink()) unlinkSync(commandsDst);
+      } catch { /* ignore */ }
     }
-    try {
-      symlinkSync(src, dst, 'dir');
-    } catch { /* Windows 등에서 symlink 불가 시 무시 */ }
+    if (!existsSync(commandsDst)) {
+      try { symlinkSync(join(PKG_ROOT, 'skills'), commandsDst, 'dir'); } catch { /* ignore */ }
+    }
   }
 
-  // settings.json에 plugins 배열 등록
+  // installed_plugins.json에 등록 (Claude Code 표준)
+  const installedPath = join(PLUGINS_DIR, 'installed_plugins.json');
+  let installed = { version: 2, plugins: {} };
+  if (existsSync(installedPath)) {
+    try { installed = JSON.parse(readFileSync(installedPath, 'utf-8')); } catch { /* ignore */ }
+  }
+
+  const pluginKey = 'tenetx@tenetx-local';
+  installed.plugins = installed.plugins ?? {};
+  installed.plugins[pluginKey] = [{
+    scope: 'user',
+    installPath: CACHE_DIR,
+    version,
+    installedAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+  }];
+
+  mkdirSync(PLUGINS_DIR, { recursive: true });
+  writeFileSync(installedPath, JSON.stringify(installed, null, 2));
+
+  // settings.json의 enabledPlugins에 등록
   let settings = {};
   if (existsSync(SETTINGS_PATH)) {
-    try {
-      settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'));
-    } catch { /* 파싱 실패 시 빈 설정 */ }
+    try { settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8')); } catch { /* ignore */ }
   }
-
-  const plugins = settings.plugins ?? [];
-  if (!plugins.includes(PLUGIN_DIR)) {
-    plugins.push(PLUGIN_DIR);
-    settings.plugins = plugins;
-    writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
-  }
+  const enabled = settings.enabledPlugins ?? {};
+  enabled[pluginKey] = true;
+  settings.enabledPlugins = enabled;
+  writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 
   return true;
 }
