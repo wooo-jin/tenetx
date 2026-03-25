@@ -197,4 +197,64 @@ describe('postinstall', () => {
       expect(settings.hooks).toBeDefined();
     });
   });
+
+  // ── Cross-platform ──
+
+  describe('cross-platform', () => {
+    it('should use forward slashes in hook commands for cross-platform compat', () => {
+      runPostinstall();
+
+      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      for (const [, entries] of Object.entries(settings.hooks)) {
+        for (const entry of entries as Array<{ hooks?: Array<{ command?: string }> }>) {
+          for (const hook of entry.hooks ?? []) {
+            if (hook.command?.includes('dist')) {
+              // 훅 command에 백슬래시가 없어야 함
+              expect(hook.command).not.toMatch(/\\/);
+            }
+          }
+        }
+      }
+    });
+
+    it('should detect tenetx hooks regardless of path separator style', () => {
+      // 기존에 Windows 스타일 백슬래시 경로로 등록된 훅이 있어도 감지해야 함
+      fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
+      const existing = {
+        hooks: {
+          UserPromptSubmit: [
+            { matcher: '', hooks: [{ type: 'command', command: 'node "C:\\Users\\foo\\node_modules\\tenetx\\dist\\hooks\\intent-classifier.js"', timeout: 3000 }] },
+            { matcher: '', hooks: [{ type: 'command', command: 'my-custom-hook.sh', timeout: 1000 }] },
+          ],
+        },
+      };
+      fs.writeFileSync(SETTINGS_PATH, JSON.stringify(existing));
+
+      runPostinstall();
+
+      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      // 기존 Windows 스타일 tenetx 훅은 제거되고 새 훅으로 대체되어야 함
+      const customHook = settings.hooks.UserPromptSubmit.find(
+        (h: { hooks?: Array<{ command?: string }> }) => h.hooks?.[0]?.command === 'my-custom-hook.sh',
+      );
+      expect(customHook).toBeDefined();
+      // Windows 백슬래시 경로의 기존 훅은 남아있으면 안 됨
+      const oldWindowsHook = settings.hooks.UserPromptSubmit.find(
+        (h: { hooks?: Array<{ command?: string }> }) => h.hooks?.[0]?.command?.includes('C:\\Users'),
+      );
+      expect(oldWindowsHook).toBeUndefined();
+    });
+
+    it('should not accumulate duplicate hooks on reinstall', () => {
+      runPostinstall();
+      const settings1 = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      const count1 = settings1.hooks.UserPromptSubmit.length;
+
+      runPostinstall();
+      const settings2 = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      const count2 = settings2.hooks.UserPromptSubmit.length;
+
+      expect(count2).toBe(count1);
+    });
+  });
 });

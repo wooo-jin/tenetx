@@ -6,6 +6,8 @@
  * tenetx CLI(harness)를 거치지 않고 claude를 직접 실행해도
  * 슬래시 명령, 훅, 디렉토리 구조가 모두 동작하도록 보장합니다.
  *
+ * 크로스 플랫폼 지원: Windows, macOS, Linux (sudo 포함)
+ *
  * 설계 결정:
  *   - forge overlay 없이 기본 스킬만 설치 (overlay는 harness 실행 시 적용)
  *   - 사용자가 수정한 파일(<!-- tenetx-managed --> 마커 없음)은 보존
@@ -15,30 +17,62 @@
 
 import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, platform } from 'node:os';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..');
+const IS_WINDOWS = platform() === 'win32';
 
 /**
  * sudo npm i -g 시 homedir()이 /root를 반환하는 문제 해결.
  * SUDO_USER가 있으면 실제 유저의 홈 디렉토리를 찾는다.
+ * Windows에서는 sudo가 없으므로 homedir() 그대로 사용.
  */
 function resolveHome() {
+  if (IS_WINDOWS) return homedir();
+
   const sudoUser = process.env.SUDO_USER;
   if (sudoUser && process.getuid?.() === 0) {
     try {
-      // getent passwd로 실제 유저 홈 조회 (Linux/macOS 공통)
-      const entry = execSync(`getent passwd ${sudoUser}`, { encoding: 'utf-8' }).trim();
-      const home = entry.split(':')[5];
-      if (home) return home;
+      // getent passwd (Linux) 또는 dscl (macOS)
+      if (platform() === 'darwin') {
+        const home = execSync(`dscl . -read /Users/${sudoUser} NFSHomeDirectory`, { encoding: 'utf-8' })
+          .trim().split(':').pop()?.trim();
+        if (home) return home;
+      } else {
+        const entry = execSync(`getent passwd ${sudoUser}`, { encoding: 'utf-8' }).trim();
+        const home = entry.split(':')[5];
+        if (home) return home;
+      }
     } catch { /* fallback */ }
-    // fallback: /home/{user} (Linux 기본)
-    return join('/home', sudoUser);
+    // fallback: OS별 기본 경로
+    return platform() === 'darwin'
+      ? join('/Users', sudoUser)
+      : join('/home', sudoUser);
   }
   return homedir();
+}
+
+/**
+ * sudo로 생성된 파일/디렉토리를 실제 유저 소유로 변경.
+ * 이렇게 하지 않으면 유저가 나중에 settings.json 등을 수정할 수 없음.
+ */
+function fixOwnership(...paths) {
+  if (IS_WINDOWS) return;
+  const sudoUser = process.env.SUDO_USER;
+  if (!sudoUser || process.getuid?.() !== 0) return;
+
+  try {
+    const uid = execSync(`id -u ${sudoUser}`, { encoding: 'utf-8' }).trim();
+    const gid = execSync(`id -g ${sudoUser}`, { encoding: 'utf-8' }).trim();
+    for (const p of paths) {
+      if (existsSync(p)) {
+        execSync(`chown -R ${uid}:${gid} "${p}"`, { stdio: 'ignore' });
+      }
+    }
+  } catch { /* best effort */ }
 }
 
 const HOME = resolveHome();
@@ -111,9 +145,11 @@ function installSlashCommands() {
 
 // ── 3. Inject hooks into settings.json ──
 
-/** 훅 경로가 tenetx dist/hooks를 가리키는지 판별 */
+/** 훅 경로가 tenetx dist/hooks를 가리키는지 판별 (Windows \ 와 Unix / 모두 처리) */
 function isTenetxHook(entry) {
-  const check = (cmd) => cmd.includes('/dist/hooks/') && cmd.includes('tenetx');
+  // [\\/] 패턴으로 양쪽 구분자 모두 매칭 (harness.ts와 동일 전략)
+  const HOOK_PATTERN = /[\\/]dist[\\/]hooks[\\/].*\.js/;
+  const check = (cmd) => HOOK_PATTERN.test(cmd) && cmd.includes('tenetx');
   if (typeof entry.command === 'string' && check(entry.command)) return true;
   if (Array.isArray(entry.hooks)) {
     return entry.hooks.some((h) => typeof h.command === 'string' && check(h.command));
@@ -123,6 +159,16 @@ function isTenetxHook(entry) {
 
 function makeHookEntry(command, timeout) {
   return { matcher: '', hooks: [{ type: 'command', command, timeout }] };
+}
+
+/**
+ * 훅 command 문자열을 생성.
+ * Windows에서도 node CLI는 forward slash를 인식하므로 통일.
+ */
+function buildHookCommand(scriptPath, suffix) {
+  // Windows 백슬래시를 forward slash로 정규화 (node는 양쪽 다 처리 가능)
+  const normalized = scriptPath.replace(/\\/g, '/');
+  return `node "${normalized}"${suffix}`;
 }
 
 function injectHooks() {
@@ -175,12 +221,11 @@ function injectHooks() {
     if (!eventHooks[event]) {
       eventHooks[event] = filterNonTenetx(hooksConfig[event]);
     }
-    // 스크립트 파일명에서 실제 경로 구성 (공백 포함 가능)
     const scriptFile = script.includes(' ') ? script.split(' ')[0] : script;
     const suffix = script.includes(' ') ? ` ${script.split(' ').slice(1).join(' ')}` : '';
     const fullPath = join(DIST_HOOKS, scriptFile);
     if (existsSync(fullPath)) {
-      eventHooks[event].push(makeHookEntry(`node "${fullPath}"${suffix}`, timeout));
+      eventHooks[event].push(makeHookEntry(buildHookCommand(fullPath, suffix), timeout));
     }
   }
 
@@ -207,6 +252,9 @@ function main() {
   ensureDirectories();
   const commands = installSlashCommands();
   const hooks = injectHooks();
+
+  // sudo 실행 시 파일 소유권을 실제 유저로 변경
+  fixOwnership(join(HOME, '.claude'), join(HOME, '.compound'));
 
   const parts = [];
   if (commands > 0) parts.push(`${commands} slash commands`);
