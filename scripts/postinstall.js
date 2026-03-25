@@ -250,8 +250,20 @@ function injectHooks() {
 // ── Main ──
 function main() {
   ensureDirectories();
-  const commands = installSlashCommands();
-  const hooks = injectHooks();
+
+  let commands = 0;
+  try {
+    commands = installSlashCommands();
+  } catch (err) {
+    console.error(`[tenetx] slash commands failed: ${err?.message ?? err}`);
+  }
+
+  let hooks = false;
+  try {
+    hooks = injectHooks();
+  } catch (err) {
+    console.error(`[tenetx] hooks injection failed: ${err?.message ?? err}`);
+  }
 
   // sudo 실행 시 파일 소유권을 실제 유저로 변경
   fixOwnership(join(HOME, '.claude'), join(HOME, '.compound'));
@@ -260,12 +272,13 @@ function main() {
   if (commands > 0) parts.push(`${commands} slash commands`);
   if (hooks) parts.push('hooks');
   if (parts.length > 0) {
-    console.log(`[tenetx] Installed: ${parts.join(', ')}`);
+    console.log(`[tenetx] Installed: ${parts.join(', ')} → ${HOME}`);
   }
 }
 
 try {
   main();
-} catch {
-  // postinstall 실패가 npm install을 깨뜨리지 않도록 silent failure
+} catch (err) {
+  // postinstall 실패가 npm install을 깨뜨리지 않되, 원인은 표시
+  console.error(`[tenetx] postinstall warning: ${err?.message ?? err}`);
 }
