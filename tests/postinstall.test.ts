@@ -155,6 +155,34 @@ describe('postinstall', () => {
     });
   });
 
+  // ── Plugin registration ──
+
+  describe('plugin', () => {
+    it('should register tenetx as Claude Code plugin', () => {
+      runPostinstall();
+
+      const pluginDir = path.join(TEST_HOME, '.claude', 'plugins', 'tenetx');
+      expect(fs.existsSync(path.join(pluginDir, 'plugin.json'))).toBe(true);
+    });
+
+    it('should add plugin to settings.json plugins array', () => {
+      runPostinstall();
+
+      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      expect(settings.plugins).toBeDefined();
+      expect(settings.plugins.some((p: string) => p.includes('tenetx'))).toBe(true);
+    });
+
+    it('should not duplicate plugin on reinstall', () => {
+      runPostinstall();
+      runPostinstall();
+
+      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      const tenetxPlugins = settings.plugins.filter((p: string) => p.includes('tenetx'));
+      expect(tenetxPlugins.length).toBe(1);
+    });
+  });
+
   // ── Directory structure ──
 
   describe('directories', () => {
