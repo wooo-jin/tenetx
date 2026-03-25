@@ -21,7 +21,7 @@ function persistModeState(mode: ExecutionMode): void {
       startedAt: new Date().toISOString(),
       source: 'cli-flag',
     }));
-  } catch { /* state 저장 실패는 무시 */ }
+  } catch { /* state 저장 실패: 모드 상태표시에만 영향, 기능에는 무영향 */ }
 }
 
 /** 모드 종료 시 state 파일을 비활성화 */
@@ -33,7 +33,7 @@ function deactivateModeState(mode: ExecutionMode): void {
     data.active = false;
     data.endedAt = new Date().toISOString();
     fs.writeFileSync(statePath, JSON.stringify(data));
-  } catch { /* state 업데이트 실패는 무시 */ }
+  } catch { /* state 업데이트 실패: 모드 상태표시에만 영향, 기능에는 무영향 */ }
 }
 
 /** claude CLI 경로 탐색 */

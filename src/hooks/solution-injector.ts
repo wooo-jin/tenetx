@@ -31,31 +31,39 @@ const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
 const MAX_SOLUTIONS_PER_SESSION = 10;
 const MAX_SOLUTION_LENGTH = 1500; // 솔루션당 최대 글자 수
+const MAX_INJECTED_CHARS_PER_SESSION = 8000; // 세션당 총 주입 문자 수 상한 (~2K tokens)
 
 /** 세션별 이미 주입된 솔루션 추적 (중복 방지) */
 function getSessionCachePath(sessionId: string): string {
   return path.join(STATE_DIR, `solution-cache-${sanitizeId(sessionId)}.json`);
 }
 
-function loadSessionCache(sessionId: string): Set<string> {
+interface SessionCacheData {
+  injected: string[];
+  totalInjectedChars: number;
+  updatedAt: string;
+}
+
+function loadSessionCache(sessionId: string): { injected: Set<string>; totalInjectedChars: number } {
   const cachePath = getSessionCachePath(sessionId);
   try {
     if (fs.existsSync(cachePath)) {
-      const data = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+      const data: SessionCacheData = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
       const age = data.updatedAt ? Date.now() - new Date(data.updatedAt).getTime() : Infinity;
       if (!Number.isFinite(age) || age > 24 * 60 * 60 * 1000) {
         fs.unlinkSync(cachePath);
-        return new Set();
+        return { injected: new Set(), totalInjectedChars: 0 };
       }
-      return new Set(data.injected ?? []);
+      return { injected: new Set(data.injected ?? []), totalInjectedChars: data.totalInjectedChars ?? 0 };
     }
   } catch (e) { debugLog('solution-injector', '캐시 읽기 실패', e); }
-  return new Set();
+  return { injected: new Set(), totalInjectedChars: 0 };
 }
 
-function saveSessionCache(sessionId: string, injected: Set<string>): void {
+function saveSessionCache(sessionId: string, injected: Set<string>, totalInjectedChars: number): void {
   atomicWriteJSON(getSessionCachePath(sessionId), {
     injected: [...injected],
+    totalInjectedChars,
     updatedAt: new Date().toISOString(),
   });
 }
@@ -90,12 +98,17 @@ async function main(): Promise<void> {
   const sessionId = input.session_id ?? 'default';
 
   // Record prompt for pattern learning (non-blocking)
-  try { recordPrompt(input.prompt, sessionId); } catch { /* non-blocking */ }
-  try { incrementWorkflowCounter('prompt'); } catch { /* non-blocking */ }
+  try { recordPrompt(input.prompt, sessionId); } catch (e) { debugLog('solution-injector', 'prompt 기록 실패 — pattern learning 누락', e); }
+  try { incrementWorkflowCounter('prompt'); } catch (e) { debugLog('solution-injector', 'workflow prompt counter 증가 실패', e); }
 
-  const injected = loadSessionCache(sessionId);
+  const cache = loadSessionCache(sessionId);
+  const injected = cache.injected;
+  let totalInjectedChars = cache.totalInjectedChars;
 
-  if (injected.size >= MAX_SOLUTIONS_PER_SESSION) {
+  if (injected.size >= MAX_SOLUTIONS_PER_SESSION || totalInjectedChars >= MAX_INJECTED_CHARS_PER_SESSION) {
+    if (totalInjectedChars >= MAX_INJECTED_CHARS_PER_SESSION) {
+      debugLog('solution-injector', `세션 토큰 상한 도달: ${totalInjectedChars} chars`);
+    }
     console.log(JSON.stringify({ result: 'approve' }));
     return;
   }
@@ -126,10 +139,15 @@ async function main(): Promise<void> {
     if (toInject.length >= Math.min(3, MAX_SOLUTIONS_PER_SESSION - injected.size)) break;
   }
 
+  // Track injected chars for token cost guardrail
+  let newChars = 0;
   for (const sol of toInject) {
     injected.add(sol.name);
+    const content = readSolutionContent(sol.path);
+    newChars += content.length;
   }
-  saveSessionCache(sessionId, injected);
+  totalInjectedChars += newChars;
+  saveSessionCache(sessionId, injected, totalInjectedChars);
 
   // Save injection cache for Code Reflection (Phase 2) — cumulative merge
   const injectionCachePath = path.join(STATE_DIR, `injection-cache-${sanitizeId(sessionId)}.json`);
@@ -141,7 +159,7 @@ async function main(): Promise<void> {
         const existing = JSON.parse(fs.readFileSync(injectionCachePath, 'utf-8'));
         if (Array.isArray(existing.solutions)) existingSolutions = existing.solutions;
       }
-    } catch { /* ignore */ }
+    } catch (e) { debugLog('solution-injector', 'injection cache 읽기 실패 — 기존 캐시 없이 새로 시작', e); }
 
     const newSolutions = toInject.map(sol => ({
       name: sol.name,
@@ -170,7 +188,7 @@ async function main(): Promise<void> {
     for (const sol of toInject) {
       updateSolutionEvidence(sol.name, 'injected');
     }
-  } catch { /* non-blocking */ }
+  } catch (e) { debugLog('solution-injector', 'evidence.injected counter 업데이트 실패', e); }
 
   // Lab event tracking for injected solutions
   for (const sol of toInject) {

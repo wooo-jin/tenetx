@@ -42,7 +42,7 @@ function loadAgentsState(sessionId: string): AgentsState {
     if (fs.existsSync(filePath)) {
       return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     }
-  } catch { /* ignore */ }
+  } catch { /* agent state parse failure — starting fresh, active agent count history for this session is lost */ }
   return { sessionId, agents: [] };
 }
 

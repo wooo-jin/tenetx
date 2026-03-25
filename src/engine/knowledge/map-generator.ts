@@ -212,16 +212,18 @@ function extractExports(content: string, language: string): string[] {
   if (['typescript', 'javascript', 'vue', 'svelte'].includes(language)) {
     // export function/class/const/type/interface
     const regex = /export\s+(?:default\s+)?(?:function|class|const|let|var|type|interface|enum)\s+(\w+)/g;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content)) !== null) {
+    let match: RegExpExecArray | null = regex.exec(content);
+    while (match !== null) {
       exports.push(match[1]);
+      match = regex.exec(content);
     }
   } else if (language === 'python') {
     // class/def at top level (no indentation)
     const regex = /^(?:class|def)\s+(\w+)/gm;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content)) !== null) {
+    let match: RegExpExecArray | null = regex.exec(content);
+    while (match !== null) {
       exports.push(match[1]);
+      match = regex.exec(content);
     }
   }
 
@@ -234,15 +236,18 @@ function extractImportSources(content: string): string[] {
 
   // ESM
   const esmRegex = /(?:import|export)\s+.*?\s+from\s+['"]([^'"]+)['"]/g;
-  let match: RegExpExecArray | null;
-  while ((match = esmRegex.exec(content)) !== null) {
+  let match: RegExpExecArray | null = esmRegex.exec(content);
+  while (match !== null) {
     sources.add(match[1]);
+    match = esmRegex.exec(content);
   }
 
   // CJS
   const cjsRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-  while ((match = cjsRegex.exec(content)) !== null) {
+  match = cjsRegex.exec(content);
+  while (match !== null) {
     sources.add(match[1]);
+    match = cjsRegex.exec(content);
   }
 
   return [...sources].slice(0, 30);
@@ -264,7 +269,7 @@ function detectEntryPoints(cwd: string, files: FileEntry[]): string[] {
           entryPoints.push(binPath as string);
         }
       }
-    } catch { /* ignore */ }
+    } catch { /* package.json entrypoints parse failure — falls through to common entry name detection */ }
   }
 
   // 일반적인 진입점 파일명
@@ -349,7 +354,7 @@ function detectFramework(cwd: string, deps: ExternalDependency[]): string | unde
       if (content.includes('django')) return 'Django';
       if (content.includes('fastapi')) return 'FastAPI';
       if (content.includes('flask')) return 'Flask';
-    } catch { /* ignore */ }
+    } catch { /* requirements.txt read failure — Python framework detection returns undefined, fallback used */ }
   }
 
   return undefined;

@@ -21,7 +21,7 @@ export function getLocale(): Locale {
       const config = JSON.parse(fs.readFileSync(GLOBAL_CONFIG, 'utf-8'));
       if (config.locale === 'ko' || config.locale === 'en') return config.locale;
     }
-  } catch { /* ignore */ }
+  } catch { /* global config parse failure — falls back to default locale 'en' */ }
   return 'en';
 }
 

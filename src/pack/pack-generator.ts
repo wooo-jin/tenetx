@@ -36,7 +36,7 @@ function summarizeStructure(cwd: string): string[] {
         entries.push(item.name);
       }
     }
-  } catch { /* ignore */ }
+  } catch { /* directory read failure — structure summary stays empty, context generation continues without it */ }
 
   return entries;
 }

@@ -86,6 +86,23 @@ export function checkConfidenceDemotion(fm: SolutionFrontmatter): SolutionStatus
   return null;
 }
 
+/** Check if solution identifiers still exist in codebase (staleness detection) */
+export function checkIdentifierStaleness(fm: SolutionFrontmatter, cwd: string): boolean {
+  if (fm.identifiers.length === 0) return false; // no identifiers to check
+  try {
+    const { execSync } = require('node:child_process') as typeof import('node:child_process');
+    let found = 0;
+    for (const id of fm.identifiers.slice(0, 5)) { // check max 5 to limit I/O
+      if (id.length < 4) continue;
+      try {
+        execSync(`grep -r --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' -l '${id.replace(/'/g, "\\'")}' . 2>/dev/null | head -1`, { cwd, encoding: 'utf-8', timeout: 3000 });
+        found++;
+      } catch { /* grep found nothing */ }
+    }
+    return found === 0; // stale if NO identifiers found in codebase
+  } catch { return false; } // don't mark stale on error
+}
+
 /** Check if solution is stale (90 days no injection) */
 export function isStale(fm: SolutionFrontmatter): boolean {
   if (fm.status === 'retired') return false;
@@ -190,6 +207,17 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
   // 5. Contradiction detection
   result.contradictions = detectContradictions(dirs);
 
+  // 6. Emit precision metrics
+  const total = result.promoted.length + result.demoted.length + result.retired.length;
+  if (total > 0) {
+    track('compound-precision', sessionId, {
+      promoted: result.promoted.length,
+      demoted: result.demoted.length,
+      retired: result.retired.length,
+      contradictions: result.contradictions.length,
+    });
+  }
+
   return result;
 }
 
@@ -208,7 +236,7 @@ export function detectContradictions(dirs: string[]): string[] {
         if (!fm || fm.status === 'retired') continue;
         solutions.push({ name: fm.name, tags: fm.tags, identifiers: fm.identifiers });
       }
-    } catch { continue; }
+    } catch { }
   }
 
   // Pairwise comparison
@@ -248,7 +276,7 @@ export function verifySolution(solutionName: string): boolean {
         if (fm.status === 'verified' || fm.status === 'mature') return true; // already verified
         return updateSolutionFile(filePath, { status: 'verified', confidence: 0.8 });
       }
-    } catch { continue; }
+    } catch { }
   }
   return false;
 }

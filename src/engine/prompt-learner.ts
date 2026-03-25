@@ -253,17 +253,17 @@ export function recordPrompt(prompt: string, sessionId: string): void {
       timestamp: new Date().toISOString(),
       sessionId,
     };
-    fs.appendFileSync(PROMPT_HISTORY_PATH, JSON.stringify(entry) + '\n');
+    fs.appendFileSync(PROMPT_HISTORY_PATH, `${JSON.stringify(entry)}\n`);
 
     // Rotate if too large
     try {
       const content = fs.readFileSync(PROMPT_HISTORY_PATH, 'utf-8');
       const lines = content.split('\n').filter(Boolean);
       if (lines.length > MAX_HISTORY_LINES) {
-        const trimmed = lines.slice(-MAX_HISTORY_LINES).join('\n') + '\n';
+        const trimmed = `${lines.slice(-MAX_HISTORY_LINES).join('\n')}\n`;
         fs.writeFileSync(PROMPT_HISTORY_PATH, trimmed);
       }
-    } catch { /* ignore rotation errors */ }
+    } catch (e) { debugLog('prompt-learner', 'prompt-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
   } catch (e) {
     debugLog('prompt-learner', 'prompt 기록 실패', e);
   }
@@ -289,15 +289,15 @@ export function recordModeUsage(mode: string, sessionId: string): void {
       timestamp: new Date().toISOString(),
       sessionId,
     };
-    fs.appendFileSync(MODE_HISTORY_PATH, JSON.stringify(entry) + '\n');
+    fs.appendFileSync(MODE_HISTORY_PATH, `${JSON.stringify(entry)}\n`);
 
     // Rotate
     try {
       const lines = fs.readFileSync(MODE_HISTORY_PATH, 'utf-8').split('\n').filter(Boolean);
       if (lines.length > MAX_MODE_HISTORY) {
-        fs.writeFileSync(MODE_HISTORY_PATH, lines.slice(-MAX_MODE_HISTORY).join('\n') + '\n');
+        fs.writeFileSync(MODE_HISTORY_PATH, `${lines.slice(-MAX_MODE_HISTORY).join('\n')}\n`);
       }
-    } catch { /* ignore */ }
+    } catch (e) { debugLog('prompt-learner', 'mode-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
   } catch (e) {
     debugLog('prompt-learner', 'mode usage 기록 실패', e);
   }
@@ -484,15 +484,15 @@ export function recordWriteContent(filePath: string, content: string, sessionId:
       timestamp: new Date().toISOString(),
       sessionId,
     };
-    fs.appendFileSync(WRITE_HISTORY_PATH, JSON.stringify(entry) + '\n');
+    fs.appendFileSync(WRITE_HISTORY_PATH, `${JSON.stringify(entry)}\n`);
 
     // Rotate
     try {
       const lines = fs.readFileSync(WRITE_HISTORY_PATH, 'utf-8').split('\n').filter(Boolean);
       if (lines.length > MAX_WRITE_HISTORY) {
-        fs.writeFileSync(WRITE_HISTORY_PATH, lines.slice(-MAX_WRITE_HISTORY).join('\n') + '\n');
+        fs.writeFileSync(WRITE_HISTORY_PATH, `${lines.slice(-MAX_WRITE_HISTORY).join('\n')}\n`);
       }
-    } catch { /* ignore */ }
+    } catch (e) { debugLog('prompt-learner', 'write-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
   } catch (e) {
     debugLog('prompt-learner', 'write content 기록 실패', e);
   }

@@ -268,7 +268,7 @@ export function migrateV1toV3(content: string, filePath: string): string {
   const today = new Date().toISOString().split('T')[0];
   const name = slugify(title || filePath);
   const type = V1_TYPE_MAP[v1Type] ?? 'pattern';
-  const tags = extractTags(title + ' ' + body);
+  const tags = extractTags(`${title} ${body}`);
 
   const solution: SolutionV3 = {
     frontmatter: {

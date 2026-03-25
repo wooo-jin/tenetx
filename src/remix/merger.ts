@@ -7,9 +7,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { COMPOUND_HOME, ME_RULES } from '../core/paths.js';
 import { ME_PHILOSOPHY } from '../core/paths.js';
-import { mergePhilosophies, loadPhilosophy } from '../core/philosophy-loader.js';
+import { loadPhilosophy } from '../core/philosophy-loader.js';
 import type { Philosophy, Principle } from '../core/types.js';
 import { hashContent } from './registry.js';
 import { getLocalComponentPath } from './cherry-pick.js';
@@ -67,7 +66,7 @@ function mergePrinciple(name: string, content: string): void {
     };
   }
 
-  const tmpPath = ME_PHILOSOPHY + '.tmp';
+  const tmpPath = `${ME_PHILOSOPHY}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(philosophy, null, 2));
   fs.renameSync(tmpPath, ME_PHILOSOPHY);
 }
@@ -107,7 +106,7 @@ function mergeRouting(name: string, content: string): void {
     };
   }
 
-  const tmpPath = ME_PHILOSOPHY + '.tmp';
+  const tmpPath = `${ME_PHILOSOPHY}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(philosophy, null, 2));
   fs.renameSync(tmpPath, ME_PHILOSOPHY);
 }

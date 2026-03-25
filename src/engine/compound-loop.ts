@@ -153,7 +153,7 @@ function formatInsight(insight: CompoundInsight): string {
       confidence: 0.5,
       type: mapInsightType(insight.type),
       scope: insight.scope as 'me' | 'team' | 'project',
-      tags: extractTags(insight.title + ' ' + insight.content),
+      tags: extractTags(`${insight.title} ${insight.content}`),
       identifiers: inferIdentifiers(insight.title, insight.content),
       evidence: { ...DEFAULT_EVIDENCE },
       created: today,

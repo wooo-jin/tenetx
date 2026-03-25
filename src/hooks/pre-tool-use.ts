@@ -47,7 +47,7 @@ function isSafeRegex(pattern: string, flags: string): boolean {
     if (Date.now() - start >= 100) return false;
     // 매칭 실패 케이스 (ReDoS는 주로 여기서 발생)
     start = Date.now();
-    re.test(testStr + '!');
+    re.test(`${testStr}!`);
     return Date.now() - start < 100;
   } catch {
     return false;
@@ -192,7 +192,7 @@ function getAndIncrementFailCount(): number {
 }
 
 function resetFailCount(): void {
-  try { if (fs.existsSync(FAIL_COUNTER_PATH)) fs.unlinkSync(FAIL_COUNTER_PATH); } catch { /* ignore */ }
+  try { if (fs.existsSync(FAIL_COUNTER_PATH)) fs.unlinkSync(FAIL_COUNTER_PATH); } catch (e) { debugLog('pre-tool-use', 'fail counter reset failed — counter stays elevated', e); }
 }
 
 /** Compound v3: detect if Edit/Write code reflects injected solution identifiers */
@@ -214,10 +214,11 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
     for (const sol of cache.solutions) {
       if (!Array.isArray(sol.identifiers) || sol.identifiers.length === 0) continue;
 
-      // Require at least 2 identifiers to match (reduce false positives)
+      // Require at least 2 identifiers to match, each 6+ chars (reduce false positives)
+      // Short identifiers (e.g. "Error", "state") are too common and cause false reflection counts
       const minMatch = Math.min(2, sol.identifiers.length);
       const matchCount = sol.identifiers.filter(
-        (id: string) => id.length >= 4 && code.includes(id)
+        (id: string) => id.length >= 6 && code.includes(id)
       ).length;
 
       if (matchCount >= minMatch) {
@@ -317,7 +318,7 @@ async function main(): Promise<void> {
   }
 
   // Compound v3: Code Reflection check (non-blocking)
-  try { checkCompoundReflection(toolName, toolInput, sessionId); } catch { /* non-blocking */ }
+  try { checkCompoundReflection(toolName, toolInput, sessionId); } catch (e) { debugLog('pre-tool-use', 'compound reflection check 실패', e); }
 
   // 활성 모드 리마인더 (10회 호출당 1회 — 결정적 카운터 기반)
   const reminders = getActiveReminders();

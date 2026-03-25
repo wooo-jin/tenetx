@@ -54,7 +54,7 @@ const GOVERNANCE_DIR = path.join(STATE_DIR, 'governance');
 
 /** 거버넌스 리포트 생성 */
 export async function generateGovernanceReport(cwd: string): Promise<GovernanceReport> {
-  let philosophy;
+  let philosophy: Philosophy;
   try {
     ({ philosophy } = loadPhilosophyForProject(cwd));
   } catch {
@@ -200,7 +200,7 @@ function buildTrends(): TrendEntry[] {
         violations: report?.violations ?? 0,
       });
     }
-  } catch { /* ignore */ }
+  } catch { /* session log read failure — trends stays empty, UI shows no data */ }
 
   return trends;
 }
@@ -237,9 +237,9 @@ function loadReportHistory(): ReportHistoryEntry[] {
           compliance: raw.overallCompliance ?? 100,
           violations: totalViolations,
         });
-      } catch { /* ignore */ }
+      } catch { /* individual report file parse failure — skip this entry, loadReportHistory continues */ }
     }
-  } catch { /* ignore */ }
+  } catch { /* report history directory read failure — entries stays empty, governance shows no history */ }
 
   return entries;
 }
@@ -253,7 +253,7 @@ function saveReport(report: GovernanceReport): void {
       path.join(GOVERNANCE_DIR, filename),
       JSON.stringify(report, null, 2),
     );
-  } catch { /* ignore */ }
+  } catch { /* saveReport failure — governance report not persisted, history will show gap */ }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -399,5 +399,5 @@ export async function handleGovernance(args: string[]): Promise<void> {
     fs.mkdirSync(GOVERNANCE_DIR, { recursive: true });
     fs.writeFileSync(mdPath, md);
     console.log(`  ${DIM}Report saved: ${mdPath}${RST}\n`);
-  } catch { /* ignore */ }
+  } catch { /* Markdown report save failure — report already printed to stdout, file save is optional */ }
 }

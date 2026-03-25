@@ -140,7 +140,7 @@ function parseSgOutput(stdout: string, maxResults?: number): AstMatch[] {
       line: entry.range.start.line + 1, // sg는 0-based
       column: entry.range.start.column + 1,
       text: entry.text,
-      matchedNode: entry.metaVariables?.['NAME']?.text ?? entry.text,
+      matchedNode: entry.metaVariables?.NAME?.text ?? entry.text,
       rule: entry.ruleId,
     });
   }

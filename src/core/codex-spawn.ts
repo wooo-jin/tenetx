@@ -209,7 +209,7 @@ function saveSpawnState(paneId: string, task: string, cwd: string): void {
     if (fs.existsSync(CODEX_STATE_PATH)) {
       state = JSON.parse(fs.readFileSync(CODEX_STATE_PATH, 'utf-8'));
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('codex-spawn', 'spawn state load failed — starting with empty state', e); }
 
   state.spawns.push({
     paneId,
@@ -237,7 +237,7 @@ export function getActiveCodexPanes(): CodexSpawnState['spawns'] {
     const activePanes = new Set<string>();
     try {
       const panes = execFileSync('tmux', ['list-panes', '-a', '-F', '#{pane_id}'], { encoding: 'utf-8' });
-      panes.trim().split('\n').forEach(p => activePanes.add(p.trim()));
+      for (const p of panes.trim().split('\n')) { activePanes.add(p.trim()); }
     } catch { /* tmux 없으면 빈 셋 */ }
 
     return state.spawns.filter(s => activePanes.has(s.paneId));
@@ -284,7 +284,7 @@ export async function waitForCodexOutput(
   if (fs.existsSync(outputPath)) {
     try {
       return `${fs.readFileSync(outputPath, 'utf-8')}\n\n(⚠ Timeout — partial output)`;
-    } catch { /* ignore */ }
+    } catch { /* output file read failed after timeout — returns null instead of partial output */ }
   }
   return null;
 }

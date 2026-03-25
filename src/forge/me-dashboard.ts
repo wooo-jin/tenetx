@@ -18,7 +18,7 @@ import type { EvolutionRecord, BehavioralPattern } from '../lab/types.js';
 function renderBar(value: number): string {
   const width = 10;
   const filled = Math.round(Math.max(0, Math.min(1, value)) * width);
-  return '[' + '#'.repeat(filled) + '·'.repeat(width - filled) + ']';
+  return `[${'#'.repeat(filled)}${'·'.repeat(width - filled)}]`;
 }
 
 // ── Time Formatting ───────────────────────────────────
@@ -136,7 +136,7 @@ function renderAgentTuning(dims: DimensionVector): string {
     // 첫 번째 행동 지시문 표시
     if (overlay.behaviorModifiers.length > 0) {
       const mod = overlay.behaviorModifiers[0];
-      const truncated = mod.length > 60 ? mod.slice(0, 57) + '...' : mod;
+      const truncated = mod.length > 60 ? `${mod.slice(0, 57)}...` : mod;
       lines.push(`  ${' '.repeat(18)} "${truncated}"`);
     }
   }

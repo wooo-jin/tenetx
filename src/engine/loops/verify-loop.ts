@@ -32,7 +32,7 @@ export function detectCommands(cwd: string): { build?: string; test?: string; ty
           ? `npm run ${scripts.typecheck ? 'typecheck' : 'type-check'}`
           : (fs.existsSync(path.join(cwd, 'tsconfig.json')) ? 'npx tsc --noEmit' : undefined),
       };
-    } catch { /* fallthrough */ }
+    } catch { /* package.json parse failure — fallthrough to other project type detection */ }
   }
 
   // Python

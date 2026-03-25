@@ -13,6 +13,11 @@ vi.mock('../src/hooks/shared/read-stdin.js', () => ({
   readStdinJSON: mockReadStdinJSON,
 }));
 
+// hook-config mock — 로컬 ~/.compound/hook-config.json에 의존하지 않도록 격리
+vi.mock('../src/hooks/hook-config.js', () => ({
+  loadHookConfig: vi.fn().mockReturnValue(null),
+}));
+
 // logger mock
 vi.mock('../src/core/logger.js', () => ({
   debugLog: vi.fn(),

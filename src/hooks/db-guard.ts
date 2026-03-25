@@ -79,7 +79,7 @@ function getAndIncrementFailCount(): number {
 }
 
 function resetFailCount(): void {
-  try { if (fs.existsSync(FAIL_COUNTER_PATH)) fs.unlinkSync(FAIL_COUNTER_PATH); } catch { /* ignore */ }
+  try { if (fs.existsSync(FAIL_COUNTER_PATH)) fs.unlinkSync(FAIL_COUNTER_PATH); } catch { /* fail counter reset failed — counter stays elevated but next parse success resets it */ }
 }
 
 async function main(): Promise<void> {

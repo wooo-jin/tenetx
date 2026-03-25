@@ -36,7 +36,7 @@ export function loadProvenance(): ProvenanceFile {
 /** Save provenance file atomically */
 function saveProvenance(provenance: ProvenanceFile): void {
   fs.mkdirSync(REMIX_DIR, { recursive: true });
-  const tmpPath = REMIX_PROVENANCE + '.tmp';
+  const tmpPath = `${REMIX_PROVENANCE}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(provenance, null, 2));
   fs.renameSync(tmpPath, REMIX_PROVENANCE);
 }

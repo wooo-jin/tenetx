@@ -211,7 +211,7 @@ function scanCodeStyle(cwd: string): CodeStyleSignals {
       for (const [dep, name] of frameworks) {
         if (allDeps.includes(dep)) testFrameworks.push(name);
       }
-    } catch { /* ignore */ }
+    } catch { /* package.json framework detection failure — testFrameworks stays empty, safe to continue */ }
   }
 
   // CI 탐지

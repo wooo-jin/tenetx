@@ -133,7 +133,7 @@ export function saveForgeProfile(profile: ForgeProfile, filePath: string): void 
     fs.writeFileSync(tmpFile, data);
     fs.renameSync(tmpFile, filePath);
   } catch (e) {
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpFile); } catch { /* tmp file cleanup — leftover .tmp file is harmless if unlink fails */ }
     throw e;
   }
 }

@@ -60,7 +60,7 @@ export function detectTestFramework(cwd: string): TestFrameworkInfo | null {
       if (content.includes('[tool.pytest') || content.includes('pytest')) {
         return { framework: 'pytest', command: 'pytest' };
       }
-    } catch { /* ignore */ }
+    } catch { /* pyproject.toml read failure — pytest detection skipped, fallthrough to other framework detection */ }
   }
 
   // go test
@@ -87,7 +87,7 @@ export function detectTestFramework(cwd: string): TestFrameworkInfo | null {
       if (pkg.scripts?.test && pkg.scripts.test !== 'echo "Error: no test specified" && exit 1') {
         return { framework: 'npm-script', command: 'npm test' };
       }
-    } catch { /* ignore */ }
+    } catch { /* package.json parse failure — npm-script test detection skipped, returns null */ }
   }
 
   return null;

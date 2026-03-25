@@ -15,10 +15,13 @@ npm test
 ## Code Style
 
 - **Language**: TypeScript with strict mode enabled
-- **No linter yet**: Follow the existing code style in the file you're editing
+- **Linter**: [Biome](https://biomejs.dev/) — run `npm run lint` before committing. Fix all warnings on files you touch.
+- **Formatter**: `npm run format` (Biome)
 - Keep functions under 50 lines; split if larger
 - No nested depth beyond 4 levels — use early returns
 - No unnecessary abstractions — implement only what's needed now
+- No empty catch blocks — at minimum add a descriptive comment or `debugLog()`
+- Adding new runtime dependencies requires justification in the PR description (current: 3 deps)
 
 ## Making Changes
 
@@ -47,6 +50,44 @@ refactor: extract helper from Y
 - Include a brief description of what changed and why
 - If fixing a bug, describe how to reproduce it
 - Tests are expected for new features and bug fixes
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    tenetx CLI                        │
+│                   (src/cli.ts)                       │
+├──────────┬──────────┬───────────┬───────────────────┤
+│  Forge   │   Lab    │ Compound  │      Pack         │
+│ (forge/) │ (lab/)   │ (engine/) │    (pack/)        │
+│          │          │           │                   │
+│ Profile  │ Pattern  │ Extract   │ Marketplace       │
+│ Scan     │ Detect   │ Inject    │ Publish/Install   │
+│ Interview│ Auto-    │ Lifecycle │ Search            │
+│ Tune     │ Learn    │ Reflect   │                   │
+├──────────┴──────────┴───────────┴───────────────────┤
+│                 Core (core/)                         │
+│  harness.ts — init, settings injection               │
+│  spawn.ts — Claude Code process launch               │
+│  config-injector.ts — settings.json generation       │
+├─────────────────────────────────────────────────────┤
+│               Hooks (hooks/)                         │
+│  UserPromptSubmit: keyword-detector, skill-injector, │
+│                    solution-injector, context-guard   │
+│  PreToolUse: pre-tool-use (reflection), db-guard     │
+│  PostToolUse: post-tool-use (negative signals)       │
+│  SessionStart: session-recovery                      │
+├─────────────────────────────────────────────────────┤
+│        Agents (agents/) + Skills (skills/)           │
+│         19 agents, 21 skills (Markdown)              │
+└─────────────────────────────────────────────────────┘
+```
+
+**Key entry points**:
+- `src/cli.ts` — All CLI commands
+- `src/core/harness.ts` — Harness initialization (large file, decomposition planned — see docs/adr/001)
+- `src/hooks/` — Claude Code hook scripts (each runs as standalone Node process)
+- `plugin.json` — Hook registration manifest
 
 ## Philosophy
 

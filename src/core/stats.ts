@@ -143,10 +143,10 @@ export async function handleStats(args: string[]): Promise<void> {
             const calls = data.toolCalls ?? 0;
             const id = (data.sessionId ?? 'unknown').slice(0, 8);
             console.log(`    ${id}… ${tokens} tokens, ${cost}, ${calls} calls`);
-          } catch { /* skip */ }
+          } catch (e) { debugLog('stats', 'individual token usage file parse failed — skipping entry', e); }
         }
       }
-    } catch { /* ignore */ }
+    } catch (e) { debugLog('stats', 'token usage directory read failed — session stats omitted', e); }
   }
 
   console.log();

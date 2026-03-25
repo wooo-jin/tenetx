@@ -17,6 +17,11 @@ import { prepareHarness, isFirstRun } from './core/harness.js';
 import { spawnClaude } from './core/spawn.js';
 
 async function main() {
+  // Security warning — txd bypasses all Claude Code permission checks
+  console.warn('\n  ⚠  txd: ALL permission checks are disabled (--dangerously-skip-permissions)');
+  console.warn('  ⚠  Claude Code will execute tools without asking for confirmation.');
+  console.warn('  ⚠  Use only in trusted environments.\n');
+
   // txd는 서브커맨드 없이 바로 Claude Code 실행 전용
   const firstRun = isFirstRun();
   if (firstRun) {

@@ -34,7 +34,7 @@ function loadLastExtraction(): LastExtraction {
     if (fs.existsSync(LAST_EXTRACTION_PATH)) {
       return JSON.parse(fs.readFileSync(LAST_EXTRACTION_PATH, 'utf-8'));
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('compound-extractor', 'last extraction state read failed — may cause duplicate extractions', e); }
   return { lastCommitSha: '', lastExtractedAt: '', extractionsToday: 0, todayDate: '' };
 }
 
@@ -51,6 +51,19 @@ function getNewCommits(cwd: string, lastSha: string): string {
       return execSync('git log --oneline -5', { cwd, encoding: 'utf-8', timeout: 5000 });
     }
     return execSync(`git log --oneline ${lastSha}..HEAD`, { cwd, encoding: 'utf-8', timeout: 5000 });
+  } catch {
+    return '';
+  }
+}
+
+/** Get commit messages for "why" context enrichment */
+function getCommitMessages(cwd: string, lastSha: string): string {
+  try {
+    const cmd = lastSha
+      ? `git log --format=%B ${lastSha}..HEAD`
+      : 'git log --format=%B -5';
+    const msgs = execSync(cmd, { cwd, encoding: 'utf-8', timeout: 5000 });
+    return msgs.slice(0, 1000).trim();
   } catch {
     return '';
   }
@@ -141,7 +154,7 @@ function gate3(sol: ExtractedSolution): 'new' | 're-extract' | 'duplicate' {
         return 'duplicate';
       }
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('compound-extractor', 'gate3 기존 솔루션 파일 읽기 실패 — new로 간주', e); }
   return 'new';
 }
 
@@ -162,7 +175,7 @@ function extractFromDiff(gitLog: string, gitDiff: string): ExtractedSolution[] {
         solutions.push({
           name: `module-${commonPrefix}-pattern`,
           type: 'pattern',
-          tags: extractTags(fileNames.join(' ') + ' ' + dir),
+          tags: extractTags(`${fileNames.join(' ')} ${dir}`),
           identifiers: basenames.filter(b => b.length >= 4).slice(0, 5),
           context: `File organization pattern in ${dir}/`,
           content: `Files follow the naming pattern: ${commonPrefix}*${ext} in ${dir}/`,
@@ -234,7 +247,6 @@ function extractFromDiff(gitLog: string, gitDiff: string): ExtractedSolution[] {
 
 /** Extract patterns from accumulated session context (prompts + writes + diff) */
 function extractFromSessionContext(
-  gitLog: string,
   gitDiff: string,
 ): ExtractedSolution[] {
   const solutions: ExtractedSolution[] = [];
@@ -249,7 +261,7 @@ function extractFromSessionContext(
         try { return JSON.parse(l).prompt as string; } catch { return ''; }
       }).filter(Boolean);
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('compound-extractor', 'prompt-history.jsonl 읽기 실패 — session context 추출 건너뜀', e); }
 
   // Load recent writes
   const writeHistoryPath = path.join(STATE_DIR, 'write-history.jsonl');
@@ -261,7 +273,7 @@ function extractFromSessionContext(
         try { return JSON.parse(l); } catch { return null; }
       }).filter(Boolean);
     }
-  } catch { /* ignore */ }
+  } catch (e) { debugLog('compound-extractor', 'write-history.jsonl 읽기 실패 — session context 추출 건너뜀', e); }
 
   // 1. Detect recurring request patterns from prompts
   // Group similar prompts by extracting key action words
@@ -481,10 +493,22 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   // Get diff for extraction prompt
   const gitDiff = getGitDiff(cwd, state.lastCommitSha);
 
+  // Get commit messages for "why" context (addresses feedback: auto-extraction loses reasoning)
+  const commitMessages = getCommitMessages(cwd, state.lastCommitSha);
+
   // Combine git diff analysis + session context analysis
   const diffPatterns = extractFromDiff(gitLog, gitDiff);
-  const contextPatterns = extractFromSessionContext(gitLog, gitDiff);
+  const contextPatterns = extractFromSessionContext(gitDiff);
   const extracted = [...diffPatterns, ...contextPatterns].slice(0, 3); // max 3 total
+
+  // Enrich extracted solutions with commit message context
+  if (commitMessages) {
+    for (const sol of extracted) {
+      sol.context = sol.context
+        ? `${sol.context}\n\nCommit context:\n${commitMessages.slice(0, 300)}`
+        : `Commit context:\n${commitMessages.slice(0, 300)}`;
+    }
+  }
 
   if (extracted.length > 0) {
     const { saved, skipped } = processExtractionResults(JSON.stringify(extracted), sessionId);
@@ -541,7 +565,7 @@ export function processExtractionResults(
     }
     if (dupResult === 're-extract') {
       // Increment reExtracted counter on existing solution
-      try { updateReExtractedCounter(sol.tags); } catch { /* non-blocking */ }
+      try { updateReExtractedCounter(sol.tags); } catch (e) { debugLog('compound-extractor', 're-extract 카운터 업데이트 실패', e); }
       skipped.push(`${sol.name}: 재추출 (기존 솔루션 강화)`);
       continue;
     }
