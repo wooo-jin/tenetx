@@ -31,7 +31,7 @@ export function createMcpServer(config: McpServerConfig): { start: () => void } 
         if (processing) return;
         processing = true;
         while (queue.length > 0) {
-          const line = queue.shift()!;
+          const line = queue.shift() ?? '';
           await handleMessage(line, config);
         }
         processing = false;

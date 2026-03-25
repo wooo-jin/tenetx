@@ -22,22 +22,23 @@ export function PhilosophyTab({ data }: PhilosophyTabProps) {
           <Text italic dimColor>"{principle.belief}"</Text>
           <Text> </Text>
           {principle.generates.map((gen, i) => {
+            const genKey = `gen-${i}`;
             if (typeof gen === 'string') {
-              return <Text key={i}><Text color="green">  → </Text>{gen}</Text>;
+              return <Text key={genKey}><Text color="green">  → </Text>{gen}</Text>;
             }
             if (typeof gen === 'object' && gen !== null) {
               const g = gen as Record<string, string>;
               if (g.alert) {
-                return <Text key={i}><Text color="yellow">  ⚠ </Text><Text color="yellow">{g.alert}</Text></Text>;
+                return <Text key={genKey}><Text color="yellow">  ⚠ </Text><Text color="yellow">{g.alert}</Text></Text>;
               }
               if (g.routing) {
-                return <Text key={i}><Text color="magenta">  ⇄ </Text><Text color="magenta">{g.routing}</Text></Text>;
+                return <Text key={genKey}><Text color="magenta">  ⇄ </Text><Text color="magenta">{g.routing}</Text></Text>;
               }
               if (g.steps || g.step) {
-                return <Text key={i}><Text color="cyan">  ◆ </Text>{g.steps ?? g.step}</Text>;
+                return <Text key={genKey}><Text color="cyan">  ◆ </Text>{g.steps ?? g.step}</Text>;
               }
               if (g.hook) {
-                return <Text key={i}><Text color="green">  ⚙ </Text>{g.hook}</Text>;
+                return <Text key={genKey}><Text color="green">  ⚙ </Text>{g.hook}</Text>;
               }
             }
             return null;

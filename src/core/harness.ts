@@ -757,7 +757,7 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
             for (const tuning of forgeConfig.hookTuning) {
               hookConfig[tuning.hookName] = { enabled: tuning.enabled, ...tuning.parameters };
             }
-            const tmp = hookConfigPath + '.tmp';
+            const tmp = `${hookConfigPath}.tmp`;
             fs.writeFileSync(tmp, JSON.stringify(hookConfig, null, 2));
             fs.renameSync(tmp, hookConfigPath);
             debugLog('harness', `Hook 설정 저장: ${forgeConfig.hookTuning.length}개`);

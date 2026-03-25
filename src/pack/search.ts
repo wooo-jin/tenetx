@@ -133,7 +133,7 @@ export function trackDownload(packName: string, registryRepo?: string): void {
     const pack = registry.packs.find((p: PackEntry) => p.name === packName);
     if (pack) {
       pack.downloads = (pack.downloads ?? 0) + 1;
-      fs.writeFileSync(regPath, JSON.stringify(registry, null, 2) + '\n');
+      fs.writeFileSync(regPath, `${JSON.stringify(registry, null, 2)}\n`);
       execSync('git add -A', { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });
       try {
         execSync(`git commit -m "stats: download ${packName}"`, { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });

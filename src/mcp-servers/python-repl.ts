@@ -66,7 +66,7 @@ export function detectPythonEnvironment(cwd: string): PythonEnvironment | null {
           if (packages.length >= 10) break;
         }
       }
-    } catch { /* ignore */ }
+    } catch { /* requirements.txt read failure — packages list stays empty, python env detection continues */ }
   }
 
   return { python: pythonBin, hasVenv, packages };

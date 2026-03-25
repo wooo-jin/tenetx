@@ -43,14 +43,21 @@ export function SparkLine({
     v % 1 !== 0 ? v.toFixed(1) : String(v)
   );
 
+  const resolvedLabels = labels ?? generateDayLabels(data.length);
+
+  const entries = data.map((v, i) => ({
+    label: resolvedLabels[i] ?? String(i),
+    value: v,
+  }));
+
   return (
     <Box flexDirection="column">
       {/* bar chart row */}
       <Box>
-        {data.map((v, i) => {
-          const idx = Math.round(((v - min) / range) * (BLOCKS.length - 1));
+        {entries.map((entry) => {
+          const idx = Math.round(((entry.value - min) / range) * (BLOCKS.length - 1));
           return (
-            <Box key={i} width={10} justifyContent="center">
+            <Box key={entry.label} width={10} justifyContent="center">
               <Text color={color}>{BLOCKS[idx]}</Text>
             </Box>
           );
@@ -58,16 +65,16 @@ export function SparkLine({
       </Box>
       {/* value row */}
       <Box>
-        {data.map((v, i) => (
-          <Box key={i} width={10} justifyContent="center">
-            <Text dimColor>{fmt(v)}{suffix}</Text>
+        {entries.map((entry) => (
+          <Box key={entry.label} width={10} justifyContent="center">
+            <Text dimColor>{fmt(entry.value)}{suffix}</Text>
           </Box>
         ))}
       </Box>
       {/* label row */}
       <Box>
-        {(labels ?? generateDayLabels(data.length)).map((label, i) => (
-          <Box key={i} width={10} justifyContent="center">
+        {resolvedLabels.map((label) => (
+          <Box key={label} width={10} justifyContent="center">
             <Text dimColor>{label}</Text>
           </Box>
         ))}

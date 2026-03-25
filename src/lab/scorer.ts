@@ -160,7 +160,7 @@ export function computeMetricsFromEvents(events: LabEvent[]): ComponentMetrics[]
     if (!components.has(key)) {
       components.set(key, emptyRawData(classified.name, classified.kind));
     }
-    const data = components.get(key)!;
+    const data = components.get(key) ?? emptyRawData(classified.name, classified.kind);
     const ts = new Date(event.timestamp).getTime();
 
     data.invocations++;

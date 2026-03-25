@@ -92,7 +92,7 @@ export async function publishPack(packName: string, options: PublishOptions = {}
   const packJsonPath = path.join(packDir, 'pack.json');
   let packMeta: Record<string, unknown> = {};
   if (fs.existsSync(packJsonPath)) {
-    try { packMeta = JSON.parse(fs.readFileSync(packJsonPath, 'utf-8')); } catch { /* ignore */ }
+    try { packMeta = JSON.parse(fs.readFileSync(packJsonPath, 'utf-8')); } catch { /* pack.json parse failure — packMeta stays empty, defaults used for description/version */ }
   }
 
   const description = (packMeta.description as string) ?? `${packName} — tenetx pack by @${author}`;
@@ -161,7 +161,7 @@ export async function publishPack(packName: string, options: PublishOptions = {}
     }
     registry.updated = new Date().toISOString().split('T')[0];
 
-    fs.writeFileSync(registryJsonPath, JSON.stringify(registry, null, 2) + '\n');
+    fs.writeFileSync(registryJsonPath, `${JSON.stringify(registry, null, 2)}\n`);
 
     // Commit and push
     execSync('git add -A', { cwd: registryDir, stdio: 'pipe' });

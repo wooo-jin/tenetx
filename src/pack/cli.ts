@@ -22,7 +22,7 @@ import {
 } from '../core/pack-config.js';
 import { PACKS_DIR } from '../core/paths.js';
 import { readPackMeta } from './remote.js';
-import type { PackRequirement } from '../core/types.js';
+import type { PackRequirement, PackMeta } from '../core/types.js';
 
 export async function handlePack(args: string[]): Promise<void> {
   const subcommand = args[0] ?? 'list';
@@ -68,7 +68,7 @@ export async function handlePack(args: string[]): Promise<void> {
         try {
           const { trackDownload } = await import('./search.js');
           trackDownload(meta.name);
-        } catch { /* non-blocking */ }
+        } catch { /* trackDownload failure — analytics best-effort, pack install succeeded */ }
         break;
       }
 
@@ -353,7 +353,7 @@ async function handlePackSetup(args: string[]): Promise<void> {
   // 1. 설치
   console.log('\n  ━━ Pack one-click setup ━━\n');
   let packName: string = dirName;
-  let meta;
+  let meta: PackMeta | undefined;
   try {
     console.log('  [1/4] Installing pack...');
     meta = await installPack(source, nameArg);
@@ -364,7 +364,7 @@ async function handlePackSetup(args: string[]): Promise<void> {
     if (msg.includes('already installed')) {
       meta = readPackMeta(path.join(PACKS_DIR, dirName)) ?? undefined;
       console.log(`  ✓ ${packName} already installed (syncing)`);
-      try { await syncPack(packName); } catch { /* ignore */ }
+      try { await syncPack(packName); } catch { /* syncPack failure on already-installed pack — falling back, pack already usable */ }
     } else {
       throw err;
     }
@@ -469,7 +469,7 @@ function checkRequirements(requires: PackRequirement): string[] {
           const mcpConfig = settings.mcpServers ?? {};
           found = mcp.name in mcpConfig;
         }
-      } catch { /* ignore */ }
+      } catch { /* MCP settings.json parse failure — MCP check treats server as not found, non-fatal */ }
 
       if (!found) {
         const hint = mcp.installCmd ?? mcp.npm ?? mcp.pip ?? '';

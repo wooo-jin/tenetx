@@ -173,8 +173,8 @@ export class StdioLspClient implements LspClient {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    this.process.stdout!.on('data', (chunk: Buffer) => this.handleData(chunk));
-    this.process.stderr!.on('data', () => {
+    this.process.stdout?.on('data', (chunk: Buffer) => this.handleData(chunk));
+    this.process.stderr?.on('data', () => {
       // stderr는 무시 (디버그 로그 용도)
     });
     this.process.on('error', () => {

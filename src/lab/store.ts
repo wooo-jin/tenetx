@@ -54,7 +54,7 @@ function atomicWrite(filePath: string, data: unknown): void {
     fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
     fs.renameSync(tmpFile, filePath);
   } catch (e) {
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpFile); } catch (unlinkErr) { debugLog('lab-store', 'tmp file cleanup failed after write error', unlinkErr); }
     throw e;
   }
 }
@@ -78,7 +78,7 @@ function safeReadJSON<T>(filePath: string, fallback: T): T {
 export function appendEvent(event: LabEvent): void {
   try {
     ensureDir(LAB_DIR);
-    const line = JSON.stringify(event) + '\n';
+    const line = `${JSON.stringify(event)}\n`;
     fs.appendFileSync(EVENTS_PATH, line);
   } catch (e) {
     debugLog('lab-store', 'Failed to append event', e);

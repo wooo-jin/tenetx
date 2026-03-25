@@ -37,7 +37,7 @@ export function loadRateLimitState(): RateLimitState {
       }
       // 손상된 상태 → 초기화
     }
-  } catch { /* ignore */ }
+  } catch { /* rate limit state parse failure — starting fresh, window resets (fail-open is safe here) */ }
   return { calls: [] };
 }
 

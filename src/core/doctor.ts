@@ -144,7 +144,7 @@ export async function runDoctor(): Promise<void> {
                   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
                   found = mcp.name in (settings.mcpServers ?? {});
                 }
-              } catch { /* ignore */ }
+              } catch { /* settings.json parse failure — treats MCP as not found, shows install hint */ }
               check(`  [${p.name}] MCP: ${mcp.name}`, found, mcp.installCmd ?? mcp.npm ?? 'Installation required');
               if (!found) totalIssues++;
             }

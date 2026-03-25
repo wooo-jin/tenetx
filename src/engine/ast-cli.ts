@@ -38,7 +38,7 @@ function formatMatches(matches: AstMatch[]): void {
     console.log(`  ${m.file}:${m.line}:${m.column}${node}`);
     // 긴 텍스트는 첫 줄만 표시
     const firstLine = m.text.split('\n')[0].trim();
-    const preview = firstLine.length > 100 ? firstLine.slice(0, 100) + '...' : firstLine;
+    const preview = firstLine.length > 100 ? `${firstLine.slice(0, 100)}...` : firstLine;
     console.log(`    ${preview}`);
   }
 

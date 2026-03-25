@@ -13,21 +13,26 @@ function extractImports(content: string): string[] {
 
   // ESM: import ... from '...'
   const esmRegex = /(?:import|export)\s+.*?\s+from\s+['"]([^'"]+)['"]/g;
-  let match: RegExpExecArray | null;
-  while ((match = esmRegex.exec(content)) !== null) {
+  let match: RegExpExecArray | null = esmRegex.exec(content);
+  while (match !== null) {
     imports.push(match[1]);
+    match = esmRegex.exec(content);
   }
 
   // CJS: require('...')
   const cjsRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-  while ((match = cjsRegex.exec(content)) !== null) {
+  match = cjsRegex.exec(content);
+  while (match !== null) {
     imports.push(match[1]);
+    match = cjsRegex.exec(content);
   }
 
   // Dynamic import: import('...')
   const dynRegex = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-  while ((match = dynRegex.exec(content)) !== null) {
+  match = dynRegex.exec(content);
+  while (match !== null) {
     imports.push(match[1]);
+    match = dynRegex.exec(content);
   }
 
   return imports;

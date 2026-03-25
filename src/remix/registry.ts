@@ -205,7 +205,7 @@ function saveCache(harnesses: PublishedHarness[]): void {
     ttlMs: CACHE_TTL_MS,
     harnesses,
   };
-  const tmpPath = getCachePath() + '.tmp';
+  const tmpPath = `${getCachePath()}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(cache, null, 2));
   fs.renameSync(tmpPath, getCachePath());
 }

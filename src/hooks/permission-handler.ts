@@ -56,7 +56,7 @@ function isAutopilotActive(): boolean {
         const data = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
         if (data.active) return true;
       }
-    } catch { /* ignore */ }
+    } catch (e) { debugLog('permission-handler', `mode state file parse failed: ${mode}`, e); }
   }
   return false;
 }

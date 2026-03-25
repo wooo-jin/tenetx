@@ -17,7 +17,7 @@ export function atomicWriteJSON(filePath: string, data: unknown): void {
     fs.renameSync(tmpFile, filePath);
   } catch (e) {
     // rename 실패 시 tmp 파일 정리
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpFile); } catch { /* tmp file cleanup — leftover .tmp file is harmless if unlink fails */ }
     throw e;
   }
 }
