@@ -52,6 +52,7 @@
     "skills/",
     "packs/",
     "templates/",
+    "scripts/postinstall.js",
     "plugin.json",
     "README.md",
     "README.ko.md",
