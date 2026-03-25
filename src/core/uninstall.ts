@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import {
@@ -7,6 +8,39 @@ import {
   releaseLock,
   atomicWriteFileSync,
 } from './settings-lock.js';
+
+/** ~/.claude/commands/tenetx/ 슬래시 명령 파일 제거 */
+function cleanSlashCommands(): void {
+  const commandsDir = path.join(os.homedir(), '.claude', 'commands', 'tenetx');
+  if (!fs.existsSync(commandsDir)) {
+    console.log('  - No slash command directory found');
+    return;
+  }
+
+  let removed = 0;
+  for (const file of fs.readdirSync(commandsDir).filter((f) => f.endsWith('.md'))) {
+    const filePath = path.join(commandsDir, file);
+    const content = fs.readFileSync(filePath, 'utf-8');
+    if (content.includes('<!-- tenetx-managed -->')) {
+      fs.unlinkSync(filePath);
+      removed++;
+    }
+  }
+
+  // 디렉토리가 비었으면 삭제
+  try {
+    const remaining = fs.readdirSync(commandsDir);
+    if (remaining.length === 0) {
+      fs.rmdirSync(commandsDir);
+    }
+  } catch { /* ignore */ }
+
+  if (removed > 0) {
+    console.log(`  ✓ Removed ${removed} slash command(s) (~/.claude/commands/tenetx/)`);
+  } else {
+    console.log('  - No tenetx-managed slash commands found');
+  }
+}
 
 /** 사용자에게 y/n 확인 */
 function confirm(message: string): Promise<boolean> {
@@ -185,6 +219,7 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
   console.log('  2. Delete .claude/agents/ch-*.md agent files');
   console.log('  3. Delete .claude/rules/ rule files (security, golden-principles, anti-pattern, routing, compound)');
   console.log('  4. Remove tenetx block from CLAUDE.md');
+  console.log('  5. Remove slash commands (~/.claude/commands/tenetx/)');
   console.log('');
   console.log('Note: ~/.compound/ directory is preserved (manual deletion: rm -rf ~/.compound)\n');
 
@@ -205,6 +240,7 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
   cleanAgents(cwd);
   cleanCompoundRules(cwd);
   cleanClaudeMd(cwd);
+  cleanSlashCommands();
 
   console.log('\n[tenetx] Uninstall complete. Restart Claude Code for a clean state.\n');
 }

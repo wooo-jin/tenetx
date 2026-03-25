@@ -18,6 +18,7 @@
     "lint": "biome lint src/",
     "lint:fix": "biome lint --write src/",
     "format": "biome format --write src/",
+    "postinstall": "node scripts/postinstall.js",
     "prepublishOnly": "npm run build && npm test"
   },
   "author": "jang-ujin",
