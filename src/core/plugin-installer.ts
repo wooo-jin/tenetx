@@ -81,7 +81,7 @@ export function installAsPlugin(): { success: boolean; pluginDir: string; error?
     const links: Array<{ src: string; dst: string }> = [
       { src: path.join(pkgRoot, 'dist'), dst: path.join(pluginDir, 'dist') },
       { src: path.join(pkgRoot, 'agents'), dst: path.join(pluginDir, 'agents') },
-      { src: path.join(pkgRoot, 'skills'), dst: path.join(pluginDir, 'commands') },
+      { src: path.join(pkgRoot, 'commands'), dst: path.join(pluginDir, 'commands') },
     ];
 
     for (const { src, dst } of links) {

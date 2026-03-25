@@ -164,7 +164,7 @@ function collectSkills(): SkillMeta[] {
   const seen = new Map<string, string>(); // name → source dir
 
   // 패키지 내장 스킬 경로 (dist/../skills/)
-  const pkgSkillsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills');
+  const pkgSkillsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'commands');
 
   // 연결된 팩의 스킬 경로 수집
   const packSkillDirs: string[] = [];

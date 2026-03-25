@@ -1,6 +1,6 @@
 {
   "name": "tenetx",
-  "version": "2.1.9",
+  "version": "2.1.10",
   "main": "dist/cli.js",
   "types": "./dist/cli.d.ts",
   "exports": {
@@ -49,7 +49,7 @@
   "files": [
     "dist/",
     "agents/",
-    "skills/",
+    "commands/",
     "packs/",
     "templates/",
     "scripts/postinstall.js",

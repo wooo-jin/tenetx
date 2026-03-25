@@ -230,7 +230,7 @@ function loadSkillContent(skillName: string): string | null {
   // tenetx 패키지 내장 스킬
   const pkgSkillPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
-    '..', '..', 'skills', `${skillName}.md`
+    '..', '..', 'commands', `${skillName}.md`
   );
   searchPaths.push(pkgSkillPath);
 
