@@ -15,7 +15,7 @@
  *   - 실패해도 npm install을 깨뜨리지 않음 (silent failure)
  */
 
-import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync, lstatSync, unlinkSync, symlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir, platform } from 'node:os';
 import { execSync } from 'node:child_process';
@@ -82,6 +82,8 @@ const SKILLS_DIR = join(PKG_ROOT, 'skills');
 const DIST_HOOKS = join(PKG_ROOT, 'dist', 'hooks');
 const COMMANDS_DIR = join(HOME, '.claude', 'commands', 'tenetx');
 const CLAUDE_DIR = join(HOME, '.claude');
+const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
+const PLUGIN_DIR = join(PLUGINS_DIR, 'tenetx');
 const SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
 const SETTINGS_BACKUP = join(CLAUDE_DIR, 'settings.json.bak');
 const COMPOUND_HOME = join(HOME, '.compound');
@@ -109,7 +111,61 @@ function ensureDirectories() {
   }
 }
 
-// ── 2. Install slash commands ──
+// ── 2. Register as Claude Code plugin ──
+// Claude Code는 플러그인 시스템으로 skills/agents를 로드.
+// ~/.claude/plugins/tenetx/plugin.json이 있어야 스킬이 보임.
+function registerPlugin() {
+  const manifestPath = join(PKG_ROOT, 'plugin.json');
+  if (!existsSync(manifestPath)) return false;
+
+  mkdirSync(PLUGIN_DIR, { recursive: true });
+
+  // plugin.json의 ${PLUGIN_DIR}를 실제 패키지 경로로 치환
+  const raw = readFileSync(manifestPath, 'utf-8');
+  const pkgRootNormalized = PKG_ROOT.replace(/\\/g, '/');
+  const resolved = raw.replace(/\$\{PLUGIN_DIR\}/g, pkgRootNormalized);
+  writeFileSync(join(PLUGIN_DIR, 'plugin.json'), resolved);
+
+  // 심볼릭 링크: dist, agents, skills → 패키지 실제 경로
+  const links = [
+    { src: join(PKG_ROOT, 'dist'), dst: join(PLUGIN_DIR, 'dist') },
+    { src: join(PKG_ROOT, 'agents'), dst: join(PLUGIN_DIR, 'agents') },
+    { src: join(PKG_ROOT, 'skills'), dst: join(PLUGIN_DIR, 'skills') },
+  ];
+
+  for (const { src, dst } of links) {
+    if (!existsSync(src)) continue;
+    if (existsSync(dst)) {
+      try {
+        const stat = lstatSync(dst);
+        if (stat.isSymbolicLink()) unlinkSync(dst);
+        else continue; // 실제 디렉토리면 건너뛰기
+      } catch { continue; }
+    }
+    try {
+      symlinkSync(src, dst, 'dir');
+    } catch { /* Windows 등에서 symlink 불가 시 무시 */ }
+  }
+
+  // settings.json에 plugins 배열 등록
+  let settings = {};
+  if (existsSync(SETTINGS_PATH)) {
+    try {
+      settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'));
+    } catch { /* 파싱 실패 시 빈 설정 */ }
+  }
+
+  const plugins = settings.plugins ?? [];
+  if (!plugins.includes(PLUGIN_DIR)) {
+    plugins.push(PLUGIN_DIR);
+    settings.plugins = plugins;
+    writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  }
+
+  return true;
+}
+
+// ── 3. Install slash commands ──
 function buildCommandContent(skillContent, skillName) {
   const descMatch = skillContent.match(/description:\s*(.+)/);
   const desc = descMatch?.[1]?.trim() ?? skillName;
@@ -251,6 +307,13 @@ function injectHooks() {
 function main() {
   ensureDirectories();
 
+  let plugin = false;
+  try {
+    plugin = registerPlugin();
+  } catch (err) {
+    console.error(`[tenetx] plugin registration failed: ${err?.message ?? err}`);
+  }
+
   let commands = 0;
   try {
     commands = installSlashCommands();
@@ -269,6 +332,7 @@ function main() {
   fixOwnership(join(HOME, '.claude'), join(HOME, '.compound'));
 
   const parts = [];
+  if (plugin) parts.push('plugin');
   if (commands > 0) parts.push(`${commands} slash commands`);
   if (hooks) parts.push('hooks');
   if (parts.length > 0) {
