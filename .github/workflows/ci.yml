@@ -19,8 +19,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-      - run: npm test
-      - name: Coverage Check
-        if: matrix.node-version == 20
-        run: npx vitest run --coverage
+      - name: Test
+        run: npx vitest run ${{ matrix.node-version == 20 && '--coverage' || '' }}
       - run: npm pack --dry-run
