@@ -601,7 +601,11 @@ function cleanupStaleCommands(commandsDir: string, validFiles: Set<string>): num
 /** 스킬을 Claude Code 슬래시 명령(/tenetx:xxx)으로 설치 */
 function installSlashCommands(cwd: string, skillOverlayMap?: SkillOverlayMap): void {
   const pkgRoot = getPackageRoot();
-  const skillsDir = path.join(pkgRoot, 'commands');
+  // commands/ (v2.1.10+) 또는 skills/ (v2.1.9 이하) 디렉토리 탐색
+  let skillsDir = path.join(pkgRoot, 'commands');
+  if (!fs.existsSync(skillsDir)) {
+    skillsDir = path.join(pkgRoot, 'skills'); // fallback
+  }
   const homeDir = os.homedir();
 
   // 글로벌: ~/.claude/commands/tenetx/ (모든 프로젝트에서 /tenetx:xxx 사용 가능)
@@ -662,8 +666,13 @@ function installSlashCommands(cwd: string, skillOverlayMap?: SkillOverlayMap): v
   }
 
   // 3. 삭제된 스킬 정리 (tenetx-managed 파일만)
-  const removedGlobal = cleanupStaleCommands(globalCommandsDir, validGlobalFiles);
-  const removedLocal = cleanupStaleCommands(localCommandsDir, validLocalFiles);
+  // validGlobalFiles가 비어있으면 cleanup 스킵 — postinstall이 만든 파일 보호
+  const removedGlobal = validGlobalFiles.size > 0
+    ? cleanupStaleCommands(globalCommandsDir, validGlobalFiles)
+    : 0;
+  const removedLocal = validLocalFiles.size > 0
+    ? cleanupStaleCommands(localCommandsDir, validLocalFiles)
+    : 0;
 
   debugLog(
     'harness',
