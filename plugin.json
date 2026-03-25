@@ -169,6 +169,5 @@
     "type": "command",
     "command": "tenetx status"
   },
-  "agents": "agents/",
-  "skills": "skills/"
+  "agents": "agents/"
 }

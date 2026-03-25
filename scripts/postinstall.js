@@ -126,11 +126,12 @@ function registerPlugin() {
   const resolved = raw.replace(/\$\{PLUGIN_DIR\}/g, pkgRootNormalized);
   writeFileSync(join(PLUGIN_DIR, 'plugin.json'), resolved);
 
-  // 심볼릭 링크: dist, agents, skills → 패키지 실제 경로
+  // 심볼릭 링크: dist, agents, commands(=skills) → 패키지 실제 경로
+  // Claude Code 플러그인은 commands/ 디렉토리에서 스킬을 로드함
   const links = [
     { src: join(PKG_ROOT, 'dist'), dst: join(PLUGIN_DIR, 'dist') },
     { src: join(PKG_ROOT, 'agents'), dst: join(PLUGIN_DIR, 'agents') },
-    { src: join(PKG_ROOT, 'skills'), dst: join(PLUGIN_DIR, 'skills') },
+    { src: join(PKG_ROOT, 'skills'), dst: join(PLUGIN_DIR, 'commands') },
   ];
 
   for (const { src, dst } of links) {

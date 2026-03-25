@@ -77,10 +77,11 @@ export function installAsPlugin(): { success: boolean; pluginDir: string; error?
     );
 
     // 3. 심볼릭 링크: dist, agents, skills
+    // Claude Code 플러그인은 commands/ 디렉토리에서 스킬을 로드
     const links: Array<{ src: string; dst: string }> = [
       { src: path.join(pkgRoot, 'dist'), dst: path.join(pluginDir, 'dist') },
       { src: path.join(pkgRoot, 'agents'), dst: path.join(pluginDir, 'agents') },
-      { src: path.join(pkgRoot, 'skills'), dst: path.join(pluginDir, 'skills') },
+      { src: path.join(pkgRoot, 'skills'), dst: path.join(pluginDir, 'commands') },
     ];
 
     for (const { src, dst } of links) {
