@@ -15,7 +15,7 @@
  *   - 실패해도 npm install을 깨뜨리지 않음 (silent failure)
  */
 
-import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync, lstatSync, unlinkSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync, lstatSync, unlinkSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir, platform } from 'node:os';
 import { execSync } from 'node:child_process';
@@ -124,6 +124,9 @@ function registerPlugin() {
   const version = pkg.version ?? '0.0.0';
   const CACHE_DIR = join(PLUGINS_DIR, 'cache', 'tenetx-local', 'tenetx', version);
 
+  // 이전 설치 잔재 완전 제거 (stale plugin.json, 깨진 symlink 등 방지)
+  const cacheParent = join(PLUGINS_DIR, 'cache', 'tenetx-local', 'tenetx');
+  try { rmSync(cacheParent, { recursive: true, force: true }); } catch { /* ignore */ }
   mkdirSync(CACHE_DIR, { recursive: true });
 
   // .claude-plugin/plugin.json 생성 (Claude Code 표준 구조)
