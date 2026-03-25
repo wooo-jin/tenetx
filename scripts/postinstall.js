@@ -15,7 +15,7 @@
  *   - 실패해도 npm install을 깨뜨리지 않음 (silent failure)
  */
 
-import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync, lstatSync, unlinkSync, symlinkSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync, lstatSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir, platform } from 'node:os';
 import { execSync } from 'node:child_process';
@@ -140,16 +140,26 @@ function registerPlugin() {
   };
   writeFileSync(join(claudePluginDir, 'plugin.json'), JSON.stringify(pluginMeta, null, 2));
 
-  // commands/ 디렉토리 심볼릭 링크 (skills/ → commands/)
+  // commands/ 디렉토리에 스킬 파일 복사 (프론트매터를 Claude Code 표준으로 변환)
+  // symlink 대신 복사하는 이유: sudo 설치 시 권한/경로 문제 방지
   const commandsDst = join(CACHE_DIR, 'commands');
-  if (existsSync(join(PKG_ROOT, 'skills'))) {
+  const skillsSrc = join(PKG_ROOT, 'skills');
+  if (existsSync(skillsSrc)) {
+    // 기존 symlink 제거
     if (existsSync(commandsDst)) {
-      try {
-        if (lstatSync(commandsDst).isSymbolicLink()) unlinkSync(commandsDst);
-      } catch { /* ignore */ }
+      try { if (lstatSync(commandsDst).isSymbolicLink()) unlinkSync(commandsDst); } catch { /* ignore */ }
     }
-    if (!existsSync(commandsDst)) {
-      try { symlinkSync(join(PKG_ROOT, 'skills'), commandsDst, 'dir'); } catch { /* ignore */ }
+    mkdirSync(commandsDst, { recursive: true });
+    for (const file of readdirSync(skillsSrc).filter(f => f.endsWith('.md'))) {
+      const raw = readFileSync(join(skillsSrc, file), 'utf-8');
+      // description 추출
+      const descMatch = raw.match(/description:\s*(.+)/);
+      const desc = descMatch?.[1]?.trim() ?? file.replace('.md', '');
+      // 프론트매터 이후 본문 추출
+      const bodyMatch = raw.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+      const body = bodyMatch?.[1]?.trim() ?? raw;
+      // Claude Code 표준 프론트매터 (description만)
+      writeFileSync(join(commandsDst, file), `---\ndescription: ${desc}\n---\n\n${body}\n`);
     }
   }
 
