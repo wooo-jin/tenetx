@@ -13,6 +13,9 @@ HARNESS.md
 CLAUDE.md
 .modified-files.json
 
+# Coverage output
+coverage/
+
 # OS
 .DS_Store
 Thumbs.db
