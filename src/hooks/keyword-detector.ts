@@ -448,7 +448,8 @@ async function main(): Promise<void> {
 }
 
 // ESM main guard: 다른 모듈에서 import 시 main() 실행 방지
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// realpathSync로 symlink 해석 (플러그인 캐시가 symlink일 때 경로 불일치 방지)
+if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fileURLToPath(import.meta.url)) {
   main().catch((e) => {
     process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
     console.log(JSON.stringify({ result: 'approve' }));
