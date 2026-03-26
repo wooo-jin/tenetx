@@ -138,15 +138,24 @@ describe('prepareHarness() integration', () => {
     expect(settings.env.COMPOUND_SCOPE).toBeDefined();
   });
 
-  it('settings.json에 hooks가 등록된다', async () => {
+  it('settings.json에 tenetx 훅이 주입되지 않는다 (플러그인 시스템 전환)', async () => {
     await prepareHarness(TEST_CWD);
 
     const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
-    expect(settings.hooks).toBeDefined();
-    // 최소한 주요 훅 이벤트 키가 존재
-    expect(settings.hooks.UserPromptSubmit).toBeDefined();
-    expect(settings.hooks.PreToolUse).toBeDefined();
-    expect(settings.hooks.PostToolUse).toBeDefined();
+    // hooks 키가 없거나, tenetx 관련 훅이 없어야 함
+    if (settings.hooks) {
+      for (const entries of Object.values(settings.hooks as Record<string, unknown[]>)) {
+        for (const entry of entries as Array<Record<string, unknown>>) {
+          const hooksList = entry.hooks as Array<Record<string, unknown>> | undefined;
+          if (Array.isArray(hooksList)) {
+            for (const hook of hooksList) {
+              const cmd = hook.command as string;
+              expect(cmd.includes('dist/hooks/') && cmd.includes('tenetx')).toBe(false);
+            }
+          }
+        }
+      }
+    }
   });
 
   it('settings.json에 statusLine이 설정된다', async () => {

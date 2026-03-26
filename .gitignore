@@ -25,6 +25,9 @@ Thumbs.db
 .env.*
 .mcp.json
 
+# Generated plugin skills (from commands/)
+skills/
+
 # Tenet (auto-generated, do not commit)
 .claude/agents/ch-*.md
 .claude/rules/security.md

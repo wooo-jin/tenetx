@@ -25,6 +25,7 @@ import { loadGlobalConfig } from '../core/global-config.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { PACKS_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { trackModeActivation, trackHookTrigger } from '../lab/tracker.js';
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
@@ -341,9 +342,12 @@ async function main(): Promise<void> {
   }
 
   const match = detectKeyword(input.prompt);
+  const sessionId = input.session_id ?? 'unknown';
+
+  // Lab 이벤트 기록 — auto-learn 데이터 수집
+  trackHookTrigger(sessionId, 'keyword-detector', 'UserPromptSubmit', match ? 'modify' : 'approve');
 
   if (!match) {
-    // 키워드 없음 → 통과
     console.log(JSON.stringify({ result: 'approve' }));
     return;
   }
@@ -377,6 +381,8 @@ async function main(): Promise<void> {
     // Compound: mode usage 기록
     try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { debugLog('keyword-detector', 'inject mode usage 기록 실패', e); }
     try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch (e) { debugLog('keyword-detector', 'inject mode start 기록 실패', e); }
+    // Lab 이벤트 기록 — auto-learn 데이터 수집
+    trackModeActivation(input.session_id ?? 'unknown', match.keyword, 'keyword');
     // 메시지 주입
     console.log(JSON.stringify({
       result: 'approve',
@@ -390,6 +396,8 @@ async function main(): Promise<void> {
     // Compound: mode usage 기록
     try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch (e) { debugLog('keyword-detector', 'skill mode usage 기록 실패', e); }
     try { recordModeStart(match.skill, input.session_id ?? 'unknown'); } catch (e) { debugLog('keyword-detector', 'skill mode start 기록 실패', e); }
+    // Lab 이벤트 기록 — auto-learn 데이터 수집
+    trackModeActivation(input.session_id ?? 'unknown', match.skill, 'keyword');
     const skillContent = loadSkillContent(match.skill);
     const effectiveCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
     const modelRec = getModelRecommendation(match.prompt ?? input.prompt, effectiveCwd);

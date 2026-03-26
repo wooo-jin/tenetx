@@ -80,40 +80,24 @@ describe('postinstall', () => {
     });
   });
 
-  // ── Hooks injection ──
+  // ── Hooks cleanup (settings.json에서 기존 tenetx 훅 정리) ──
 
-  describe('hooks', () => {
-    it('should create settings.json with hooks when it does not exist', () => {
+  describe('hooks cleanup', () => {
+    it('should not inject hooks into settings.json (plugin system handles hooks)', () => {
       runPostinstall();
 
       expect(fs.existsSync(SETTINGS_PATH)).toBe(true);
       const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      expect(settings.hooks).toBeDefined();
-      expect(settings.hooks.UserPromptSubmit).toBeDefined();
-      expect(settings.hooks.UserPromptSubmit.length).toBeGreaterThan(0);
+      // hooks 키가 없어야 함 (정리 후 빈 객체는 제거됨)
+      expect(settings.hooks).toBeUndefined();
     });
 
-    it('should register all expected hook events', () => {
-      runPostinstall();
-
-      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      const expectedEvents = [
-        'UserPromptSubmit', 'SessionStart', 'Stop',
-        'PreToolUse', 'PostToolUse',
-        'SubagentStart', 'SubagentStop',
-        'PreCompact', 'PermissionRequest', 'PostToolUseFailure',
-      ];
-      for (const event of expectedEvents) {
-        expect(settings.hooks[event], `missing hook event: ${event}`).toBeDefined();
-        expect(settings.hooks[event].length, `empty hook event: ${event}`).toBeGreaterThan(0);
-      }
-    });
-
-    it('should preserve existing non-tenetx hooks', () => {
+    it('should clean up legacy tenetx hooks from settings.json', () => {
       fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
       const existing = {
         hooks: {
           UserPromptSubmit: [
+            { matcher: '', hooks: [{ type: 'command', command: 'node "/path/to/tenetx/dist/hooks/intent-classifier.js"', timeout: 3000 }] },
             { matcher: '', hooks: [{ type: 'command', command: 'my-custom-hook.sh', timeout: 1000 }] },
           ],
         },
@@ -124,13 +108,19 @@ describe('postinstall', () => {
       runPostinstall();
 
       const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      // 사용자 커스텀 훅이 보존되어야 함
-      const customHook = settings.hooks.UserPromptSubmit.find(
-        (h) => h.hooks?.[0]?.command === 'my-custom-hook.sh',
+      // tenetx 훅은 제거되어야 함
+      if (settings.hooks?.UserPromptSubmit) {
+        const tenetxHook = settings.hooks.UserPromptSubmit.find(
+          (h: { hooks?: Array<{ command?: string }> }) =>
+            h.hooks?.[0]?.command?.includes('dist/hooks/') && h.hooks?.[0]?.command?.includes('tenetx'),
+        );
+        expect(tenetxHook).toBeUndefined();
+      }
+      // 사용자 커스텀 훅은 보존되어야 함
+      const customHook = settings.hooks?.UserPromptSubmit?.find(
+        (h: { hooks?: Array<{ command?: string }> }) => h.hooks?.[0]?.command === 'my-custom-hook.sh',
       );
       expect(customHook).toBeDefined();
-      // tenetx 훅도 추가되어야 함
-      expect(settings.hooks.UserPromptSubmit.length).toBeGreaterThan(1);
       // 기존 설정 보존
       expect(settings.someOtherSetting).toBe(true);
     });
@@ -142,16 +132,15 @@ describe('postinstall', () => {
       expect(settings.env?.COMPOUND_HARNESS).toBe('1');
     });
 
-    it('should create backup of existing settings.json', () => {
+    it('should handle corrupted settings.json gracefully', () => {
       fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-      fs.writeFileSync(SETTINGS_PATH, JSON.stringify({ existing: true }));
+      fs.writeFileSync(SETTINGS_PATH, '{invalid json!!!');
 
-      runPostinstall();
+      expect(() => runPostinstall()).not.toThrow();
 
-      const backupPath = `${SETTINGS_PATH}.bak`;
-      expect(fs.existsSync(backupPath)).toBe(true);
-      const backup = JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
-      expect(backup.existing).toBe(true);
+      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      // hooks는 없지만, env는 설정되어야 함
+      expect(settings.env?.COMPOUND_HARNESS).toBe('1');
     });
   });
 
@@ -240,38 +229,12 @@ describe('postinstall', () => {
       expect(() => runPostinstall()).not.toThrow();
       expect(fs.existsSync(COMMANDS_DIR)).toBe(true);
     });
-
-    it('should handle corrupted settings.json gracefully', () => {
-      fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-      fs.writeFileSync(SETTINGS_PATH, '{invalid json!!!');
-
-      expect(() => runPostinstall()).not.toThrow();
-
-      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      expect(settings.hooks).toBeDefined();
-    });
   });
 
   // ── Cross-platform ──
 
   describe('cross-platform', () => {
-    it('should use forward slashes in hook commands for cross-platform compat', () => {
-      runPostinstall();
-
-      const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      for (const [, entries] of Object.entries(settings.hooks)) {
-        for (const entry of entries as Array<{ hooks?: Array<{ command?: string }> }>) {
-          for (const hook of entry.hooks ?? []) {
-            if (hook.command?.includes('dist')) {
-              // 훅 command에 백슬래시가 없어야 함
-              expect(hook.command).not.toMatch(/\\/);
-            }
-          }
-        }
-      }
-    });
-
-    it('should detect tenetx hooks regardless of path separator style', () => {
+    it('should detect and clean tenetx hooks regardless of path separator style', () => {
       // 기존에 Windows 스타일 백슬래시 경로로 등록된 훅이 있어도 감지해야 함
       fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
       const existing = {
@@ -287,28 +250,30 @@ describe('postinstall', () => {
       runPostinstall();
 
       const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      // 기존 Windows 스타일 tenetx 훅은 제거되고 새 훅으로 대체되어야 함
-      const customHook = settings.hooks.UserPromptSubmit.find(
+      // 기존 Windows 스타일 tenetx 훅은 제거되어야 함
+      if (settings.hooks?.UserPromptSubmit) {
+        const oldWindowsHook = settings.hooks.UserPromptSubmit.find(
+          (h: { hooks?: Array<{ command?: string }> }) => h.hooks?.[0]?.command?.includes('C:\\Users'),
+        );
+        expect(oldWindowsHook).toBeUndefined();
+      }
+      // 사용자 커스텀 훅은 보존
+      const customHook = settings.hooks?.UserPromptSubmit?.find(
         (h: { hooks?: Array<{ command?: string }> }) => h.hooks?.[0]?.command === 'my-custom-hook.sh',
       );
       expect(customHook).toBeDefined();
-      // Windows 백슬래시 경로의 기존 훅은 남아있으면 안 됨
-      const oldWindowsHook = settings.hooks.UserPromptSubmit.find(
-        (h: { hooks?: Array<{ command?: string }> }) => h.hooks?.[0]?.command?.includes('C:\\Users'),
-      );
-      expect(oldWindowsHook).toBeUndefined();
     });
 
-    it('should not accumulate duplicate hooks on reinstall', () => {
+    it('should not accumulate hooks on reinstall (no hooks injected)', () => {
       runPostinstall();
       const settings1 = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      const count1 = settings1.hooks.UserPromptSubmit.length;
 
       runPostinstall();
       const settings2 = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      const count2 = settings2.hooks.UserPromptSubmit.length;
 
-      expect(count2).toBe(count1);
+      // hooks가 없어야 함 (둘 다)
+      expect(settings1.hooks).toBeUndefined();
+      expect(settings2.hooks).toBeUndefined();
     });
   });
 });

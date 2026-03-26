@@ -15,7 +15,7 @@
  *   - 실패해도 npm install을 깨뜨리지 않음 (silent failure)
  */
 
-import { readFileSync, readdirSync, writeFileSync, copyFileSync, mkdirSync, existsSync, lstatSync, unlinkSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, existsSync, rmSync, symlinkSync, cpSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir, platform } from 'node:os';
 import { execSync } from 'node:child_process';
@@ -83,9 +83,7 @@ const DIST_HOOKS = join(PKG_ROOT, 'dist', 'hooks');
 const COMMANDS_DIR = join(HOME, '.claude', 'commands', 'tenetx');
 const CLAUDE_DIR = join(HOME, '.claude');
 const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
-const PLUGIN_DIR = join(PLUGINS_DIR, 'tenetx');
 const SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
-const SETTINGS_BACKUP = join(CLAUDE_DIR, 'settings.json.bak');
 const COMPOUND_HOME = join(HOME, '.compound');
 
 // ── 1. Ensure directories ──
@@ -112,61 +110,65 @@ function ensureDirectories() {
 }
 
 // ── 2. Register as Claude Code plugin ──
-// Claude Code는 installed_plugins.json + .claude-plugin/plugin.json 구조로 플러그인 로드.
-// commands/ 디렉토리의 .md 파일을 스킬로 인식.
-// 참고: claude-hud 등 동작하는 플러그인의 실제 구조를 그대로 따름.
+// omc, claude-hud 등 동작하는 플러그인의 실제 구조를 그대로 따름:
+//   .claude-plugin/plugin.json  — 메타데이터 + skills 경로
+//   hooks/hooks.json            — ${CLAUDE_PLUGIN_ROOT} 기반 훅 정의
+//   skills/{name}/SKILL.md      — 스킬 파일 (서브디렉토리 구조)
+//   commands/*.md               — 슬래시 커맨드
+//
+// 설계 결정: 캐시 디렉토리를 PKG_ROOT로 symlink하여 dist/, node_modules/ 접근 보장.
+// symlink 실패 시 (sudo, cross-device 등) 필수 파일만 복사.
 function registerPlugin() {
-  const manifestPath = join(PKG_ROOT, 'plugin.json');
-  if (!existsSync(manifestPath)) return false;
+  // .claude-plugin/plugin.json 필수 — 없으면 표준 구조가 아님
+  if (!existsSync(join(PKG_ROOT, '.claude-plugin', 'plugin.json'))) return false;
 
-  // 플러그인 캐시 경로: ~/.claude/plugins/cache/tenetx-local/tenetx/{version}/
   const pkg = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf-8'));
   const version = pkg.version ?? '0.0.0';
-  const CACHE_DIR = join(PLUGINS_DIR, 'cache', 'tenetx-local', 'tenetx', version);
 
-  // 이전 설치 잔재 완전 제거 (stale plugin.json, 깨진 symlink 등 방지)
+  // skills/ 디렉토리 생성 (commands/*.md → skills/{name}/SKILL.md)
+  generateSkillsDir();
+
+  // 캐시 경로: ~/.claude/plugins/cache/tenetx-local/tenetx/{version}/
   const cacheParent = join(PLUGINS_DIR, 'cache', 'tenetx-local', 'tenetx');
+  const CACHE_DIR = join(cacheParent, version);
+
+  // 이전 잔재 완전 제거
   try { rmSync(cacheParent, { recursive: true, force: true }); } catch { /* ignore */ }
-  mkdirSync(CACHE_DIR, { recursive: true });
+  mkdirSync(join(cacheParent), { recursive: true });
 
-  // .claude-plugin/plugin.json 생성 (Claude Code 표준 구조)
-  const claudePluginDir = join(CACHE_DIR, '.claude-plugin');
-  mkdirSync(claudePluginDir, { recursive: true });
+  // 1차: symlink (개발 환경, dist/node_modules 접근 가능)
+  let linked = false;
+  try {
+    symlinkSync(PKG_ROOT, CACHE_DIR, 'dir');
+    linked = true;
+  } catch {
+    // symlink 실패 → 복사 fallback
+  }
 
-  const pluginMeta = {
-    name: 'tenetx',
-    description: pkg.description ?? 'Personalized harness for Claude Code',
-    version,
-    author: { name: pkg.author ?? 'jang-ujin' },
-    homepage: pkg.repository?.url?.replace('git+', '').replace('.git', '') ?? '',
-    license: pkg.license ?? 'MIT',
-  };
-  writeFileSync(join(claudePluginDir, 'plugin.json'), JSON.stringify(pluginMeta, null, 2));
-
-  // commands/ 디렉토리에 스킬 파일 복사 (프론트매터를 Claude Code 표준으로 변환)
-  // symlink 대신 복사하는 이유: sudo 설치 시 권한/경로 문제 방지
-  const commandsDst = join(CACHE_DIR, 'commands');
-  const skillsSrc = join(PKG_ROOT, 'commands');
-  if (existsSync(skillsSrc)) {
-    // 기존 symlink 제거
-    if (existsSync(commandsDst)) {
-      try { if (lstatSync(commandsDst).isSymbolicLink()) unlinkSync(commandsDst); } catch { /* ignore */ }
+  if (!linked) {
+    // 2차: 필수 디렉토리 복사
+    mkdirSync(CACHE_DIR, { recursive: true });
+    const copyDirs = ['.claude-plugin', 'hooks', 'skills', 'commands', 'agents'];
+    for (const dir of copyDirs) {
+      const src = join(PKG_ROOT, dir);
+      if (existsSync(src)) {
+        cpSync(src, join(CACHE_DIR, dir), { recursive: true });
+      }
     }
-    mkdirSync(commandsDst, { recursive: true });
-    for (const file of readdirSync(skillsSrc).filter(f => f.endsWith('.md'))) {
-      const raw = readFileSync(join(skillsSrc, file), 'utf-8');
-      // description 추출
-      const descMatch = raw.match(/description:\s*(.+)/);
-      const desc = descMatch?.[1]?.trim() ?? file.replace('.md', '');
-      // 프론트매터 이후 본문 추출
-      const bodyMatch = raw.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
-      const body = bodyMatch?.[1]?.trim() ?? raw;
-      // Claude Code 표준 프론트매터 (description만)
-      writeFileSync(join(commandsDst, file), `---\ndescription: ${desc}\n---\n\n${body}\n`);
+    // dist/ 복사 (훅 실행에 필요)
+    if (existsSync(join(PKG_ROOT, 'dist'))) {
+      cpSync(join(PKG_ROOT, 'dist'), join(CACHE_DIR, 'dist'), { recursive: true });
+    }
+    // js-yaml 의존성 복사 (solution-matcher가 사용)
+    const jsYamlSrc = join(PKG_ROOT, 'node_modules', 'js-yaml');
+    if (existsSync(jsYamlSrc)) {
+      const nmDst = join(CACHE_DIR, 'node_modules', 'js-yaml');
+      mkdirSync(join(CACHE_DIR, 'node_modules'), { recursive: true });
+      cpSync(jsYamlSrc, nmDst, { recursive: true });
     }
   }
 
-  // installed_plugins.json에 등록 (Claude Code 표준)
+  // installed_plugins.json에 등록
   const installedPath = join(PLUGINS_DIR, 'installed_plugins.json');
   let installed = { version: 2, plugins: {} };
   if (existsSync(installedPath)) {
@@ -197,6 +199,37 @@ function registerPlugin() {
   writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 
   return true;
+}
+
+/**
+ * commands/*.md → skills/{name}/SKILL.md 변환.
+ * Claude Code 플러그인은 skills/{name}/SKILL.md 구조로 스킬을 인식.
+ */
+function generateSkillsDir() {
+  const skillsSrc = join(PKG_ROOT, 'commands');
+  const skillsDst = join(PKG_ROOT, 'skills');
+  if (!existsSync(skillsSrc)) return;
+
+  // 기존 skills/ 제거 후 재생성
+  try { rmSync(skillsDst, { recursive: true, force: true }); } catch { /* ignore */ }
+
+  for (const file of readdirSync(skillsSrc).filter(f => f.endsWith('.md'))) {
+    const name = file.replace('.md', '');
+    const raw = readFileSync(join(skillsSrc, file), 'utf-8');
+
+    // description 추출
+    const descMatch = raw.match(/description:\s*(.+)/);
+    const desc = descMatch?.[1]?.trim() ?? name;
+
+    // frontmatter 이후 본문 추출
+    const bodyMatch = raw.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+    const body = bodyMatch?.[1]?.trim() ?? raw;
+
+    // skills/{name}/SKILL.md 생성 (Claude Code 표준)
+    const skillDir = join(skillsDst, name);
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(join(skillDir, 'SKILL.md'), `---\nname: ${name}\ndescription: ${desc}\n---\n\n${body}\n`);
+  }
 }
 
 // ── 3. Install slash commands ──
@@ -247,91 +280,37 @@ function isTenetxHook(entry) {
   return false;
 }
 
-function makeHookEntry(command, timeout) {
-  return { matcher: '', hooks: [{ type: 'command', command, timeout }] };
-}
-
-/**
- * 훅 command 문자열을 생성.
- * Windows에서도 node CLI는 forward slash를 인식하므로 통일.
- */
-function buildHookCommand(scriptPath, suffix) {
-  // Windows 백슬래시를 forward slash로 정규화 (node는 양쪽 다 처리 가능)
-  const normalized = scriptPath.replace(/\\/g, '/');
-  return `node "${normalized}"${suffix}`;
-}
-
 function injectHooks() {
-  // dist/hooks가 없으면 스킵 (빌드 전 상태)
+  // dist/hooks가 없으면 스킵
   if (!existsSync(DIST_HOOKS)) return false;
 
   let settings = {};
   if (existsSync(SETTINGS_PATH)) {
     try {
       settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'));
-      copyFileSync(SETTINGS_PATH, SETTINGS_BACKUP);
-    } catch {
-      // 파싱 실패 시 빈 설정으로 시작
-    }
+    } catch { /* 파싱 실패 시 빈 설정으로 시작 */ }
   }
 
+  // 기존 tenetx 훅 정리 (이전 버전에서 settings.json에 주입한 잔재 제거)
   const hooksConfig = settings.hooks ?? {};
-
-  // 기존 tenetx 훅 제거 후 재등록
-  function filterNonTenetx(arr) {
-    return (Array.isArray(arr) ? arr : []).filter((h) => !isTenetxHook(h));
-  }
-
-  // 훅 정의: [이벤트명, 스크립트파일, 타임아웃][]
-  const hookDefs = [
-    ['UserPromptSubmit', 'intent-classifier.js', 3000],
-    ['UserPromptSubmit', 'keyword-detector.js', 5000],
-    ['UserPromptSubmit', 'skill-injector.js', 3000],
-    ['UserPromptSubmit', 'context-guard.js', 2000],
-    ['UserPromptSubmit', 'notepad-injector.js', 3000],
-    ['UserPromptSubmit', 'solution-injector.js', 3000],
-    ['SessionStart', 'session-recovery.js', 3000],
-    ['Stop', 'context-guard.js', 3000],
-    ['PreToolUse', 'pre-tool-use.js', 3000],
-    ['PreToolUse', 'db-guard.js', 3000],
-    ['PreToolUse', 'rate-limiter.js', 2000],
-    ['PostToolUse', 'post-tool-use.js', 3000],
-    ['PostToolUse', 'secret-filter.js', 3000],
-    ['PostToolUse', 'slop-detector.js', 3000],
-    ['SubagentStart', 'subagent-tracker.js start', 2000],
-    ['SubagentStop', 'subagent-tracker.js stop', 2000],
-    ['PreCompact', 'pre-compact.js', 3000],
-    ['PermissionRequest', 'permission-handler.js', 2000],
-    ['PostToolUseFailure', 'post-tool-failure.js', 3000],
-  ];
-
-  // 이벤트별로 기존 non-tenetx 훅 유지 + tenetx 훅 추가
-  const eventHooks = {};
-  for (const [event, script, timeout] of hookDefs) {
-    if (!eventHooks[event]) {
-      eventHooks[event] = filterNonTenetx(hooksConfig[event]);
-    }
-    const scriptFile = script.includes(' ') ? script.split(' ')[0] : script;
-    const suffix = script.includes(' ') ? ` ${script.split(' ').slice(1).join(' ')}` : '';
-    const fullPath = join(DIST_HOOKS, scriptFile);
-    if (existsSync(fullPath)) {
-      eventHooks[event].push(makeHookEntry(buildHookCommand(fullPath, suffix), timeout));
-    }
-  }
-
-  // 기존 hooksConfig에서 tenetx가 아닌 이벤트도 보존
   for (const [event, entries] of Object.entries(hooksConfig)) {
-    if (!eventHooks[event]) {
-      eventHooks[event] = entries;
+    if (Array.isArray(entries)) {
+      hooksConfig[event] = entries.filter(h => !isTenetxHook(h));
+      if (hooksConfig[event].length === 0) delete hooksConfig[event];
     }
   }
+  settings.hooks = Object.keys(hooksConfig).length > 0 ? hooksConfig : undefined;
+  // undefined면 JSON.stringify에서 키 자체가 제거됨
 
-  settings.hooks = eventHooks;
-
-  // env에 COMPOUND_HARNESS 마커 (훅이 tenetx 환경임을 인식)
+  // env에 COMPOUND_HARNESS 마커만 설정
   const env = settings.env ?? {};
   env.COMPOUND_HARNESS = '1';
   settings.env = env;
+
+  // 불필요한 키 정리
+  if (settings.hooks && Object.keys(settings.hooks).length === 0) {
+    delete settings.hooks;
+  }
 
   writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
   return true;
