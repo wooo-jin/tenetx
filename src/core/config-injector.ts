@@ -4,7 +4,9 @@ import { ME_RULES, PACKS_DIR } from './paths.js';
 import { projectDir } from './paths.js';
 import { loadPackConfigs } from './pack-config.js';
 import type { HarnessContext } from './types.js';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('config-injector');
 import type { ProjectMap } from '../engine/knowledge/types.js';
 
 /** 디렉토리의 .md 파일에서 규칙 첫 줄(요약)을 추출 */
@@ -20,7 +22,7 @@ function loadRulesFromDir(dir: string): string[] {
         return firstLine?.replace(/^#+\s*/, '').trim() ?? f.replace('.md', '');
       });
   } catch (e) {
-    debugLog('config-injector', `규칙 디렉토리 읽기 실패: ${dir}`, e);
+    log.debug(`규칙 디렉토리 읽기 실패: ${dir}`, e);
     return [];
   }
 }
@@ -279,7 +281,7 @@ export async function registerTmuxBindings(): Promise<void> {
     // D는 detach와 혼동될 수 있으므로 T(enet) 사용
     execFileSync('tmux', ['bind-key', 'T', 'run-shell', 'tenetx toggle-dashboard'], { stdio: 'ignore' });
   } catch (e) {
-    debugLog('config-injector', 'tmux 키바인딩 등록 실패', e);
+    log.debug('tmux 키바인딩 등록 실패', e);
   }
 }
 

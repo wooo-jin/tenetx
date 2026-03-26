@@ -31,9 +31,9 @@ const TEST_SETTINGS_PATH = path.join(TEST_CLAUDE_DIR, 'settings.json');
 // getDefaultMcpTemplates()
 // ────────────────────────────────────────────────────────────────────────────
 describe('getDefaultMcpTemplates()', () => {
-  it('기본 템플릿 + 빌트인 서버를 반환한다 (4 + 8 = 12개)', () => {
+  it('기본 템플릿 + 빌트인 서버를 반환한다 (4 + 9 = 13개)', () => {
     const templates = getDefaultMcpTemplates();
-    expect(Object.keys(templates)).toHaveLength(12);
+    expect(Object.keys(templates)).toHaveLength(13);
   });
 
   it('filesystem 템플릿이 포함된다', () => {

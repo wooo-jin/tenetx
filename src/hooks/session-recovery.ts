@@ -11,7 +11,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('session-recovery');
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 
@@ -33,7 +35,7 @@ export function saveCheckpoint(data: Checkpoint): void {
     const filePath = path.join(STATE_DIR, `checkpoint-${sanitizeId(data.sessionId)}.json`);
     atomicWriteJSON(filePath, data);
   } catch (e) {
-    debugLog('session-recovery', '체크포인트 저장 실패', e);
+    log.debug('체크포인트 저장 실패', e);
   }
 }
 
@@ -66,13 +68,13 @@ export function loadCheckpoint(sessionId: string): Checkpoint | null {
     if (fs.existsSync(filePath)) {
       const data: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       if (!isValidCheckpoint(data)) {
-        debugLog('session-recovery', '체크포인트 구조 검증 실패', { sessionId });
+        log.debug('체크포인트 구조 검증 실패', { sessionId });
         return null;
       }
       return data;
     }
   } catch (e) {
-    debugLog('session-recovery', '체크포인트 로드 실패', e);
+    log.debug('체크포인트 로드 실패', e);
   }
   return null;
 }
@@ -90,7 +92,7 @@ export function cleanStaleCheckpoints(maxAgeMs: number = 24 * 60 * 60 * 1000): n
         const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         if (!isValidCheckpoint(parsed)) {
           // 구조 검증 실패한 파일도 정리
-          try { fs.unlinkSync(filePath); cleaned++; } catch (e) { debugLog('session-recovery', `invalid checkpoint unlink failed: ${filePath}`, e); }
+          try { fs.unlinkSync(filePath); cleaned++; } catch (e) { log.debug(`invalid checkpoint unlink failed: ${filePath}`, e); }
           continue;
         }
         const age = now - new Date(parsed.timestamp).getTime();
@@ -100,11 +102,11 @@ export function cleanStaleCheckpoints(maxAgeMs: number = 24 * 60 * 60 * 1000): n
         }
       } catch {
         // 파싱 실패한 파일도 정리
-        try { fs.unlinkSync(filePath); cleaned++; } catch (e) { debugLog('session-recovery', `corrupt checkpoint unlink failed: ${filePath}`, e); }
+        try { fs.unlinkSync(filePath); cleaned++; } catch (e) { log.debug(`corrupt checkpoint unlink failed: ${filePath}`, e); }
       }
     }
   } catch (e) {
-    debugLog('session-recovery', '스테일 체크포인트 정리 실패', e);
+    log.debug('스테일 체크포인트 정리 실패', e);
   }
   return cleaned;
 }
@@ -149,7 +151,7 @@ async function main(): Promise<void> {
     try {
       const parsed: unknown = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
       if (!isValidModeState(parsed)) {
-        debugLog('session-recovery', `상태 파일 구조 검증 실패: ${mode}`);
+        log.debug(`상태 파일 구조 검증 실패: ${mode}`);
         continue;
       }
       const state: ModeState = parsed;
@@ -175,7 +177,7 @@ async function main(): Promise<void> {
         `\n</compound-recovery>`
       );
     } catch (e) {
-      debugLog('session-recovery', `상태 파일 파싱 실패`, e);
+      log.debug(`상태 파일 파싱 실패`, e);
     }
   }
 
@@ -187,7 +189,7 @@ async function main(): Promise<void> {
       try {
         const parsedCp: unknown = JSON.parse(fs.readFileSync(path.join(STATE_DIR, file), 'utf-8'));
         if (!isValidCheckpoint(parsedCp)) {
-          debugLog('session-recovery', `체크포인트 파일 구조 검증 실패: ${file}`);
+          log.debug(`체크포인트 파일 구조 검증 실패: ${file}`);
           continue;
         }
         const cp: Checkpoint = parsedCp;
@@ -209,7 +211,7 @@ async function main(): Promise<void> {
       } catch { /* 개별 파일 파싱 실패 무시 */ }
     }
   } catch (e) {
-    debugLog('session-recovery', '체크포인트 스캔 실패', e);
+    log.debug('체크포인트 스캔 실패', e);
   }
 
   // pending-compound 마커 확인 (이전 세션에서 compound loop 필요 표시)
@@ -226,7 +228,7 @@ async function main(): Promise<void> {
       // 마커 삭제 (한 번만 안내)
       fs.unlinkSync(pendingPath);
     } catch (e) {
-      debugLog('session-recovery', 'pending-compound 마커 읽기 실패', e);
+      log.debug('pending-compound 마커 읽기 실패', e);
     }
   }
 
@@ -246,9 +248,9 @@ async function main(): Promise<void> {
           `<compound-handoff file="${latest}">\n${content}\n</compound-handoff>`
         );
         // 마커 삭제 (한 번만 안내 — pending-compound.json과 동일 패턴)
-        try { fs.unlinkSync(latestPath); } catch (e) { debugLog('session-recovery', 'handoff 파일 삭제 실패', e); }
+        try { fs.unlinkSync(latestPath); } catch (e) { log.debug('handoff 파일 삭제 실패', e); }
       }
-    } catch (e) { debugLog('session-recovery', 'handoff 파일 읽기 실패', e); }
+    } catch (e) { log.debug('handoff 파일 읽기 실패', e); }
   }
 
   // Compound v3: Trigger lazy extraction if new commits exist
@@ -259,34 +261,34 @@ async function main(): Promise<void> {
       const cwd = process.env.COMPOUND_CWD ?? process.cwd();
       await runExtraction(cwd, sessionId);
     }
-  } catch (e) { debugLog('session-recovery', 'lazy extraction 실패', e); }
+  } catch (e) { log.debug('lazy extraction 실패', e); }
 
   // Compound v3: Detect preference patterns from prompt history
   try {
     const { detectPreferencePatterns } = await import('../engine/prompt-learner.js');
     const patterns = detectPreferencePatterns(sessionId);
     if (patterns.created.length > 0) {
-      debugLog('session-recovery', `새 선호도 패턴 감지: ${patterns.created.join(', ')}`);
+      log.debug(`새 선호도 패턴 감지: ${patterns.created.join(', ')}`);
     }
-  } catch (e) { debugLog('session-recovery', 'preference pattern detection 실패', e); }
+  } catch (e) { log.debug('preference pattern detection 실패', e); }
 
   // Compound v3: Detect content patterns from write history
   try {
     const { detectContentPatterns } = await import('../engine/prompt-learner.js');
     const contentPatterns = detectContentPatterns(sessionId);
     if (contentPatterns.created.length > 0) {
-      debugLog('session-recovery', `새 콘텐츠 패턴 감지: ${contentPatterns.created.join(', ')}`);
+      log.debug(`새 콘텐츠 패턴 감지: ${contentPatterns.created.join(', ')}`);
     }
-  } catch (e) { debugLog('session-recovery', 'content pattern detection 실패', e); }
+  } catch (e) { log.debug('content pattern detection 실패', e); }
 
   // Compound v3: Detect workflow patterns from mode usage
   try {
     const { detectWorkflowPatterns } = await import('../engine/prompt-learner.js');
     const workflowPatterns = detectWorkflowPatterns(sessionId);
     if (workflowPatterns.created.length > 0) {
-      debugLog('session-recovery', `새 워크플로우 패턴 감지: ${workflowPatterns.created.join(', ')}`);
+      log.debug(`새 워크플로우 패턴 감지: ${workflowPatterns.created.join(', ')}`);
     }
-  } catch (e) { debugLog('session-recovery', 'workflow pattern detection 실패', e); }
+  } catch (e) { log.debug('workflow pattern detection 실패', e); }
 
   // Compound v3: Run lifecycle check once per day
   try {
@@ -305,7 +307,7 @@ async function main(): Promise<void> {
       const { atomicWriteJSON: writeJSON } = await import('./shared/atomic-write.js');
       writeJSON(lastLifecyclePath, { lastRun: new Date().toISOString() });
     }
-  } catch (e) { debugLog('session-recovery', 'lifecycle check 실패', e); }
+  } catch (e) { log.debug('lifecycle check 실패', e); }
 
   if (recoveryMessages.length > 0) {
     console.log(JSON.stringify({

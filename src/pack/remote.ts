@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { PackMeta } from '../core/types.js';
+import { PackError } from '../core/errors.js';
 
 export interface RemoteSource {
   type: 'github' | 'local' | 'gdrive' | 's3';
@@ -48,7 +49,7 @@ export function cloneFromGitHub(url: string, destDir: string): void {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
   } catch (err) {
-    throw new Error(`GitHub clone failed: ${gitUrl}\n${err instanceof Error ? err.message : String(err)}`);
+    throw new PackError(`GitHub clone failed: ${gitUrl}\n${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
 
   // .git 디렉토리 제거 (팩은 flat copy로 관리)
@@ -95,7 +96,7 @@ export function syncFromGitHub(url: string, destDir: string): void {
   try {
     execFileSync('git', ['pull', '--ff-only'], { cwd: destDir, stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (err) {
-    throw new Error(`Git pull failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw new PackError(`Git pull failed: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
 }
 
@@ -103,7 +104,7 @@ export function syncFromGitHub(url: string, destDir: string): void {
 export function copyFromLocal(sourcePath: string, destDir: string): void {
   const resolved = sourcePath.replace(/^~/, os.homedir());
   if (!fs.existsSync(resolved)) {
-    throw new Error(`Path not found: ${resolved}`);
+    throw new PackError(`Path not found: ${resolved}`);
   }
 
   fs.cpSync(resolved, destDir, { recursive: true });

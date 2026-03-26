@@ -9,7 +9,7 @@ import { ModelRouter } from '../engine/router.js';
 import { resetCurrentSession } from '../lab/cost-tracker.js';
 import { buildEnv, generateClaudeRuleFiles, registerTmuxBindings } from './config-injector.js';
 import { loadGlobalConfig } from './global-config.js';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
 import { autoSyncIfNeeded, loadPackConfigs } from './pack-config.js';
 import { COMPOUND_HOME, ME_DIR, ME_RULES, ME_SOLUTIONS, PACKS_DIR, SESSIONS_DIR } from './paths.js';
 import { initDefaultPhilosophy, loadPhilosophyForProject } from './philosophy-loader.js';
@@ -26,7 +26,10 @@ import {
 } from './settings-lock.js';
 import { cleanStaleStateFiles } from './state-gc.js';
 import type { HarnessContext } from './types.js';
-import { checkSelfUpdate } from './version-check.js';
+import { checkForUpdate } from './auto-update.js';
+import { ConfigError } from './errors.js';
+
+const log = createLogger('harness');
 
 /** tenetx 패키지 루트 */
 function getPackageRoot(): string {
@@ -73,7 +76,8 @@ function injectSettings(env: Record<string, string>): void {
       // 파싱 성공한 경우에만 백업 생성 (깨진 파일 백업 방지)
       fs.copyFileSync(SETTINGS_PATH, SETTINGS_BACKUP_PATH);
     } catch (e) {
-      debugLog('harness', 'settings.json 파싱 실패, 빈 설정으로 시작', e);
+      log.debug('settings.json 파싱 실패, 빈 설정으로 시작',
+        new ConfigError('settings.json parse failed', { configPath: SETTINGS_PATH, cause: e }));
     }
   }
 
@@ -158,7 +162,7 @@ function loadAgentHashes(): Record<string, string> {
       return JSON.parse(fs.readFileSync(AGENT_HASHES_PATH, 'utf-8'));
     }
   } catch (e) {
-    debugLog('harness', '에이전트 해시 맵 로드 실패', e);
+    log.debug('에이전트 해시 맵 로드 실패', e);
   }
   return {};
 }
@@ -169,7 +173,7 @@ function saveAgentHashes(hashes: Record<string, string>): void {
     fs.mkdirSync(path.dirname(AGENT_HASHES_PATH), { recursive: true });
     fs.writeFileSync(AGENT_HASHES_PATH, JSON.stringify(hashes, null, 2));
   } catch (e) {
-    debugLog('harness', '에이전트 해시 맵 저장 실패', e);
+    log.debug('에이전트 해시 맵 저장 실패', e);
   }
 }
 
@@ -185,7 +189,7 @@ function loadAndRegisterPackWorkflows(cwd: string): string[] {
       const workflows = loadPackWorkflows(packDir);
       if (workflows.length > 0) {
         const skipped = registerPackWorkflows(workflows);
-        debugLog('harness', `팩 '${pack.name}'에서 워크플로우 ${workflows.length}개 등록`);
+        log.debug(`팩 '${pack.name}'에서 워크플로우 ${workflows.length}개 등록`);
         if (skipped.length > 0) {
           const msg = `⚠ Pack '${pack.name}' workflow name collision: ${skipped.join(', ')} (built-in mode takes priority)`;
           warnings.push(msg);
@@ -193,7 +197,7 @@ function loadAndRegisterPackWorkflows(cwd: string): string[] {
       }
     }
   } catch (e) {
-    debugLog('harness', '팩 워크플로우 로드 실패', e);
+    log.debug('팩 워크플로우 로드 실패', e);
   }
   return warnings;
 }
@@ -327,11 +331,11 @@ function installAgentsFromDir(
       const sourceOriginal = fs.readFileSync(src, 'utf-8');
       const recordedHash = hashes[dstName];
       if (recordedHash && contentHash(existingStripped) !== contentHash(sourceOriginal)) {
-        debugLog('harness', `에이전트 파일 보호: ${dstName} (사용자 수정 감지)`);
+        log.debug(`에이전트 파일 보호: ${dstName} (사용자 수정 감지)`);
         continue;
       }
       if (!recordedHash && !existing.includes('<!-- tenetx-managed -->')) {
-        debugLog('harness', `에이전트 파일 보호: ${dstName} (레거시 사용자 수정 감지)`);
+        log.debug(`에이전트 파일 보호: ${dstName} (레거시 사용자 수정 감지)`);
         continue;
       }
     }
@@ -365,7 +369,7 @@ function installAgents(cwd: string, overlayMap?: OverlayMap): void {
 
     saveAgentHashes(hashes);
   } catch (e) {
-    debugLog('harness', '에이전트 설치 실패', e);
+    log.debug('에이전트 설치 실패', e);
   }
 }
 
@@ -385,7 +389,7 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
     try {
       fs.unlinkSync(legacyPath);
     } catch (e) {
-      debugLog('harness', '레거시 규칙 파일 삭제 실패', e);
+      log.debug('레거시 규칙 파일 삭제 실패', e);
     }
   }
 
@@ -473,7 +477,7 @@ function cleanupStaleCommands(commandsDir: string, validFiles: Set<string>): num
         removed++;
       }
     } catch (e) {
-      debugLog('harness', `stale 명령 파일 정리 실패: ${file}`, e);
+      log.debug(`stale 명령 파일 정리 실패: ${file}`, e);
     }
   }
   return removed;
@@ -543,7 +547,7 @@ function installSlashCommands(cwd: string, skillOverlayMap?: SkillOverlayMap): v
       }
     }
   } catch (e) {
-    debugLog('harness', '팩 스킬 로컬 설치 실패', e);
+    log.debug('팩 스킬 로컬 설치 실패', e);
   }
 
   // 3. 삭제된 스킬 정리 (tenetx-managed 파일만)
@@ -555,10 +559,7 @@ function installSlashCommands(cwd: string, skillOverlayMap?: SkillOverlayMap): v
     ? cleanupStaleCommands(localCommandsDir, validLocalFiles)
     : 0;
 
-  debugLog(
-    'harness',
-    `슬래시 명령 설치: ${installed}개 설치, ${removedGlobal + removedLocal}개 정리`,
-  );
+  log.debug(`슬래시 명령 설치: ${installed}개 설치, ${removedGlobal + removedLocal}개 정리`);
 }
 
 /** 메인 하네스 준비 함수 */
@@ -575,7 +576,7 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
 
     // 3. 철학 로드 (프로젝트별 우선, 글로벌 폴백)
     const { philosophy, source: philosophySource } = loadPhilosophyForProject(cwd);
-    debugLog('harness', `철학 로드: "${philosophy.name}" (source: ${philosophySource})`);
+    log.debug(`철학 로드: "${philosophy.name}" (source: ${philosophySource})`);
 
     // 4. 스코프 해석
     const scope = resolveScope(cwd, philosophySource);
@@ -624,7 +625,7 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
               parameters: overlay.parameters,
             });
           }
-          debugLog('harness', `Forge 오버레이 ${forgeConfig.agentOverlays.length}개 적용`);
+          log.debug(`Forge 오버레이 ${forgeConfig.agentOverlays.length}개 적용`);
         }
         // 스킬 오버레이 맵 구성
         if (forgeConfig.skillOverlays.length > 0) {
@@ -635,7 +636,7 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
               parameters: overlay.parameters,
             });
           }
-          debugLog('harness', `Forge 스킬 오버레이 ${forgeConfig.skillOverlays.length}개 적용`);
+          log.debug(`Forge 스킬 오버레이 ${forgeConfig.skillOverlays.length}개 적용`);
         }
         // 튜닝된 규칙 수집
         forgeTunedRules = forgeConfig.tunedRules;
@@ -650,14 +651,14 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
             const tmp = `${hookConfigPath}.tmp`;
             fs.writeFileSync(tmp, JSON.stringify(hookConfig, null, 2));
             fs.renameSync(tmp, hookConfigPath);
-            debugLog('harness', `Hook 설정 저장: ${forgeConfig.hookTuning.length}개`);
+            log.debug(`Hook 설정 저장: ${forgeConfig.hookTuning.length}개`);
           } catch (e) {
-            debugLog('harness', 'hook-config.json 저장 실패 (정상 동작에 영향 없음)', e);
+            log.debug('hook-config.json 저장 실패 (정상 동작에 영향 없음)', e);
           }
         }
       }
     } catch (e) {
-      debugLog('harness', 'Forge 프로필 로드 실패 (정상 동작에 영향 없음)', e);
+      log.debug('Forge 프로필 로드 실패 (정상 동작에 영향 없음)', e);
     }
 
     // 8.5. 에이전트 설치 (forge 오버레이 포함) + 팩 워크플로우 등록
@@ -693,12 +694,12 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
       if (syncMessage.includes('⬆')) {
         console.error(`[tenetx] ${syncMessage}`);
       } else {
-        debugLog('harness', syncMessage);
+        log.debug(syncMessage);
       }
     }
 
-    // 13. tenetx 자체 업데이트 알림
-    const selfUpdate = await checkSelfUpdate();
+    // 13. tenetx 자체 업데이트 알림 (24시간 캐시, 네트워크 오류 무시)
+    const selfUpdate = await checkForUpdate();
     if (selfUpdate) {
       console.error(`[tenetx] ${selfUpdate}`);
     }
@@ -749,7 +750,7 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
         }
       }
     } catch (e) {
-      debugLog('harness', 'Auto-learn import/run failed (non-fatal)', e);
+      log.debug('Auto-learn import/run failed (non-fatal)', e);
     }
 
     // ── 17. Compound staleness guard ──
@@ -773,12 +774,12 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
               detectedAt: new Date().toISOString(),
               daysSinceLastRun: Math.floor(elapsed / (24 * 60 * 60 * 1000)),
             }, null, 2));
-            debugLog('harness', `Compound staleness detected (${Math.floor(elapsed / (24 * 60 * 60 * 1000))}d) — pending-compound marker created`);
+            log.debug(`Compound staleness detected (${Math.floor(elapsed / (24 * 60 * 60 * 1000))}d) — pending-compound marker created`);
           }
         }
       }
     } catch (e) {
-      debugLog('harness', 'Staleness check failed (non-fatal)', e);
+      log.debug('Staleness check failed (non-fatal)', e);
     }
 
     return context;

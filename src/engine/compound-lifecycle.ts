@@ -3,7 +3,9 @@ import * as path from 'node:path';
 import { parseFrontmatterOnly, parseSolutionV3, serializeSolutionV3 } from './solution-format.js';
 import type { SolutionFrontmatter, SolutionStatus } from './solution-format.js';
 import { track } from '../lab/tracker.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('compound-lifecycle');
 import { ME_SOLUTIONS, ME_RULES } from '../core/paths.js';
 
 export interface LifecycleResult {
@@ -199,7 +201,7 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
           }
         }
       } catch (e) {
-        debugLog('compound-lifecycle', `lifecycle check failed: ${file}`, e);
+        log.debug(`lifecycle check failed: ${file}`, e);
       }
     }
   }
@@ -236,7 +238,7 @@ export function detectContradictions(dirs: string[]): string[] {
         if (!fm || fm.status === 'retired') continue;
         solutions.push({ name: fm.name, tags: fm.tags, identifiers: fm.identifiers });
       }
-    } catch { }
+    } catch { /* 솔루션 파일 파싱 실패 무시 — 중복 감지는 best-effort */ }
   }
 
   // Pairwise comparison
@@ -276,7 +278,7 @@ export function verifySolution(solutionName: string): boolean {
         if (fm.status === 'verified' || fm.status === 'mature') return true; // already verified
         return updateSolutionFile(filePath, { status: 'verified', confidence: 0.8 });
       }
-    } catch { }
+    } catch { /* 솔루션 파일 읽기/업데이트 실패 무시 — false 반환으로 재시도 가능 */ }
   }
   return false;
 }

@@ -3,7 +3,9 @@ import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { SESSIONS_DIR } from './paths.js';
 import type { HarnessContext } from './types.js';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('session-logger');
 
 /** 세션 로그 파일에 저장되는 데이터 구조 */
 interface SessionLog {
@@ -81,7 +83,7 @@ export function startSessionLog(context: HarnessContext): void {
       });
     }
   } catch (e) {
-    debugLog('session-logger', '세션 로그 시작 실패', e);
+    logger.debug('세션 로그 시작 실패', e);
   }
 }
 
@@ -107,10 +109,10 @@ function cleanOldSessions(): void {
     }
 
     if (deleted > 0) {
-      debugLog('session-logger', `${deleted}개 오래된 세션 로그 정리 (${RETENTION_DAYS}일+)`);
+      logger.debug(`${deleted}개 오래된 세션 로그 정리 (${RETENTION_DAYS}일+)`);
     }
   } catch (e) {
-    debugLog('session-logger', '세션 로그 정리 실패', e);
+    logger.debug('세션 로그 정리 실패', e);
   }
 }
 
@@ -127,7 +129,7 @@ function finalizeSessionLog(): void {
     log.durationMs = now - sessionStartMs;
     fs.writeFileSync(currentSessionPath, JSON.stringify(log, null, 2));
   } catch (e) {
-    debugLog('session-logger', '세션 로그 종료 실패', e);
+    logger.debug('세션 로그 종료 실패', e);
   }
   // 중복 호출 방지
   currentSessionPath = null;

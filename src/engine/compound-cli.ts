@@ -43,7 +43,7 @@ function scanSolutions(): SolutionSummary[] {
           filePath,
         });
       }
-    } catch { }
+    } catch { /* 개별 솔루션 파일 파싱 실패 무시 — 손상된 파일은 건너뛰기 */ }
   }
 
   return summaries;

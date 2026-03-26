@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 // debugLog는 향후 확장용으로 import 유지 가능하지만, 현재 미사용
+import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
@@ -137,6 +138,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
+  const hookErr = new HookError(e instanceof Error ? e.message : String(e), {
+    hookName: 'post-tool-failure', eventType: 'PostToolUseFailure', cause: e,
+  });
+  process.stderr.write(`[ch-hook] ${hookErr.name}: ${hookErr.message}\n`);
   console.log(JSON.stringify({ result: 'approve' }));
 });

@@ -6,7 +6,9 @@
  * using pure heuristic analysis (string patterns, structure checks).
  */
 
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('evaluator');
 
 // ---------------------------------------------------------------------------
 // Types
@@ -368,7 +370,7 @@ export function evaluateResponse(
     scores.codeQuality * weights.codeQuality +
     scores.confidence * weights.confidence;
 
-  debugLog('evaluator', `${provider}: rel=${relevance.toFixed(2)} comp=${completeness.toFixed(2)} code=${codeQuality.toFixed(2)} conf=${confidence.toFixed(2)} => ${overallScore.toFixed(2)}`);
+  log.debug(`${provider}: rel=${relevance.toFixed(2)} comp=${completeness.toFixed(2)} code=${codeQuality.toFixed(2)} conf=${confidence.toFixed(2)} => ${overallScore.toFixed(2)}`);
 
   return {
     provider,

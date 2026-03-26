@@ -7,7 +7,9 @@
 
 import { loadGlobalConfig, saveGlobalConfig } from '../core/global-config.js';
 import type { GatewayConfig } from '../core/global-config.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('gateway');
 import { validateWebhookUrl } from '../core/notify.js';
 
 export interface GatewayEvent {
@@ -39,7 +41,7 @@ export async function forwardEvent(event: GatewayEvent): Promise<boolean> {
   if (!isEventEnabled(event, config)) return false;
 
   if (!validateWebhookUrl(config.url)) {
-    debugLog('gateway', `유효하지 않은 URL: ${config.url}`);
+    log.debug(`유효하지 않은 URL: ${config.url}`);
     return false;
   }
 
@@ -58,7 +60,7 @@ export async function forwardEvent(event: GatewayEvent): Promise<boolean> {
 
     return response.ok;
   } catch (e) {
-    debugLog('gateway', '이벤트 포워딩 실패', e);
+    log.debug('이벤트 포워딩 실패', e);
     return false;
   }
 }

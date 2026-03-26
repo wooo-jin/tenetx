@@ -3,11 +3,13 @@
  *
  * Non-blocking, failure-tolerant event recording.
  * Called from hooks to passively track harness component usage.
- * NEVER throws — all errors are silently logged via debugLog.
+ * NEVER throws — all errors are silently logged.
  */
 
 import * as crypto from 'node:crypto';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('lab-tracker');
 import { appendEvent } from './store.js';
 import type { LabEvent, LabEventType } from './types.js';
 
@@ -76,7 +78,7 @@ export function track(
     };
     appendEvent(event);
   } catch (e) {
-    debugLog('lab-tracker', `Failed to track ${type}`, e);
+    log.debug(`Failed to track ${type}`, e);
   }
 }
 

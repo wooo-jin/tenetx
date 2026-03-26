@@ -16,7 +16,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('pack-config');
 
 export type PackType = 'inline' | 'github' | 'local';
 
@@ -284,7 +286,7 @@ export async function syncGithubPack(
           }
         }
       } catch {
-        debugLog('pack-config', `[${config.name}] ${dirName} 디렉토리 동기화 실패 (없을 수 있음)`);
+        log.debug(`[${config.name}] ${dirName} 디렉토리 동기화 실패 (없을 수 있음)`);
       }
     }
 
@@ -307,7 +309,7 @@ export async function syncGithubPack(
 
     return { updated: total > 0, message };
   } catch (err) {
-    debugLog('pack-config', `[${config.name}] GitHub pack sync failed`, err);
+    log.debug(`[${config.name}] GitHub pack sync failed`, err);
     return { updated: false, message: `[${config.name}] Sync failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }

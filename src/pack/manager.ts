@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { PACKS_DIR } from '../core/paths.js';
 import type { PackMeta } from '../core/types.js';
+import { PackError } from '../core/errors.js';
 import {
   parseSource,
   cloneFromGitHub,
@@ -25,7 +26,7 @@ export async function installPack(source: string, name?: string): Promise<PackMe
   const destDir = path.join(PACKS_DIR, packName);
 
   if (fs.existsSync(destDir)) {
-    throw new Error(`Pack '${packName}' is already installed. Update with: tenetx pack sync ${packName}`);
+    throw new PackError(`Pack '${packName}' is already installed. Update with: tenetx pack sync ${packName}`, { packName });
   }
 
   console.log(`  Source: ${remote.url} (${remote.type})`);
@@ -40,9 +41,9 @@ export async function installPack(source: string, name?: string): Promise<PackMe
       copyFromLocal(remote.url, destDir);
       break;
     case 'gdrive':
-      throw new Error('Google Drive integration is not yet supported.');
+      throw new PackError('Google Drive integration is not yet supported.', { packName });
     case 's3':
-      throw new Error('S3 integration is not yet supported.');
+      throw new PackError('S3 integration is not yet supported.', { packName });
   }
 
   // pack.json 생성/업데이트 (remote 정보 기록)
@@ -82,12 +83,12 @@ export async function installPack(source: string, name?: string): Promise<PackMe
 export async function syncPack(packName: string): Promise<void> {
   const packDir = path.join(PACKS_DIR, packName);
   if (!fs.existsSync(packDir)) {
-    throw new Error(`Pack '${packName}' is not installed.`);
+    throw new PackError(`Pack '${packName}' is not installed.`, { packName });
   }
 
   const meta = readPackMeta(packDir);
   if (!meta?.remote) {
-    throw new Error(`Pack '${packName}' has no remote info. It is a local-only pack.`);
+    throw new PackError(`Pack '${packName}' has no remote info. It is a local-only pack.`, { packName });
   }
 
   console.log(`  Syncing: ${packName} (${meta.remote.type})`);
@@ -100,7 +101,7 @@ export async function syncPack(packName: string): Promise<void> {
       copyFromLocal(meta.remote.url, packDir);
       break;
     default:
-      throw new Error(`${meta.remote.type} sync is not yet supported.`);
+      throw new PackError(`${meta.remote.type} sync is not yet supported.`, { packName });
   }
 
   // provides 카운트 갱신

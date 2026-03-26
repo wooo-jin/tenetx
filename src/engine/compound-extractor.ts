@@ -4,7 +4,9 @@ import { execSync } from 'node:child_process';
 import { serializeSolutionV3, DEFAULT_EVIDENCE, extractTags } from './solution-format.js';
 import type { SolutionV3, SolutionType } from './solution-format.js';
 import { track } from '../lab/tracker.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('compound-extractor');
 import { ME_SOLUTIONS, STATE_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from '../hooks/shared/atomic-write.js';
 
@@ -34,7 +36,7 @@ function loadLastExtraction(): LastExtraction {
     if (fs.existsSync(LAST_EXTRACTION_PATH)) {
       return JSON.parse(fs.readFileSync(LAST_EXTRACTION_PATH, 'utf-8'));
     }
-  } catch (e) { debugLog('compound-extractor', 'last extraction state read failed — may cause duplicate extractions', e); }
+  } catch (e) { log.debug('last extraction state read failed — may cause duplicate extractions', e); }
   return { lastCommitSha: '', lastExtractedAt: '', extractionsToday: 0, todayDate: '' };
 }
 
@@ -48,9 +50,9 @@ function saveLastExtraction(state: LastExtraction): void {
 function getNewCommits(cwd: string, lastSha: string): string {
   try {
     if (!lastSha) {
-      return execSync('git log --oneline -5', { cwd, encoding: 'utf-8', timeout: 5000 });
+      return execSync('git log --oneline -5', { cwd, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
     }
-    return execSync(`git log --oneline ${lastSha}..HEAD`, { cwd, encoding: 'utf-8', timeout: 5000 });
+    return execSync(`git log --oneline ${lastSha}..HEAD`, { cwd, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
   } catch {
     return '';
   }
@@ -154,7 +156,7 @@ function gate3(sol: ExtractedSolution): 'new' | 're-extract' | 'duplicate' {
         return 'duplicate';
       }
     }
-  } catch (e) { debugLog('compound-extractor', 'gate3 기존 솔루션 파일 읽기 실패 — new로 간주', e); }
+  } catch (e) { log.debug('gate3 기존 솔루션 파일 읽기 실패 — new로 간주', e); }
   return 'new';
 }
 
@@ -261,7 +263,7 @@ function extractFromSessionContext(
         try { return JSON.parse(l).prompt as string; } catch { return ''; }
       }).filter(Boolean);
     }
-  } catch (e) { debugLog('compound-extractor', 'prompt-history.jsonl 읽기 실패 — session context 추출 건너뜀', e); }
+  } catch (e) { log.debug('prompt-history.jsonl 읽기 실패 — session context 추출 건너뜀', e); }
 
   // Load recent writes
   const writeHistoryPath = path.join(STATE_DIR, 'write-history.jsonl');
@@ -273,7 +275,7 @@ function extractFromSessionContext(
         try { return JSON.parse(l); } catch { return null; }
       }).filter(Boolean);
     }
-  } catch (e) { debugLog('compound-extractor', 'write-history.jsonl 읽기 실패 — session context 추출 건너뜀', e); }
+  } catch (e) { log.debug('write-history.jsonl 읽기 실패 — session context 추출 건너뜀', e); }
 
   // 1. Detect recurring request patterns from prompts
   // Group similar prompts by extracting key action words
@@ -478,7 +480,7 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   // Get current HEAD sha
   let headSha = '';
   try {
-    headSha = execSync('git rev-parse HEAD', { cwd, encoding: 'utf-8', timeout: 3000 }).trim();
+    headSha = execSync('git rev-parse HEAD', { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   } catch {
     return { ...result, reason: 'git HEAD 조회 실패' };
   }
@@ -522,7 +524,7 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   state.extractionsToday++;
   saveLastExtraction(state);
 
-  debugLog('compound-extractor', `로컬 추출 완료: ${result.extracted.length} saved, ${result.skipped.length} skipped (${stats.files} files, ${stats.lines} lines)`);
+  log.debug(`로컬 추출 완료: ${result.extracted.length} saved, ${result.skipped.length} skipped (${stats.files} files, ${stats.lines} lines)`);
 
   return result;
 }
@@ -565,7 +567,7 @@ export function processExtractionResults(
     }
     if (dupResult === 're-extract') {
       // Increment reExtracted counter on existing solution
-      try { updateReExtractedCounter(sol.tags); } catch (e) { debugLog('compound-extractor', 're-extract 카운터 업데이트 실패', e); }
+      try { updateReExtractedCounter(sol.tags); } catch (e) { log.debug('re-extract 카운터 업데이트 실패', e); }
       skipped.push(`${sol.name}: 재추출 (기존 솔루션 강화)`);
       continue;
     }

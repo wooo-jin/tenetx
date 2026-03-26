@@ -26,7 +26,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('skill-injector');
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
 import { sanitizeId } from './shared/sanitize-id.js';
@@ -76,7 +78,7 @@ function loadSessionCache(sessionId: string): Set<string> {
       }
       return new Set(data.injected ?? []);
     }
-  } catch (e) { debugLog('skill-injector', '세션 캐시 파일 읽기/파싱 실패', e); }
+  } catch (e) { log.debug('세션 캐시 파일 읽기/파싱 실패', e); }
   return new Set();
 }
 
@@ -153,7 +155,7 @@ function scanSkills(dir: string): SkillMeta[] {
         };
       });
   } catch (e) {
-    debugLog('skill-injector', `스킬 디렉토리 스캔 실패: ${dir}`, e);
+    log.debug(`스킬 디렉토리 스캔 실패: ${dir}`, e);
     return [];
   }
 }
@@ -177,7 +179,7 @@ function collectSkills(): SkillMeta[] {
       packSkillDirs.push(fs.existsSync(nsDir) ? nsDir : globalDir);
     }
   } catch (e) {
-    debugLog('skill-injector', '팩 스킬 경로 수집 실패', e);
+    log.debug('팩 스킬 경로 수집 실패', e);
   }
 
   // 우선순위: 프로젝트 > 연결된 팩 > 개인 > 글로벌 > 패키지 내장
@@ -208,7 +210,7 @@ function collectSkills(): SkillMeta[] {
 
   if (overrides.length > 0) {
     for (const o of overrides) {
-      debugLog('skill-injector', `⚠ 스킬 '${o.name}' 오버라이드: ${path.basename(path.dirname(o.winner))} 우선, ${path.basename(path.dirname(o.loser))} 무시됨`);
+      log.debug(`⚠ 스킬 '${o.name}' 오버라이드: ${path.basename(path.dirname(o.winner))} 우선, ${path.basename(path.dirname(o.loser))} 무시됨`);
     }
   }
 
@@ -244,7 +246,7 @@ function cleanStaleSkillCaches(): void {
         fs.unlinkSync(p);
       }
     }
-  } catch (e) { debugLog('skill-injector', '오래된 캐시 파일 삭제 실패', e); }
+  } catch (e) { log.debug('오래된 캐시 파일 삭제 실패', e); }
 }
 
 // ── 메인 ──

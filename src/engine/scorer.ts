@@ -10,8 +10,7 @@
  * - LOW (<4): Haiku 추천
  */
 
-import type { SignalBundle } from './signals.js';
-import type { ModelTier } from './router.js';
+import type { SignalBundle, ModelTier } from './signals.js';
 
 export interface ScoreBreakdown {
   /** 최종 스코어 */

@@ -14,7 +14,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('synthesizer');
 import { evaluateAll, type ResponseEvaluation } from './evaluator.js';
 import type { ProviderResponse } from './provider.js';
 import { track } from '../lab/tracker.js';
@@ -601,7 +603,7 @@ export function loadPerformance(): PerformanceRecord {
       return JSON.parse(fs.readFileSync(PERFORMANCE_PATH, 'utf-8')) as PerformanceRecord;
     }
   } catch (e) {
-    debugLog('synthesizer', 'Failed to read performance data', e);
+    log.debug('Failed to read performance data', e);
   }
   return { byTaskType: {}, overall: {}, lastUpdated: new Date().toISOString() };
 }
@@ -613,7 +615,7 @@ function savePerformance(data: PerformanceRecord): void {
     fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
     fs.renameSync(tmpFile, PERFORMANCE_PATH);
   } catch (e) {
-    debugLog('synthesizer', 'Failed to save performance data', e);
+    log.debug('Failed to save performance data', e);
   }
 }
 
@@ -648,7 +650,7 @@ export function recordSynthesisResult(
     perf.lastUpdated = new Date().toISOString();
     savePerformance(perf);
   } catch (e) {
-    debugLog('synthesizer', 'Failed to record synthesis result', e);
+    log.debug('Failed to record synthesis result', e);
   }
 }
 
@@ -682,7 +684,7 @@ function appendHistory(result: SynthesisResult, prompt: string): void {
     };
     fs.appendFileSync(HISTORY_PATH, `${JSON.stringify(entry)}\n`);
   } catch (e) {
-    debugLog('synthesizer', 'Failed to append history', e);
+    log.debug('Failed to append history', e);
   }
 }
 
@@ -703,7 +705,7 @@ export function readHistory(limit = 20): HistoryEntry[] {
 
     return entries.slice(-limit);
   } catch (e) {
-    debugLog('synthesizer', 'Failed to read history', e);
+    log.debug('Failed to read history', e);
     return [];
   }
 }

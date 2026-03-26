@@ -11,8 +11,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
+
+const log = createLogger('pre-compact');
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
@@ -32,10 +34,10 @@ function collectActiveStates(): Array<{ mode: string; data: Record<string, unkno
         if (data.active) {
           active.push({ mode: f.replace('-state.json', ''), data });
         }
-      } catch (e) { debugLog('pre-compact', `상태 파일 파싱 실패 — skip`, e); }
+      } catch (e) { log.debug(`상태 파일 파싱 실패 — skip`, e); }
     }
   } catch (e) {
-    debugLog('pre-compact', '상태 디렉토리 읽기 실패', e);
+    log.debug('상태 디렉토리 읽기 실패', e);
   }
 
   return active;
@@ -88,7 +90,7 @@ function cleanOldHandoffs(): void {
         fs.unlinkSync(p);
       }
     }
-  } catch (e) { debugLog('pre-compact', 'old handoff cleanup failed — stale files may remain in handoffs dir', e); }
+  } catch (e) { log.debug('old handoff cleanup failed — stale files may remain in handoffs dir', e); }
 }
 
 async function main(): Promise<void> {
@@ -125,7 +127,7 @@ tenetx compound --solution "제목" "내용 (왜 이 접근을 사용했는지 �
       return;
     }
   } catch (e) {
-    debugLog('pre-compact', '스냅샷 저장 실패', e);
+    log.debug('스냅샷 저장 실패', e);
   }
 
   console.log(JSON.stringify({ result: 'approve', message: compoundHint }));

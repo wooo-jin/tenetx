@@ -12,7 +12,9 @@ import * as os from 'node:os';
 import { serializeSolutionV3, DEFAULT_EVIDENCE } from './solution-format.js';
 import type { SolutionV3 } from './solution-format.js';
 import { track } from '../lab/tracker.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('prompt-learner');
 import { ME_SOLUTIONS } from '../core/paths.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
@@ -263,9 +265,9 @@ export function recordPrompt(prompt: string, sessionId: string): void {
         const trimmed = `${lines.slice(-MAX_HISTORY_LINES).join('\n')}\n`;
         fs.writeFileSync(PROMPT_HISTORY_PATH, trimmed);
       }
-    } catch (e) { debugLog('prompt-learner', 'prompt-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
+    } catch (e) { log.debug('prompt-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
   } catch (e) {
-    debugLog('prompt-learner', 'prompt 기록 실패', e);
+    log.debug('prompt 기록 실패', e);
   }
 }
 
@@ -297,9 +299,9 @@ export function recordModeUsage(mode: string, sessionId: string): void {
       if (lines.length > MAX_MODE_HISTORY) {
         fs.writeFileSync(MODE_HISTORY_PATH, `${lines.slice(-MAX_MODE_HISTORY).join('\n')}\n`);
       }
-    } catch (e) { debugLog('prompt-learner', 'mode-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
+    } catch (e) { log.debug('mode-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
   } catch (e) {
-    debugLog('prompt-learner', 'mode usage 기록 실패', e);
+    log.debug('mode usage 기록 실패', e);
   }
 }
 
@@ -375,7 +377,7 @@ export function detectWorkflowPatterns(sessionId: string = 'system'): {
       });
     }
   } catch (e) {
-    debugLog('prompt-learner', 'workflow pattern 감지 실패', e);
+    log.debug('workflow pattern 감지 실패', e);
   }
 
   return { detected, created };
@@ -492,9 +494,9 @@ export function recordWriteContent(filePath: string, content: string, sessionId:
       if (lines.length > MAX_WRITE_HISTORY) {
         fs.writeFileSync(WRITE_HISTORY_PATH, `${lines.slice(-MAX_WRITE_HISTORY).join('\n')}\n`);
       }
-    } catch (e) { debugLog('prompt-learner', 'write-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
+    } catch (e) { log.debug('write-history.jsonl rotation 실패 — 파일 계속 증가할 수 있음', e); }
   } catch (e) {
-    debugLog('prompt-learner', 'write content 기록 실패', e);
+    log.debug('write content 기록 실패', e);
   }
 }
 
@@ -605,7 +607,7 @@ export function detectContentPatterns(sessionId: string = 'system'): {
       });
     }
   } catch (e) {
-    debugLog('prompt-learner', 'content pattern 감지 실패', e);
+    log.debug('content pattern 감지 실패', e);
   }
 
   return { detected, created };

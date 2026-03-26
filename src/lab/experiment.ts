@@ -5,7 +5,9 @@
  */
 
 import * as crypto from 'node:crypto';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('lab-experiment');
 import { saveExperiment, loadExperiment, listExperiments, readEvents } from './store.js';
 import type {
   LabExperiment,
@@ -150,7 +152,7 @@ export function collectExperimentData(): void {
       }
     }
   } catch (e) {
-    debugLog('lab-experiment', 'Failed to collect experiment data', e);
+    log.debug('Failed to collect experiment data', e);
   }
 }
 

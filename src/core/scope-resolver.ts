@@ -2,8 +2,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ME_DIR, ME_SOLUTIONS, ME_RULES, PACKS_DIR, packLinkPath, projectDir, projectPhilosophyPath } from './paths.js';
 import type { ScopeInfo } from './types.js';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
 import { loadPackConfigs } from './pack-config.js';
+
+const log = createLogger('scope-resolver');
 
 /** 디렉토리 내 .md 파일 수 카운트 */
 function countFiles(dir: string, ext = '.md'): number {
@@ -11,7 +13,7 @@ function countFiles(dir: string, ext = '.md'): number {
   try {
     return fs.readdirSync(dir).filter((f) => f.endsWith(ext)).length;
   } catch (e) {
-    debugLog('scope-resolver', `countFiles 실패: ${dir}`, e);
+    log.debug(`countFiles 실패: ${dir}`, e);
     return 0;
   }
 }
@@ -27,7 +29,7 @@ function readPackLink(cwd: string): string | null {
     const match = content.match(/^pack:\s*(.+)$/m);
     return match ? match[1].trim() : content;
   } catch (e) {
-    debugLog('scope-resolver', `pack.link 읽기 실패: ${linkPath}`, e);
+    log.debug(`pack.link 읽기 실패: ${linkPath}`, e);
     return null;
   }
 }
@@ -43,7 +45,7 @@ function readPackMeta(packName: string): { version: string; solutionCount: numbe
     try {
       const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
       version = meta.version ?? '0.0.0';
-    } catch (e) { debugLog('scope-resolver', `pack.json 파싱 실패: ${metaPath}`, e); }
+    } catch (e) { log.debug(`pack.json 파싱 실패: ${metaPath}`, e); }
   }
 
   return {

@@ -8,7 +8,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('lab-store');
 import type {
   LabEvent,
   LabSuggestion,
@@ -54,7 +56,7 @@ function atomicWrite(filePath: string, data: unknown): void {
     fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
     fs.renameSync(tmpFile, filePath);
   } catch (e) {
-    try { fs.unlinkSync(tmpFile); } catch (unlinkErr) { debugLog('lab-store', 'tmp file cleanup failed after write error', unlinkErr); }
+    try { fs.unlinkSync(tmpFile); } catch (unlinkErr) { log.debug('tmp file cleanup failed after write error', unlinkErr); }
     throw e;
   }
 }
@@ -65,7 +67,7 @@ function safeReadJSON<T>(filePath: string, fallback: T): T {
       return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
     }
   } catch (e) {
-    debugLog('lab-store', `JSON read failed: ${filePath}`, e);
+    log.debug(`JSON read failed: ${filePath}`, e);
   }
   return fallback;
 }
@@ -81,7 +83,7 @@ export function appendEvent(event: LabEvent): void {
     const line = `${JSON.stringify(event)}\n`;
     fs.appendFileSync(EVENTS_PATH, line);
   } catch (e) {
-    debugLog('lab-store', 'Failed to append event', e);
+    log.debug('Failed to append event', e);
   }
 }
 
@@ -107,7 +109,7 @@ export function readEvents(sinceMs?: number, untilMs?: number): LabEvent[] {
       }
     }
   } catch (e) {
-    debugLog('lab-store', 'Failed to read events', e);
+    log.debug('Failed to read events', e);
   }
   return events;
 }
@@ -130,7 +132,7 @@ export function resetEvents(): void {
       fs.writeFileSync(EVENTS_PATH, '');
     }
   } catch (e) {
-    debugLog('lab-store', 'Failed to reset events', e);
+    log.debug('Failed to reset events', e);
   }
 }
 
@@ -287,5 +289,5 @@ export function resetAll(): void {
   if (fs.existsSync(SESSIONS_COST_PATH)) {
     fs.writeFileSync(SESSIONS_COST_PATH, '[]');
   }
-  debugLog('lab-store', 'All lab data reset');
+  log.debug('All lab data reset');
 }

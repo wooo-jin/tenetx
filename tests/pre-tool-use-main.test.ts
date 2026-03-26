@@ -18,6 +18,12 @@ vi.mock('../src/hooks/shared/read-stdin.js', () => ({
 
 vi.mock('../src/core/logger.js', () => ({
   debugLog: vi.fn(),
+  createLogger: vi.fn(() => ({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  })),
 }));
 
 let logOutput: string[];

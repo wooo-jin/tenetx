@@ -1,11 +1,9 @@
 import type { Philosophy } from '../core/types.js';
-import { extractSignals, type ContextSignals } from './signals.js';
+import { extractSignals, type ContextSignals, type ModelTier, type TaskCategory } from './signals.js';
 import { scoreSignals, type ScoreBreakdown } from './scorer.js';
 
-export type ModelTier = 'haiku' | 'sonnet' | 'opus';
-export type TaskCategory = 'explore' | 'file-search' | 'simple-qa'
-  | 'code-review' | 'analysis' | 'design'
-  | 'implement' | 'architect' | 'debug-complex';
+// Re-export for backwards compatibility
+export type { ModelTier, TaskCategory };
 
 /** 기본 라우팅 테이블 (focus-resources-on-judgment 원칙 기반) */
 const DEFAULT_ROUTING: Record<ModelTier, TaskCategory[]> = {

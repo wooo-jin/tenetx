@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
-if (nodeVersion < 18) {
-  console.error(`[Tenetx] Node.js 18 or higher is required. Current: ${process.version}`);
+if (nodeVersion < 20) {
+  console.error(`[Tenetx] Node.js 20 or higher is required. Current: ${process.version}`);
   process.exit(1);
 }
 
@@ -386,6 +386,15 @@ const commands: Command[] = [
     handler: async (args) => {
       const { handleLsp } = await import('./core/lsp-cli.js');
       await handleLsp(args);
+    },
+  },
+  {
+    name: 'swarm',
+    description: 'Swarm task management (create|status|cleanup)',
+    category: 'command',
+    handler: async (args) => {
+      const { handleSwarm } = await import('./core/swarm-cli.js');
+      await handleSwarm(args);
     },
   },
 ];

@@ -13,7 +13,9 @@ import * as os from 'node:os';
 import * as readline from 'node:readline';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('status-line');
 import { loadTokenUsage, formatCost, formatTokenCount } from '../engine/token-tracker.js';
 import { readHudCostString } from '../lab/cost-tracker.js';
 
@@ -429,7 +431,7 @@ function getMcpServerNames(filePath: string): Set<string> {
     if (config.mcpServers && typeof config.mcpServers === 'object') {
       return new Set(Object.keys(config.mcpServers as Record<string, unknown>));
     }
-  } catch (e) { debugLog('status-line', `MCP 설정 파싱 실패: ${filePath}`, e); }
+  } catch (e) { log.debug(`MCP 설정 파싱 실패: ${filePath}`, e); }
   return new Set();
 }
 
@@ -440,7 +442,7 @@ function countHooksInFile(filePath: string): number {
     if (config.hooks && typeof config.hooks === 'object') {
       return Object.keys(config.hooks as Record<string, unknown>).length;
     }
-  } catch (e) { debugLog('status-line', `hooks 설정 파싱 실패: ${filePath}`, e); }
+  } catch (e) { log.debug(`hooks 설정 파싱 실패: ${filePath}`, e); }
   return 0;
 }
 
@@ -456,7 +458,7 @@ function countRulesInDir(dir: string): number {
         count++;
       }
     }
-  } catch (e) { debugLog('status-line', `rules 디렉토리 읽기 실패: ${dir}`, e); }
+  } catch (e) { log.debug(`rules 디렉토리 읽기 실패: ${dir}`, e); }
   return count;
 }
 
@@ -492,7 +494,7 @@ async function countConfigs(cwd: string | undefined): Promise<ConfigCounts> {
         for (const name of cfg.disabledMcpServers as string[]) userMcpServers.delete(name);
       }
     }
-  } catch (e) { debugLog('status-line', 'disabledMcpServers 파싱 실패', e); }
+  } catch (e) { log.debug('disabledMcpServers 파싱 실패', e); }
 
   // === 프로젝트 스코프 (cwd) ===
   if (cwd) {
@@ -521,7 +523,7 @@ async function countConfigs(cwd: string | undefined): Promise<ConfigCounts> {
           for (const name of cfg.disabledMcpjsonServers as string[]) mcpJsonServers.delete(name);
         }
       }
-    } catch (e) { debugLog('status-line', 'disabledMcpjsonServers 파싱 실패', e); }
+    } catch (e) { log.debug('disabledMcpjsonServers 파싱 실패', e); }
     for (const name of mcpJsonServers) projectMcpServers.add(name);
   }
 
@@ -656,7 +658,7 @@ export async function printStatus(): Promise<void> {
         line2Parts.push(`${YELLOW}💰${RST} ${DIM}tracking...${RST}`);
       }
     }
-  } catch (e) { debugLog('status-line', 'cost tracker read failed — cost section omitted from status line', e); }
+  } catch (e) { log.debug('cost tracker read failed — cost section omitted from status line', e); }
 
   const line2 = `${DIM}${line2Parts.join(` ${DIM}·${RST} `)}${RST}`;
 

@@ -13,7 +13,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('auto-learn');
 import { readEvents } from './store.js';
 import { detectPatterns, patternsToDimensionAdjustments } from './pattern-detector.js';
 import { track } from './tracker.js';
@@ -86,7 +88,7 @@ function atomicWrite(filePath: string, data: unknown): void {
     fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
     fs.renameSync(tmpFile, filePath);
   } catch (e) {
-    try { fs.unlinkSync(tmpFile); } catch (unlinkErr) { debugLog('auto-learn', 'tmp file cleanup failed after write error', unlinkErr); }
+    try { fs.unlinkSync(tmpFile); } catch (unlinkErr) { log.debug('tmp file cleanup failed after write error', unlinkErr); }
     throw e;
   }
 }
@@ -97,7 +99,7 @@ function safeReadJSON<T>(filePath: string, fallback: T): T {
       return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
     }
   } catch (e) {
-    debugLog('auto-learn', `JSON read failed: ${filePath}`, e);
+    log.debug(`JSON read failed: ${filePath}`, e);
   }
   return fallback;
 }
@@ -351,7 +353,7 @@ export async function runEvolveCycle(
       try {
         await regenerateHarnessConfig(profile);
       } catch (e) {
-        debugLog('auto-learn', 'Failed to regenerate harness config', e);
+        log.debug('Failed to regenerate harness config', e);
       }
 
       // 7. Track this auto-learn event in lab
@@ -381,7 +383,7 @@ export async function runEvolveCycle(
       totalEventsAnalyzed: events.length,
     };
   } catch (e) {
-    debugLog('auto-learn', 'Evolution cycle failed', e);
+    log.debug('Evolution cycle failed', e);
     return {
       changed: false,
       adjustments: [],
@@ -413,7 +415,7 @@ export function shouldAutoLearnRun(): boolean {
     const events = readEvents(lastRunMs);
     return events.length >= MIN_EVENTS_THRESHOLD;
   } catch (e) {
-    debugLog('auto-learn', 'Failed to check auto-learn eligibility', e);
+    log.debug('Failed to check auto-learn eligibility', e);
     return false;
   }
 }
@@ -429,7 +431,7 @@ export async function tryAutoLearn(): Promise<EvolveResult | null> {
     return await runEvolveCycle(false);
   } catch (e) {
     // Never crash harness startup
-    debugLog('auto-learn', 'Auto-learn failed silently', e);
+    log.debug('Auto-learn failed silently', e);
     return null;
   }
 }
@@ -466,8 +468,8 @@ async function regenerateHarnessConfig(
     // Create a snapshot to record the auto-evolution
     createSnapshot('auto-evolve');
 
-    debugLog('auto-learn', 'Harness config regenerated after auto-evolution');
+    log.debug('Harness config regenerated after auto-evolution');
   } catch (e) {
-    debugLog('auto-learn', 'Config regeneration failed', e);
+    log.debug('Config regeneration failed', e);
   }
 }

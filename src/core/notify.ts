@@ -2,7 +2,9 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('notify');
 import { loadGlobalConfig } from './global-config.js';
 import type { NotifyVerbosity } from './global-config.js';
 
@@ -79,7 +81,7 @@ export function loadNotifyConfig(): WebhookConfig {
   try {
     return JSON.parse(fs.readFileSync(NOTIFY_CONFIG_PATH, 'utf-8'));
   } catch (e) {
-    debugLog('notify', 'notify.json 파싱 실패', e);
+    log.debug('notify.json 파싱 실패', e);
     return { enabled: false };
   }
 }
@@ -98,7 +100,7 @@ function notifyMacOS(title: string, message: string, sound: boolean): boolean {
     execFileSync('osascript', ['-e', script], { stdio: 'ignore' });
     return true;
   } catch (e) {
-    debugLog('notify', 'macOS 알림 실패', e);
+    log.debug('macOS 알림 실패', e);
     return false;
   }
 }
@@ -123,7 +125,7 @@ export function validateWebhookUrl(url: string): boolean {
     if (parsed.protocol === 'http:' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')) return true;
     return false;
   } catch (e) {
-    debugLog('notify', `URL 파싱 실패: ${url}`, e);
+    log.debug(`URL 파싱 실패: ${url}`, e);
     return false;
   }
 }
@@ -143,7 +145,7 @@ async function postJSON(url: string, payload: unknown, timeoutMs = 10000): Promi
     });
     return true;
   } catch (e) {
-    debugLog('notify', `웹훅 POST 실패: ${url}`, e);
+    log.debug(`웹훅 POST 실패: ${url}`, e);
     return false;
   }
 }

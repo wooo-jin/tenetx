@@ -13,7 +13,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('keyword-detector');
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
 import { recordModeUsage } from '../engine/prompt-learner.js';
@@ -301,7 +303,7 @@ function cleanSkillCaches(): void {
         fs.unlinkSync(path.join(STATE_DIR, f));
       }
     }
-  } catch (e) { debugLog('keyword-detector', 'skill-cache 파일 삭제 실패', e); }
+  } catch (e) { log.debug('skill-cache 파일 삭제 실패', e); }
 }
 
 // ── 메인 ──
@@ -313,7 +315,7 @@ function loadContextSignals(): { previousFailures?: number; conversationTurns?: 
     if (fs.existsSync(signalsPath)) {
       return JSON.parse(fs.readFileSync(signalsPath, 'utf-8'));
     }
-  } catch (e) { debugLog('keyword-detector', 'context-signals.json read failed — model routing uses defaults', e); }
+  } catch (e) { log.debug('context-signals.json read failed — model routing uses defaults', e); }
   return {};
 }
 
@@ -379,8 +381,8 @@ async function main(): Promise<void> {
 
   if (match.type === 'inject') {
     // Compound: mode usage 기록
-    try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { debugLog('keyword-detector', 'inject mode usage 기록 실패', e); }
-    try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch (e) { debugLog('keyword-detector', 'inject mode start 기록 실패', e); }
+    try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode usage 기록 실패', e); }
+    try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode start 기록 실패', e); }
     // Lab 이벤트 기록 — auto-learn 데이터 수집
     trackModeActivation(input.session_id ?? 'unknown', match.keyword, 'keyword');
     // 메시지 주입
@@ -394,8 +396,8 @@ async function main(): Promise<void> {
   // 스킬 주입
   if (match.skill) {
     // Compound: mode usage 기록
-    try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch (e) { debugLog('keyword-detector', 'skill mode usage 기록 실패', e); }
-    try { recordModeStart(match.skill, input.session_id ?? 'unknown'); } catch (e) { debugLog('keyword-detector', 'skill mode start 기록 실패', e); }
+    try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode usage 기록 실패', e); }
+    try { recordModeStart(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode start 기록 실패', e); }
     // Lab 이벤트 기록 — auto-learn 데이터 수집
     trackModeActivation(input.session_id ?? 'unknown', match.skill, 'keyword');
     const skillContent = loadSkillContent(match.skill);

@@ -8,8 +8,10 @@
  */
 
 import { readStdinJSON } from './shared/read-stdin.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
 import { loadHookConfig } from './hook-config.js';
+
+const log = createLogger('slop-detector');
 
 interface PostToolInput {
   tool_name?: string;
@@ -107,7 +109,7 @@ async function main(): Promise<void> {
       console.log(JSON.stringify({ result: 'approve' }));
     }
   } catch (e) {
-    debugLog('slop-detector', '슬롭 감지 실패', e);
+    log.debug('슬롭 감지 실패', e);
     console.log(JSON.stringify({ result: 'approve' }));
   }
 }

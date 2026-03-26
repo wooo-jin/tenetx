@@ -21,6 +21,12 @@ vi.mock('../src/hooks/hook-config.js', () => ({
 // logger mock
 vi.mock('../src/core/logger.js', () => ({
   debugLog: vi.fn(),
+  createLogger: vi.fn(() => ({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  })),
 }));
 
 // console.log를 캡처

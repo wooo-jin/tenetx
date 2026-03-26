@@ -14,7 +14,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('modes');
 
 /**
  * Ecomode에서 사용할 Haiku 모델 ID.
@@ -222,11 +224,11 @@ export function registerPackWorkflows(workflows: ModeConfig[]): string[] {
     if (BUILTIN_MODE_NAMES.has(wf.name)) {
       // 내장 모드와 충돌 — 등록 스킵
       skipped.push(wf.name);
-      debugLog('modes', `팩 워크플로우 "${wf.name}" 내장 모드와 충돌 — 스킵`);
+      log.debug(`팩 워크플로우 "${wf.name}" 내장 모드와 충돌 — 스킵`);
     } else if (wf.name in MODE_CONFIGS) {
       // 팩 간 충돌 — 먼저 등록된 팩이 승리하므로 경고 출력
       skipped.push(wf.name);
-      debugLog('modes', `[경고] 팩 워크플로우 이름 충돌: "${wf.name}" — 이미 다른 팩이 등록함. 먼저 등록된 팩이 우선합니다.`);
+      log.debug(`[경고] 팩 워크플로우 이름 충돌: "${wf.name}" — 이미 다른 팩이 등록함. 먼저 등록된 팩이 우선합니다.`);
     } else {
       (MODE_CONFIGS as Record<string, ModeConfig>)[wf.name] = wf;
     }
