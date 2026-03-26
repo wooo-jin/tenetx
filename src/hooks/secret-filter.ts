@@ -6,6 +6,7 @@
  * 차단하지 않고 경고 메시지만 출력합니다.
  */
 
+import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { loadHookConfig } from './hook-config.js';
 
@@ -87,6 +88,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
+  const hookErr = new HookError(e instanceof Error ? e.message : String(e), {
+    hookName: 'secret-filter', eventType: 'PostToolUse', cause: e,
+  });
+  process.stderr.write(`[ch-hook] ${hookErr.name}: ${hookErr.message}\n`);
   console.log(JSON.stringify({ result: 'approve' }));
 });

@@ -54,6 +54,12 @@ export interface SignalBundle {
   context: ContextSignals;
 }
 
+// ── 공통 타입 (router/scorer 순환 의존 해소용) ────────────────────────
+export type ModelTier = 'haiku' | 'sonnet' | 'opus';
+export type TaskCategory = 'explore' | 'file-search' | 'simple-qa'
+  | 'code-review' | 'analysis' | 'design'
+  | 'implement' | 'architect' | 'debug-complex';
+
 // ── 어휘 신호 추출 ────────────────────────────────
 
 // 주의: match()와 함께 사용 시 /g 플래그의 lastIndex 문제를 피하기 위해 매번 새 RegExp 사용

@@ -309,11 +309,12 @@ describe('provider', () => {
     expect(token === null || typeof token === 'string').toBe(true);
   });
 
-  it('codex 기본 authMode는 oauth', async () => {
+  it('codex authMode는 oauth 또는 cli', async () => {
     const { loadProviderConfigs } = await import('../src/engine/provider.js');
     const configs = loadProviderConfigs();
     const codex = configs.find(c => c.name === 'codex');
-    expect(codex?.authMode).toBe('oauth');
+    // providers.json 설정에 따라 oauth 또는 cli — 둘 다 유효한 값
+    expect(['oauth', 'cli']).toContain(codex?.authMode);
   });
 
   it('getProviderSummary는 프로바이더 목록 반환', async () => {

@@ -12,7 +12,9 @@ import { STATE_DIR, ME_SOLUTIONS } from '../core/paths.js';
 import { serializeSolutionV3, DEFAULT_EVIDENCE } from './solution-format.js';
 import type { SolutionV3 } from './solution-format.js';
 import { track } from '../lab/tracker.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('workflow-compound');
 
 const WORKFLOW_STATE_PATH = path.join(STATE_DIR, 'workflow-state.json');
 
@@ -37,7 +39,7 @@ export function recordModeStart(mode: string, sessionId: string): void {
     };
     fs.writeFileSync(WORKFLOW_STATE_PATH, JSON.stringify(state));
   } catch (e) {
-    debugLog('workflow-compound', 'mode start 기록 실패', e);
+    log.debug('mode start 기록 실패', e);
   }
 }
 
@@ -50,7 +52,7 @@ export function incrementWorkflowCounter(type: 'prompt' | 'toolCall'): void {
     if (type === 'prompt') state.promptCount++;
     else state.toolCallCount++;
     fs.writeFileSync(WORKFLOW_STATE_PATH, JSON.stringify(state));
-  } catch (e) { debugLog('workflow-compound', 'workflow 카운터 증가 실패 — 통계 손실 가능', e); }
+  } catch (e) { log.debug('workflow 카운터 증가 실패 — 통계 손실 가능', e); }
 }
 
 /** Check if a workflow completed successfully and extract a workflow pattern */
@@ -110,15 +112,15 @@ export function checkWorkflowCompletion(sessionId: string): void {
       duration: durationMin,
     });
 
-    debugLog('workflow-compound', `워크플로우 패턴 추출: ${insight.name}`);
+    log.debug(`워크플로우 패턴 추출: ${insight.name}`);
     clearWorkflowState();
   } catch (e) {
-    debugLog('workflow-compound', 'workflow completion 체크 실패', e);
+    log.debug('workflow completion 체크 실패', e);
   }
 }
 
 function clearWorkflowState(): void {
-  try { fs.unlinkSync(WORKFLOW_STATE_PATH); } catch (e) { debugLog('workflow-compound', 'workflow 상태 파일 삭제 실패 — 다음 실행에서 재시도', e); }
+  try { fs.unlinkSync(WORKFLOW_STATE_PATH); } catch (e) { log.debug('workflow 상태 파일 삭제 실패 — 다음 실행에서 재시도', e); }
 }
 
 interface WorkflowInsight {

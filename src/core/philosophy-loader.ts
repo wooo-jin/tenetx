@@ -3,7 +3,9 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ME_PHILOSOPHY, ME_DIR, PACKS_DIR, projectPhilosophyPath } from './paths.js';
 import type { Philosophy } from './types.js';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('philosophy-loader');
 
 /** JSON 파싱 (손상된 파일은 에러 전파) */
 function parsePhilosophyFile(content: string): Record<string, unknown> {
@@ -79,7 +81,7 @@ export function loadPhilosophy(philosophyPath?: string): Philosophy {
       principles: (data.principles as Record<string, unknown> ?? {}) as Philosophy['principles'],
     };
   } catch (e) {
-    debugLog('philosophy-loader', '철학 파일 로드 실패, 기본값 사용', e);
+    log.debug('철학 파일 로드 실패, 기본값 사용', e);
     return DEFAULT_PHILOSOPHY;
   }
 }
@@ -128,7 +130,7 @@ export function resolveBasePhilosophy(extendsValue: string): Philosophy | null {
   if (!normalized.startsWith('pack:')) {
     // 자동 보정: "relentless-quality-forge" → "pack:relentless-quality-forge"
     normalized = `pack:${normalized}`;
-    debugLog('philosophy-loader', `extends 자동 보정: "${extendsValue}" → "${normalized}"`);
+    log.debug(`extends 자동 보정: "${extendsValue}" → "${normalized}"`);
   }
   const packName = normalized.slice(5);
 
@@ -145,7 +147,7 @@ export function resolveBasePhilosophy(extendsValue: string): Philosophy | null {
     return loadPhilosophy(builtinPath);
   }
 
-  debugLog('philosophy-loader', `extends 팩 "${packName}" 찾을 수 없음`);
+  log.debug(`extends 팩 "${packName}" 찾을 수 없음`);
   return null;
 }
 

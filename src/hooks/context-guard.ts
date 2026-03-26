@@ -13,10 +13,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadHookConfig } from './hook-config.js';
+
+const log = createLogger('context-guard');
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
@@ -60,7 +62,7 @@ function loadContextState(sessionId: string): ContextState {
       const data = JSON.parse(fs.readFileSync(CONTEXT_STATE_PATH, 'utf-8'));
       if (data.sessionId === sessionId) return data;
     }
-  } catch (e) { debugLog('context-guard', 'context state 파일 읽기/파싱 실패', e); }
+  } catch (e) { log.debug('context state 파일 읽기/파싱 실패', e); }
   return { promptCount: 0, totalChars: 0, lastWarningAt: 0, sessionId };
 }
 
@@ -150,7 +152,7 @@ function markPendingCompound(sessionId: string): void {
       timestamp: new Date().toISOString(),
     });
   } catch (e) {
-    debugLog('context-guard', 'pending-compound 마커 생성 실패', e);
+    log.debug('pending-compound 마커 생성 실패', e);
   }
 }
 
@@ -172,7 +174,7 @@ function saveHandoff(sessionId: string, reason: string, detail: string): void {
           if (data.active) {
             activeStates.push(`- ${f.replace('-state.json', '')}: ${data.prompt ?? 'no prompt'}`);
           }
-        } catch (e) { debugLog('context-guard', `상태 파일 파싱 실패: ${f}`, e); }
+        } catch (e) { log.debug(`상태 파일 파싱 실패: ${f}`, e); }
       }
     }
   }

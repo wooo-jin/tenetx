@@ -2,7 +2,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { SESSIONS_DIR } from './paths.js';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('stats');
 import { formatCost, formatTokenCount } from '../engine/token-tracker.js';
 
 interface SessionLog {
@@ -42,7 +44,7 @@ function loadSessions(sinceMs?: number): SessionLog[] {
 
       sessions.push(session);
     } catch (err) {
-      debugLog('stats', `세션 파일 파싱 실패: ${file}`, err);
+      log.debug(`세션 파일 파싱 실패: ${file}`, err);
     }
   }
 
@@ -143,10 +145,10 @@ export async function handleStats(args: string[]): Promise<void> {
             const calls = data.toolCalls ?? 0;
             const id = (data.sessionId ?? 'unknown').slice(0, 8);
             console.log(`    ${id}… ${tokens} tokens, ${cost}, ${calls} calls`);
-          } catch (e) { debugLog('stats', 'individual token usage file parse failed — skipping entry', e); }
+          } catch (e) { log.debug('individual token usage file parse failed — skipping entry', e); }
         }
       }
-    } catch (e) { debugLog('stats', 'token usage directory read failed — session stats omitted', e); }
+    } catch (e) { log.debug('token usage directory read failed — session stats omitted', e); }
   }
 
   console.log();

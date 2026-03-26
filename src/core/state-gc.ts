@@ -9,7 +9,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { STATE_DIR } from './paths.js';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('state-gc');
 
 /**
  * GC 대상 파일 패턴 (접두어 기반)
@@ -100,15 +102,15 @@ export function cleanStaleStateFiles(options: GcOptions = {}): GcResult {
         }
       } catch (e) {
         result.errors.push(f);
-        debugLog('state-gc', `파일 삭제 실패: ${f}`, e);
+        log.debug(`파일 삭제 실패: ${f}`, e);
       }
     }
   } catch (e) {
-    debugLog('state-gc', 'state 디렉토리 읽기 실패', e);
+    log.debug('state 디렉토리 읽기 실패', e);
   }
 
   if (result.deletedCount > 0) {
-    debugLog('state-gc', `${result.deletedCount}개 오래된 상태 파일 정리 완료`);
+    log.debug(`${result.deletedCount}개 오래된 상태 파일 정리 완료`);
   }
 
   return result;

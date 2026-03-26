@@ -6,7 +6,9 @@
  */
 
 import { readEvents } from './store.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('lab-scorer');
 import type {
   LabEvent,
   ComponentMetrics,
@@ -134,7 +136,7 @@ export function computeAllMetrics(sinceMs?: number): ComponentMetrics[] {
     const events = readEvents(sinceMs);
     return computeMetricsFromEvents(events);
   } catch (e) {
-    debugLog('lab-scorer', 'Failed to compute metrics', e);
+    log.debug('Failed to compute metrics', e);
     return [];
   }
 }

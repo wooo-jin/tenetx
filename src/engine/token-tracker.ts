@@ -8,7 +8,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('token-tracker');
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -56,7 +58,7 @@ export function loadTokenUsage(sessionId: string): TokenUsage {
       if (data.sessionId === sessionId) return data;
     }
   } catch (e) {
-    debugLog('token-tracker', `토큰 사용량 로드 실패 (세션: ${sessionId}): ${e instanceof Error ? e.message : String(e)}`);
+    log.debug(`토큰 사용량 로드 실패 (세션: ${sessionId}): ${e instanceof Error ? e.message : String(e)}`);
   }
   return {
     sessionId,
@@ -157,6 +159,6 @@ export function cleanStaleUsageFiles(): void {
       if (now - stat.mtimeMs > MAX_AGE_MS) fs.unlinkSync(p);
     }
   } catch (e) {
-    debugLog('token-tracker', `오래된 토큰 사용량 파일 정리 실패: ${e instanceof Error ? e.message : String(e)}`);
+    log.debug(`오래된 토큰 사용량 파일 정리 실패: ${e instanceof Error ? e.message : String(e)}`);
   }
 }

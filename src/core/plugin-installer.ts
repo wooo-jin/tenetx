@@ -14,7 +14,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('plugin-installer');
 
 const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 const PLUGINS_DIR = path.join(CLAUDE_DIR, 'plugins');
@@ -32,7 +34,7 @@ function loadPluginManifest(): Record<string, unknown> | null {
       return JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
     }
   } catch (e) {
-    debugLog('plugin-installer', 'plugin.json 파싱 실패', e);
+    log.debug('plugin.json 파싱 실패', e);
   }
   return null;
 }
@@ -101,7 +103,7 @@ export function installAsPlugin(): { success: boolean; pluginDir: string; error?
     return { success: true, pluginDir };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    debugLog('plugin-installer', '플러그인 설치 실패', e);
+    log.debug('플러그인 설치 실패', e);
     return { success: false, pluginDir, error: msg };
   }
 }
@@ -114,7 +116,7 @@ function registerPluginInSettings(pluginDir: string): void {
   if (fs.existsSync(settingsPath)) {
     try {
       settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-    } catch (e) { debugLog('plugin-installer', 'settings.json parse failed — starting with empty settings', e); }
+    } catch (e) { log.debug('settings.json parse failed — starting with empty settings', e); }
   }
 
   const plugins = (settings.plugins as string[]) ?? [];
@@ -151,7 +153,7 @@ export function uninstallPlugin(): boolean {
     }
     return true;
   } catch (e) {
-    debugLog('plugin-installer', '플러그인 제거 실패', e);
+    log.debug('플러그인 제거 실패', e);
     return false;
   }
 }

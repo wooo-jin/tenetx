@@ -8,7 +8,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('lab-history');
 import { saveSnapshot, listSnapshots, countEvents } from './store.js';
 import { getAverageEffectiveness } from './scorer.js';
 import type { HarnessSnapshot, SnapshotTrigger } from './types.js';
@@ -40,7 +42,7 @@ function discoverAgents(cwd?: string): string[] {
       agents.push(...files);
     }
   } catch (e) {
-    debugLog('lab-history', 'Failed to discover agents', e);
+    log.debug('Failed to discover agents', e);
   }
   return agents;
 }
@@ -63,7 +65,7 @@ function discoverHooks(): string[] {
       }
     }
   } catch (e) {
-    debugLog('lab-history', 'Failed to discover hooks', e);
+    log.debug('Failed to discover hooks', e);
   }
   return hooks;
 }
@@ -79,7 +81,7 @@ function discoverPacks(): string[] {
         });
     }
   } catch (e) {
-    debugLog('lab-history', 'Failed to discover packs', e);
+    log.debug('Failed to discover packs', e);
   }
   return [];
 }
@@ -93,7 +95,7 @@ function loadPhilosophyInfo(): { name: string; version: string } {
       return { name: data.name ?? 'unknown', version: data.version ?? '0.0.0' };
     }
   } catch (e) {
-    debugLog('lab-history', 'Failed to load philosophy', e);
+    log.debug('Failed to load philosophy', e);
   }
   return { name: 'default', version: '1.0.0' };
 }

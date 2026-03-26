@@ -1,9 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { PACKS_DIR, ME_SOLUTIONS, ME_RULES } from '../core/paths.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
 import { loadProposals, cleanProposals } from '../engine/compound-loop.js';
 import type { CompoundInsight } from '../engine/compound-loop.js';
+
+const log = createLogger('crossover');
 
 /** 솔루션/규칙 파일 찾기 */
 function findFile(packName: string, fileName: string): string | null {
@@ -131,7 +133,7 @@ export async function handlePropose(args: string[]): Promise<void> {
     const { loadPackConfigs } = await import('../core/pack-config.js');
     packs = loadPackConfigs(cwd);
   } catch {
-    debugLog('crossover', 'pack-config 로드 실패, local 모드로 폴백');
+    log.debug('pack-config 로드 실패, local 모드로 폴백');
   }
 
   if (packs.length === 0) {
@@ -223,8 +225,8 @@ async function proposeViaGithubPR(_config: PackConnection, proposals: CompoundIn
     execFileSync('git', ['checkout', '-'], { cwd, stdio: 'pipe' });
   } catch (e) {
     // git branch 복원
-    try { execFileSync('git', ['checkout', '-'], { cwd, stdio: 'pipe' }); } catch (checkoutErr) { debugLog('crossover', 'git checkout - failed during error recovery — branch cleanup may be incomplete', checkoutErr); }
-    try { execFileSync('git', ['branch', '-D', branchName], { cwd, stdio: 'pipe' }); } catch (deleteErr) { debugLog('crossover', `git branch -D ${branchName} failed — temp branch may remain`, deleteErr); }
+    try { execFileSync('git', ['checkout', '-'], { cwd, stdio: 'pipe' }); } catch (checkoutErr) { log.debug('git checkout - failed during error recovery — branch cleanup may be incomplete', checkoutErr); }
+    try { execFileSync('git', ['branch', '-D', branchName], { cwd, stdio: 'pipe' }); } catch (deleteErr) { log.debug(`git branch -D ${branchName} failed — temp branch may remain`, deleteErr); }
 
     // gh 미설치 시 로컬 폴백 + 설치 안내
     const isGhMissing = e instanceof Error && e.message.includes('ENOENT');
@@ -235,7 +237,7 @@ async function proposeViaGithubPR(_config: PackConnection, proposals: CompoundIn
       console.log('');
     }
     console.log('  PR creation failed → falling back to local save');
-    debugLog('crossover', 'gh pr create 실패', e);
+    log.debug('gh pr create 실패', e);
     await proposeViaLocal(proposals, cwd);
   }
 }

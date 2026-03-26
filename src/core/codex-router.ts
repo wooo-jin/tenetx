@@ -10,7 +10,9 @@
  */
 
 import { isTmux, isCodexAvailable, spawnCodexPane, type CodexSpawnResult } from './codex-spawn.js';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('codex-router');
 
 export type AgentPreference = 'claude' | 'codex' | 'either';
 
@@ -162,7 +164,7 @@ export function autoDelegate(
     const result = spawnCodexPane(task.task, { cwd });
     codexSpawned.push(result);
     if (result.success) {
-      debugLog('codex-router', `Codex 위임: ${task.task.slice(0, 50)} (${task.reason})`);
+      log.debug(`Codex 위임: ${task.task.slice(0, 50)} (${task.reason})`);
     }
   }
 

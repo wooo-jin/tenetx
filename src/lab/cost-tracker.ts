@@ -9,7 +9,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('cost-tracker');
 
 // ── Storage paths ──
 const LAB_COST_DIR = path.join(os.homedir(), '.compound', 'lab', 'cost');
@@ -55,7 +57,7 @@ interface SessionsStore {
 function ensureDir(): void {
   try {
     fs.mkdirSync(LAB_COST_DIR, { recursive: true });
-  } catch (e) { debugLog('cost-tracker', 'LAB_COST_DIR 생성 실패', e); }
+  } catch (e) { log.debug('LAB_COST_DIR 생성 실패', e); }
 }
 
 // ── Pricing helpers ──
@@ -109,7 +111,7 @@ export function recordTokenUsage(
     // sessions.json에도 반영 (히스토리용, 비동기적으로)
     upsertSessionInStore(session);
   } catch (e) {
-    debugLog('cost-tracker', `토큰 사용량 기록 실패: ${e instanceof Error ? e.message : String(e)}`);
+    log.debug(`토큰 사용량 기록 실패: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -287,7 +289,7 @@ function loadCurrentSession(sessionId: string): SessionCost {
       const data: SessionCost = JSON.parse(raw);
       if (data.sessionId === sessionId) return data;
     }
-  } catch (e) { debugLog('cost-tracker', 'current session file read failed — starting empty session', e); }
+  } catch (e) { log.debug('current session file read failed — starting empty session', e); }
   return createEmptySession(sessionId);
 }
 
@@ -295,7 +297,7 @@ function writeCurrentSession(session: SessionCost): void {
   try {
     fs.writeFileSync(CURRENT_SESSION_FILE, JSON.stringify(session));
   } catch (e) {
-    debugLog('cost-tracker', `current-session 쓰기 실패: ${e instanceof Error ? e.message : String(e)}`);
+    log.debug(`current-session 쓰기 실패: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -321,7 +323,7 @@ function upsertSessionInStore(session: SessionCost): void {
 
     fs.writeFileSync(SESSIONS_FILE, JSON.stringify(store, null, 2));
   } catch (e) {
-    debugLog('cost-tracker', `sessions.json 쓰기 실패: ${e instanceof Error ? e.message : String(e)}`);
+    log.debug(`sessions.json 쓰기 실패: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

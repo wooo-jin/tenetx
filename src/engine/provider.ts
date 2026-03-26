@@ -15,9 +15,11 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { execFileSync, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+import { NonRetryableError, ProviderError } from '../core/errors.js';
 
 const execFileAsync = promisify(execFile);
+const log = createLogger('provider');
 const CONFIG_PATH = path.join(os.homedir(), '.compound', 'providers.json');
 const CODEX_AUTH_PATH = path.join(os.homedir(), '.codex', 'auth.json');
 
@@ -62,14 +64,6 @@ export interface ProviderResponse {
   error?: string;
 }
 
-/** 재시도 불가 에러 (401/403 등) */
-class NonRetryableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'NonRetryableError';
-  }
-}
-
 /** 기본 프로바이더 설정 (Claude + Codex) */
 const DEFAULT_CONFIGS: ProviderConfig[] = [
   { name: 'claude', enabled: true, defaultModel: 'claude-sonnet-4-6', maxRetries: 2, timeoutMs: 60000, priority: 1 },
@@ -80,6 +74,14 @@ const DEFAULT_CONFIGS: ProviderConfig[] = [
 // ── Codex OAuth 토큰 관리 ──
 
 interface CodexAuthData {
+  // Codex CLI v0.1xx+ 구조: { tokens: { access_token, ... } }
+  tokens?: {
+    access_token?: string;
+    refresh_token?: string;
+    id_token?: string;
+    account_id?: string;
+  };
+  // 레거시 플랫 구조 호환
   access_token?: string;
   token_type?: string;
   expires_at?: number;
@@ -92,20 +94,22 @@ export function readCodexOAuthToken(): string | null {
     if (!fs.existsSync(CODEX_AUTH_PATH)) return null;
     const data = JSON.parse(fs.readFileSync(CODEX_AUTH_PATH, 'utf-8')) as CodexAuthData;
 
-    if (!data.access_token) return null;
+    // Codex CLI v0.1xx+: tokens.access_token / 레거시: access_token
+    const accessToken = data.tokens?.access_token ?? data.access_token;
+    if (!accessToken) return null;
 
     // 만료 체크 (만료 시간이 있으면)
     if (data.expires_at) {
       const nowSec = Math.floor(Date.now() / 1000);
       if (nowSec >= data.expires_at) {
-        debugLog('provider', 'Codex OAuth 토큰 만료됨. `codex login`으로 갱신하세요.');
+        log.debug('Codex OAuth 토큰 만료됨. `codex login`으로 갱신하세요.');
         return null;
       }
     }
 
-    return data.access_token;
+    return accessToken;
   } catch (e) {
-    debugLog('provider', maskSensitive(`Codex auth.json 읽기 실패: ${e instanceof Error ? e.message : String(e)}`));
+    log.debug(maskSensitive(`Codex auth.json 읽기 실패: ${e instanceof Error ? e.message : String(e)}`));
     return null;
   }
 }
@@ -148,7 +152,7 @@ export function loadProviderConfigs(): ProviderConfig[] {
       }
     }
   } catch (e) {
-    debugLog('provider', '프로바이더 설정 파싱 실패', e);
+    log.debug('프로바이더 설정 파싱 실패', e);
   }
   return DEFAULT_CONFIGS;
 }
@@ -258,7 +262,7 @@ export async function callProvider(
       };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
-      debugLog('provider', `${config.name} 시도 ${attempt + 1}/${maxRetries + 1} 실패: ${maskSensitive(lastError)}`);
+      log.debug(`${config.name} 시도 ${attempt + 1}/${maxRetries + 1} 실패: ${maskSensitive(lastError)}`);
 
       if (e instanceof NonRetryableError) break;
 
@@ -292,7 +296,7 @@ async function executeProviderCall(
     case 'gemini':
       return callGemini(config, prompt, model, timeout);
     default:
-      throw new Error(`Unknown provider: ${config.name}`);
+      throw new ProviderError(`Unknown provider: ${config.name}`, { providerName: config.name });
   }
 }
 
@@ -307,7 +311,7 @@ async function callClaude(prompt: string, model: string, timeout: number): Promi
     });
     return stdout.trim();
   } catch (e) {
-    throw new Error(`claude CLI: ${e instanceof Error ? e.message : String(e)}`);
+    throw new ProviderError(`claude CLI: ${e instanceof Error ? e.message : String(e)}`, { providerName: 'claude', cause: e });
   }
 }
 
@@ -356,8 +360,8 @@ async function callCodexCli(prompt: string, model: string, timeout: number): Pro
     return '(no Codex output)';
   } catch (e) {
     // 임시 파일 정리
-    try { fs.unlinkSync(tmpOut); } catch (unlinkErr) { debugLog('provider', 'tmp output file cleanup failed after codex error', unlinkErr); }
-    throw new Error(`codex CLI: ${e instanceof Error ? e.message : String(e)}`);
+    try { fs.unlinkSync(tmpOut); } catch (unlinkErr) { log.debug('tmp output file cleanup failed after codex error', unlinkErr); }
+    throw new ProviderError(`codex CLI: ${e instanceof Error ? e.message : String(e)}`, { providerName: 'codex', cause: e });
   }
 }
 
@@ -394,7 +398,7 @@ async function callOpenAIApi(prompt: string, model: string, timeout: number, bea
       }
     }
 
-    throw new Error(msg);
+    throw new ProviderError(msg, { providerName: 'codex', statusCode: res.status });
   }
 
   const json = await res.json() as { choices?: { message?: { content?: string } }[] };
@@ -433,7 +437,7 @@ async function callGemini(config: ProviderConfig, prompt: string, model: string,
         await sleep(Math.min(retryAfter * 1000, 30_000));
       }
     }
-    throw new Error(msg);
+    throw new ProviderError(msg, { providerName: 'gemini', statusCode: res.status });
   }
 
   const json = await res.json() as {
@@ -469,7 +473,7 @@ export async function callWithFallback(
   for (const config of available) {
     const result = await callProvider(config, prompt, model);
     if (!result.error) return result;
-    debugLog('provider', `${config.name} 폴백 실패: ${maskSensitive(result.error)}`);
+    log.debug(`${config.name} 폴백 실패: ${maskSensitive(result.error)}`);
   }
 
   return {

@@ -187,7 +187,6 @@ const AGENT_GENERATORS: Record<string, AgentOverlayGenerator> = {
     const quality = dims.qualityFocus ?? 0.5;
     const abstraction = dims.abstractionLevel ?? 0.5;
     const comm = dims.communicationStyle ?? 0.5;
-    const _risk = dims.riskTolerance ?? 0.5;
 
     const modifiers: string[] = [];
 
@@ -266,7 +265,6 @@ const AGENT_GENERATORS: Record<string, AgentOverlayGenerator> = {
     const comm = dims.communicationStyle ?? 0.5;
     const depth = dims.abstractionLevel ?? 0.5;
     const autonomy = dims.autonomyPreference ?? 0.5;
-    const _quality = dims.qualityFocus ?? 0.5;
 
     const modifiers: string[] = [];
 
@@ -465,7 +463,6 @@ const AGENT_GENERATORS: Record<string, AgentOverlayGenerator> = {
     const quality = dims.qualityFocus ?? 0.5;
     const comm = dims.communicationStyle ?? 0.5;
     const abstraction = dims.abstractionLevel ?? 0.5;
-    const _risk = dims.riskTolerance ?? 0.5;
 
     const modifiers: string[] = [];
 

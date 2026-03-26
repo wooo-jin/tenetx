@@ -11,7 +11,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('pre-tool-use');
+import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
@@ -87,7 +90,7 @@ function loadDangerousPatterns(): DangerousPatternEntry[] {
         JSON.parse(fs.readFileSync(customPath, 'utf-8'));
       for (const entry of custom) {
         if (!isSafeRegex(entry.pattern, entry.flags ?? '')) {
-          debugLog('pre-tool-use', `사용자 커스텀 패턴 건너뜀 (ReDoS 위험): ${entry.description}`);
+          log.debug(`사용자 커스텀 패턴 건너뜀 (ReDoS 위험): ${entry.description}`);
           continue;
         }
         results.push({
@@ -98,7 +101,7 @@ function loadDangerousPatterns(): DangerousPatternEntry[] {
       }
     }
   } catch {
-    debugLog('pre-tool-use', '사용자 커스텀 위험 패턴 로드 실패');
+    log.debug('사용자 커스텀 위험 패턴 로드 실패');
   }
 
   return results;
@@ -170,7 +173,7 @@ function getActiveReminders(): string[] {
       } catch { /* skip corrupt files */ }
     }
   } catch (e) {
-    debugLog('pre-tool-use', '상태 디렉토리 읽기 실패', e);
+    log.debug('상태 디렉토리 읽기 실패', e);
   }
 
   return reminders;
@@ -192,7 +195,7 @@ function getAndIncrementFailCount(): number {
 }
 
 function resetFailCount(): void {
-  try { if (fs.existsSync(FAIL_COUNTER_PATH)) fs.unlinkSync(FAIL_COUNTER_PATH); } catch (e) { debugLog('pre-tool-use', 'fail counter reset failed — counter stays elevated', e); }
+  try { if (fs.existsSync(FAIL_COUNTER_PATH)) fs.unlinkSync(FAIL_COUNTER_PATH); } catch (e) { log.debug('fail counter reset failed — counter stays elevated', e); }
 }
 
 /** Compound v3: detect if Edit/Write code reflects injected solution identifiers */
@@ -241,7 +244,7 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
       }
     }
   } catch (e) {
-    debugLog('pre-tool-use', 'compound reflection 체크 실패', e);
+    log.debug('compound reflection 체크 실패', e);
   }
 }
 
@@ -276,7 +279,7 @@ export function updateSolutionEvidence(solutionName: string, field: 'reflected' 
       }
     }
   } catch (e) {
-    debugLog('pre-tool-use', `evidence 업데이트 실패: ${solutionName}`, e);
+    log.debug(`evidence 업데이트 실패: ${solutionName}`, e);
   }
 }
 
@@ -318,7 +321,7 @@ async function main(): Promise<void> {
   }
 
   // Compound v3: Code Reflection check (non-blocking)
-  try { checkCompoundReflection(toolName, toolInput, sessionId); } catch (e) { debugLog('pre-tool-use', 'compound reflection check 실패', e); }
+  try { checkCompoundReflection(toolName, toolInput, sessionId); } catch (e) { log.debug('compound reflection check 실패', e); }
 
   // 활성 모드 리마인더 (10회 호출당 1회 — 결정적 카운터 기반)
   const reminders = getActiveReminders();
@@ -334,7 +337,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write(`[ch-hook] PreToolUse error: ${e instanceof Error ? e.message : String(e)}\n`);
+  const hookErr = new HookError(e instanceof Error ? e.message : String(e), {
+    hookName: 'pre-tool-use', eventType: 'PreToolUse', cause: e,
+  });
+  process.stderr.write(`[ch-hook] ${hookErr.name}: ${hookErr.message}\n`);
   // fail-open: approve on internal error to avoid blocking all tool calls
   console.log(JSON.stringify({ result: 'approve', message: '[Tenetx] PreToolUse: internal error — approving to avoid blocking.' }));
 });

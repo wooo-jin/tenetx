@@ -14,7 +14,9 @@ import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { matchSolutions } from '../engine/solution-matcher.js';
 import { resolveScope } from '../core/scope-resolver.js';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('solution-injector');
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { filterSolutionContent } from './prompt-injection-filter.js';
@@ -56,7 +58,7 @@ function loadSessionCache(sessionId: string): { injected: Set<string>; totalInje
       }
       return { injected: new Set(data.injected ?? []), totalInjectedChars: data.totalInjectedChars ?? 0 };
     }
-  } catch (e) { debugLog('solution-injector', '캐시 읽기 실패', e); }
+  } catch (e) { log.debug('캐시 읽기 실패', e); }
   return { injected: new Set(), totalInjectedChars: 0 };
 }
 
@@ -98,8 +100,8 @@ async function main(): Promise<void> {
   const sessionId = input.session_id ?? 'default';
 
   // Record prompt for pattern learning (non-blocking)
-  try { recordPrompt(input.prompt, sessionId); } catch (e) { debugLog('solution-injector', 'prompt 기록 실패 — pattern learning 누락', e); }
-  try { incrementWorkflowCounter('prompt'); } catch (e) { debugLog('solution-injector', 'workflow prompt counter 증가 실패', e); }
+  try { recordPrompt(input.prompt, sessionId); } catch (e) { log.debug('prompt 기록 실패 — pattern learning 누락', e); }
+  try { incrementWorkflowCounter('prompt'); } catch (e) { log.debug('workflow prompt counter 증가 실패', e); }
 
   const cache = loadSessionCache(sessionId);
   const injected = cache.injected;
@@ -107,7 +109,7 @@ async function main(): Promise<void> {
 
   if (injected.size >= MAX_SOLUTIONS_PER_SESSION || totalInjectedChars >= MAX_INJECTED_CHARS_PER_SESSION) {
     if (totalInjectedChars >= MAX_INJECTED_CHARS_PER_SESSION) {
-      debugLog('solution-injector', `세션 토큰 상한 도달: ${totalInjectedChars} chars`);
+      log.debug(`세션 토큰 상한 도달: ${totalInjectedChars} chars`);
     }
     console.log(JSON.stringify({ result: 'approve' }));
     return;
@@ -159,7 +161,7 @@ async function main(): Promise<void> {
         const existing = JSON.parse(fs.readFileSync(injectionCachePath, 'utf-8'));
         if (Array.isArray(existing.solutions)) existingSolutions = existing.solutions;
       }
-    } catch (e) { debugLog('solution-injector', 'injection cache 읽기 실패 — 기존 캐시 없이 새로 시작', e); }
+    } catch (e) { log.debug('injection cache 읽기 실패 — 기존 캐시 없이 새로 시작', e); }
 
     const newSolutions = toInject.map(sol => ({
       name: sol.name,
@@ -180,7 +182,7 @@ async function main(): Promise<void> {
       updatedAt: new Date().toISOString(),
     };
     atomicWriteJSON(injectionCachePath, injectionData);
-  } catch (e) { debugLog('solution-injector', 'injection cache 저장 실패', e); }
+  } catch (e) { log.debug('injection cache 저장 실패', e); }
 
   // Update evidence.injected counters on solution files
   try {
@@ -188,7 +190,7 @@ async function main(): Promise<void> {
     for (const sol of toInject) {
       updateSolutionEvidence(sol.name, 'injected');
     }
-  } catch (e) { debugLog('solution-injector', 'evidence.injected counter 업데이트 실패', e); }
+  } catch (e) { log.debug('evidence.injected counter 업데이트 실패', e); }
 
   // Lab event tracking for injected solutions
   for (const sol of toInject) {

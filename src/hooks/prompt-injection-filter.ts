@@ -1,6 +1,11 @@
 /**
  * Security module for filtering prompt injection attacks from solution content
  * before it gets injected into Claude's context.
+ *
+ * NOTE: This is a shared utility, NOT a standalone hook.
+ * Used by: solution-injector.ts (via import)
+ * Exported via: lib.ts (public API for programmatic use)
+ * Not registered in hooks.json — intentional.
  */
 
 /** Patterns that indicate prompt injection attempts */

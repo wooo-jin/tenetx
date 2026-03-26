@@ -5,7 +5,9 @@
  * into dimension adjustments for the auto-learning engine.
  */
 
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('pattern-detector');
 import type { LabEvent, BehavioralPattern, DimensionAdjustment } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -40,10 +42,6 @@ function makePattern(
     firstSeen,
     lastSeen,
   };
-}
-
-function _eventTimestamp(event: LabEvent): string {
-  return event.timestamp;
 }
 
 function timeRange(events: LabEvent[]): { firstSeen: string; lastSeen: string } {
@@ -332,7 +330,7 @@ export function detectPatterns(
     patterns.sort((a, b) => b.confidence - a.confidence);
     return patterns;
   } catch (e) {
-    debugLog('pattern-detector', 'Failed to detect patterns', e);
+    log.debug('Failed to detect patterns', e);
     return [];
   }
 }

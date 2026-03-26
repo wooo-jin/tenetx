@@ -6,7 +6,9 @@
  */
 
 import * as crypto from 'node:crypto';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('lab-advisor');
 import { computeAllMetrics } from './scorer.js';
 import { readEvents, loadPendingSuggestions, savePendingSuggestions,
   loadSuggestionHistory, saveSuggestionHistory } from './store.js';
@@ -336,7 +338,7 @@ export function generateSuggestions(): LabSuggestion[] {
 
     return newSuggestions;
   } catch (e) {
-    debugLog('lab-advisor', 'Failed to generate suggestions', e);
+    log.debug('Failed to generate suggestions', e);
     return [];
   }
 }

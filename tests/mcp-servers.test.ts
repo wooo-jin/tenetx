@@ -29,8 +29,8 @@ afterEach(() => {
 // BUILTIN_MCP_SERVERS / getBuiltinServer
 // ────────────────────────────────────────────────────────────────────────────
 describe('BUILTIN_MCP_SERVERS', () => {
-  it('8개의 빌트인 서버를 포함한다', () => {
-    expect(BUILTIN_MCP_SERVERS).toHaveLength(8);
+  it('9개의 빌트인 서버를 포함한다', () => {
+    expect(BUILTIN_MCP_SERVERS).toHaveLength(9);
   });
 
   it('모든 서버가 builtin: true이다', () => {

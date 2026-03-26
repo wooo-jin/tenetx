@@ -7,7 +7,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('settings-lock');
 
 export const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 export const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
@@ -55,10 +57,10 @@ export function acquireLock(): void {
   // 타임아웃: lock을 잡고 있는 프로세스가 살아있는지 확인
   const lockPid = readLockPid();
   if (lockPid !== null && isProcessAlive(lockPid)) {
-    debugLog('settings-lock', `lockfile 타임아웃 — pid ${lockPid} 프로세스가 아직 활성 상태, 대기 중 강제 획득 보류`);
+    log.debug(`lockfile 타임아웃 — pid ${lockPid} 프로세스가 아직 활성 상태, 대기 중 강제 획득 보류`);
     // 프로세스가 살아있으면 그래도 강제 획득 (데드락 방지)
   } else {
-    debugLog('settings-lock', `lockfile 타임아웃 — stale lock 감지 (pid: ${lockPid ?? 'unknown'}, 프로세스 종료됨)`);
+    log.debug(`lockfile 타임아웃 — stale lock 감지 (pid: ${lockPid ?? 'unknown'}, 프로세스 종료됨)`);
   }
   fs.writeFileSync(SETTINGS_LOCK_PATH, String(process.pid));
 }

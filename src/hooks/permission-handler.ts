@@ -10,7 +10,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('permission-handler');
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 
@@ -56,7 +58,7 @@ function isAutopilotActive(): boolean {
         const data = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
         if (data.active) return true;
       }
-    } catch (e) { debugLog('permission-handler', `mode state file parse failed: ${mode}`, e); }
+    } catch (e) { log.debug(`mode state file parse failed: ${mode}`, e); }
   }
   return false;
 }
@@ -73,7 +75,7 @@ function logPermissionRequest(sessionId: string, toolName: string, decision: str
     });
     fs.appendFileSync(logPath, `${entry}\n`);
   } catch (e) {
-    debugLog('permission-handler', '권한 로그 기록 실패', e);
+    log.debug('권한 로그 기록 실패', e);
   }
 }
 

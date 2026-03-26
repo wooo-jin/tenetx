@@ -10,7 +10,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('post-tool-use');
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
@@ -54,7 +56,7 @@ function loadModifiedFiles(sessionId: string): ModifiedFilesState {
     if (fs.existsSync(filePath)) {
       return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     }
-  } catch (e) { debugLog('post-tool-use', 'modified files state load failed — starting fresh', e); }
+  } catch (e) { log.debug('modified files state load failed — starting fresh', e); }
   return { sessionId, files: {}, toolCallCount: 0 };
 }
 
@@ -111,7 +113,7 @@ function incrementFailureCounter(sessionId: string): void {
     signals.previousFailures = ((signals.previousFailures as number) ?? 0) + 1;
     signals.updatedAt = new Date().toISOString();
     atomicWriteJSON(CONTEXT_SIGNALS_PATH, signals);
-  } catch (e) { debugLog('post-tool-use', 'context signals write failed — failure count may be lost', e); }
+  } catch (e) { log.debug('context signals write failed — failure count may be lost', e); }
 }
 
 /** Compound v3: detect negative signals after tool execution */
@@ -161,7 +163,7 @@ function checkCompoundNegative(toolName: string, toolResponse: string, sessionId
       updateNegativeEvidence(sol.name);
     }
   } catch (e) {
-    debugLog('post-tool-use', 'compound negative 체크 실패', e);
+    log.debug('compound negative 체크 실패', e);
   }
 }
 
@@ -189,7 +191,7 @@ function getCompoundSuccessHint(toolName: string, toolResponse: string, sessionI
         atomicWriteJSON(CONTEXT_SIGNALS_PATH, signals);
       }
     }
-  } catch (e) { debugLog('post-tool-use', 'error resolution detection failed', e); }
+  } catch (e) { log.debug('error resolution detection failed', e); }
 
   if (hints.length === 0) return '';
   return `<compound-success-hint>\n${hints.map(h => `- ${h}`).join('\n')}\n</compound-success-hint>`;
@@ -220,7 +222,7 @@ function updateNegativeEvidence(solutionName: string): void {
       }
     }
   } catch (e) {
-    debugLog('post-tool-use', `negative evidence 업데이트 실패: ${solutionName}`, e);
+    log.debug(`negative evidence 업데이트 실패: ${solutionName}`, e);
   }
 }
 
@@ -255,7 +257,7 @@ async function main(): Promise<void> {
         cwd: data.cwd ?? process.env.COMPOUND_CWD ?? process.cwd(),
       });
     } catch (e) {
-      debugLog('post-tool-use', '체크포인트 저장 실패', e);
+      log.debug('체크포인트 저장 실패', e);
     }
   }
 
@@ -270,7 +272,7 @@ async function main(): Promise<void> {
       const inTok = estimateTokens(inputStr);
       const outTok = estimateTokens(toolResponse);
       recordLabCost(sessionId, modelKey, inTok, outTok);
-    } catch (e) { debugLog('post-tool-use', 'lab cost tracker 기록 실패 — 모델별 비용 통계 누락', e); }
+    } catch (e) { log.debug('lab cost tracker 기록 실패 — 모델별 비용 통계 누락', e); }
 
     // 100회마다 오래된 usage 파일 정리 (매 호출 I/O 방지)
     if (usage.toolCalls % 100 === 0) cleanStaleUsageFiles();
@@ -282,7 +284,7 @@ async function main(): Promise<void> {
       messages.push(`<compound-cost-info>\n[Tenetx] Session token usage: ${totalTokens} (${usage.toolCalls} calls), estimated cost: ${cost}\n</compound-cost-info>`);
     }
   } catch (e) {
-    debugLog('post-tool-use', '토큰 추적 실패', e);
+    log.debug('토큰 추적 실패', e);
   }
 
   // 파일 변경 추적 (Write, Edit 도구)
@@ -306,10 +308,10 @@ async function main(): Promise<void> {
             messages.push(`<compound-constraint-violation>\n${formatted}\n</compound-constraint-violation>`);
           }
         } catch (ce) {
-          debugLog('post-tool-use', '제약 검사 실패', ce);
+          log.debug('제약 검사 실패', ce);
         }
       } catch (e) {
-        debugLog('post-tool-use', '파일 변경 추적 실패', e);
+        log.debug('파일 변경 추적 실패', e);
       }
     }
 
@@ -318,7 +320,7 @@ async function main(): Promise<void> {
       const fp = String(toolInput.file_path ?? toolInput.filePath ?? '');
       const content = String(toolInput.content ?? toolInput.new_string ?? '');
       if (fp && content) recordWriteContent(fp, content, sessionId);
-    } catch (e) { debugLog('post-tool-use', 'write content 기록 실패 — pattern learning 누락', e); }
+    } catch (e) { log.debug('write content 기록 실패 — pattern learning 누락', e); }
   }
 
   // Bash 도구 실행 결과 에러 감지
@@ -332,7 +334,7 @@ async function main(): Promise<void> {
   }
 
   // Compound v3: Negative signal check (non-blocking)
-  try { checkCompoundNegative(toolName, toolResponse, sessionId); } catch (e) { debugLog('post-tool-use', 'compound negative check 실패', e); }
+  try { checkCompoundNegative(toolName, toolResponse, sessionId); } catch (e) { log.debug('compound negative check 실패', e); }
 
   // Workflow-compound integration: track tool calls and check completion
   try {
@@ -341,13 +343,13 @@ async function main(): Promise<void> {
     if (modState.toolCallCount % 20 === 0) {
       checkWorkflowCompletion(sessionId);
     }
-  } catch (e) { debugLog('post-tool-use', 'workflow counter increment 실패', e); }
+  } catch (e) { log.debug('workflow counter increment 실패', e); }
 
   // Compound v3: Micro-extraction hints on success moments (non-blocking)
   try {
     const successHint = getCompoundSuccessHint(toolName, toolResponse, sessionId);
     if (successHint) messages.push(successHint);
-  } catch (e) { debugLog('post-tool-use', 'success hint generation 실패', e); }
+  } catch (e) { log.debug('success hint generation 실패', e); }
 
   // 상태 저장 (toolCallCount 포함)
   saveModifiedFiles(modState);

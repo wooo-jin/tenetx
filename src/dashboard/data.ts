@@ -8,10 +8,12 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { debugLog } from '../core/logger.js';
+import { createLogger } from '../core/logger.js';
 import { ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from '../core/paths.js';
 import { loadPhilosophy as loadPhilosophyCore } from '../core/philosophy-loader.js';
 import type { Philosophy } from '../core/types.js';
+
+const log = createLogger('dashboard');
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -126,7 +128,7 @@ export function loadPacks(): PackInfo[] {
             const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
             version = meta.version ?? '?';
             remote = meta.remote ?? meta.source ?? undefined;
-          } catch (e) { debugLog('dashboard', `pack.json 파싱 실패: ${entry.name}`, e); }
+          } catch (e) { log.debug(`pack.json 파싱 실패: ${entry.name}`, e); }
         }
         const packDir = path.join(PACKS_DIR, entry.name);
         let lastSync: string | undefined;
@@ -134,7 +136,7 @@ export function loadPacks(): PackInfo[] {
         if (fs.existsSync(syncPath)) {
           try {
             lastSync = fs.readFileSync(syncPath, 'utf-8').trim();
-          } catch (e) { debugLog('dashboard', `.last-sync 파일 읽기 실패: ${entry.name}`, e); }
+          } catch (e) { log.debug(`.last-sync 파일 읽기 실패: ${entry.name}`, e); }
         }
         return {
           name: entry.name,

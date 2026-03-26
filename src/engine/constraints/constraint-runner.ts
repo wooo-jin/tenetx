@@ -7,7 +7,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { debugLog } from '../../core/logger.js';
+import { createLogger } from '../../core/logger.js';
+
+const log = createLogger('constraint-runner');
 import type {
   AnyConstraintRule,
   ConstraintConfig,
@@ -35,7 +37,7 @@ export function loadConstraintConfig(cwd: string): ConstraintConfig | null {
     if (!raw.rules || !Array.isArray(raw.rules)) return null;
     return raw as ConstraintConfig;
   } catch (e) {
-    debugLog('constraint-runner', '제약 설정 로드 실패', e);
+    log.debug('제약 설정 로드 실패', e);
     return null;
   }
 }

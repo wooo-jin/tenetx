@@ -13,7 +13,9 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { debugLog } from './logger.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('codex-spawn');
 import { checkProviderAvailability, loadProviderConfigs } from '../engine/provider.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
@@ -157,7 +159,7 @@ export function spawnCodexPane(
     ).trim();
 
     const paneId = result;
-    debugLog('codex-spawn', `Codex 패널 스폰: ${paneId}, 작업: ${task.slice(0, 50)}${captureOutput ? ' [캡처 모드]' : ''}`);
+    log.debug(`Codex 패널 스폰: ${paneId}, 작업: ${task.slice(0, 50)}${captureOutput ? ' [캡처 모드]' : ''}`);
 
     // 상태 저장
     saveSpawnState(paneId, task, cwd);
@@ -165,7 +167,7 @@ export function spawnCodexPane(
     return { success: true, paneId, outputPath, markerPath };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    debugLog('codex-spawn', `tmux split failed: ${msg}`);
+    log.debug(`tmux split failed: ${msg}`);
     return { success: false, error: `tmux pane split failed: ${msg}` };
   }
 }
@@ -194,7 +196,7 @@ export function spawnMultipleCodexPanes(
   }
 
   if (tasks.length > maxPanes) {
-    debugLog('codex-spawn', `작업 ${tasks.length}개 중 ${maxPanes}개만 패널로 스폰 (화면 한계)`);
+    log.debug(`작업 ${tasks.length}개 중 ${maxPanes}개만 패널로 스폰 (화면 한계)`);
   }
 
   return results;
@@ -209,7 +211,7 @@ function saveSpawnState(paneId: string, task: string, cwd: string): void {
     if (fs.existsSync(CODEX_STATE_PATH)) {
       state = JSON.parse(fs.readFileSync(CODEX_STATE_PATH, 'utf-8'));
     }
-  } catch (e) { debugLog('codex-spawn', 'spawn state load failed — starting with empty state', e); }
+  } catch (e) { log.debug('spawn state load failed — starting with empty state', e); }
 
   state.spawns.push({
     paneId,
@@ -272,14 +274,14 @@ export async function waitForCodexOutput(
         }
         return '(no output file)';
       } catch (e) {
-        debugLog('codex-spawn', `출력 파일 읽기 실패: ${e instanceof Error ? e.message : String(e)}`);
+        log.debug(`출력 파일 읽기 실패: ${e instanceof Error ? e.message : String(e)}`);
         return null;
       }
     }
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
 
-  debugLog('codex-spawn', `Codex 완료 대기 타임아웃 (${timeoutMs}ms)`);
+  log.debug(`Codex 완료 대기 타임아웃 (${timeoutMs}ms)`);
   // 타임아웃이어도 부분 출력 반환 시도
   if (fs.existsSync(outputPath)) {
     try {

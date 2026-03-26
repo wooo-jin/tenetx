@@ -1,3 +1,3 @@
 export { Panel } from './Panel.js';
-export { Bar } from './Bar.js';
-export { SparkLine } from './SparkLine.js';
+export { Bar, resolveBarColor, calcBarBlocks } from './Bar.js';
+export { SparkLine, generateDayLabels, calcBlockIndex, defaultFmt, BLOCKS } from './SparkLine.js';
