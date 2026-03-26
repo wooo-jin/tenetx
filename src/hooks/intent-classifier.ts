@@ -10,6 +10,7 @@
  */
 
 import { readStdinJSON } from './shared/read-stdin.js';
+import { trackHookTrigger } from '../lab/tracker.js';
 
 type Intent = 'implement' | 'debug' | 'refactor' | 'explain' | 'review' | 'explore' | 'design' | 'general';
 
@@ -62,9 +63,12 @@ async function main(): Promise<void> {
   }
 
   const intent = classifyIntent(input.prompt);
+  const sessionId = input.session_id ?? 'default';
+
+  // Lab 이벤트 기록 — auto-learn 데이터 수집
+  trackHookTrigger(sessionId, 'intent-classifier', 'UserPromptSubmit', 'approve');
 
   if (intent === 'general') {
-    // 일반 요청은 힌트 없이 통과
     console.log(JSON.stringify({ result: 'approve' }));
     return;
   }

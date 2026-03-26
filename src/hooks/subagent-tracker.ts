@@ -14,6 +14,7 @@ import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { trackAgentCall } from '../lab/tracker.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -93,6 +94,9 @@ async function main(): Promise<void> {
     const agent = state.agents.find(a => a.agentId === agentId && !a.stoppedAt);
     if (agent) {
       agent.stoppedAt = new Date().toISOString();
+      // Lab 이벤트 기록 — auto-learn 데이터 수집
+      const durationMs = new Date(agent.stoppedAt).getTime() - new Date(agent.startedAt).getTime();
+      trackAgentCall(sessionId, agentType || 'unknown', 'unknown', durationMs, 'success');
     }
     saveAgentsState(state);
   }

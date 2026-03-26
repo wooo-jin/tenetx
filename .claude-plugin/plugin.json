@@ -1,0 +1,11 @@
+{
+  "name": "tenetx",
+  "version": "2.2.0",
+  "description": "The AI coding tool that adapts to you — personalized harness for Claude Code",
+  "author": { "name": "jang-ujin" },
+  "repository": "https://github.com/wooo-jin/tenetx",
+  "homepage": "https://github.com/wooo-jin/tenetx",
+  "license": "MIT",
+  "keywords": ["claude-code", "harness", "personalization", "forge"],
+  "skills": "./skills/"
+}

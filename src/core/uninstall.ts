@@ -8,6 +8,49 @@ import {
   releaseLock,
   atomicWriteFileSync,
 } from './settings-lock.js';
+import { uninstallPlugin } from './plugin-installer.js';
+
+/** 플러그인 관련 아티팩트 정리 */
+function cleanPluginArtifacts(): void {
+  const claudeDir = path.join(os.homedir(), '.claude');
+  const pluginsDir = path.join(claudeDir, 'plugins');
+
+  // 1. ~/.claude/plugins/cache/tenetx-local/ 삭제
+  try {
+    const cacheDir = path.join(pluginsDir, 'cache', 'tenetx-local');
+    if (fs.existsSync(cacheDir)) {
+      fs.rmSync(cacheDir, { recursive: true, force: true });
+      console.log('  ✓ Removed plugin cache (~/.claude/plugins/cache/tenetx-local/)');
+    }
+  } catch (e) {
+    console.error('  ✗ Failed to remove plugin cache:', e instanceof Error ? e.message : String(e));
+  }
+
+  // 2. ~/.claude/plugins/installed_plugins.json에서 tenetx@tenetx-local 제거
+  try {
+    const installedPluginsPath = path.join(pluginsDir, 'installed_plugins.json');
+    if (fs.existsSync(installedPluginsPath)) {
+      const data = JSON.parse(fs.readFileSync(installedPluginsPath, 'utf-8'));
+      if (data.plugins && 'tenetx@tenetx-local' in data.plugins) {
+        delete data.plugins['tenetx@tenetx-local'];
+        fs.writeFileSync(installedPluginsPath, JSON.stringify(data, null, 2));
+        console.log('  ✓ Removed tenetx@tenetx-local from installed_plugins.json');
+      }
+    }
+  } catch (e) {
+    console.error('  ✗ Failed to update installed_plugins.json:', e instanceof Error ? e.message : String(e));
+  }
+
+  // 3. ~/.claude/plugins/tenetx/ 삭제 (plugin-installer 경로)
+  try {
+    const removed = uninstallPlugin();
+    if (removed) {
+      console.log('  ✓ Removed plugin directory (~/.claude/plugins/tenetx/)');
+    }
+  } catch (e) {
+    console.error('  ✗ Failed to remove plugin directory:', e instanceof Error ? e.message : String(e));
+  }
+}
 
 /** ~/.claude/commands/tenetx/ 슬래시 명령 파일 제거 */
 function cleanSlashCommands(): void {
@@ -116,6 +159,15 @@ function cleanSettings(): void {
     delete settings.statusLine;
   }
 
+  // enabledPlugins에서 tenetx@tenetx-local 제거
+  const enabledPlugins = settings.enabledPlugins as Record<string, unknown> | undefined;
+  if (enabledPlugins && 'tenetx@tenetx-local' in enabledPlugins) {
+    delete enabledPlugins['tenetx@tenetx-local'];
+    if (Object.keys(enabledPlugins).length === 0) {
+      delete settings.enabledPlugins;
+    }
+  }
+
   acquireLock();
   try {
     atomicWriteFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
@@ -215,11 +267,12 @@ function cleanClaudeMd(cwd: string): void {
 export async function handleUninstall(cwd: string, options: { force?: boolean }): Promise<void> {
   console.log('\n[tenetx] Uninstalling Tenetx\n');
   console.log('The following items will be cleaned up:');
-  console.log('  1. Remove CH env vars/hooks/statusLine from ~/.claude/settings.json');
+  console.log('  1. Remove CH env vars/hooks/statusLine/enabledPlugins from ~/.claude/settings.json');
   console.log('  2. Delete .claude/agents/ch-*.md agent files');
   console.log('  3. Delete .claude/rules/ rule files (security, golden-principles, anti-pattern, routing, compound)');
   console.log('  4. Remove tenetx block from CLAUDE.md');
   console.log('  5. Remove slash commands (~/.claude/commands/tenetx/)');
+  console.log('  6. Remove plugin artifacts (cache, installed_plugins.json, plugin directory)');
   console.log('');
   console.log('Note: ~/.compound/ directory is preserved (manual deletion: rm -rf ~/.compound)\n');
 
@@ -241,6 +294,7 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
   cleanCompoundRules(cwd);
   cleanClaudeMd(cwd);
   cleanSlashCommands();
+  cleanPluginArtifacts();
 
   console.log('\n[tenetx] Uninstall complete. Restart Claude Code for a clean state.\n');
 }

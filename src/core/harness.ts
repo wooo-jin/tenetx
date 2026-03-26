@@ -95,40 +95,18 @@ function injectSettings(env: Record<string, string>): void {
     };
   }
 
-  // 훅 주입: Claude Code hooks 시스템에 등록
-  // hooks 스키마: { "EventName": [{ "matcher": "...", "hooks": [{ "type": "command", ... }] }] }
+  // 기존 tenetx 훅 정리 (이전 버전에서 settings.json에 주입한 잔재 제거)
+  // 훅 등록은 hooks/hooks.json 플러그인 시스템이 담당 — settings.json에는 추가하지 않음
   const pkgRoot = getPackageRoot();
   const hooksConfig = (settings.hooks as Record<string, unknown[]>) ?? {};
 
-  // dist 경로의 훅 스크립트
-  const intentClassifierPath = path.join(pkgRoot, 'dist', 'hooks', 'intent-classifier.js');
-  const keywordDetectorPath = path.join(pkgRoot, 'dist', 'hooks', 'keyword-detector.js');
-  const skillInjectorPath = path.join(pkgRoot, 'dist', 'hooks', 'skill-injector.js');
-  const sessionRecoveryPath = path.join(pkgRoot, 'dist', 'hooks', 'session-recovery.js');
-  const contextGuardPath = path.join(pkgRoot, 'dist', 'hooks', 'context-guard.js');
-  const preToolUsePath = path.join(pkgRoot, 'dist', 'hooks', 'pre-tool-use.js');
-  const postToolUsePath = path.join(pkgRoot, 'dist', 'hooks', 'post-tool-use.js');
-  const subagentTrackerPath = path.join(pkgRoot, 'dist', 'hooks', 'subagent-tracker.js');
-  const preCompactPath = path.join(pkgRoot, 'dist', 'hooks', 'pre-compact.js');
-  const permissionHandlerPath = path.join(pkgRoot, 'dist', 'hooks', 'permission-handler.js');
-  const postToolFailurePath = path.join(pkgRoot, 'dist', 'hooks', 'post-tool-failure.js');
-  const notepadInjectorPath = path.join(pkgRoot, 'dist', 'hooks', 'notepad-injector.js');
-  const secretFilterPath = path.join(pkgRoot, 'dist', 'hooks', 'secret-filter.js');
-  const dbGuardPath = path.join(pkgRoot, 'dist', 'hooks', 'db-guard.js');
-  const rateLimiterPath = path.join(pkgRoot, 'dist', 'hooks', 'rate-limiter.js');
-  const solutionInjectorPath = path.join(pkgRoot, 'dist', 'hooks', 'solution-injector.js');
-  const slopDetectorPath = path.join(pkgRoot, 'dist', 'hooks', 'slop-detector.js');
-
   /** tenetx 훅인지 판별 (matcher 래핑 여부 무관) */
   function isCHHook(entry: Record<string, unknown>): boolean {
-    // 패키지 dist/hooks 경로를 포함하는 커맨드인지 확인
     const distHooksPath = path.join(pkgRoot, 'dist', 'hooks');
     function matchesHookPath(cmd: string): boolean {
       return cmd.includes(distHooksPath) || /[\\/]dist[\\/]hooks[\\/].*\.js/.test(cmd);
     }
-    // 직접 형식: { type, command }
     if (typeof entry.command === 'string' && matchesHookPath(entry.command)) return true;
-    // 래핑 형식: { matcher, hooks: [{ command }] }
     const hooks = entry.hooks as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(hooks)) {
       return hooks.some((h) => typeof h.command === 'string' && matchesHookPath(h.command));
@@ -136,120 +114,23 @@ function injectSettings(env: Record<string, string>): void {
     return false;
   }
 
-  /** 올바른 hooks 스키마로 래핑하여 엔트리 생성 */
-  function makeHookEntry(command: string, timeout: number): Record<string, unknown> {
-    return {
-      matcher: '',
-      hooks: [{ type: 'command', command, timeout }],
-    };
+  for (const [event, entries] of Object.entries(hooksConfig)) {
+    if (Array.isArray(entries)) {
+      const filtered = entries.filter((h) => !isCHHook(h as Record<string, unknown>));
+      if (filtered.length === 0) {
+        delete hooksConfig[event];
+      } else {
+        hooksConfig[event] = filtered;
+      }
+    }
   }
+  settings.hooks = Object.keys(hooksConfig).length > 0 ? hooksConfig : undefined;
+  // undefined면 JSON.stringify에서 키 자체가 제거됨
 
-  // 기존 CH 훅 제거 (이전 잘못된 형식 포함)
-  function ensureArray(val: unknown): Array<Record<string, unknown>> {
-    return Array.isArray(val) ? val : [];
+  // 불필요한 키 정리
+  if (settings.hooks && Object.keys(settings.hooks as Record<string, unknown>).length === 0) {
+    delete settings.hooks;
   }
-  function filterOutCH(arr: unknown): Array<Record<string, unknown>> {
-    return ensureArray(arr).filter((h) => !isCHHook(h));
-  }
-
-  // UserPromptSubmit 훅
-  const promptHooks = filterOutCH(hooksConfig.UserPromptSubmit);
-  if (fs.existsSync(intentClassifierPath)) {
-    promptHooks.push(makeHookEntry(`node "${intentClassifierPath}"`, 3000));
-  }
-  if (fs.existsSync(keywordDetectorPath)) {
-    promptHooks.push(makeHookEntry(`node "${keywordDetectorPath}"`, 5000));
-  }
-  if (fs.existsSync(skillInjectorPath)) {
-    promptHooks.push(makeHookEntry(`node "${skillInjectorPath}"`, 3000));
-  }
-  if (fs.existsSync(contextGuardPath)) {
-    promptHooks.push(makeHookEntry(`node "${contextGuardPath}"`, 2000));
-  }
-  if (fs.existsSync(notepadInjectorPath)) {
-    promptHooks.push(makeHookEntry(`node "${notepadInjectorPath}"`, 3000));
-  }
-  if (fs.existsSync(solutionInjectorPath)) {
-    promptHooks.push(makeHookEntry(`node "${solutionInjectorPath}"`, 3000));
-  }
-  hooksConfig.UserPromptSubmit = promptHooks;
-
-  // SessionStart 훅
-  const sessionHooks = filterOutCH(hooksConfig.SessionStart);
-  if (fs.existsSync(sessionRecoveryPath)) {
-    sessionHooks.push(makeHookEntry(`node "${sessionRecoveryPath}"`, 3000));
-  }
-  hooksConfig.SessionStart = sessionHooks;
-
-  // Stop 훅 (에러 감지 + context limit 경고)
-  const stopHooks = filterOutCH(hooksConfig.Stop);
-  if (fs.existsSync(contextGuardPath)) {
-    stopHooks.push(makeHookEntry(`node "${contextGuardPath}"`, 3000));
-  }
-  hooksConfig.Stop = stopHooks;
-
-  // PreToolUse 훅 (위험 명령어 차단 + 모드 리마인더 + DB 가드 + 레이트 리미터)
-  const preToolHooks = filterOutCH(hooksConfig.PreToolUse);
-  if (fs.existsSync(preToolUsePath)) {
-    preToolHooks.push(makeHookEntry(`node "${preToolUsePath}"`, 3000));
-  }
-  if (fs.existsSync(dbGuardPath)) {
-    preToolHooks.push(makeHookEntry(`node "${dbGuardPath}"`, 3000));
-  }
-  if (fs.existsSync(rateLimiterPath)) {
-    preToolHooks.push(makeHookEntry(`node "${rateLimiterPath}"`, 2000));
-  }
-  hooksConfig.PreToolUse = preToolHooks;
-
-  // PostToolUse 훅 (파일 변경 추적 + 에러 감지 + 시크릿 필터)
-  const postToolHooks = filterOutCH(hooksConfig.PostToolUse);
-  if (fs.existsSync(postToolUsePath)) {
-    postToolHooks.push(makeHookEntry(`node "${postToolUsePath}"`, 3000));
-  }
-  if (fs.existsSync(secretFilterPath)) {
-    postToolHooks.push(makeHookEntry(`node "${secretFilterPath}"`, 3000));
-  }
-  if (fs.existsSync(slopDetectorPath)) {
-    postToolHooks.push(makeHookEntry(`node "${slopDetectorPath}"`, 3000));
-  }
-  hooksConfig.PostToolUse = postToolHooks;
-
-  // SubagentStart 훅
-  const subagentStartHooks = filterOutCH(hooksConfig.SubagentStart);
-  if (fs.existsSync(subagentTrackerPath)) {
-    subagentStartHooks.push(makeHookEntry(`node "${subagentTrackerPath}" start`, 2000));
-  }
-  hooksConfig.SubagentStart = subagentStartHooks;
-
-  // SubagentStop 훅
-  const subagentStopHooks = filterOutCH(hooksConfig.SubagentStop);
-  if (fs.existsSync(subagentTrackerPath)) {
-    subagentStopHooks.push(makeHookEntry(`node "${subagentTrackerPath}" stop`, 2000));
-  }
-  hooksConfig.SubagentStop = subagentStopHooks;
-
-  // PreCompact 훅 (컨텍스트 압축 전 상태 보존)
-  const preCompactHooks = filterOutCH(hooksConfig.PreCompact);
-  if (fs.existsSync(preCompactPath)) {
-    preCompactHooks.push(makeHookEntry(`node "${preCompactPath}"`, 3000));
-  }
-  hooksConfig.PreCompact = preCompactHooks;
-
-  // PermissionRequest 훅 (권한 요청 정책)
-  const permissionHooks = filterOutCH(hooksConfig.PermissionRequest);
-  if (fs.existsSync(permissionHandlerPath)) {
-    permissionHooks.push(makeHookEntry(`node "${permissionHandlerPath}"`, 2000));
-  }
-  hooksConfig.PermissionRequest = permissionHooks;
-
-  // PostToolUseFailure 훅 (도구 실패 시 복구 안내)
-  const postToolFailureHooks = filterOutCH(hooksConfig.PostToolUseFailure);
-  if (fs.existsSync(postToolFailurePath)) {
-    postToolFailureHooks.push(makeHookEntry(`node "${postToolFailurePath}"`, 3000));
-  }
-  hooksConfig.PostToolUseFailure = postToolFailureHooks;
-
-  settings.hooks = hooksConfig;
 
   try {
     atomicWriteFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
@@ -869,6 +750,35 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
       }
     } catch (e) {
       debugLog('harness', 'Auto-learn import/run failed (non-fatal)', e);
+    }
+
+    // ── 17. Compound staleness guard ──
+    try {
+      const stalenessDays = Number(process.env.COMPOUND_STALENESS_DAYS) || 3;
+      const stalenessMs = stalenessDays * 24 * 60 * 60 * 1000;
+
+      // 마지막 compound extraction 시점 확인
+      const lastExtractionPath = path.join(os.homedir(), '.compound', 'state', 'last-extraction.json');
+      if (fs.existsSync(lastExtractionPath)) {
+        const lastExtraction = JSON.parse(fs.readFileSync(lastExtractionPath, 'utf-8'));
+        const lastRunMs = new Date(lastExtraction.lastRunAt).getTime();
+        const elapsed = Date.now() - lastRunMs;
+
+        if (elapsed > stalenessMs) {
+          // pending-compound 마커가 없을 때만 생성
+          const pendingPath = path.join(os.homedir(), '.compound', 'state', 'pending-compound.json');
+          if (!fs.existsSync(pendingPath)) {
+            fs.writeFileSync(pendingPath, JSON.stringify({
+              reason: 'staleness',
+              detectedAt: new Date().toISOString(),
+              daysSinceLastRun: Math.floor(elapsed / (24 * 60 * 60 * 1000)),
+            }, null, 2));
+            debugLog('harness', `Compound staleness detected (${Math.floor(elapsed / (24 * 60 * 60 * 1000))}d) — pending-compound marker created`);
+          }
+        }
+      }
+    } catch (e) {
+      debugLog('harness', 'Staleness check failed (non-fatal)', e);
     }
 
     return context;
