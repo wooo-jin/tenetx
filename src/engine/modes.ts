@@ -56,6 +56,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     principle: '-',
     persistent: false,
   },
+  // DEPRECATED: scheduled for v3.0 removal
   autopilot: {
     name: 'autopilot',
     description: '5-phase autonomous execution (explore→plan→execute→QA→verify)',
@@ -65,6 +66,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     persistent: true,
     composedOf: ['ralph', 'ultrawork'],
   },
+  // DEPRECATED: scheduled for v3.0 removal
   ralph: {
     name: 'ralph',
     description: 'PRD-based iteration + verify/fix loop (completion guaranteed)',
@@ -74,6 +76,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     persistent: true,
     composedOf: ['ultrawork'],
   },
+  // DEPRECATED: scheduled for v3.0 removal
   team: {
     name: 'team',
     description: 'Expert agent staged pipeline (plan→prd→exec→verify→fix)',
@@ -85,6 +88,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     principle: 'decompose-to-control',
     persistent: true,
   },
+  // DEPRECATED: scheduled for v3.0 removal
   ultrawork: {
     name: 'ultrawork',
     description: 'Maximum parallelism burst (concurrent independent tasks)',
@@ -93,6 +97,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     principle: 'focus-resources-on-judgment',
     persistent: true,
   },
+  // DEPRECATED: scheduled for v3.0 removal
   pipeline: {
     name: 'pipeline',
     description: 'Sequential staged processing (multi-stage transforms/migrations)',
@@ -101,6 +106,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     principle: 'decompose-to-control',
     persistent: true,
   },
+  // DEPRECATED: scheduled for v3.0 removal
   ccg: {
     name: 'ccg',
     description: 'Claude-Codex-Gemini 3-model synthesis cross-validation',
@@ -109,6 +115,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     principle: 'focus-resources-on-judgment',
     persistent: false,
   },
+  // DEPRECATED: scheduled for v3.0 removal
   ralplan: {
     name: 'ralplan',
     description: 'Consensus-based design (Planner→Architect→Critic loop)',
@@ -117,6 +124,7 @@ const MODE_CONFIGS: Record<ExecutionMode, ModeConfig> = {
     principle: 'understand-before-act',
     persistent: false,
   },
+  // DEPRECATED: scheduled for v3.0 removal
   'deep-interview': {
     name: 'deep-interview',
     description: 'Socratic requirement clarification (ambiguity score based)',

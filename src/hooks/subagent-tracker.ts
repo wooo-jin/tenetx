@@ -24,6 +24,7 @@ const AGENT_GC_AGE_MS = 60 * 60 * 1000; // 1시간 이상 종료된 에이전트
 interface AgentEntry {
   agentId: string;
   agentType?: string;
+  model?: string;
   startedAt: string;
   stoppedAt?: string;
 }
@@ -73,9 +74,11 @@ async function main(): Promise<void> {
   const state = loadAgentsState(sessionId);
 
   if (action === 'start') {
+    const model = (data.model as string) ?? (data.agentModel as string) ?? undefined;
     state.agents.push({
       agentId,
       agentType: agentType || undefined,
+      model,
       startedAt: new Date().toISOString(),
     });
     saveAgentsState(state);
@@ -96,7 +99,9 @@ async function main(): Promise<void> {
       agent.stoppedAt = new Date().toISOString();
       // Lab 이벤트 기록 — auto-learn 데이터 수집
       const durationMs = new Date(agent.stoppedAt).getTime() - new Date(agent.startedAt).getTime();
-      trackAgentCall(sessionId, agentType || 'unknown', 'unknown', durationMs, 'success');
+      const model = agent.model ?? 'unknown';
+      const result = (data.result as string as 'success' | 'error' | 'cancelled') ?? 'unknown';
+      trackAgentCall(sessionId, agent.agentType || 'unknown', model, durationMs, result as 'success' | 'error' | 'cancelled');
     }
     saveAgentsState(state);
   }

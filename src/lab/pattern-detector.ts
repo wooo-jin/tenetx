@@ -17,12 +17,38 @@ import type { LabEvent, BehavioralPattern, DimensionAdjustment } from './types.j
 /** Maximum single adjustment magnitude */
 const MAX_DELTA = 0.1;
 
-/** Minimum events required to detect a pattern */
-const MIN_EVENTS_FOR_PATTERN = 10;
+/** Minimum events required to detect a pattern.
+ * n=20 gives FPR≈3%, 95% CI width≈30% (vs n=10: FPR=8.6%, CI=45%).
+ * Raised from 10 based on statistical power analysis (Wilson score interval). */
+const MIN_EVENTS_FOR_PATTERN = 20;
 
 // ---------------------------------------------------------------------------
 // Internal Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Beta posterior confidence: P(true_rate > threshold | data).
+ * Uses Beta(1+k, 1+n-k) posterior with uniform prior Beta(1,1).
+ * Naturally accounts for sample size — n=10 gives lower confidence than n=1000
+ * for the same observed rate. (Bayesian alternative to frequentist rate×multiplier)
+ */
+function betaConfidence(k: number, n: number, threshold: number): number {
+  if (n <= 0 || k < 0 || k > n) return 0;
+  // Approximate P(X > threshold) via normal approximation to Beta distribution
+  const alpha = 1 + k;
+  const beta = 1 + n - k;
+  const mean = alpha / (alpha + beta);
+  const variance = (alpha * beta) / ((alpha + beta) ** 2 * (alpha + beta + 1));
+  const std = Math.sqrt(variance);
+  if (std === 0) return mean > threshold ? 1 : 0;
+  // P(X > threshold) ≈ Φ((mean - threshold) / std)
+  const z = (mean - threshold) / std;
+  // Standard normal CDF approximation (Abramowitz & Stegun 26.2.17)
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const poly = t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  const phi = 1 - poly * Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+  return z >= 0 ? phi : 1 - phi;
+}
 
 function makePattern(
   id: string,
@@ -71,7 +97,7 @@ function detectOverridePattern(events: LabEvent[]): BehavioralPattern | null {
   if (overrideRate <= 0.15) return null;
 
   const range = timeRange(overrideEvents);
-  const confidence = Math.min(1, overrideRate * 1.5);
+  const confidence = betaConfidence(overrideEvents.length, totalActionEvents.length, 0.15);
   return makePattern(
     'high-override-rate',
     'preference',
@@ -123,7 +149,7 @@ function detectLowInterventionPattern(events: LabEvent[]): BehavioralPattern | n
     'low-intervention',
     'preference',
     `${Math.round(lowRate * 100)}% of sessions have <10% user intervention`,
-    Math.min(1, lowRate),
+    betaConfidence(lowInterventionSessions, totalSessions, 0.5),
     allSessionEvents.length,
     range.firstSeen,
     range.lastSeen,
@@ -148,7 +174,7 @@ function detectReviewerAcceptancePattern(events: LabEvent[]): BehavioralPattern 
       'low-review-acceptance',
       'avoidance',
       `Code reviewer acceptance rate is ${Math.round(acceptanceRate * 100)}% (too strict)`,
-      Math.min(1, (1 - acceptanceRate) * 1.5),
+      betaConfidence(reviewEvents.length - successEvents.length, reviewEvents.length, 0.5),
       reviewEvents.length,
       range.firstSeen,
       range.lastSeen,
@@ -181,7 +207,7 @@ function detectTddUsagePattern(events: LabEvent[]): BehavioralPattern | null {
     'frequent-tdd',
     'workflow',
     `TDD skill used in ${Math.round(tddRate * 100)}% of coding sessions`,
-    Math.min(1, tddRate * 2),
+    betaConfidence(tddSessions.size, codingSessions.size, 0.15),
     tddEvents.length,
     range.firstSeen,
     range.lastSeen,
@@ -209,7 +235,7 @@ function detectEscalationPattern(events: LabEvent[]): BehavioralPattern | null {
     'frequent-escalation',
     'workflow',
     `${Math.round(escalationRate * 100)}% of routing decisions escalate to a higher model`,
-    Math.min(1, escalationRate),
+    betaConfidence(escalated.length, routingEvents.length, 0.3),
     escalated.length,
     range.firstSeen,
     range.lastSeen,
@@ -230,11 +256,12 @@ function detectVerboseOverridePattern(events: LabEvent[]): BehavioralPattern | n
   if (verboseOverrides.length < 3) return null;
 
   const range = timeRange(verboseOverrides);
+  const totalOverrides = overrideEvents.length || 1;
   return makePattern(
     'verbose-override',
     'avoidance',
     'User frequently overrides verbose explanations',
-    Math.min(1, verboseOverrides.length / 5),
+    betaConfidence(verboseOverrides.length, totalOverrides, 0.1),
     verboseOverrides.length,
     range.firstSeen,
     range.lastSeen,
@@ -259,7 +286,7 @@ function detectArchitectUsagePattern(events: LabEvent[]): BehavioralPattern | nu
     'frequent-architect',
     'dependency',
     `Architect/design agents used in ${Math.round(architectRate * 100)}% of agent calls`,
-    Math.min(1, architectRate * 2),
+    betaConfidence(architectEvents.length, agentEvents.length, 0.15),
     architectEvents.length,
     range.firstSeen,
     range.lastSeen,
@@ -287,7 +314,7 @@ function detectSecurityBlockPattern(events: LabEvent[]): BehavioralPattern | nul
     'frequent-security-blocks',
     'avoidance',
     `Security hooks blocking ${Math.round(blockRate * 100)}% of actions`,
-    Math.min(1, blockRate * 2),
+    betaConfidence(securityBlocks.length, hookEvents.length, 0.1),
     securityBlocks.length,
     range.firstSeen,
     range.lastSeen,

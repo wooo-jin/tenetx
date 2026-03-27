@@ -124,6 +124,48 @@ export function getAllExperiments(): LabExperiment[] {
 }
 
 /**
+ * Auto-assign a session to a variant in running experiments.
+ * Uses deterministic hash-based assignment for reproducible A/B splits.
+ */
+export function assignSessionVariant(sessionId: string): { experimentId: string; variant: string } | null {
+  try {
+    const experiments = listExperiments().filter(e => e.status === 'running');
+    if (experiments.length === 0) return null;
+
+    let firstAssignment: { experimentId: string; variant: string } | null = null;
+
+    for (const experiment of experiments) {
+      // Check if session already assigned to this experiment
+      const alreadyAssigned = experiment.variants.some(
+        v => v.sessionIds.includes(sessionId),
+      );
+      if (alreadyAssigned) continue;
+
+      // Deterministic 50/50 split based on SHA-256 hash for uniform distribution
+      const hashInput = `${sessionId}:${experiment.id}`;
+      const hashBuf = crypto.createHash('sha256').update(hashInput).digest();
+      const variantName = hashBuf[0] % 2 === 0 ? 'control' : 'treatment';
+
+      // Record the assignment (without metric value yet)
+      const variant = experiment.variants.find(v => v.name === variantName);
+      if (variant) {
+        variant.sessionIds.push(sessionId);
+        saveExperiment(experiment);
+      }
+
+      if (!firstAssignment) {
+        firstAssignment = { experimentId: experiment.id, variant: variantName };
+      }
+    }
+
+    return firstAssignment;
+  } catch (e) {
+    log.debug('Failed to assign session variant', e);
+    return null;
+  }
+}
+
+/**
  * Auto-collect metrics from recent events for running experiments.
  */
 export function collectExperimentData(): void {
@@ -138,16 +180,20 @@ export function collectExperimentData(): void {
       for (const event of sessionMetrics) {
         const sessionId = event.sessionId;
 
-        // Check if session already recorded
-        const alreadyRecorded = experiment.variants.some(
+        // Find which variant this session belongs to
+        const assignedVariant = experiment.variants.find(
           v => v.sessionIds.includes(sessionId),
         );
-        if (alreadyRecorded) continue;
+        if (!assignedVariant) continue; // session not part of this experiment
 
-        // Assign to control by default (user manually assigns treatment)
+        // Skip if metric already recorded for this session
+        const sessionIdx = assignedVariant.sessionIds.indexOf(sessionId);
+        if (sessionIdx < assignedVariant.metricValues.length) continue;
+
         const value = extractMetricValue(event, experiment.metric);
         if (value !== null) {
-          addDataPoint(experiment.id, 'control', sessionId, value);
+          assignedVariant.metricValues.push(value);
+          saveExperiment(experiment);
         }
       }
     }
@@ -201,8 +247,8 @@ function analyzeExperiment(experiment: LabExperiment): string {
   }
 
   const [control, treatment] = report.variantSummaries;
-  if (control.sampleSize < 3 || treatment.sampleSize < 3) {
-    return 'Insufficient sample size for meaningful comparison.';
+  if (control.sampleSize < 10 || treatment.sampleSize < 10) {
+    return `Insufficient sample size (control: ${control.sampleSize}, treatment: ${treatment.sampleSize}). Need ≥10 per variant.`;
   }
 
   const diff = treatment.mean - control.mean;
@@ -230,16 +276,21 @@ function buildReport(experiment: LabExperiment): ExperimentReport {
   let winner: string | undefined;
   let significant = false;
 
-  if (summaries.length >= 2 && summaries[0].sampleSize >= 3 && summaries[1].sampleSize >= 3) {
+  // Minimum n=10 per variant for meaningful statistical comparison
+  // (n<10 yields power<30% even for large effects — Cohen 1988)
+  if (summaries.length >= 2 && summaries[0].sampleSize >= 10 && summaries[1].sampleSize >= 10) {
     const [a, b] = summaries;
     const isLowerBetter = experiment.metric === 'cost' || experiment.metric === 'duration';
     winner = isLowerBetter
       ? (a.mean < b.mean ? a.name : b.name)
       : (a.mean > b.mean ? a.name : b.name);
 
-    // Simple significance check: difference > 1 standard deviation
-    const pooledStd = Math.sqrt((a.stdDev ** 2 + b.stdDev ** 2) / 2);
-    significant = pooledStd > 0 && Math.abs(a.mean - b.mean) > pooledStd;
+    // Welch's t-test: use standard error of difference (SE), not standard deviation (SD)
+    // SE_diff = sqrt(s_A²/n_A + s_B²/n_B), significant if |diff| > 2×SE (≈ p<0.05)
+    const seDiff = Math.sqrt(
+      (a.stdDev ** 2) / a.sampleSize + (b.stdDev ** 2) / b.sampleSize,
+    );
+    significant = seDiff > 0 && Math.abs(a.mean - b.mean) > 2 * seDiff;
   }
 
   return { experiment, variantSummaries: summaries, winner, significant };
@@ -259,7 +310,8 @@ function computeStats(variant: ExperimentVariant): {
   const median = n % 2 === 0
     ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2
     : sorted[Math.floor(n / 2)];
-  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
+  // Use sample variance (n-1) for unbiased estimation, not population variance (n)
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / Math.max(n - 1, 1);
   const stdDev = Math.sqrt(variance);
 
   return { sampleSize: n, mean, median, stdDev };

@@ -7,14 +7,7 @@
  * - CLI 핸들러: tenetx mcp list/add/remove/templates
  */
 
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { readSettings, writeSettings } from './settings-lock.js';
-import { BUILTIN_MCP_SERVERS } from '../mcp-servers/index.js';
-
-/** dist/mcp-servers/ 디렉토리의 절대 경로 */
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MCP_SERVERS_DIR = path.resolve(__dirname, '..', 'mcp-servers');
 
 /** MCP 서버 단일 설정 */
 export interface McpServerConfig {
@@ -44,27 +37,14 @@ const DEFAULT_MCP_TEMPLATES: Record<string, McpServerConfig> = {
 };
 
 /**
- * 기본 MCP 서버 템플릿 목록 반환 (외부 + 빌트인 포함)
+ * 기본 MCP 서버 템플릿 목록 반환
  * 반환값: 서버 이름 → 설정 객체 맵
  */
 export function getDefaultMcpTemplates(): Record<string, McpServerConfig> {
   const result: Record<string, McpServerConfig> = {};
 
-  // 외부 템플릿
   for (const [k, v] of Object.entries(DEFAULT_MCP_TEMPLATES)) {
     result[k] = { ...v, args: [...v.args], ...(v.env ? { env: { ...v.env } } : {}) };
-  }
-
-  // 빌트인 MCP 서버 추가 (args에 절대 경로 해석)
-  for (const server of BUILTIN_MCP_SERVERS) {
-    const resolvedArgs = server.args.map(arg =>
-      arg.endsWith('.js') ? path.join(MCP_SERVERS_DIR, arg) : arg,
-    );
-    result[server.name] = {
-      command: server.command,
-      args: resolvedArgs,
-      ...(server.env ? { env: { ...server.env } } : {}),
-    };
   }
 
   return result;

@@ -27,7 +27,13 @@ import { loadGlobalConfig } from '../core/global-config.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { PACKS_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { trackModeActivation, trackHookTrigger } from '../lab/tracker.js';
+import { trackModeActivation, trackHookTrigger, trackSkillInvocation } from '../lab/tracker.js';
+import { escapeAllXmlTags } from './prompt-injection-filter.js';
+
+/** Escape a string for safe use in XML attribute values */
+function escapeXmlAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
@@ -320,7 +326,7 @@ function loadContextSignals(): { previousFailures?: number; conversationTurns?: 
 }
 
 /** 프롬프트에 대한 모델 추천 생성 */
-export function getModelRecommendation(prompt: string, cwd?: string): string {
+export function getModelRecommendation(prompt: string, cwd?: string, sessionId?: string): string {
   try {
     const effectiveCwd = cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
     const { philosophy } = loadPhilosophyForProject(effectiveCwd);
@@ -329,7 +335,7 @@ export function getModelRecommendation(prompt: string, cwd?: string): string {
     const routingPreset = envPreset ?? (loadGlobalConfig().modelRouting as RoutingPreset | undefined);
     const router = new ModelRouter(philosophy, routingPreset);
     const contextSignals = loadContextSignals();
-    const result = router.route(prompt, contextSignals);
+    const result = router.route(prompt, contextSignals, sessionId);
     return `\n[Tenetx] Recommended model: **${result.tier}** (source: ${result.source}, category: ${result.category}${result.score ? `, score: ${result.score.total}` : ''})`;
   } catch {
     return '';
@@ -380,11 +386,13 @@ async function main(): Promise<void> {
   }
 
   if (match.type === 'inject') {
+    const injectStart = Date.now();
     // Compound: mode usage 기록
     try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode usage 기록 실패', e); }
     try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode start 기록 실패', e); }
     // Lab 이벤트 기록 — auto-learn 데이터 수집
     trackModeActivation(input.session_id ?? 'unknown', match.keyword, 'keyword');
+    try { trackSkillInvocation(sessionId, match.keyword, Date.now() - injectStart, 'success'); } catch { /* non-blocking */ }
     // 메시지 주입
     console.log(JSON.stringify({
       result: 'approve',
@@ -395,6 +403,7 @@ async function main(): Promise<void> {
 
   // 스킬 주입
   if (match.skill) {
+    const skillStart = Date.now();
     // Compound: mode usage 기록
     try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode usage 기록 실패', e); }
     try { recordModeStart(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode start 기록 실패', e); }
@@ -402,7 +411,7 @@ async function main(): Promise<void> {
     trackModeActivation(input.session_id ?? 'unknown', match.skill, 'keyword');
     const skillContent = loadSkillContent(match.skill);
     const effectiveCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
-    const modelRec = getModelRecommendation(match.prompt ?? input.prompt, effectiveCwd);
+    const modelRec = getModelRecommendation(match.prompt ?? input.prompt, effectiveCwd, sessionId);
 
     // 상태 저장
     saveState(`${match.skill}-state`, {
@@ -433,11 +442,13 @@ async function main(): Promise<void> {
     }
 
     if (skillContent) {
+      try { trackSkillInvocation(sessionId, match.skill, Date.now() - skillStart, 'success'); } catch { /* non-blocking */ }
       console.log(JSON.stringify({
         result: 'approve',
-        message: `<compound-skill name="${match.skill}">\n${skillContent}\n</compound-skill>${modelRec}\n\nUser request: ${match.prompt}`,
+        message: `<compound-skill name="${escapeXmlAttr(match.skill)}">\n${escapeAllXmlTags(skillContent)}\n</compound-skill>${modelRec}\n\nUser request: ${match.prompt}`,
       }));
     } else {
+      try { trackSkillInvocation(sessionId, match.skill, Date.now() - skillStart, 'success'); } catch { /* non-blocking */ }
       console.log(JSON.stringify({
         result: 'approve',
         message: `[Tenetx] ${match.keyword} mode activated.${modelRec}\n\nUser request: ${match.prompt}`,

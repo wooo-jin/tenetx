@@ -20,7 +20,7 @@ import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles, es
 import { recordTokenUsage as recordLabCost } from '../lab/cost-tracker.js';
 import { runConstraintsOnFile, formatViolations } from '../engine/constraints/constraint-runner.js';
 import { saveCheckpoint } from './session-recovery.js';
-import { track } from '../lab/tracker.js';
+import { track, trackSessionMetrics } from '../lab/tracker.js';
 import { recordWriteContent } from '../engine/prompt-learner.js';
 import { incrementWorkflowCounter, checkWorkflowCompletion } from '../engine/workflow-compound.js';
 
@@ -282,6 +282,20 @@ async function main(): Promise<void> {
       const totalTokens = formatTokenCount(usage.inputTokens + usage.outputTokens);
       const cost = formatCost(usage.estimatedCost);
       messages.push(`<compound-cost-info>\n[Tenetx] Session token usage: ${totalTokens} (${usage.toolCalls} calls), estimated cost: ${cost}\n</compound-cost-info>`);
+      // Lab 세션 메트릭 스냅샷 기록 (50 tool calls 단위)
+      try {
+        const activeAgents = (() => {
+          try {
+            const agentsPath = require('node:path').join(require('node:os').homedir(), '.compound', 'state', `active-agents-${sessionId}.json`);
+            if (require('node:fs').existsSync(agentsPath)) {
+              const agents = JSON.parse(require('node:fs').readFileSync(agentsPath, 'utf-8'));
+              return Array.isArray(agents.agents) ? agents.agents.filter((a: { stoppedAt?: string }) => !a.stoppedAt).length : 0;
+            }
+          } catch { /* ignore */ }
+          return 0;
+        })();
+        trackSessionMetrics(sessionId, usage.inputTokens, usage.outputTokens, usage.estimatedCost, 0, activeAgents, data.model_id ?? 'unknown');
+      } catch { /* non-blocking */ }
     }
   } catch (e) {
     log.debug('토큰 추적 실패', e);

@@ -9,24 +9,13 @@
  */
 
 import type { DimensionVector } from './types.js';
+import { deviation, lerp } from './shared-utils.js';
 
 // ── Types ───────────────────────────────────────────
 
 export interface TunedRule {
   filename: string;
   content: string;
-}
-
-// ── Helpers ─────────────────────────────────────────
-
-/** 중립에서의 편차 */
-function deviation(value: number): number {
-  return Math.abs(value - 0.5);
-}
-
-/** 선형 보간 */
-function lerp(t: number, a: number, b: number): number {
-  return a + t * (b - a);
 }
 
 // ── Rule Generators ─────────────────────────────────

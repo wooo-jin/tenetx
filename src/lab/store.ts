@@ -76,10 +76,73 @@ function safeReadJSON<T>(filePath: string, fallback: T): T {
 // Event Store (JSONL)
 // ---------------------------------------------------------------------------
 
-/** Append a single event to events.jsonl */
+/** Maximum events file size before rotation (10MB) */
+const MAX_EVENTS_FILE_SIZE = 10 * 1024 * 1024;
+
+/** Maximum archive age in days */
+const MAX_ARCHIVE_AGE_DAYS = 90;
+
+/** Rotate events.jsonl if it exceeds size threshold */
+export function rotateEventsIfNeeded(): boolean {
+  try {
+    if (!fs.existsSync(EVENTS_PATH)) return false;
+    const stat = fs.statSync(EVENTS_PATH);
+    if (stat.size < MAX_EVENTS_FILE_SIZE) return false;
+
+    const archiveDir = path.join(LAB_DIR, 'archive');
+    ensureDir(archiveDir);
+    const date = new Date().toISOString().split('T')[0];
+    const archivePath = path.join(archiveDir, `events.${date}.jsonl`);
+
+    // If archive for today already exists, append a counter
+    let finalPath = archivePath;
+    let counter = 1;
+    while (fs.existsSync(finalPath)) {
+      finalPath = path.join(archiveDir, `events.${date}.${counter}.jsonl`);
+      counter++;
+    }
+
+    fs.renameSync(EVENTS_PATH, finalPath);
+    log.debug(`Rotated events.jsonl → ${path.basename(finalPath)}`);
+    return true;
+  } catch (e) {
+    log.debug('Failed to rotate events', e);
+    return false;
+  }
+}
+
+/** Clean up archives older than MAX_ARCHIVE_AGE_DAYS */
+export function cleanOldArchives(): number {
+  const archiveDir = path.join(LAB_DIR, 'archive');
+  if (!fs.existsSync(archiveDir)) return 0;
+
+  let removed = 0;
+  try {
+    const cutoffMs = Date.now() - MAX_ARCHIVE_AGE_DAYS * 24 * 60 * 60 * 1000;
+    const files = fs.readdirSync(archiveDir).filter(f => f.startsWith('events.') && f.endsWith('.jsonl'));
+
+    for (const file of files) {
+      const filePath = path.join(archiveDir, file);
+      try {
+        const stat = fs.statSync(filePath);
+        if (stat.mtimeMs < cutoffMs) {
+          fs.unlinkSync(filePath);
+          removed++;
+        }
+      } catch { /* skip files we can't stat */ }
+    }
+  } catch (e) {
+    log.debug('Failed to clean archives', e);
+  }
+  return removed;
+}
+
+/** Append a single event to events.jsonl (with auto-rotation) */
 export function appendEvent(event: LabEvent): void {
   try {
     ensureDir(LAB_DIR);
+    const rotated = rotateEventsIfNeeded();
+    if (rotated) cleanOldArchives(); // only scan archives when rotation occurs
     const line = `${JSON.stringify(event)}\n`;
     fs.appendFileSync(EVENTS_PATH, line);
   } catch (e) {
@@ -87,13 +150,12 @@ export function appendEvent(event: LabEvent): void {
   }
 }
 
-/** Read all events (optionally filtered by time range) */
-export function readEvents(sinceMs?: number, untilMs?: number): LabEvent[] {
-  if (!fs.existsSync(EVENTS_PATH)) return [];
-
+/** Read events from a single JSONL file with time filtering */
+function readEventsFromFile(filePath: string, sinceMs?: number, untilMs?: number): LabEvent[] {
+  if (!fs.existsSync(filePath)) return [];
   const events: LabEvent[] = [];
   try {
-    const content = fs.readFileSync(EVENTS_PATH, 'utf-8');
+    const content = fs.readFileSync(filePath, 'utf-8');
     for (const line of content.split('\n')) {
       if (!line.trim()) continue;
       try {
@@ -109,8 +171,33 @@ export function readEvents(sinceMs?: number, untilMs?: number): LabEvent[] {
       }
     }
   } catch (e) {
-    log.debug('Failed to read events', e);
+    log.debug(`Failed to read events from ${filePath}`, e);
   }
+  return events;
+}
+
+/** Read all events from current file + archives (optionally filtered by time range) */
+export function readEvents(sinceMs?: number, untilMs?: number): LabEvent[] {
+  const events: LabEvent[] = [];
+
+  // Read archives first (older data)
+  const archiveDir = path.join(LAB_DIR, 'archive');
+  if (fs.existsSync(archiveDir)) {
+    try {
+      const archiveFiles = fs.readdirSync(archiveDir)
+        .filter(f => f.startsWith('events.') && f.endsWith('.jsonl'))
+        .sort(); // chronological order
+      for (const file of archiveFiles) {
+        events.push(...readEventsFromFile(path.join(archiveDir, file), sinceMs, untilMs));
+      }
+    } catch (e) {
+      log.debug('Failed to read archive events', e);
+    }
+  }
+
+  // Read current events file
+  events.push(...readEventsFromFile(EVENTS_PATH, sinceMs, untilMs));
+
   return events;
 }
 

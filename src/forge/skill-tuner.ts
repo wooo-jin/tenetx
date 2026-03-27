@@ -8,35 +8,8 @@
  * 개발자에 대한 브리핑 형태의 오버레이.
  */
 
-import type { DimensionVector } from './types.js';
-
-// ── Types ───────────────────────────────────────────
-
-export interface SkillOverlay {
-  skillName: string;
-  /** 프롬프트에 삽입할 행동 지시문 */
-  behaviorModifiers: string[];
-  /** 연속 파라미터 */
-  parameters: Record<string, number | string | boolean>;
-}
-
-// ── Interpolation Helpers ───────────────────────────
-
-/** 선형 보간: dimension 0-1 범위에서 low-high 사이 값 계산 */
-function lerp(dimension: number, low: number, high: number): number {
-  return low + dimension * (high - low);
-}
-
-/** 0-1 값을 서술적 강도로 변환 */
-function intensityWord(v: number): string {
-  if (v >= 0.85) return 'extremely';
-  if (v >= 0.7) return 'highly';
-  if (v >= 0.55) return 'moderately';
-  if (v >= 0.45) return 'somewhat';
-  if (v >= 0.3) return 'moderately';
-  if (v >= 0.15) return 'highly';
-  return 'extremely';
-}
+import type { DimensionVector, SkillOverlay } from './types.js';
+import { intensityWord, lerp } from './shared-utils.js';
 
 // ── Skill-specific Overlay Generators ───────────────
 

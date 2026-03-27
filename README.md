@@ -63,7 +63,6 @@ tenetx                    # Work normally. Learning is automatic.
 | Lightweight harness (3 runtime deps) | Great |
 | One-off scripts or throwaway code | Not ideal |
 | Environment without Claude Code | Not supported |
-| Team-wide standardization (use OMC instead) | Not the focus |
 
 ---
 

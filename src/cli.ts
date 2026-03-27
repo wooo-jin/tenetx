@@ -254,15 +254,6 @@ const commands: Command[] = [
     },
   },
   {
-    name: 'mcp',
-    description: 'Manage MCP servers (list|templates|add <name>|remove <name>)',
-    category: 'internal',
-    handler: async (args) => {
-      const { handleMcp } = await import('./core/mcp-config.js');
-      await handleMcp(args);
-    },
-  },
-  {
     name: 'marketplace',
     description: 'Plugin marketplace (see: tenetx pack search)',
     category: 'internal',
@@ -368,33 +359,6 @@ const commands: Command[] = [
     handler: async (args) => {
       const { handleUninstall } = await import('./core/uninstall.js');
       await handleUninstall(process.cwd(), { force: args.includes('--force') });
-    },
-  },
-  {
-    name: 'ast',
-    description: 'AST-based code search (search|functions|classes|calls|status)',
-    category: 'internal',
-    handler: async (args) => {
-      const { handleAst } = await import('./engine/ast-cli.js');
-      await handleAst(args);
-    },
-  },
-  {
-    name: 'lsp',
-    description: 'Language Server Protocol (status|hover|definition|references|diagnostics)',
-    category: 'internal',
-    handler: async (args) => {
-      const { handleLsp } = await import('./core/lsp-cli.js');
-      await handleLsp(args);
-    },
-  },
-  {
-    name: 'swarm',
-    description: 'Swarm task management (create|status|cleanup)',
-    category: 'command',
-    handler: async (args) => {
-      const { handleSwarm } = await import('./core/swarm-cli.js');
-      await handleSwarm(args);
     },
   },
 ];

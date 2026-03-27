@@ -5,22 +5,10 @@
  * strict/balanced/relaxed 3단계 대신 연속값 기반 설정 생성.
  */
 
-import type { DimensionVector } from './types.js';
-
-// ── Types ───────────────────────────────────────────
-
-export interface HookTuning {
-  hookName: string;
-  enabled: boolean;
-  parameters: Record<string, number | string | boolean>;
-}
+import type { DimensionVector, HookTuning } from './types.js';
+import { lerp } from './shared-utils.js';
 
 // ── Helpers ─────────────────────────────────────────
-
-/** 선형 보간 */
-function lerp(t: number, a: number, b: number): number {
-  return a + t * (b - a);
-}
 
 /** 정수 보간 */
 function lerpInt(t: number, a: number, b: number): number {

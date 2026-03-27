@@ -43,8 +43,15 @@ const MIN_EVENTS_THRESHOLD = 30;
 /** Maximum single adjustment per cycle */
 const MAX_DELTA_PER_CYCLE = 0.15;
 
-/** EMA learning rate: new = old + delta * LEARNING_RATE */
-const LEARNING_RATE = 0.25;
+/** EMA learning rate: new = old + delta * LEARNING_RATE
+ * Roberts (1959), Montgomery (2012): α∈[0.05,0.25] for SPC.
+ * 0.15 = more conservative for noisy behavioral signals (effective window ~12 cycles) */
+const LEARNING_RATE = 0.15;
+
+/** Neutral decay rate: pulls dimensions toward 0.5 when no evidence
+ * Prevents permanent profile drift from temporary behavior changes.
+ * 0.02/cycle = ~50 cycles (days) half-life toward neutral */
+const NEUTRAL_DECAY_RATE = 0.02;
 
 /** Default analysis window: 30 days */
 const DEFAULT_WINDOW_DAYS = 30;
@@ -200,6 +207,13 @@ function applySmoothedAdjustments(
     mergedDeltas.set(adj.dimension, existing + adj.delta);
   }
 
+  // First: apply neutral decay to ALL dimensions (pulls toward 0.5 when no evidence)
+  for (const dim of Object.keys(result)) {
+    const old = result[dim] ?? 0.5;
+    result[dim] = old - (old - 0.5) * NEUTRAL_DECAY_RATE;
+  }
+
+  // Then: apply evidence-based adjustments
   for (const [dimension, rawDelta] of mergedDeltas) {
     if (!(dimension in result)) continue;
 
