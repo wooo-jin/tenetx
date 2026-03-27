@@ -85,25 +85,53 @@ export function sampleFromPosteriors(
 
 /**
  * 세션 보상으로 사후 분포를 업데이트합니다.
- * Bayesian conjugate update: Normal prior × Normal likelihood → Normal posterior
+ *
+ * REINFORCE-style credit assignment:
+ * 각 차원의 기여도를 (sample_i - μ_i) / σ_i 방향으로 분리합니다.
+ * 보상이 높고 해당 차원이 mu에서 벗어난 방향이면 그 방향을 강화.
+ *
+ * Δμ_i = α × (r - baseline) × z_i  where z_i = (sample_i - μ_i) / σ_i
+ * σ²_i는 관측 수에 따라 shrink (Normal-Normal conjugate)
+ *
+ * 학술 근거: Williams (1992) REINFORCE, Xu et al. (2021) Meta-Thompson Sampling
  */
 export function updatePosterior(
   state: ThompsonState,
   reward: SessionReward,
 ): void {
   const r = reward.reward;
+  if (!isFinite(r)) return; // NaN/Infinity 방어
 
-  for (const [, post] of Object.entries(state.posteriors)) {
-    // Bayesian update: posterior = prior × likelihood
-    // Prior: N(mu_0, sigma2_0), Likelihood: N(reward, sigma2_obs)
+  // baseline: 최근 관측의 이동 평균 (variance reduction)
+  const recentRewards = state.observations.slice(-20).map(o => o.reward);
+  const baseline = recentRewards.length > 0
+    ? recentRewards.reduce((a, b) => a + b, 0) / recentRewards.length
+    : 0.5; // 중립 baseline
+
+  const advantage = r - baseline; // positive = 이번 설정이 평균보다 좋았음
+  const snapshot = reward.dimensionSnapshot;
+
+  for (const [dim, post] of Object.entries(state.posteriors)) {
+    const sampleValue = snapshot[dim] ?? post.mu;
+    const sigma = Math.sqrt(post.sigma2);
+
+    // z-score: 이 차원이 mu에서 얼마나 벗어났는지 (방향 + 크기)
+    const z = sigma > 1e-8 ? (sampleValue - post.mu) / sigma : 0;
+
+    // REINFORCE gradient: advantage × z
+    // α는 sigma에 비례 — 불확실한 차원일수록 큰 업데이트
+    const alpha = Math.min(0.1, post.sigma2); // 최대 학습률 0.1
+    const muDelta = alpha * advantage * z;
+
+    post.mu = clamp01(post.mu + muDelta);
+
+    // σ² shrink: Normal-Normal conjugate (관측 수 기반 불확실성 감소)
+    // 관측이 쌓일수록 자연스럽게 exploitation으로 전환
     const sigma2_0 = post.sigma2;
-    const newSigma2 = Math.max(MIN_SIGMA2,
+    post.sigma2 = Math.max(MIN_SIGMA2,
       (sigma2_0 * SIGMA2_OBS) / (sigma2_0 + SIGMA2_OBS),
     );
-    const newMu = (SIGMA2_OBS * post.mu + sigma2_0 * r) / (sigma2_0 + SIGMA2_OBS);
 
-    post.mu = clamp01(newMu);
-    post.sigma2 = newSigma2;
     post.n++;
     post.rewardSum += r;
     post.rewardSumSq += r * r;
@@ -120,10 +148,22 @@ export function updatePosterior(
   }
 }
 
+/** 초기 σ² (탐색 범위 기준점) */
+const BASE_SIGMA2 = 0.04;
+/** σ² 상한 (폭발 방지) */
+const MAX_SIGMA2 = 0.1;
+
 /**
- * BKT의 P(known)에 따라 탐색 강도(sigma2)를 조절합니다.
- * P(known) 높음 → sigma2 축소 (exploitation 모드)
- * P(known) 낮음 → sigma2 유지/증가 (exploration 모드)
+ * BKT의 P(known)에 따라 탐색 강도(sigma2)를 함수적으로 설정합니다.
+ *
+ * 곱셈 누적 대신 직접 함수 설정으로 σ² 폭발/수축 방지:
+ * σ² = BASE_SIGMA2 × (1.5 - pKnown) × decay(n)
+ *
+ * P(known)=0 → σ² = BASE × 1.5 (최대 탐색)
+ * P(known)=1 → σ² = BASE × 0.5 (최소 탐색)
+ * decay(n) = max(0.2, 1 / (1 + n/30)) — 관측이 쌓이면 자연 감소
+ *
+ * 유한 범위 보장: MIN_SIGMA2 ≤ σ² ≤ MAX_SIGMA2
  */
 export function adjustSigmaWithBKT(
   state: ThompsonState,
@@ -131,9 +171,11 @@ export function adjustSigmaWithBKT(
 ): void {
   for (const [dim, post] of Object.entries(state.posteriors)) {
     const pKnown = pKnownMap[dim] ?? 0.5;
-    // pKnown=1.0 → factor=0.5 (sigma 절반), pKnown=0.0 → factor=1.5 (sigma 1.5배)
-    const factor = 1.5 - pKnown;
-    post.sigma2 = Math.max(MIN_SIGMA2, post.sigma2 * factor);
+    const explorationFactor = 1.5 - pKnown; // [0.5, 1.5]
+    const decay = Math.max(0.2, 1 / (1 + post.n / 30)); // [0.2, 1.0]
+    post.sigma2 = Math.max(MIN_SIGMA2, Math.min(MAX_SIGMA2,
+      BASE_SIGMA2 * explorationFactor * decay,
+    ));
   }
 }
 
@@ -157,7 +199,7 @@ export function saveThompsonState(state: ThompsonState): void {
 function boxMullerSample(): number {
   const u1 = Math.random();
   const u2 = Math.random();
-  return Math.sqrt(-2 * Math.log(u1 || 1e-10)) * Math.cos(2 * Math.PI * u2);
+  return Math.sqrt(-2 * Math.log(Math.max(u1, Number.EPSILON))) * Math.cos(2 * Math.PI * u2);
 }
 
 function clamp01(v: number): number {
@@ -166,7 +208,9 @@ function clamp01(v: number): number {
 
 /** 현재 posterior의 불확실성 수준을 반환 (평균 sigma) */
 export function getUncertaintyLevel(state: ThompsonState): number {
-  const sigmas = Object.values(state.posteriors).map(p => Math.sqrt(p.sigma2));
+  const posteriorValues = Object.values(state.posteriors);
+  if (posteriorValues.length === 0) return 0;
+  const sigmas = posteriorValues.map(p => Math.sqrt(p.sigma2));
   return sigmas.reduce((a, b) => a + b, 0) / sigmas.length;
 }
 

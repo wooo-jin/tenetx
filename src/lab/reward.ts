@@ -147,5 +147,6 @@ function bellCurveScore(value: number, center: number, sigma: number): number {
 }
 
 function clamp01(v: number): number {
+  if (!isFinite(v)) return 0.5; // NaN/Infinity → 중립
   return Math.max(0, Math.min(1, v));
 }

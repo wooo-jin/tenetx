@@ -95,11 +95,12 @@ export function updatePreference(
     pKnownGivenObs = denominator > 0 ? numerator / denominator : pK;
   }
 
-  // 학습 전이: P(known_new) = P(known|obs) + (1-P(known|obs)) * pLearn
-  const pKnownNew = pKnownGivenObs + (1 - pKnownGivenObs) * pLearn;
-
-  // 망각 적용: P(known_final) = P(known_new) * (1 - pForget)
-  state.pKnown = Math.max(0, Math.min(1, pKnownNew * (1 - pForget)));
+  // 표준 BKT 전이 (Corbett & Anderson 1994, Yudelson et al. 2013):
+  // P(K_t) = P(K|obs) × (1 - pForget) + (1 - P(K|obs)) × pLearn
+  // learn과 forget이 독립 전이 — 곱셈 상호작용 방지
+  state.pKnown = Math.max(0, Math.min(1,
+    pKnownGivenObs * (1 - pForget) + (1 - pKnownGivenObs) * pLearn,
+  ));
 
   // 관측 이력 (FIFO)
   state.observations.push({ consistent, timestamp: new Date().toISOString() });
