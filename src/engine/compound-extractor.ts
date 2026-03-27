@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { serializeSolutionV3, DEFAULT_EVIDENCE, extractTags } from './solution-format.js';
 import type { SolutionV3, SolutionType } from './solution-format.js';
 import { track } from '../lab/tracker.js';
@@ -13,6 +13,11 @@ import { atomicWriteJSON } from '../hooks/shared/atomic-write.js';
 const LAST_EXTRACTION_PATH = path.join(STATE_DIR, 'last-extraction.json');
 const MAX_EXTRACTIONS_PER_DAY = 5;
 const MAX_DIFF_LENGTH = 3000;
+
+/** Validate that a string is a valid git SHA (7-64 hex chars) */
+function isValidSha(sha: string): boolean {
+  return /^[a-f0-9]{7,64}$/.test(sha);
+}
 
 interface LastExtraction {
   lastCommitSha: string;
@@ -46,13 +51,13 @@ function saveLastExtraction(state: LastExtraction): void {
   atomicWriteJSON(LAST_EXTRACTION_PATH, state);
 }
 
-/** Get new commits since last extraction */
+/** Get new commits since last extraction — uses execFileSync to prevent injection */
 function getNewCommits(cwd: string, lastSha: string): string {
   try {
-    if (!lastSha) {
-      return execSync('git log --oneline -5', { cwd, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
+    if (!lastSha || !isValidSha(lastSha)) {
+      return execFileSync('git', ['log', '--oneline', '-5'], { cwd, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
     }
-    return execSync(`git log --oneline ${lastSha}..HEAD`, { cwd, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
+    return execFileSync('git', ['log', '--oneline', `${lastSha}..HEAD`], { cwd, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
   } catch {
     return '';
   }
@@ -61,10 +66,10 @@ function getNewCommits(cwd: string, lastSha: string): string {
 /** Get commit messages for "why" context enrichment */
 function getCommitMessages(cwd: string, lastSha: string): string {
   try {
-    const cmd = lastSha
-      ? `git log --format=%B ${lastSha}..HEAD`
-      : 'git log --format=%B -5';
-    const msgs = execSync(cmd, { cwd, encoding: 'utf-8', timeout: 5000 });
+    const args = lastSha && isValidSha(lastSha)
+      ? ['log', '--format=%B', `${lastSha}..HEAD`]
+      : ['log', '--format=%B', '-5'];
+    const msgs = execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 5000 });
     return msgs.slice(0, 1000).trim();
   } catch {
     return '';
@@ -74,8 +79,10 @@ function getCommitMessages(cwd: string, lastSha: string): string {
 /** Get git diff for extraction */
 function getGitDiff(cwd: string, lastSha: string): string {
   try {
-    const diffCmd = lastSha ? `git diff ${lastSha}..HEAD` : 'git diff HEAD~1';
-    const diff = execSync(diffCmd, { cwd, encoding: 'utf-8', timeout: 10000 });
+    const args = lastSha && isValidSha(lastSha)
+      ? ['diff', `${lastSha}..HEAD`]
+      : ['diff', 'HEAD~1'];
+    const diff = execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 10000 });
     return diff.slice(0, MAX_DIFF_LENGTH);
   } catch {
     return '';
@@ -85,8 +92,10 @@ function getGitDiff(cwd: string, lastSha: string): string {
 /** Get diff stats for Gate 0 */
 function getDiffStats(cwd: string, lastSha: string): { files: number; lines: number; hasCodeFiles: boolean } {
   try {
-    const statCmd = lastSha ? `git diff --stat ${lastSha}..HEAD` : 'git diff --stat HEAD~1';
-    const stat = execSync(statCmd, { cwd, encoding: 'utf-8', timeout: 5000 });
+    const args = lastSha && isValidSha(lastSha)
+      ? ['diff', '--stat', `${lastSha}..HEAD`]
+      : ['diff', '--stat', 'HEAD~1'];
+    const stat = execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 5000 });
     const lines = stat.split('\n').filter(l => l.trim());
     const codeExts = /\.(ts|tsx|js|jsx|py|rs|go|java|rb|c|cpp|h|swift|kt)$/;
     const hasCodeFiles = lines.some(l => codeExts.test(l));

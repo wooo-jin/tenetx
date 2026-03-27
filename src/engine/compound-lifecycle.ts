@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { parseFrontmatterOnly, parseSolutionV3, serializeSolutionV3 } from './solution-format.js';
 import type { SolutionFrontmatter, SolutionStatus } from './solution-format.js';
 import { track } from '../lab/tracker.js';
@@ -7,6 +8,20 @@ import { createLogger } from '../core/logger.js';
 
 const log = createLogger('compound-lifecycle');
 import { ME_SOLUTIONS, ME_RULES } from '../core/paths.js';
+
+/** Circuit breaker negative thresholds by status */
+const CIRCUIT_BREAKER_THRESHOLDS: Record<string, number> = {
+  experiment: 2,
+  candidate: 3,
+  verified: 4,
+};
+
+/** Minimum age (ms) before promotion is allowed */
+const MIN_AGE_FOR_PROMOTION: Record<string, number> = {
+  experiment: 7 * 24 * 60 * 60 * 1000,   // 7 days
+  candidate: 14 * 24 * 60 * 60 * 1000,    // 14 days
+  verified: 7 * 24 * 60 * 60 * 1000,      // 7 days (prevents instant mature)
+};
 
 export interface LifecycleResult {
   promoted: string[];
@@ -34,13 +49,15 @@ export function nextStatus(current: SolutionStatus): SolutionStatus | null {
   }
 }
 
-/** Get confidence for a status level */
+/** Get confidence for a status level.
+ * Spacing: 0.25 between levels for meaningful differentiation in matching scores.
+ * Previous: 0.3/0.6/0.8/0.85 had only 0.05 gap between verified and mature. */
 export function statusConfidence(status: SolutionStatus): number {
   switch (status) {
     case 'experiment': return 0.3;
-    case 'candidate': return 0.6;
-    case 'verified': return 0.8;
-    case 'mature': return 0.85;
+    case 'candidate': return 0.55;
+    case 'verified': return 0.75;
+    case 'mature': return 0.90;
     case 'retired': return 0;
   }
 }
@@ -51,11 +68,11 @@ export function checkPromotion(fm: SolutionFrontmatter): boolean {
 
   switch (fm.status) {
     case 'experiment':
-      // A: reflected >= 2 AND negative == 0 AND sessions >= 2
-      // B: reExtracted >= 1 AND negative == 0
+      // A: reflected >= 3 AND negative == 0 AND sessions >= 3 (Beta(4,1) → P(rate>0.5)=0.94)
+      // B: reExtracted >= 2 AND negative == 0 AND reflected >= 1 (prevents trivial re-extraction)
       return (ev.negative === 0) && (
-        (ev.reflected >= 2 && ev.sessions >= 2) ||
-        (ev.reExtracted >= 1)
+        (ev.reflected >= 3 && ev.sessions >= 3) ||
+        (ev.reExtracted >= 2 && ev.reflected >= 1)
       );
 
     case 'candidate':
@@ -92,23 +109,39 @@ export function checkConfidenceDemotion(fm: SolutionFrontmatter): SolutionStatus
 export function checkIdentifierStaleness(fm: SolutionFrontmatter, cwd: string): boolean {
   if (fm.identifiers.length === 0) return false; // no identifiers to check
   try {
-    const { execSync } = require('node:child_process') as typeof import('node:child_process');
     let found = 0;
     for (const id of fm.identifiers.slice(0, 5)) { // check max 5 to limit I/O
       if (id.length < 4) continue;
       try {
-        execSync(`grep -r --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' -l '${id.replace(/'/g, "\\'")}' . 2>/dev/null | head -1`, { cwd, encoding: 'utf-8', timeout: 3000 });
+        // Use execFileSync to prevent shell injection — arguments are passed
+        // directly to the process without shell interpretation
+        execFileSync('grep', [
+          '-r',
+          '--include=*.ts', '--include=*.tsx',
+          '--include=*.js', '--include=*.jsx',
+          '-l', id, '.',
+        ], { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] });
         found++;
-      } catch { /* grep found nothing */ }
+      } catch { /* grep exit code 1 = no matches found */ }
     }
     return found === 0; // stale if NO identifiers found in codebase
   } catch { return false; } // don't mark stale on error
 }
 
-/** Check if solution is stale (90 days no injection) */
+/** Status-specific staleness thresholds (days).
+ * experiment decays faster, mature gets longer grace period. */
+const STALENESS_DAYS: Record<string, number> = {
+  experiment: 60,
+  candidate: 90,
+  verified: 120,
+  mature: 120,
+};
+
+/** Check if solution is stale (status-specific inactivity threshold) */
 export function isStale(fm: SolutionFrontmatter): boolean {
   if (fm.status === 'retired') return false;
-  const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+  const staleDays = STALENESS_DAYS[fm.status] ?? 90;
+  const ninetyDaysMs = staleDays * 24 * 60 * 60 * 1000;
 
   if (fm.evidence.injected === 0) {
     // Never injected — check age
@@ -181,23 +214,33 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
           continue;
         }
 
-        // 3. Check promotion
-        if (checkPromotion(fm)) {
-          const next = nextStatus(fm.status);
-          if (next) {
-            if (updateSolutionFile(filePath, { status: next, confidence: statusConfidence(next) })) {
-              result.promoted.push(`${fm.name}: ${fm.status} → ${next}`);
-              track('compound-promoted', sessionId, { solutionName: fm.name, from: fm.status, to: next });
-            }
+        // 3. Circuit breaker BEFORE promotion — negative evidence takes priority
+        const cbThreshold = CIRCUIT_BREAKER_THRESHOLDS[fm.status];
+        if (cbThreshold !== undefined && fm.evidence.negative >= cbThreshold) {
+          if (updateSolutionFile(filePath, { status: 'retired', confidence: 0 })) {
+            result.retired.push(`${fm.name} (circuit-breaker:${fm.status})`);
+            track('compound-demoted', sessionId, {
+              solutionName: fm.name,
+              reason: 'circuit-breaker',
+              status: fm.status,
+              negativeCount: fm.evidence.negative,
+            });
           }
           continue;
         }
 
-        // 4. Circuit breaker: experiment with negative >= 2 → retired
-        if (fm.status === 'experiment' && fm.evidence.negative >= 2) {
-          if (updateSolutionFile(filePath, { status: 'retired', confidence: 0 })) {
-            result.retired.push(`${fm.name} (circuit-breaker)`);
-            track('compound-demoted', sessionId, { solutionName: fm.name, reason: 'circuit-breaker' });
+        // 4. Check promotion (with minimum age gate based on updated timestamp)
+        if (checkPromotion(fm)) {
+          const minAgeMs = MIN_AGE_FOR_PROMOTION[fm.status] ?? 0;
+          const ageMs = Date.now() - new Date(fm.updated || fm.created).getTime();
+          if (ageMs >= minAgeMs) {
+            const next = nextStatus(fm.status);
+            if (next) {
+              if (updateSolutionFile(filePath, { status: next, confidence: statusConfidence(next) })) {
+                result.promoted.push(`${fm.name}: ${fm.status} → ${next}`);
+                track('compound-promoted', sessionId, { solutionName: fm.name, from: fm.status, to: next });
+              }
+            }
           }
         }
       } catch (e) {

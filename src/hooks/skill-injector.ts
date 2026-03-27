@@ -32,6 +32,11 @@ const log = createLogger('skill-injector');
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
 import { sanitizeId } from './shared/sanitize-id.js';
+import { escapeAllXmlTags } from './prompt-injection-filter.js';
+
+function escapeXmlAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { PACKS_DIR } from '../core/paths.js';
@@ -293,7 +298,7 @@ async function main(): Promise<void> {
 
   // 스킬 컨텍스트 주입
   const injections = toInject.map(skill =>
-    `<compound-learned-skill name="${skill.name}" description="${skill.description}">\n${skill.content}\n</compound-learned-skill>`
+    `<compound-learned-skill name="${escapeXmlAttr(skill.name)}" description="${escapeXmlAttr(skill.description)}">\n${escapeAllXmlTags(skill.content)}\n</compound-learned-skill>`
   ).join('\n\n');
 
   console.log(JSON.stringify({

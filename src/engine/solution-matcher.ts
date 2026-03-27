@@ -54,11 +54,26 @@ export function calculateRelevance(
     );
     return Math.min(1, intersection.length / Math.max(promptTags.length * 0.5, 1));
   }
-  // v3 mode
+  // v3 mode: tag matching + identifier boost + Jaccard normalization
   const intersection = keywordsOrTags.filter(t => promptOrTags.includes(t));
-  if (intersection.length < 2) return { relevance: 0, matchedTags: [] };
-  const tagScore = intersection.length / Math.max(keywordsOrTags.length, 1);
-  return { relevance: tagScore * (confidence ?? 1), matchedTags: intersection };
+
+  // Also check partial/substring matches for longer tags (>3 chars)
+  const partialMatches = keywordsOrTags.filter(t =>
+    t.length > 3 && !intersection.includes(t)
+    && promptOrTags.some(pt => pt.length > 3 && (pt.includes(t) || t.includes(pt))),
+  );
+
+  const totalMatched = intersection.length + partialMatches.length * 0.5;
+  if (totalMatched < 1.5) return { relevance: 0, matchedTags: [] };
+
+  // Jaccard-like: matched / union instead of matched / solution tags
+  // This prevents bias against solutions with many tags
+  const union = new Set([...promptOrTags, ...keywordsOrTags]).size;
+  const tagScore = totalMatched / Math.max(union, 1);
+  return {
+    relevance: tagScore * (confidence ?? 1),
+    matchedTags: [...intersection, ...partialMatches],
+  };
 }
 
 /**

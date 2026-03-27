@@ -1,6 +1,7 @@
 import type { Philosophy } from '../core/types.js';
 import { extractSignals, type ContextSignals, type ModelTier, type TaskCategory } from './signals.js';
 import { scoreSignals, type ScoreBreakdown } from './scorer.js';
+import { trackRoutingDecision } from '../lab/tracker.js';
 
 // Re-export for backwards compatibility
 export type { ModelTier, TaskCategory };
@@ -139,13 +140,17 @@ export class ModelRouter {
    *
    * 에스컬레이션 규칙: 신호 스코어가 카테고리 결과보다 높은 티어를 추천하면 에스컬레이션
    */
-  route(prompt: string, context?: Partial<ContextSignals>): RoutingResult {
+  route(prompt: string, context?: Partial<ContextSignals>, sessionId?: string): RoutingResult {
     const category = this.inferCategory(prompt);
     const categoryTier = this.recommend(category);
 
     // Philosophy 라우팅이 있으면 카테고리 결과를 신뢰
     if (this.hasPhilosophyRouting) {
-      return { tier: categoryTier, source: 'philosophy', category };
+      const result: RoutingResult = { tier: categoryTier, source: 'philosophy', category };
+      try {
+        trackRoutingDecision(sessionId ?? 'unknown', category, categoryTier, categoryTier, 'philosophy');
+      } catch { /* non-blocking */ }
+      return result;
     }
 
     // 신호 추출 + 스코어링
@@ -155,9 +160,16 @@ export class ModelRouter {
     // 에스컬레이션 판단: 신호가 더 높은 티어를 추천하면 올림
     const tierRank: Record<ModelTier, number> = { haiku: 0, sonnet: 1, opus: 2 };
     if (tierRank[score.recommendedTier] > tierRank[categoryTier]) {
-      return { tier: score.recommendedTier, source: 'signal', category, score };
+      const result: RoutingResult = { tier: score.recommendedTier, source: 'signal', category, score };
+      try {
+        trackRoutingDecision(sessionId ?? 'unknown', category, categoryTier, score.recommendedTier, 'signal');
+      } catch { /* non-blocking */ }
+      return result;
     }
 
+    try {
+      trackRoutingDecision(sessionId ?? 'unknown', category, categoryTier, categoryTier, 'category');
+    } catch { /* non-blocking */ }
     return { tier: categoryTier, source: 'category', category, score };
   }
 

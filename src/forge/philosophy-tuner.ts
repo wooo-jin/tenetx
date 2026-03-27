@@ -8,6 +8,7 @@
  */
 
 import type { DimensionVector } from './types.js';
+import { deviation, lerp } from './shared-utils.js';
 
 // ── Types ───────────────────────────────────────────
 
@@ -26,18 +27,6 @@ export interface TunedPrinciple {
   >;
   /** 이 원칙의 강도 (차원 편차로 결정, 0-1) */
   intensity: number;
-}
-
-// ── Helpers ─────────────────────────────────────────
-
-/** 중립(0.5)에서의 편차 (0~0.5) */
-function deviation(value: number): number {
-  return Math.abs(value - 0.5);
-}
-
-/** 선형 보간 */
-function lerp(t: number, a: number, b: number): number {
-  return a + t * (b - a);
 }
 
 /** 차원값에 따라 모델 선택 */

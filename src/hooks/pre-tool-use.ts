@@ -67,6 +67,10 @@ function loadDangerousPatterns(): DangerousPatternEntry[] {
     const raw: Array<{ pattern: string; description: string; severity: string; flags?: string }> =
       JSON.parse(fs.readFileSync(builtinPath, 'utf-8'));
     for (const entry of raw) {
+      if (!isSafeRegex(entry.pattern, entry.flags ?? '')) {
+        log.debug(`내장 패턴 건너뜀 (ReDoS 위험): ${entry.description}`);
+        continue;
+      }
       results.push({
         pattern: new RegExp(entry.pattern, entry.flags ?? ''),
         description: entry.description,

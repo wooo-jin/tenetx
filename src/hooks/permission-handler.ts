@@ -15,6 +15,7 @@ import { createLogger } from '../core/logger.js';
 const log = createLogger('permission-handler');
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
+import { trackUserOverride } from '../lab/tracker.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -108,6 +109,9 @@ async function main(): Promise<void> {
   // 여기 도달하는 도구는 pre-tool-use를 통과한 것이므로, 승인하되 메시지로 추적 가능하게 함.
   if (ALWAYS_CONFIRM_TOOLS.has(toolName)) {
     logPermissionRequest(sessionId, toolName, 'autopilot-confirm');
+    try {
+      trackUserOverride(sessionId, 'permission-handler', 'require-confirm', `autopilot-auto-approve:${toolName}`);
+    } catch { /* non-blocking */ }
 
     // Bash는 pre-tool-use를 통과했더라도 경고 강도를 높임 (임의 셸 실행 위험)
     const warningLevel = toolName === 'Bash'

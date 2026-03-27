@@ -118,7 +118,8 @@ function validateProfile(raw: Record<string, unknown>): ForgeProfile | null {
   if (!raw.version || !raw.dimensions) return null;
   const dims = raw.dimensions as Record<string, number>;
   for (const key of CORE_DIMENSIONS) {
-    if (typeof dims[key] !== 'number') return null;
+    const v = dims[key];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) return null;
   }
   return raw as unknown as ForgeProfile;
 }

@@ -8,6 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { sanitizeId } from '../hooks/shared/sanitize-id.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('token-tracker');
@@ -47,7 +48,7 @@ export interface TokenUsage {
 }
 
 function getUsagePath(sessionId: string): string {
-  return path.join(STATE_DIR, `token-usage-${sessionId}.json`);
+  return path.join(STATE_DIR, `token-usage-${sanitizeId(sessionId)}.json`);
 }
 
 export function loadTokenUsage(sessionId: string): TokenUsage {

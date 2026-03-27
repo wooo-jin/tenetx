@@ -35,5 +35,5 @@ skills/
 .claude/rules/anti-pattern.md
 .claude/rules/routing.md
 .claude/rules/compound.md
-.compound/project-map.json
-.compound/notepad.md
+.compound/
+.omc/

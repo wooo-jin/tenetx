@@ -391,8 +391,9 @@ async function runRichInterview(
 
   rl.close();
 
-  const dimensions = answersToDeltas(answers);
-  return { answers, dimensions };
+  // Return the accumulated dimensions (same values shown to user during interview)
+  // instead of recalculating from answersToDeltas which uses 0.5 as base
+  return { answers, dimensions: currentDims };
 }
 
 /** 결과 요약 출력 (aha moment) */

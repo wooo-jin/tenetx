@@ -16,11 +16,6 @@ import type {
   CodeStyleSignals,
   ArchitectureSignals,
 } from './types.js';
-import {
-  isAstGrepAvailable,
-  astGrepSearch,
-  AST_PATTERNS,
-} from '../engine/ast-adapter.js';
 
 // ── Git Signals ─────────────────────────────────────
 
@@ -286,35 +281,6 @@ function scanArchitecture(cwd: string): ArchitectureSignals {
   return { maxDirDepth, srcDirCount, hasDocs, hasReadme, hasChangelog, isMonorepo };
 }
 
-// ── AST-enhanced Architecture ───────────────────────
-
-/** ast-grep이 사용 가능하면 AST 분석 결과를 ArchitectureSignals에 추가 */
-async function enrichWithAst(arch: ArchitectureSignals, cwd: string): Promise<ArchitectureSignals> {
-  if (!isAstGrepAvailable()) {
-    return arch;
-  }
-
-  try {
-    const [functions, asyncFunctions, classes, tryCatches] = await Promise.all([
-      astGrepSearch({ pattern: AST_PATTERNS.typescript.function, language: 'ts', cwd }),
-      astGrepSearch({ pattern: AST_PATTERNS.typescript.asyncFunction, language: 'ts', cwd }),
-      astGrepSearch({ pattern: AST_PATTERNS.typescript.class, language: 'ts', cwd }),
-      astGrepSearch({ pattern: AST_PATTERNS.typescript.tryCatch, language: 'ts', cwd }),
-    ]);
-
-    arch.ast = {
-      functionCount: functions.length + asyncFunctions.length,
-      classCount: classes.length,
-      tryCatchCount: tryCatches.length,
-      engine: 'ast-grep',
-    };
-  } catch {
-    // AST 분석 실패 시 무시
-  }
-
-  return arch;
-}
-
 // ── Public API ──────────────────────────────────────
 
 /** 프로젝트를 전체 스캔하여 ProjectSignals 반환 */
@@ -332,18 +298,9 @@ export function scanProject(cwd: string): ProjectSignals {
   };
 }
 
-/** AST 분석을 포함한 비동기 스캔 */
+/** 비동기 스캔 (AST 분석은 제거됨, 동기 스캔과 동일한 결과 반환) */
 export async function scanProjectAsync(cwd: string): Promise<ProjectSignals> {
-  const arch = scanArchitecture(cwd);
-  const enrichedArch = await enrichWithAst(arch, cwd);
-
-  return {
-    git: scanGit(cwd),
-    dependencies: scanDependencies(cwd),
-    codeStyle: scanCodeStyle(cwd),
-    architecture: enrichedArch,
-    scannedAt: new Date().toISOString(),
-  };
+  return scanProject(cwd);
 }
 
 /** 스캔 결과를 사람이 읽기 좋게 포맷 */
