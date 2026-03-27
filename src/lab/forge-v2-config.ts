@@ -9,6 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
+import { atomicWriteJSON } from '../hooks/shared/atomic-write.js';
 
 const log = createLogger('forge-v2-config');
 
@@ -52,9 +53,24 @@ export function loadForgeV2Config(): ForgeV2Config {
   return { ...DEFAULT_FORGE_V2_CONFIG };
 }
 
-/** Forge v2 설정 저장 */
+/** Forge v2 설정 저장 (atomic write) */
 export function saveForgeV2Config(config: ForgeV2Config): void {
-  const dir = path.dirname(CONFIG_PATH);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  atomicWriteJSON(CONFIG_PATH, config, { pretty: true });
+}
+
+/**
+ * Feature flag 의존성 검증.
+ * preferenceTracing, dimensionCorrelation은 thompsonSampling 내부에서만 작동.
+ * 무효 조합 시 경고 로그.
+ */
+export function validateForgeV2Config(config: ForgeV2Config): ForgeV2Config {
+  if (config.preferenceTracing && !config.thompsonSampling) {
+    log.debug('preferenceTracing requires thompsonSampling — auto-enabling');
+    config.thompsonSampling = true;
+  }
+  if (config.dimensionCorrelation && !config.thompsonSampling) {
+    log.debug('dimensionCorrelation requires thompsonSampling — auto-enabling');
+    config.thompsonSampling = true;
+  }
+  return config;
 }

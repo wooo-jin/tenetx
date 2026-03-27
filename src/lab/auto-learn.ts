@@ -313,8 +313,8 @@ export async function runEvolveCycle(
     }
 
     // 4. Apply adjustments — v2 Thompson Sampling or v1 EMA
-    const { loadForgeV2Config } = await import('./forge-v2-config.js');
-    const v2Config = loadForgeV2Config();
+    const { loadForgeV2Config, validateForgeV2Config } = await import('./forge-v2-config.js');
+    const v2Config = validateForgeV2Config(loadForgeV2Config());
     let newVector: Record<string, number>;
 
     if (v2Config.thompsonSampling) {
@@ -324,11 +324,20 @@ export async function runEvolveCycle(
 
       const tsState = loadThompsonState() ?? initThompsonState(previousVector);
 
-      // 보상 계산 + posterior 업데이트
+      // 보상 계산 — dimensionSnapshot은 reward.ts가 이미 이벤트 시점 기반으로 설정
+      // 단, reward.ts가 snapshot을 채우지 못한 경우 lastSample 또는 previousVector fallback
       const rewards = computeSessionRewards(events);
       for (const reward of rewards) {
-        reward.dimensionSnapshot = previousVector;
-        updatePosterior(tsState, reward);
+        if (!reward.dimensionSnapshot || Object.keys(reward.dimensionSnapshot).length === 0) {
+          reward.dimensionSnapshot = tsState.lastSample ?? previousVector;
+        }
+      }
+
+      // 보상이 없으면 샘플링 건너뛰기 (랜덤 드리프트 방지)
+      if (rewards.length > 0) {
+        for (const reward of rewards) {
+          updatePosterior(tsState, reward);
+        }
       }
 
       // BKT로 탐색 강도 조절 (optional)
@@ -341,31 +350,54 @@ export async function runEvolveCycle(
         savePreferenceStates(prefStates);
       }
 
-      // 차원 상관관계 적용 (optional)
+      // 차원 상관관계 학습 + 적용 (optional)
       if (v2Config.dimensionCorrelation) {
-        const { initCovarianceState, loadCovarianceState, saveCovarianceState, updateCovariance } = await import('./dimension-correlation.js');
+        const { initCovarianceState, loadCovarianceState, saveCovarianceState, updateCovariance, computeCoupledDeltas } = await import('./dimension-correlation.js');
         const dims = Object.keys(previousVector);
         const covState = loadCovarianceState() ?? initCovarianceState(dims);
+        // 학습: 각 세션의 실제 차원 스냅샷으로 공분산 업데이트
         for (const reward of rewards) {
           updateCovariance(covState, reward.dimensionSnapshot);
         }
         saveCovarianceState(covState);
       }
 
-      // 새 차원 벡터 샘플링
-      newVector = sampleFromPosteriors(tsState);
+      // 새 차원 벡터 샘플링 (보상 있을 때만, 없으면 현재값 유지)
+      newVector = rewards.length > 0
+        ? sampleFromPosteriors(tsState)
+        : { ...previousVector };
+
+      // 차원 상관 coupled delta 적용 (샘플링 후)
+      if (v2Config.dimensionCorrelation && rewards.length > 0) {
+        try {
+          const { loadCovarianceState, computeCoupledDeltas } = await import('./dimension-correlation.js');
+          const covState = loadCovarianceState();
+          if (covState) {
+            const primaryDelta: Record<string, number> = {};
+            for (const [dim, val] of Object.entries(newVector)) {
+              const diff = val - previousVector[dim];
+              if (Math.abs(diff) > 0.001) primaryDelta[dim] = diff;
+            }
+            const coupled = computeCoupledDeltas(covState, primaryDelta);
+            for (const [dim, delta] of Object.entries(coupled)) {
+              newVector[dim] = Math.max(0, Math.min(1, (newVector[dim] ?? 0.5) + delta));
+            }
+          }
+        } catch (e) { log.debug('coupled delta 적용 실패', e); }
+      }
+
       saveThompsonState(tsState);
     } else {
       // === v1 EMA 경로 (fallback) ===
       newVector = applySmoothedAdjustments(previousVector, adjustments);
     }
 
-    // v2 보상 수집 (항상, 데이터 축적용)
-    if (v2Config.rewardCollection) {
+    // v2 보상 수집 (TS 비활성 시만 — TS 경로에서는 이미 계산됨)
+    if (v2Config.rewardCollection && !v2Config.thompsonSampling) {
       try {
         const { computeSessionRewards } = await import('./reward.js');
-        computeSessionRewards(events); // 축적만 (사이드이펙트 없음)
-      } catch { /* non-blocking */ }
+        computeSessionRewards(events);
+      } catch (e) { log.debug('보상 수집 실패', e); }
     }
     const changed = hasVectorChanged(previousVector, newVector);
 
