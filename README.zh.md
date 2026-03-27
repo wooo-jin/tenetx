@@ -429,6 +429,14 @@ Tenetx 的差异化在于其**个性化优先方法** -- Forge 自动生成画�
 
 ---
 
+## 联系方式
+
+- **作者:** Woojin Jang
+- **LinkedIn:** [linkedin.com/in/우진-장-1567aa294](https://www.linkedin.com/in/%EC%9A%B0%EC%A7%84-%EC%9E%A5-1567aa294/)
+- **GitHub:** [@wooo-jin](https://github.com/wooo-jin)
+
+---
+
 ## 许可证
 
 MIT
