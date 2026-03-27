@@ -4,7 +4,7 @@
  * GitHub 기반 중앙 레지스트리에서 팩을 검색하고 통계를 표시합니다.
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,8 +25,8 @@ interface PackEntry {
 /** Load registry from GitHub or fall back to builtin */
 function loadRegistry(registryRepo: string): PackEntry[] {
   try {
-    const content = execSync(
-      `gh api repos/${registryRepo}/contents/registry.json --jq .content`,
+    const content = execFileSync(
+      'gh', ['api', `repos/${registryRepo}/contents/registry.json`, '--jq', '.content'],
       { encoding: 'utf-8', timeout: 10000 },
     ).trim();
     const decoded = Buffer.from(content, 'base64').toString('utf-8');
@@ -126,7 +126,7 @@ export function trackDownload(packName: string, registryRepo?: string): void {
   try {
     // Clone registry, increment, push
     const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'tenetx-dl-'));
-    execSync(`gh repo clone ${repo} "${tmpDir}/reg"`, { stdio: 'pipe', timeout: 15000 });
+    execFileSync('gh', ['repo', 'clone', repo, `${tmpDir}/reg`], { stdio: 'pipe', timeout: 15000 });
 
     const regPath = path.join(tmpDir, 'reg', 'registry.json');
     const registry = JSON.parse(fs.readFileSync(regPath, 'utf-8'));
@@ -134,10 +134,10 @@ export function trackDownload(packName: string, registryRepo?: string): void {
     if (pack) {
       pack.downloads = (pack.downloads ?? 0) + 1;
       fs.writeFileSync(regPath, `${JSON.stringify(registry, null, 2)}\n`);
-      execSync('git add -A', { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });
+      execFileSync('git', ['add', '-A'], { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });
       try {
-        execSync(`git commit -m "stats: download ${packName}"`, { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });
-        execSync('git push', { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe', timeout: 15000 });
+        execFileSync('git', ['commit', '-m', `stats: download ${packName}`], { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe' });
+        execFileSync('git', ['push'], { cwd: path.join(tmpDir, 'reg'), stdio: 'pipe', timeout: 15000 });
       } catch { /* no changes or push failed — non-blocking */ }
     }
     fs.rmSync(tmpDir, { recursive: true, force: true });

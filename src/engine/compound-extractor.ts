@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { serializeSolutionV3, DEFAULT_EVIDENCE, extractTags } from './solution-format.js';
 import type { SolutionV3, SolutionType } from './solution-format.js';
 import { track } from '../lab/tracker.js';
@@ -489,7 +489,7 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   // Get current HEAD sha
   let headSha = '';
   try {
-    headSha = execSync('git rev-parse HEAD', { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    headSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   } catch {
     return { ...result, reason: 'git HEAD 조회 실패' };
   }

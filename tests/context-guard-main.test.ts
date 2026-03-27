@@ -45,10 +45,9 @@ afterEach(() => {
 describe('context-guard main()', () => {
   it('stdin이 null이면 approve', async () => {
     mockReadStdinJSON.mockResolvedValue(null);
-    await import('../src/hooks/context-guard.js');
-    await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
-    });
+    const { main } = await import('../src/hooks/context-guard.js');
+    await main();
+    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
   });
 
   it('프롬프트가 있으면 상태를 기록하고 approve', async () => {
@@ -56,10 +55,9 @@ describe('context-guard main()', () => {
       prompt: 'Hello, please help me with something.',
       session_id: 'test-session-1',
     });
-    await import('../src/hooks/context-guard.js');
-    await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
-    });
+    const { main } = await import('../src/hooks/context-guard.js');
+    await main();
+    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
   });
 
   it('stop_hook_type이 있으면 approve', async () => {
@@ -67,10 +65,9 @@ describe('context-guard main()', () => {
       stop_hook_type: 'end_turn',
       session_id: 'test-session-2',
     });
-    await import('../src/hooks/context-guard.js');
-    await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
-    });
+    const { main } = await import('../src/hooks/context-guard.js');
+    await main();
+    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
   });
 
   it('context limit 에러가 있으면 handoff 저장', async () => {
@@ -79,11 +76,10 @@ describe('context-guard main()', () => {
       error: 'context window limit exceeded',
       session_id: 'test-session-3',
     });
-    await import('../src/hooks/context-guard.js');
-    await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
-      expect(logOutput.some(l => l.includes('Context limit'))).toBe(true);
-    });
+    const { main } = await import('../src/hooks/context-guard.js');
+    await main();
+    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+    expect(logOutput.some(l => l.includes('Context limit'))).toBe(true);
   });
 
   it('error만 있고 stop_hook_type이 없으면 approve', async () => {
@@ -91,9 +87,8 @@ describe('context-guard main()', () => {
       error: 'some random error',
       session_id: 'test-session-4',
     });
-    await import('../src/hooks/context-guard.js');
-    await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
-    });
+    const { main } = await import('../src/hooks/context-guard.js');
+    await main();
+    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
   });
 });

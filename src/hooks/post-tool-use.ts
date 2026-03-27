@@ -18,6 +18,7 @@ import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles, estimateTokens } from '../engine/token-tracker.js';
 import { recordTokenUsage as recordLabCost } from '../lab/cost-tracker.js';
+import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
 import { runConstraintsOnFile, formatViolations } from '../engine/constraints/constraint-runner.js';
 import { saveCheckpoint } from './session-recovery.js';
 import { track, trackSessionMetrics } from '../lab/tracker.js';
@@ -200,7 +201,7 @@ function getCompoundSuccessHint(toolName: string, toolResponse: string, sessionI
 /** Update negative evidence counter in solution file */
 function updateNegativeEvidence(solutionName: string): void {
   try {
-    const { parseSolutionV3, serializeSolutionV3 } = require('../engine/solution-format.js') as typeof import('../engine/solution-format.js');
+    // parseSolutionV3, serializeSolutionV3 imported at top level
     const dirs = [
       path.join(os.homedir(), '.compound', 'me', 'solutions'),
       path.join(os.homedir(), '.compound', 'me', 'rules'),
@@ -286,9 +287,9 @@ async function main(): Promise<void> {
       try {
         const activeAgents = (() => {
           try {
-            const agentsPath = require('node:path').join(require('node:os').homedir(), '.compound', 'state', `active-agents-${sessionId}.json`);
-            if (require('node:fs').existsSync(agentsPath)) {
-              const agents = JSON.parse(require('node:fs').readFileSync(agentsPath, 'utf-8'));
+            const agentsPath = path.join(os.homedir(), '.compound', 'state', `active-agents-${sessionId}.json`);
+            if (fs.existsSync(agentsPath)) {
+              const agents = JSON.parse(fs.readFileSync(agentsPath, 'utf-8'));
               return Array.isArray(agents.agents) ? agents.agents.filter((a: { stoppedAt?: string }) => !a.stoppedAt).length : 0;
             }
           } catch { /* ignore */ }

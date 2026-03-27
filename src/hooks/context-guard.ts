@@ -13,6 +13,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
@@ -70,7 +71,7 @@ function saveContextState(state: ContextState): void {
   atomicWriteJSON(CONTEXT_STATE_PATH, state);
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const input = await readStdinJSON<{ prompt?: string; session_id?: string; stop_hook_type?: string; error?: string }>();
   if (!input) {
     console.log(JSON.stringify({ result: 'approve' }));
@@ -196,7 +197,10 @@ function saveHandoff(sessionId: string, reason: string, detail: string): void {
   fs.writeFileSync(handoffPath, content);
 }
 
-main().catch((e) => {
-  process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
-});
+// ESM main guard: import 시 main() 실행 방지
+if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
+    console.log(JSON.stringify({ result: 'approve' }));
+  });
+}

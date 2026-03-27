@@ -8,7 +8,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { PACKS_DIR } from '../core/paths.js';
 
 const DEFAULT_REGISTRY_REPO = 'wooo-jin/tenetx-registry';
@@ -21,7 +21,7 @@ interface PublishOptions {
 /** Check if gh CLI is available */
 function hasGhCli(): boolean {
   try {
-    execSync('gh --version', { stdio: 'ignore', timeout: 5000 });
+    execFileSync('gh', ['--version'], { stdio: 'ignore', timeout: 5000 });
     return true;
   } catch { return false; }
 }
@@ -29,7 +29,7 @@ function hasGhCli(): boolean {
 /** Get current GitHub user */
 function getGitHubUser(): string {
   try {
-    return execSync('gh api user --jq .login', { encoding: 'utf-8', timeout: 10000 }).trim();
+    return execFileSync('gh', ['api', 'user', '--jq', '.login'], { encoding: 'utf-8', timeout: 10000 }).trim();
   } catch { return 'unknown'; }
 }
 
@@ -114,7 +114,7 @@ export async function publishPack(packName: string, options: PublishOptions = {}
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-publish-'));
   try {
-    execSync(`gh repo clone ${registryRepo} "${tmpDir}/registry"`, {
+    execFileSync('gh', ['repo', 'clone', registryRepo, `${tmpDir}/registry`], {
       encoding: 'utf-8', timeout: 30000, stdio: 'pipe',
     });
 
@@ -164,13 +164,13 @@ export async function publishPack(packName: string, options: PublishOptions = {}
     fs.writeFileSync(registryJsonPath, `${JSON.stringify(registry, null, 2)}\n`);
 
     // Commit and push
-    execSync('git add -A', { cwd: registryDir, stdio: 'pipe' });
+    execFileSync('git', ['add', '-A'], { cwd: registryDir, stdio: 'pipe' });
     try {
-      execSync(
-        `git commit -m "feat: publish pack ${packName} by @${author}"`,
+      execFileSync(
+        'git', ['commit', '-m', `feat: publish pack ${packName} by @${author}`],
         { cwd: registryDir, stdio: 'pipe' },
       );
-      execSync('git push', { cwd: registryDir, stdio: 'pipe', timeout: 30000 });
+      execFileSync('git', ['push'], { cwd: registryDir, stdio: 'pipe', timeout: 30000 });
       console.log(`\n  ✓ Published! "${packName}" is now available in the registry.`);
       console.log(`  Install: tenetx pack install ${packName}\n`);
     } catch {
