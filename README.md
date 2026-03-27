@@ -304,6 +304,14 @@ Tenetx draws significant inspiration from [oh-my-claudecode](https://github.com/
 
 ---
 
+## Contact
+
+- **Author:** Woojin Jang
+- **LinkedIn:** [linkedin.com/in/우진-장-1567aa294](https://www.linkedin.com/in/%EC%9A%B0%EC%A7%84-%EC%9E%A5-1567aa294/)
+- **GitHub:** [@wooo-jin](https://github.com/wooo-jin)
+
+---
+
 ## License
 
 MIT
