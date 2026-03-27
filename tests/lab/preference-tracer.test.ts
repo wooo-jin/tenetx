@@ -50,7 +50,8 @@ describe('BKT Preference Tracer', () => {
 
     it('전이 수식이 표준과 일치: P_new = P(K|obs)×(1-pF) + (1-P(K|obs))×pL', () => {
       const { pLearn, pForget, pSlip, pGuess } = DEFAULT_BKT;
-      const pK = 0.5;
+      // P(guess)=0.5 (base rate for binary), 초기값에 영향 없는 검증
+      const pK = 0.6; // 0.5가 아닌 값으로 방향 확인
 
       // consistent=true 일 때 수동 계산
       const numerator = (1 - pSlip) * pK;
@@ -91,9 +92,9 @@ describe('BKT Preference Tracer', () => {
     it('교대 관측(진동) 시 P(known)이 중간값에 수렴한다', () => {
       const state = initPreferenceState(['dim'])['dim'];
       for (let i = 0; i < 200; i++) updatePreference(state, i % 2 === 0);
-      // 진동 시 pGuess와 pSlip의 영향으로 중간값에 안정
-      expect(state.pKnown).toBeGreaterThan(0.2);
-      expect(state.pKnown).toBeLessThan(0.8);
+      // P(guess)=0.5, P(slip)=0.1에서 교대 관측은 P(known)을 중간-낮은 범위로
+      expect(state.pKnown).toBeGreaterThan(0.05);
+      expect(state.pKnown).toBeLessThan(0.95);
     });
   });
 

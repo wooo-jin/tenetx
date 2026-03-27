@@ -174,10 +174,12 @@ export function buildMetaPrompt(
   topK: number = 5,
 ): string {
   const candidates = state.candidates[principleName] ?? [];
+  // 오름차순 정렬 (OPRO 논문, Yang et al. 2024):
+  // LLM의 recency bias를 활용하여 최고 점수 후보가 마지막에 오도록
   const sorted = [...candidates]
     .filter(c => c.rewardHistory.length >= 1)
-    .sort((a, b) => b.avgReward - a.avgReward)
-    .slice(0, topK);
+    .sort((a, b) => a.avgReward - b.avgReward)
+    .slice(-topK);
 
   const lines = [
     `# Prompt Optimization for "${principleName}"`,
