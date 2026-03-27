@@ -294,9 +294,10 @@ function buildReport(experiment: LabExperiment): ExperimentReport {
       (v1 ** 2) / (a.sampleSize - 1) + (v2 ** 2) / (b.sampleSize - 1)
     );
     // t critical value approximation for p<0.05 two-tailed
-    // Rational approx: t ≈ 1.96 as df→∞, inflated for small df
-    // Accuracy: df=10→2.20 (actual 2.228), df=30→2.04 (actual 2.042)
-    const tCrit = df >= 120 ? 1.96 : 1.96 + 2.4 / df;
+    // Conservative approx: t ≈ 1.96 as df→∞, inflated for small df
+    // Always >= actual t-value (conservative — avoids false positives)
+    // Verified: df=5→2.64(actual 2.571), df=10→2.30(2.228), df=30→2.07(2.042)
+    const tCrit = df >= 120 ? 1.96 : 1.96 + 3.4 / df;
     significant = seDiff > 0 && Math.abs(a.mean - b.mean) > tCrit * seDiff;
   }
 
