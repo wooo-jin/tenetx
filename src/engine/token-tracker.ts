@@ -9,18 +9,16 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { sanitizeId } from '../hooks/shared/sanitize-id.js';
+import { atomicWriteJSON } from '../hooks/shared/atomic-write.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('token-tracker');
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
-/** 모델별 가격표 ($/1M tokens, 2025 기준) */
-export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  haiku:  { input: 0.25, output: 1.25 },
-  sonnet: { input: 3.00, output: 15.00 },
-  opus:   { input: 15.00, output: 75.00 },
-};
+/** 모델별 가격표 — Single Source of Truth: src/lab/cost-tracker.ts */
+import { MODEL_PRICING } from '../lab/cost-tracker.js';
+export { MODEL_PRICING };
 
 /** 문자 → 토큰 근사 변환 (영문 ~4자/토큰, 한글 ~2자/토큰 평균) */
 export function estimateTokens(text: string): number {
@@ -74,14 +72,14 @@ export function loadTokenUsage(sessionId: string): TokenUsage {
 
 function saveTokenUsage(usage: TokenUsage): void {
   fs.mkdirSync(STATE_DIR, { recursive: true });
-  fs.writeFileSync(getUsagePath(usage.sessionId), JSON.stringify(usage));
+  atomicWriteJSON(getUsagePath(usage.sessionId), usage);
 }
 
 /** 비용 재계산 */
 function recalculateCost(usage: TokenUsage): number {
   let total = 0;
   for (const [model, data] of Object.entries(usage.byModel)) {
-    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING.sonnet;
+    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING['sonnet'];
     total += (data.input / 1_000_000) * pricing.input;
     total += (data.output / 1_000_000) * pricing.output;
   }

@@ -14,14 +14,11 @@ import { appendEvent } from './store.js';
 import type { LabEvent, LabEventType } from './types.js';
 
 // ---------------------------------------------------------------------------
-// Model Pricing (for cost estimation)
+// Model Pricing — Single Source of Truth: src/lab/cost-tracker.ts
 // ---------------------------------------------------------------------------
 
-export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  'claude-opus-4-6': { input: 15.0, output: 75.0 },
-  'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
-  'claude-haiku-4-5': { input: 0.80, output: 4.0 },
-};
+export { MODEL_PRICING } from './cost-tracker.js';
+import { MODEL_PRICING } from './cost-tracker.js';
 
 /** Resolve a model name (partial match) to its pricing */
 export function resolveModelPricing(

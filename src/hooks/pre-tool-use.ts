@@ -18,6 +18,7 @@ import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
+import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
 import { track } from '../lab/tracker.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
@@ -256,7 +257,7 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
 /** Exported for use by solution-injector */
 export function updateSolutionEvidence(solutionName: string, field: 'reflected' | 'negative' | 'injected' | 'sessions' | 'reExtracted'): void {
   try {
-    const { parseSolutionV3, serializeSolutionV3 } = require('../engine/solution-format.js') as typeof import('../engine/solution-format.js');
+    // parseSolutionV3, serializeSolutionV3 imported at top level
     const solutionDirs = [
       path.join(os.homedir(), '.compound', 'me', 'solutions'),
       path.join(os.homedir(), '.compound', 'me', 'rules'),

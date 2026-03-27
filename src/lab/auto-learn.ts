@@ -83,32 +83,10 @@ const SYSTEM_INTERNAL_TYPES: ReadonlySet<string> = new Set([
 // Storage Helpers
 // ---------------------------------------------------------------------------
 
-function ensureDir(dir: string): void {
-  fs.mkdirSync(dir, { recursive: true });
-}
-
+// atomicWrite + safeReadJSON: shared utility
+import { atomicWriteJSON, safeReadJSON } from '../hooks/shared/atomic-write.js';
 function atomicWrite(filePath: string, data: unknown): void {
-  const dir = path.dirname(filePath);
-  ensureDir(dir);
-  const tmpFile = `${filePath}.tmp.${process.pid}`;
-  try {
-    fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
-    fs.renameSync(tmpFile, filePath);
-  } catch (e) {
-    try { fs.unlinkSync(tmpFile); } catch (unlinkErr) { log.debug('tmp file cleanup failed after write error', unlinkErr); }
-    throw e;
-  }
-}
-
-function safeReadJSON<T>(filePath: string, fallback: T): T {
-  try {
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
-    }
-  } catch (e) {
-    log.debug(`JSON read failed: ${filePath}`, e);
-  }
-  return fallback;
+  atomicWriteJSON(filePath, data, { pretty: true });
 }
 
 // ---------------------------------------------------------------------------

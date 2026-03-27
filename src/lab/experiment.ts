@@ -285,12 +285,19 @@ function buildReport(experiment: LabExperiment): ExperimentReport {
       ? (a.mean < b.mean ? a.name : b.name)
       : (a.mean > b.mean ? a.name : b.name);
 
-    // Welch's t-test: use standard error of difference (SE), not standard deviation (SD)
-    // SE_diff = sqrt(s_A²/n_A + s_B²/n_B), significant if |diff| > 2×SE (≈ p<0.05)
-    const seDiff = Math.sqrt(
-      (a.stdDev ** 2) / a.sampleSize + (b.stdDev ** 2) / b.sampleSize,
+    // Welch's t-test with Welch-Satterthwaite degrees of freedom
+    const v1 = (a.stdDev ** 2) / a.sampleSize;
+    const v2 = (b.stdDev ** 2) / b.sampleSize;
+    const seDiff = Math.sqrt(v1 + v2);
+    // Welch-Satterthwaite df: accounts for unequal variances and sample sizes
+    const df = (v1 + v2) ** 2 / (
+      (v1 ** 2) / (a.sampleSize - 1) + (v2 ** 2) / (b.sampleSize - 1)
     );
-    significant = seDiff > 0 && Math.abs(a.mean - b.mean) > 2 * seDiff;
+    // t critical value approximation for p<0.05 two-tailed
+    // Rational approx: t ≈ 1.96 as df→∞, inflated for small df
+    // Accuracy: df=10→2.20 (actual 2.228), df=30→2.04 (actual 2.042)
+    const tCrit = df >= 120 ? 1.96 : 1.96 + 2.4 / df;
+    significant = seDiff > 0 && Math.abs(a.mean - b.mean) > tCrit * seDiff;
   }
 
   return { experiment, variantSummaries: summaries, winner, significant };

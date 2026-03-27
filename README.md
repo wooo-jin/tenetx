@@ -10,7 +10,7 @@
   <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://www.npmjs.com/package/tenetx"><img src="https://img.shields.io/npm/v/tenetx.svg" alt="npm version"/></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
-  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-1555_across_98_files-brightgreen.svg" alt="Tests: 1555"/></a>
+  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-1855_across_107_files-brightgreen.svg" alt="Tests: 1555"/></a>
 </p>
 
 <p align="center">
@@ -230,18 +230,6 @@ Your Forge profile adds overrides. Lab auto-adjusts routing based on your patter
 
 </details>
 
-<details>
-<summary>Code Intelligence (AST + LSP)</summary>
-
-```bash
-tenetx ast search "function $NAME($$$)" --lang ts
-tenetx lsp hover src/types.ts 14 10
-tenetx lsp definition src/cli.ts 50 20
-```
-
-Auto-detects installed language servers. Falls back to regex when AST tools unavailable.
-
-</details>
 
 <details>
 <summary>Remix — Cherry-Pick From Others</summary>
@@ -298,7 +286,7 @@ txd                   # Equivalent to: tenetx --dangerously-skip-permissions
 
 | Metric | Count |
 |--------|-------|
-| Tests | 1555 across 98 files |
+| Tests | 1855 across 107 files |
 | Agents | 19 (dimension-tuned) |
 | Skills | 21 (6 dimension-aware) |
 | Compound quality gates | 4 |
