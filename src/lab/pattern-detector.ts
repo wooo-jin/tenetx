@@ -322,6 +322,102 @@ function detectSecurityBlockPattern(events: LabEvent[]): BehavioralPattern | nul
 }
 
 // ---------------------------------------------------------------------------
+// Forge v2: Bidirectional Patterns (양방향 패턴)
+// ---------------------------------------------------------------------------
+
+/** Detect: user repeatedly approves security warnings → higher risk tolerance */
+function detectRiskUpPattern(events: LabEvent[]): BehavioralPattern | null {
+  const hookEvents = events.filter(e => e.type === 'hook-trigger');
+  if (hookEvents.length < MIN_EVENTS_FOR_PATTERN) return null;
+
+  const securityApprovals = hookEvents.filter(e => {
+    const hookName = String(e.payload.hookName ?? '').toLowerCase();
+    const result = String(e.payload.result ?? '');
+    return (hookName.includes('security') || hookName.includes('secret')
+      || hookName.includes('db-guard'))
+      && result === 'approve';
+  });
+
+  const securityTotal = hookEvents.filter(e => {
+    const hookName = String(e.payload.hookName ?? '').toLowerCase();
+    return hookName.includes('security') || hookName.includes('secret')
+      || hookName.includes('db-guard');
+  });
+
+  if (securityTotal.length < 10) return null;
+  const approveRate = securityApprovals.length / securityTotal.length;
+  if (approveRate < 0.85) return null; // 85% 이상 통과 시에만
+
+  const range = timeRange(securityApprovals);
+  return makePattern(
+    'risk-tolerance-up',
+    'preference',
+    `Security hooks approved ${Math.round(approveRate * 100)}% of the time`,
+    betaConfidence(securityApprovals.length, securityTotal.length, 0.85),
+    securityApprovals.length,
+    range.firstSeen,
+    range.lastSeen,
+  );
+}
+
+/** Detect: user requests verbose/detailed explanations → lower communicationStyle */
+function detectVerbosePreferencePattern(events: LabEvent[]): BehavioralPattern | null {
+  const overrideEvents = events.filter(e => e.type === 'user-override');
+  if (overrideEvents.length < 5) return null;
+
+  const verboseRequests = overrideEvents.filter(e => {
+    const desc = String(e.payload.userDecision ?? '').toLowerCase();
+    return desc.includes('explain') || desc.includes('detail') || desc.includes('why')
+      || desc.includes('more context') || desc.includes('설명') || desc.includes('자세히');
+  });
+
+  if (verboseRequests.length < 3) return null;
+
+  const range = timeRange(verboseRequests);
+  return makePattern(
+    'communication-verbose',
+    'preference',
+    `User requested detailed explanations ${verboseRequests.length} times`,
+    betaConfidence(verboseRequests.length, overrideEvents.length, 0.15),
+    verboseRequests.length,
+    range.firstSeen,
+    range.lastSeen,
+  );
+}
+
+/** Detect: user prefers pragmatic/fast implementation over architecture → lower abstractionLevel */
+function detectPragmaticPattern(events: LabEvent[]): BehavioralPattern | null {
+  const agentEvents = events.filter(e => e.type === 'agent-call');
+  if (agentEvents.length < MIN_EVENTS_FOR_PATTERN) return null;
+
+  // executor/build 에이전트 대비 architect/design 비율
+  const executorCalls = agentEvents.filter(e => {
+    const name = String(e.payload.name ?? '').toLowerCase();
+    return name.includes('executor') || name.includes('build') || name.includes('implement');
+  });
+
+  const architectCalls = agentEvents.filter(e => {
+    const name = String(e.payload.name ?? '').toLowerCase();
+    return name.includes('architect') || name.includes('design') || name.includes('plan');
+  });
+
+  if (executorCalls.length + architectCalls.length < 10) return null;
+  const pragmaticRate = executorCalls.length / (executorCalls.length + architectCalls.length);
+  if (pragmaticRate < 0.8) return null; // 80% 이상 실행 에이전트 사용
+
+  const range = timeRange(executorCalls);
+  return makePattern(
+    'abstraction-pragmatic',
+    'preference',
+    `Executor/build agents used ${Math.round(pragmaticRate * 100)}% of the time (vs architect)`,
+    betaConfidence(executorCalls.length, executorCalls.length + architectCalls.length, 0.8),
+    executorCalls.length,
+    range.firstSeen,
+    range.lastSeen,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -334,6 +430,10 @@ const detectors: Array<(events: LabEvent[]) => BehavioralPattern | null> = [
   detectVerboseOverridePattern,
   detectArchitectUsagePattern,
   detectSecurityBlockPattern,
+  // Forge v2: bidirectional patterns
+  detectRiskUpPattern,
+  detectVerbosePreferencePattern,
+  detectPragmaticPattern,
 ];
 
 /**
@@ -445,6 +545,37 @@ export function patternsToDimensionAdjustments(
       case 'frequent-security-blocks':
         adjustments.push({
           dimension: 'riskTolerance',
+          delta: -Math.min(MAX_DELTA, 0.05 * pattern.confidence),
+          confidence: pattern.confidence,
+          evidence: pattern.description,
+          eventCount: pattern.eventCount,
+        });
+        break;
+
+      // Forge v2: bidirectional patterns
+      case 'risk-tolerance-up':
+        adjustments.push({
+          dimension: 'riskTolerance',
+          delta: Math.min(MAX_DELTA, 0.05 * pattern.confidence),
+          confidence: pattern.confidence,
+          evidence: pattern.description,
+          eventCount: pattern.eventCount,
+        });
+        break;
+
+      case 'communication-verbose':
+        adjustments.push({
+          dimension: 'communicationStyle',
+          delta: -Math.min(MAX_DELTA, 0.05 * pattern.confidence),
+          confidence: pattern.confidence,
+          evidence: pattern.description,
+          eventCount: pattern.eventCount,
+        });
+        break;
+
+      case 'abstraction-pragmatic':
+        adjustments.push({
+          dimension: 'abstractionLevel',
           delta: -Math.min(MAX_DELTA, 0.05 * pattern.confidence),
           confidence: pattern.confidence,
           evidence: pattern.description,

@@ -25,7 +25,9 @@ export type LabEventType =
   | 'compound-extracted'
   | 'compound-promoted'
   | 'compound-demoted'
-  | 'compound-precision';
+  | 'compound-precision'
+  // Forge v2
+  | 'user-rejection';
 
 export interface LabEvent {
   /** Unique event ID */
@@ -275,4 +277,76 @@ export interface MonthlyMetrics {
   totalSessions: number;
   /** Total estimated cost */
   totalCost: number;
+}
+
+// ---------------------------------------------------------------------------
+// Forge v2 Types
+// ---------------------------------------------------------------------------
+
+/** 세션 단위 보상 신호 */
+export interface SessionReward {
+  sessionId: string;
+  timestamp: string;
+  /** 세션 시작 시 차원 벡터 스냅샷 */
+  dimensionSnapshot: Record<string, number>;
+  /** 보상 구성 요소 (각 0-1) */
+  components: {
+    nonOverrideRate: number;
+    successRate: number;
+    costEfficiency: number;
+    durationScore: number;
+    lowBlockRate: number;
+  };
+  /** 최종 통합 보상 (0-1) */
+  reward: number;
+}
+
+/** Gaussian posterior for Thompson Sampling */
+export interface GaussianPosterior {
+  mu: number;
+  sigma2: number;
+  n: number;
+  rewardSum: number;
+  rewardSumSq: number;
+}
+
+/** BKT 차원별 4파라미터 */
+export interface BKTParameters {
+  pLearn: number;
+  pForget: number;
+  pSlip: number;
+  pGuess: number;
+}
+
+/** BKT 선호 추적 상태 */
+export interface PreferenceState {
+  pKnown: number;
+  observations: Array<{ consistent: boolean; timestamp: string }>;
+  params: BKTParameters;
+}
+
+/** User response to a dimension change notification */
+export type UserResponse = 'accepted' | 'reverted' | 'modified' | 'ignored';
+
+/** 변경 알림 */
+export interface ChangeNotification {
+  /** Unique notification ID */
+  id: string;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** List of dimension changes exceeding the notification threshold */
+  changes: Array<{
+    /** Dimension key (e.g. 'autonomyPreference') */
+    dimension: string;
+    /** Value before the change */
+    previousValue: number;
+    /** Value after the change */
+    newValue: number;
+    /** Reason for the change */
+    reason: string;
+  }>;
+  /** User's response to this notification */
+  userResponse?: UserResponse;
+  /** User-provided override values (only when response is 'modified') */
+  userModifiedValues?: Record<string, number>;
 }

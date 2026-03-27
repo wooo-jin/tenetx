@@ -301,7 +301,6 @@ export async function runEvolveCycle(
     const previousVector = { ...profile.dimensions };
 
     if (dryRun) {
-      // Compute what would change without saving
       const newVector = applySmoothedAdjustments(previousVector, adjustments);
       return {
         changed: hasVectorChanged(previousVector, newVector),
@@ -313,8 +312,61 @@ export async function runEvolveCycle(
       };
     }
 
-    // 4. Apply smoothed adjustments
-    const newVector = applySmoothedAdjustments(previousVector, adjustments);
+    // 4. Apply adjustments — v2 Thompson Sampling or v1 EMA
+    const { loadForgeV2Config } = await import('./forge-v2-config.js');
+    const v2Config = loadForgeV2Config();
+    let newVector: Record<string, number>;
+
+    if (v2Config.thompsonSampling) {
+      // === Forge v2: Thompson Sampling 경로 ===
+      const { initThompsonState, loadThompsonState, saveThompsonState, sampleFromPosteriors, updatePosterior, adjustSigmaWithBKT } = await import('./thompson-sampling.js');
+      const { computeSessionRewards } = await import('./reward.js');
+
+      const tsState = loadThompsonState() ?? initThompsonState(previousVector);
+
+      // 보상 계산 + posterior 업데이트
+      const rewards = computeSessionRewards(events);
+      for (const reward of rewards) {
+        reward.dimensionSnapshot = previousVector;
+        updatePosterior(tsState, reward);
+      }
+
+      // BKT로 탐색 강도 조절 (optional)
+      if (v2Config.preferenceTracing) {
+        const { initPreferenceState, loadPreferenceStates, savePreferenceStates, updateFromPatterns, getPKnownMap } = await import('./preference-tracer.js');
+        const dims = Object.keys(previousVector);
+        const prefStates = loadPreferenceStates() ?? initPreferenceState(dims);
+        updateFromPatterns(prefStates, patterns, previousVector);
+        adjustSigmaWithBKT(tsState, getPKnownMap(prefStates));
+        savePreferenceStates(prefStates);
+      }
+
+      // 차원 상관관계 적용 (optional)
+      if (v2Config.dimensionCorrelation) {
+        const { initCovarianceState, loadCovarianceState, saveCovarianceState, updateCovariance } = await import('./dimension-correlation.js');
+        const dims = Object.keys(previousVector);
+        const covState = loadCovarianceState() ?? initCovarianceState(dims);
+        for (const reward of rewards) {
+          updateCovariance(covState, reward.dimensionSnapshot);
+        }
+        saveCovarianceState(covState);
+      }
+
+      // 새 차원 벡터 샘플링
+      newVector = sampleFromPosteriors(tsState);
+      saveThompsonState(tsState);
+    } else {
+      // === v1 EMA 경로 (fallback) ===
+      newVector = applySmoothedAdjustments(previousVector, adjustments);
+    }
+
+    // v2 보상 수집 (항상, 데이터 축적용)
+    if (v2Config.rewardCollection) {
+      try {
+        const { computeSessionRewards } = await import('./reward.js');
+        computeSessionRewards(events); // 축적만 (사이드이펙트 없음)
+      } catch { /* non-blocking */ }
+    }
     const changed = hasVectorChanged(previousVector, newVector);
 
     if (changed) {
@@ -348,7 +400,19 @@ export async function runEvolveCycle(
         log.debug('Failed to regenerate harness config', e);
       }
 
-      // 7. Track this auto-learn event in lab
+      // 7. Forge v2 투명성 알림 (optional)
+      if (v2Config.transparencyNotifications) {
+        try {
+          const { createChangeNotification } = await import('./transparency.js');
+          const reasons: Record<string, string> = {};
+          for (const adj of adjustments) {
+            reasons[adj.dimension] = adj.evidence;
+          }
+          createChangeNotification(previousVector, newVector, reasons);
+        } catch { /* non-blocking */ }
+      }
+
+      // 8. Track this auto-learn event in lab
       track('auto-evolve', 'system', {
         adjustmentCount: adjustments.length,
         eventsAnalyzed: events.length,
