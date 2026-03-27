@@ -432,16 +432,17 @@ export async function runEvolveCycle(
         log.debug('Failed to regenerate harness config', e);
       }
 
-      // 7. Forge v2 투명성 알림 (optional)
+      // 7. Forge v2 투명성 알림 + GC (optional)
       if (v2Config.transparencyNotifications) {
         try {
-          const { createChangeNotification } = await import('./transparency.js');
+          const { createChangeNotification, cleanOldNotifications } = await import('./transparency.js');
           const reasons: Record<string, string> = {};
           for (const adj of adjustments) {
             reasons[adj.dimension] = adj.evidence;
           }
           createChangeNotification(previousVector, newVector, reasons);
-        } catch { /* non-blocking */ }
+          cleanOldNotifications(30); // 30일 이상 알림 정리
+        } catch (e) { log.debug('투명성 알림 실패', e); }
       }
 
       // 8. Track this auto-learn event in lab

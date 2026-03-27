@@ -30,7 +30,7 @@ export const DEFAULT_BKT: BKTParameters = {
   pLearn: 0.1,    // 10세션에 1번 선호 형성
   pForget: 0.02,  // 50세션에 1번 선호 변화
   pSlip: 0.1,     // 10% 실수율
-  pGuess: 0.3,    // 30% 우연 일치율
+  pGuess: 0.5,    // 50% 우연 일치율 (binary consistent/inconsistent의 base rate)
 };
 
 // ── 패턴 → 차원 매핑 (일관성 판정에 사용) ──
@@ -126,10 +126,13 @@ export function updateFromPatterns(
     if (!state) continue;
 
     const currentValue = currentDimensions[mapping.dimension] ?? 0.5;
+    // Dead zone: 0.4~0.6에서는 방향이 불확실하므로 관측 건너뛰기
+    // 경계 근처의 무의미한 flip으로 BKT 진동 방지
+    if (currentValue >= 0.4 && currentValue <= 0.6) continue;
     // 현재 차원값이 패턴 방향과 일치하는지 판정
     const consistent = mapping.direction === 'high'
-      ? currentValue >= 0.5
-      : currentValue < 0.5;
+      ? currentValue > 0.6
+      : currentValue < 0.4;
 
     updatePreference(state, consistent);
   }

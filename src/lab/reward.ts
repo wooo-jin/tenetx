@@ -64,7 +64,10 @@ export function computeRewardComponents(
     const totalCost = (lastMetrics.payload.estimatedCost as number) ?? 0;
     if (totalCost > 0) {
       const costPerSuccess = totalCost / successCount;
-      costEfficiency = sigmoid(10 / costPerSuccess);
+      // log-scale sigmoid: median=$0.05에서 0.5, $0.5에서 ~0.12, $0.005에서 ~0.88
+      const logCost = Math.log(costPerSuccess + 1e-8);
+      const logMedian = Math.log(0.05);
+      costEfficiency = sigmoid(-(logCost - logMedian) / 0.8);
     }
   }
 
