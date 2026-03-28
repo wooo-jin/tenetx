@@ -74,7 +74,7 @@
     "@biomejs/biome": "^2.4.8",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.5.0",
-    "@types/react": "^18.3.28",
+    "@types/react": "^19.2.14",
     "@vitest/coverage-v8": "^4.1.0",
     "vitest": "^4.0.18"
   },
@@ -84,6 +84,6 @@
   "dependencies": {
     "ink": "^5.2.1",
     "js-yaml": "^4.1.1",
-    "react": "^18.3.1"
+    "react": "^19.2.4"
   }
 }
