@@ -33,8 +33,9 @@ tenetx                    # Start Claude Code with learning enabled
 
 No configuration needed. Use Claude Code normally — tenetx learns in the background.
 
-- **Day 1**: Detects your language, response style, and workflow preferences
-- **Week 1**: Generates personalized `.claude/rules/` from observed patterns
+- **Day 1**: Hooks begin observing silently. Forge profile auto-created from project scan.
+- **Week 1** (~5 sessions): First patterns detected → personalized `.claude/rules/` generated
+- **Week 2+** (~15 sessions): Compound solutions accumulate, agent tuning kicks in
 - **Ongoing**: Patterns earn trust through evidence. Good ones get promoted, bad ones retire.
 
 ### Harness + Plugin
@@ -84,7 +85,7 @@ Not just surface preferences ("use Korean") — **thinking patterns**:
 - "This user plans before implementing" → design-first workflow
 - "This user wants evidence, not intuition" → data-driven decisions
 
-50+ learned preference/workflow/thinking patterns + Claude semantic analysis at compaction.
+50+ built-in pattern detectors (preference/workflow/thinking) + Claude semantic analysis at compaction. Patterns are detected per-user based on actual usage — not all 50 will activate for every user.
 
 ---
 
@@ -115,8 +116,11 @@ tenetx forge              # Profile your working style (optional, enhances learn
 tenetx                    # Start Claude Code with harness
 tenetx forge              # Profile your working style (scan + interview)
 tenetx me                 # Personal dashboard (profile, patterns, cost)
+tenetx me --html          # Open HTML dashboard in browser
+tenetx pipeline           # Pipeline suggestions based on your profile
 tenetx compound           # Preview auto compound analysis
 tenetx compound --save    # Save previewed technical insights
+tenetx compound map       # Knowledge map visualization
 tenetx compound interactive # Manually capture insights in a TTY session
 tenetx lab                # Adaptive optimization metrics
 tenetx cost               # Session cost tracking
@@ -198,7 +202,7 @@ All hooks fail-open on error (never breaks Claude Code). Timeout: 2-5 seconds pe
 | Metric | Count |
 |--------|-------|
 | Source code | ~24K lines |
-| Tests | 1.4K+ across 80+ files |
+| Tests | 1,561 across 100 files |
 | Hook registry | 19 (workflow hooks auto-disable when overlapping plugins are present) |
 | Detection patterns | 50+ |
 | MCP tools | 4 |
