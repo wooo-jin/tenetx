@@ -12,6 +12,7 @@ import { loadGlobalConfig } from './global-config.js';
 import { createLogger } from './logger.js';
 import { autoSyncIfNeeded, loadPackConfigs } from './pack-config.js';
 import { COMPOUND_HOME, ME_DIR, ME_RULES, ME_SOLUTIONS, PACKS_DIR, SESSIONS_DIR } from './paths.js';
+import { RULE_FILE_CAPS } from '../hooks/shared/injection-caps.js';
 import { initDefaultPhilosophy, loadPhilosophyForProject } from './philosophy-loader.js';
 import { resolveScope } from './scope-resolver.js';
 import { startSessionLog } from './session-logger.js';
@@ -24,9 +25,7 @@ import {
   SETTINGS_BACKUP_PATH,
   SETTINGS_PATH,
 } from './settings-lock.js';
-import { cleanStaleStateFiles } from './state-gc.js';
 import type { HarnessContext } from './types.js';
-import { checkForUpdate } from './auto-update.js';
 import { ConfigError } from './errors.js';
 
 const log = createLogger('harness');
@@ -95,7 +94,7 @@ function injectSettings(env: Record<string, string>): void {
   if (isTenetxStatusLine) {
     settings.statusLine = {
       type: 'command',
-      command: 'tenetx status',
+      command: 'tenetx me',
     };
   }
 
@@ -375,12 +374,24 @@ function installAgents(cwd: string, overlayMap?: OverlayMap): void {
 
 /** 프로젝트 .claude/rules/ 에 다중 하네스 규칙 파일 작성 (Claude Code 자동 로드) */
 function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): void {
+  const PER_RULE_CAP = RULE_FILE_CAPS.perRuleFile;
+  const TOTAL_CAP = RULE_FILE_CAPS.totalRuleFiles;
+
   const rulesDir = path.join(cwd, '.claude', 'rules');
   fs.mkdirSync(rulesDir, { recursive: true });
 
-  // 각 규칙 파일 작성
+  // 각 규칙 파일 작성 (사이즈 캡 적용)
+  let totalWritten = 0;
   for (const [filename, content] of Object.entries(ruleFiles)) {
-    fs.writeFileSync(path.join(rulesDir, filename), content);
+    const capped = content.length > PER_RULE_CAP
+      ? content.slice(0, PER_RULE_CAP) + '\n... (capped at rule file limit)\n'
+      : content;
+    if (totalWritten + capped.length > TOTAL_CAP) {
+      log.debug(`rules/ 총량 캡 도달, ${filename} 생략`);
+      break;
+    }
+    fs.writeFileSync(path.join(rulesDir, filename), capped);
+    totalWritten += capped.length;
   }
 
   // 마이그레이션: 이전 위치(.claude/compound-rules.md) 파일 제거
@@ -568,9 +579,6 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     // 1. 디렉토리 구조 보장
     ensureDirectories();
 
-    // 1.5. 오래된 세션 상태 파일 정리
-    cleanStaleStateFiles();
-
     // 2. 기본 철학 초기화
     initDefaultPhilosophy();
 
@@ -670,9 +678,11 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
 
     // 9. 규칙 파일 주입 (기본 5개 + forge 튜닝 규칙)
     const ruleFiles = generateClaudeRuleFiles(context);
-    // forge 튜닝 규칙 병합
+    // forge 튜닝 규칙 병합 — 조건부 로딩으로 토큰 절약
+    const forgePaths = ['src/**/*.ts', 'src/**/*.tsx', 'tests/**/*.ts'];
+    const forgePathsHeader = `---\npaths:\n${forgePaths.map(p => `  - "${p}"`).join('\n')}\n---\n\n`;
     for (const tunedRule of forgeTunedRules) {
-      ruleFiles[tunedRule.filename] = tunedRule.content;
+      ruleFiles[tunedRule.filename] = forgePathsHeader + tunedRule.content;
     }
     injectClaudeRuleFiles(cwd, ruleFiles);
 
@@ -698,13 +708,7 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
       }
     }
 
-    // 13. tenetx 자체 업데이트 알림 (24시간 캐시, 네트워크 오류 무시)
-    const selfUpdate = await checkForUpdate();
-    if (selfUpdate) {
-      console.error(`[tenetx] ${selfUpdate}`);
-    }
-
-    // 14. 세션 로그 시작
+    // 13. 세션 로그 시작
     startSessionLog(context);
 
     // 15. 비용 추적 세션 초기화 (lab/cost)

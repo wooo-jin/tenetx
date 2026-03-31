@@ -244,6 +244,69 @@ const PREFERENCE_PATTERNS: PatternRule[] = [
     patterns: [/문서화/i, /document/i, /README/i, /changelog/i, /기록.*남기/i],
     tags: ['workflow', 'documentation', 'preference'],
   },
+
+  // ── Thinking/Philosophy patterns (사고 패턴) ──
+  // 표면적 형식이 아닌, 사용자의 사고 방식과 가치관을 감지
+  {
+    name: 'think-verify-first',
+    description: '결과를 쉽게 믿지 않고 반드시 검증을 요구합니다. 리뷰를 반복하고, 비관적으로 확인하며, "정말 맞아?"를 자주 묻습니다.',
+    patterns: [/다시.*확인/i, /한\s*번\s*더/i, /정말.*맞/i, /확실.*해\?/i, /검증/i, /verify/i, /double.*check/i, /비관적/i, /pessimistic/i],
+    tags: ['thinking', 'verify', 'thorough', 'skeptical'],
+  },
+  {
+    name: 'think-quality-over-speed',
+    description: '속도보다 품질을 우선합니다. 완벽해질 때까지 반복하고, "이게 최선이야?"를 자주 묻습니다.',
+    patterns: [/최선/i, /더\s*좋은\s*방법/i, /best.*way/i, /better.*approach/i, /완벽/i, /perfect/i, /개선/i, /improve/i],
+    tags: ['thinking', 'quality', 'perfectionism', 'iterate'],
+  },
+  {
+    name: 'think-understand-why',
+    description: '실행보다 이해를 우선합니다. "왜?"를 자주 물으며, 근거와 논리를 요구합니다.',
+    patterns: [/왜\s*(?:그|이렇|저렇)/i, /이유/i, /근거/i, /why/i, /reason/i, /설명.*해/i, /explain/i, /논리/i, /rationale/i],
+    tags: ['thinking', 'understanding', 'reasoning', 'why'],
+  },
+  {
+    name: 'think-pragmatic',
+    description: '이론보다 실용을 우선합니다. 빠르게 동작하는 것을 선호하고, 과잉 설계를 싫어합니다.',
+    patterns: [/빨리/i, /그냥.*해/i, /간단하게/i, /just.*do/i, /quick/i, /오버.*엔지니어링/i, /over.*engineer/i, /YAGNI/i, /단순하게/i],
+    tags: ['thinking', 'pragmatic', 'speed', 'simple'],
+  },
+  {
+    name: 'think-systematic',
+    description: '체계적이고 구조적으로 접근합니다. 계획을 세우고, 단계별로 진행하며, 큰 그림을 먼저 봅니다.',
+    patterns: [/계획/i, /단계/i, /체계/i, /구조/i, /plan/i, /phase/i, /step/i, /systematic/i, /아키텍처/i, /architecture/i, /설계.*먼저/i],
+    tags: ['thinking', 'systematic', 'structured', 'planning'],
+  },
+  {
+    name: 'think-evidence-based',
+    description: '주장에 근거를 요구합니다. 데이터, 수치, 출처를 중시하며 감으로 판단하지 않습니다.',
+    patterns: [/근거/i, /증거/i, /데이터/i, /수치/i, /출처/i, /evidence/i, /data/i, /source/i, /논문/i, /paper/i, /benchmark/i, /측정/i],
+    tags: ['thinking', 'evidence', 'data-driven', 'metrics'],
+  },
+  {
+    name: 'think-risk-aware',
+    description: '위험을 미리 식별하고 대비합니다. 백업, 롤백, 안전장치를 항상 고려합니다.',
+    patterns: [/위험/i, /risk/i, /백업/i, /backup/i, /롤백/i, /rollback/i, /안전/i, /safe/i, /보험/i, /대비/i, /fallback/i],
+    tags: ['thinking', 'risk-aware', 'safety', 'defensive'],
+  },
+  {
+    name: 'think-autonomous',
+    description: '자율적 실행을 선호합니다. 일일이 확인받지 않고 판단해서 실행하기를 원합니다.',
+    patterns: [/알아서/i, /자율/i, /확인.*안.*해도/i, /물어보지.*말고/i, /autonomous/i, /don't.*ask/i, /just.*proceed/i, /바로.*해/i],
+    tags: ['thinking', 'autonomous', 'independent', 'trust'],
+  },
+  {
+    name: 'think-collaborative',
+    description: '협업적 접근을 선호합니다. 의견을 물어보고, 대안을 제시하며, 합의를 중시합니다.',
+    patterns: [/어떻게.*생각/i, /의견/i, /대안/i, /다른.*방법/i, /what.*think/i, /alternative/i, /option/i, /비교/i, /trade.*off/i],
+    tags: ['thinking', 'collaborative', 'discussion', 'alternatives'],
+  },
+  {
+    name: 'think-incremental',
+    description: '작은 단위로 점진적으로 진행합니다. 한 번에 많이 하기보다 조금씩 확인하며 나아갑니다.',
+    patterns: [/조금씩/i, /하나씩/i, /점진/i, /incremental/i, /small.*step/i, /작은.*단위/i, /먼저.*이것만/i, /one.*at.*a.*time/i],
+    tags: ['thinking', 'incremental', 'iterative', 'step-by-step'],
+  },
 ];
 
 /** Append a prompt to history */

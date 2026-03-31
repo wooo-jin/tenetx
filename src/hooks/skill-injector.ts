@@ -41,6 +41,8 @@ import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { PACKS_DIR } from '../core/paths.js';
 import { KEYWORD_PATTERNS } from './keyword-detector.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 /** keyword-detector가 처리하는 키워드 이름 집합 (skill + inject 모두 포함, 이중 주입 방지) */
 const KEYWORD_DETECTOR_SKILL_NAMES: Set<string> = new Set(
@@ -146,6 +148,10 @@ function scanSkills(dir: string): SkillMeta[] {
   try {
     return fs.readdirSync(dir)
       .filter(f => f.endsWith('.md'))
+      .filter(f => {
+        const filePath = path.join(dir, f);
+        try { return !fs.lstatSync(filePath).isSymbolicLink(); } catch { return false; }
+      })
       .map(f => {
         const filePath = path.join(dir, f);
         const raw = fs.readFileSync(filePath, 'utf-8');
@@ -258,8 +264,12 @@ function cleanStaleSkillCaches(): void {
 
 async function main(): Promise<void> {
   const input = await readStdinJSON<HookInput>();
+  if (!isHookEnabled('skill-injector')) {
+    console.log(approve());
+    return;
+  }
   if (!input?.prompt) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -273,7 +283,7 @@ async function main(): Promise<void> {
 
   // 이미 최대치 주입했으면 통과
   if (injected.size >= MAX_SKILLS_PER_SESSION) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -283,7 +293,7 @@ async function main(): Promise<void> {
     .filter(s => !injected.has(s.name)); // 이미 주입된 것 제외
 
   if (matched.length === 0) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -296,18 +306,25 @@ async function main(): Promise<void> {
   }
   saveSessionCache(sessionId, injected);
 
-  // 스킬 컨텍스트 주입
-  const injections = toInject.map(skill =>
-    `<compound-learned-skill name="${escapeXmlAttr(skill.name)}" description="${escapeXmlAttr(skill.description)}">\n${escapeAllXmlTags(skill.content)}\n</compound-learned-skill>`
-  ).join('\n\n');
+  // Adaptive budget: 다른 플러그인 감지 시 스킬 주입량 축소
+  let skillCap = 3000; // INJECTION_CAPS.skillContentMax 기본값
+  try {
+    const { calculateBudget } = await import('./shared/context-budget.js');
+    skillCap = calculateBudget().skillContentMax;
+  } catch { /* budget 로드 실패 시 기본값 사용 */ }
 
-  console.log(JSON.stringify({
-    result: 'approve',
-    message: injections,
-  }));
+  // 스킬 컨텍스트 주입 (adaptive cap 적용)
+  const injections = toInject.map(skill => {
+    const capped = skill.content.length > skillCap
+      ? skill.content.slice(0, skillCap) + '\n... (capped)'
+      : skill.content;
+    return `<compound-learned-skill name="${escapeXmlAttr(skill.name)}" description="${escapeXmlAttr(skill.description)}">\n${escapeAllXmlTags(capped)}\n</compound-learned-skill>`;
+  }).join('\n\n');
+
+  console.log(approve(injections));
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

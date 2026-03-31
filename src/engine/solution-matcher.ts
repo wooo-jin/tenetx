@@ -54,20 +54,20 @@ export function calculateRelevance(
     );
     return Math.min(1, intersection.length / Math.max(promptTags.length * 0.5, 1));
   }
-  // v3 mode: tag matching + identifier boost + Jaccard normalization
+  // v3 mode: tag matching + Jaccard normalization
   const intersection = keywordsOrTags.filter(t => promptOrTags.includes(t));
 
-  // Also check partial/substring matches for longer tags (>3 chars)
+  // partial/substring matches for longer tags (>3 chars)
   const partialMatches = keywordsOrTags.filter(t =>
     t.length > 3 && !intersection.includes(t)
     && promptOrTags.some(pt => pt.length > 3 && (pt.includes(t) || t.includes(pt))),
   );
 
   const totalMatched = intersection.length + partialMatches.length * 0.5;
-  if (totalMatched < 1.5) return { relevance: 0, matchedTags: [] };
+  // 완화된 임계값: 태그 1개 정확 일치면 후보 (이전: 1.5 = 2개 필수)
+  if (totalMatched < 1) return { relevance: 0, matchedTags: [] };
 
-  // Jaccard-like: matched / union instead of matched / solution tags
-  // This prevents bias against solutions with many tags
+  // Jaccard-like: matched / union
   const union = new Set([...promptOrTags, ...keywordsOrTags]).size;
   const tagScore = totalMatched / Math.max(union, 1);
   return {
@@ -96,24 +96,42 @@ export function matchSolutions(prompt: string, scope: ScopeInfo, cwd: string): S
 
   const promptTags = extractTags(prompt);
 
+  // 프롬프트에서 identifier 후보도 추출 (camelCase, snake_case 등 6자 이상)
+  const promptLower = prompt.toLowerCase();
+
   const matches: SolutionMatch[] = allSolutions
     .map(sol => {
       const result = calculateRelevance(promptTags, sol.tags, sol.confidence) as { relevance: number; matchedTags: string[] };
+
+      // identifier boost: 프롬프트에 솔루션의 identifier가 포함되면 추가 점수
+      let identifierBoost = 0;
+      const matchedIdentifiers: string[] = [];
+      for (const id of sol.identifiers) {
+        if (id.length >= 4 && promptLower.includes(id.toLowerCase())) {
+          identifierBoost += 0.15;
+          matchedIdentifiers.push(id);
+        }
+      }
+
+      const totalRelevance = result.relevance + identifierBoost;
+      const allMatched = [...result.matchedTags, ...matchedIdentifiers];
+
       return {
         name: sol.name,
         path: sol.filePath,
         scope: sol.scope,
-        relevance: result.relevance,
+        relevance: totalRelevance,
         summary: sol.name,
         status: sol.status,
         confidence: sol.confidence,
         type: sol.type,
         tags: sol.tags,
         identifiers: sol.identifiers,
-        matchedTags: result.matchedTags,
+        matchedTags: allMatched,
       };
     })
-    .filter(m => m.matchedTags.length >= 2)
+    // 태그 1개 이상 매칭 OR identifier 1개 이상 매칭
+    .filter(m => m.matchedTags.length >= 1)
     .sort((a, b) => b.relevance - a.relevance)
     .slice(0, 5);
 

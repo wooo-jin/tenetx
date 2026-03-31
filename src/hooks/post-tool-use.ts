@@ -17,12 +17,13 @@ import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles, estimateTokens } from '../engine/token-tracker.js';
 import { recordTokenUsage as recordLabCost } from '../lab/cost-tracker.js';
-import { runConstraintsOnFile, formatViolations } from '../engine/constraints/constraint-runner.js';
 import { saveCheckpoint } from './session-recovery.js';
 import { trackSessionMetrics } from '../lab/tracker.js';
 import { recordWriteContent } from '../engine/prompt-learner.js';
 import { incrementWorkflowCounter, checkWorkflowCompletion } from '../engine/workflow-compound.js';
 import { incrementFailureCounter, checkCompoundNegative, getCompoundSuccessHint } from './post-tool-handlers.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -104,7 +105,11 @@ export function trackModifiedFile(
 async function main(): Promise<void> {
   const data = await readStdinJSON<PostToolInput>();
   if (!data) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
+    return;
+  }
+  if (!isHookEnabled('post-tool-use')) {
+    console.log(approve());
     return;
   }
 
@@ -170,13 +175,6 @@ async function main(): Promise<void> {
         if (count >= 5) {
           messages.push(`<compound-tool-warning>\n[Tenetx] ⚠ ${path.basename(filePath)} has been modified ${count} times.\nConsider redesigning the overall structure and restarting.\n</compound-tool-warning>`);
         }
-        try {
-          const effectiveCwd = data.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
-          const constraintResult = runConstraintsOnFile(filePath, effectiveCwd);
-          if (constraintResult.violations.length > 0) {
-            messages.push(`<compound-constraint-violation>\n${formatViolations(constraintResult.violations)}\n</compound-constraint-violation>`);
-          }
-        } catch (ce) { log.debug('제약 검사 실패', ce); }
       } catch (e) { log.debug('파일 변경 추적 실패', e); }
     }
     try {
@@ -213,13 +211,13 @@ async function main(): Promise<void> {
   saveModifiedFiles(modState);
 
   if (messages.length > 0) {
-    console.log(JSON.stringify({ result: 'approve', message: messages.join('\n') }));
+    console.log(approve(messages.join('\n')));
   } else {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
   }
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

@@ -194,6 +194,13 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
       };
 
     default:
-      return null;
+      // Unknown/external mode (e.g. triggered via OMC or third-party plugin) —
+      // record as external-{modeName} so compound learning is not silently skipped
+      return {
+        name: `external-${mode}-${Date.now()}`,
+        tags: ['workflow', 'external', mode],
+        context: `External mode "${mode}" completed`,
+        content: `External workflow execution: ${efficiency}. Mode "${mode}" was triggered outside tenetx core (e.g. OMC or plugin).`,
+      };
   }
 }

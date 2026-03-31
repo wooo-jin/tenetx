@@ -8,7 +8,8 @@
 
 import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
-import { loadHookConfig } from './hook-config.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 interface PostToolInput {
   tool_name?: string;
@@ -46,17 +47,14 @@ export function detectSecrets(text: string): SecretPattern[] {
 }
 
 async function main(): Promise<void> {
-  const config = loadHookConfig('secret-filter');
+  const data = await readStdinJSON<PostToolInput>();
 
-  // enabled 플래그: config에서 명시적으로 false이면 비활성화 (기본 true)
-  if (config?.enabled === false) {
-    console.log(JSON.stringify({ result: 'approve' }));
+  if (!isHookEnabled('secret-filter')) {
+    console.log(approve());
     return;
   }
-
-  const data = await readStdinJSON<PostToolInput>();
   if (!data) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -66,7 +64,7 @@ async function main(): Promise<void> {
 
   // Write/Edit/Bash 도구만 검사
   if (!['Write', 'Edit', 'Bash'].includes(toolName)) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -77,14 +75,11 @@ async function main(): Promise<void> {
   const secrets = detectSecrets(textToScan);
   if (secrets.length > 0) {
     const names = secrets.map(s => s.name).join(', ');
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: `<compound-security-warning>\n[Tenetx] ⚠ Sensitive information exposure detected: ${names}\nThe output may contain secrets. Please review.\n</compound-security-warning>`,
-    }));
+    console.log(approve(`<compound-security-warning>\n[Tenetx] ⚠ Sensitive information exposure detected: ${names}\nThe output may contain secrets. Please review.\n</compound-security-warning>`));
     return;
   }
 
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(approve());
 }
 
 main().catch((e) => {
@@ -92,5 +87,5 @@ main().catch((e) => {
     hookName: 'secret-filter', eventType: 'PostToolUse', cause: e,
   });
   process.stderr.write(`[ch-hook] ${hookErr.name}: ${hookErr.message}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

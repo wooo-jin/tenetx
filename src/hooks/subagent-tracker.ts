@@ -12,9 +12,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { isHookEnabled } from './hook-config.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { trackAgentCall } from '../lab/tracker.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -60,8 +62,14 @@ function saveAgentsState(state: AgentsState): void {
 
 async function main(): Promise<void> {
   const data = await readStdinJSON();
+  // hook-registry에서는 subagent-tracker-start/stop으로 분리 등록됨
+  const suffix = process.argv[2] === 'stop' ? 'stop' : 'start';
+  if (!isHookEnabled(`subagent-tracker-${suffix}`)) {
+    console.log(approve());
+    return;
+  }
   if (!data) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -86,10 +94,7 @@ async function main(): Promise<void> {
     // 활성 에이전트 수 체크
     const activeCount = state.agents.filter(a => !a.stoppedAt).length;
     if (activeCount > MAX_CONCURRENT_AGENTS) {
-      console.log(JSON.stringify({
-        result: 'approve',
-        message: `<compound-tool-warning>\n[Tenetx] ⚠ ${activeCount} active agents — too many concurrent executions. Watch resource usage.\n</compound-tool-warning>`,
-      }));
+      console.log(approve(`<compound-tool-warning>\n[Tenetx] ⚠ ${activeCount} active agents — too many concurrent executions. Watch resource usage.\n</compound-tool-warning>`));
       return;
     }
   } else if (action === 'stop') {
@@ -106,10 +111,10 @@ async function main(): Promise<void> {
     saveAgentsState(state);
   }
 
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(approve());
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

@@ -23,11 +23,16 @@ const log = createLogger('thompson-sampling');
 
 const STATE_PATH = path.join(os.homedir(), '.compound', 'lab', 'thompson-state.json');
 
-/** 관측 노이즈 분산 (보상 신호의 본질적 노이즈) */
-const SIGMA2_OBS = 0.05;
-
 /** 최소 분산 (과적합 방지 — 완전 수렴 후에도 약간의 탐색 유지) */
 const MIN_SIGMA2 = 0.001;
+
+/** σ² 감쇠 스케일 (관측 수 기반).
+ * σ² = BASE_SIGMA2 / (1 + n / DECAY_SCALE)
+ * n=0: σ²=0.04, n=30: σ²=0.02, n=100: σ²=0.009
+ * 20-30 세션 수렴 목표에 부합. conjugate formula (5회 후 95% 감소)에서 전환.
+ * 이유: REINFORCE gradient로 μ를 업데이트하면 conjugate 가정(관측=posterior mean)이
+ * 성립하지 않아, conjugate σ² 수축과 REINFORCE α의 불일치가 조기 학습 정지를 유발. */
+const SIGMA2_DECAY_SCALE = 30;
 
 /** 최대 관측 이력 */
 const MAX_OBSERVATIONS = 200;
@@ -67,8 +72,10 @@ export function initThompsonState(
 // ── Core Algorithm ──
 
 /**
- * Gaussian posterior에서 샘플링하여 차원 벡터 생성.
+ * Gaussian posterior에서 샘플링하여 차원 벡터 생성하고 state를 업데이트합니다.
  * Box-Muller transform으로 정규분포 샘플링.
+ *
+ * **Side-effect**: state.lastSample과 state.totalSamples를 직접 변이합니다.
  */
 export function sampleFromPosteriors(
   state: ThompsonState,
@@ -119,22 +126,23 @@ export function updatePosterior(
     const z = sigma > 1e-8 ? (sampleValue - post.mu) / sigma : 0;
 
     // REINFORCE gradient: advantage × z
-    // α는 sigma에 비례 — 불확실한 차원일수록 큰 업데이트
-    const alpha = Math.min(0.1, post.sigma2); // 최대 학습률 0.1
+    // α = σ² — 불확실한 차원일수록 큰 업데이트.
+    // σ² ∈ [MIN_SIGMA2=0.001, BASE_SIGMA2=0.04] (MAX_SIGMA2=0.1은 BKT 경로에서도 도달 불가)
+    const alpha = post.sigma2;
     const muDelta = alpha * advantage * z;
 
     post.mu = clamp01(post.mu + muDelta);
 
-    // σ² shrink: Normal-Normal conjugate (관측 수 기반 불확실성 감소)
-    // 관측이 쌓일수록 자연스럽게 exploitation으로 전환
-    const sigma2_0 = post.sigma2;
-    post.sigma2 = Math.max(MIN_SIGMA2,
-      (sigma2_0 * SIGMA2_OBS) / (sigma2_0 + SIGMA2_OBS),
-    );
-
+    // σ² decay: 관측 수 기반 감쇠 (REINFORCE-compatible)
+    // conjugate formula 대신 사용 — conjugate는 μ가 정확한 posterior mean일 때만 유효하지만,
+    // REINFORCE gradient로 μ를 업데이트하므로 그 가정이 성립하지 않음.
+    // 관측 수 기반 감쇠는 REINFORCE α와 일관적으로 동작하여 조기 학습 정지를 방지.
     post.n++;
     post.rewardSum += r;
     post.rewardSumSq += r * r;
+    post.sigma2 = Math.max(MIN_SIGMA2,
+      BASE_SIGMA2 / (1 + post.n / SIGMA2_DECAY_SCALE),
+    );
   }
 
   // 관측 이력 추가 (FIFO)
@@ -195,10 +203,11 @@ export function saveThompsonState(state: ThompsonState): void {
 
 // ── Utilities ──
 
-/** Box-Muller transform: uniform(0,1) → standard normal */
-function boxMullerSample(): number {
-  const u1 = Math.random();
-  const u2 = Math.random();
+/** Box-Muller transform: uniform(0,1) → standard normal.
+ * RNG 주입으로 테스트에서 결정론적 재현 가능. */
+function boxMullerSample(rng: () => number = Math.random): number {
+  const u1 = rng();
+  const u2 = rng();
   return Math.sqrt(-2 * Math.log(Math.max(u1, Number.EPSILON))) * Math.cos(2 * Math.PI * u2);
 }
 

@@ -17,6 +17,8 @@ import { createLogger } from '../core/logger.js';
 
 const log = createLogger('keyword-detector');
 import { readStdinJSON } from './shared/read-stdin.js';
+import { isHookEnabled } from './hook-config.js';
+import { truncateContent, INJECTION_CAPS } from './shared/injection-caps.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
 import { recordModeUsage } from '../engine/prompt-learner.js';
 import { recordModeStart } from '../engine/workflow-compound.js';
@@ -29,6 +31,8 @@ import { PACKS_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { trackModeActivation, trackHookTrigger, trackSkillInvocation } from '../lab/tracker.js';
 import { escapeAllXmlTags } from './prompt-injection-filter.js';
+import { getSkillConflicts } from '../core/plugin-detector.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 /** Escape a string for safe use in XML attribute values */
 function escapeXmlAttr(s: string): string {
@@ -245,6 +249,8 @@ function loadSkillContent(skillName: string): string | null {
 
   for (const p of searchPaths) {
     if (fs.existsSync(p)) {
+      // Security: symlink을 통한 임의 파일 읽기 방지
+      try { if (fs.lstatSync(p).isSymbolicLink()) continue; } catch { continue; }
       return fs.readFileSync(p, 'utf-8');
     }
   }
@@ -344,8 +350,12 @@ export function getModelRecommendation(prompt: string, cwd?: string, sessionId?:
 
 async function main(): Promise<void> {
   const input = await readStdinJSON<HookInput>();
+  if (!isHookEnabled('keyword-detector')) {
+    console.log(approve());
+    return;
+  }
   if (!input?.prompt) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -356,9 +366,12 @@ async function main(): Promise<void> {
   trackHookTrigger(sessionId, 'keyword-detector', 'UserPromptSubmit', match ? 'modify' : 'approve');
 
   if (!match) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
+
+  // Cache conflict map once for the duration of this hook execution
+  const skillConflicts = getSkillConflicts(input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd());
 
   if (match.type === 'cancel') {
     const cancelCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
@@ -378,31 +391,37 @@ async function main(): Promise<void> {
     }
     // skill-cache 파일도 정리 (재주입 가능하도록)
     cleanSkillCaches();
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: match.message ?? '[Tenetx] Mode cancelled.',
-    }));
+    console.log(approve(match.message ?? '[Tenetx] Mode cancelled.'));
     return;
   }
 
   if (match.type === 'inject') {
+    // Plugin conflict check: inject 타입도 다른 플러그인과 충돌하면 스킵
+    // (tdd, code-review 등이 OMC/superpowers와 이중 실행되는 것을 방지)
+    const conflictPlugin = skillConflicts.get(match.keyword);
+    if (conflictPlugin) {
+      log.debug(`Skipping inject "${match.keyword}" — provided by ${conflictPlugin}`);
+      console.log(approve());
+      return;
+    }
     const injectStart = Date.now();
-    // Compound: mode usage 기록
     try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode usage 기록 실패', e); }
     try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode start 기록 실패', e); }
-    // Lab 이벤트 기록 — auto-learn 데이터 수집
     trackModeActivation(input.session_id ?? 'unknown', match.keyword, 'keyword');
     try { trackSkillInvocation(sessionId, match.keyword, Date.now() - injectStart, 'success'); } catch { /* non-blocking */ }
-    // 메시지 주입
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: match.message,
-    }));
+    console.log(approve(match.message));
     return;
   }
 
   // 스킬 주입
   if (match.skill) {
+    // Plugin conflict check: if a plugin already provides this skill, skip injection
+    const conflictPlugin = skillConflicts.get(match.skill);
+    if (conflictPlugin) {
+      log.debug(`Skipping keyword "${match.keyword}" — skill provided by ${conflictPlugin}`);
+      console.log(approve());
+      return;
+    }
     const skillStart = Date.now();
     // Compound: mode usage 기록
     try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode usage 기록 실패', e); }
@@ -442,22 +461,17 @@ async function main(): Promise<void> {
     }
 
     if (skillContent) {
+      const truncatedContent = truncateContent(skillContent, INJECTION_CAPS.skillContentMax);
       try { trackSkillInvocation(sessionId, match.skill, Date.now() - skillStart, 'success'); } catch { /* non-blocking */ }
-      console.log(JSON.stringify({
-        result: 'approve',
-        message: `<compound-skill name="${escapeXmlAttr(match.skill)}">\n${escapeAllXmlTags(skillContent)}\n</compound-skill>${modelRec}\n\nUser request: ${match.prompt}`,
-      }));
+      console.log(approve(`<compound-skill name="${escapeXmlAttr(match.skill)}">\n${escapeAllXmlTags(truncatedContent)}\n</compound-skill>${modelRec}\n\nUser request: ${match.prompt}`));
     } else {
       try { trackSkillInvocation(sessionId, match.skill, Date.now() - skillStart, 'success'); } catch { /* non-blocking */ }
-      console.log(JSON.stringify({
-        result: 'approve',
-        message: `[Tenetx] ${match.keyword} mode activated.${modelRec}\n\nUser request: ${match.prompt}`,
-      }));
+      console.log(approve(`[Tenetx] ${match.keyword} mode activated.${modelRec}\n\nUser request: ${match.prompt}`));
     }
     return;
   }
 
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(approve());
 }
 
 // ESM main guard: 다른 모듈에서 import 시 main() 실행 방지
@@ -465,6 +479,6 @@ async function main(): Promise<void> {
 if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fileURLToPath(import.meta.url)) {
   main().catch((e) => {
     process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(failOpen());
   });
 }

@@ -146,6 +146,22 @@ function gate2(sol: ExtractedSolution): boolean {
   return !TOXICITY_PATTERNS.some(p => p.test(text));
 }
 
+/**
+ * Gate 2.5: Trivial pattern rejection — 자명한 패턴은 축적할 가치 없음.
+ * "주로 TypeScript를 작성합니다" 수준의 솔루션은 Claude가 코드를 보면 알 수 있으므로
+ * compound에 저장하면 컨텍스트만 낭비됨.
+ */
+function gateTrivial(sol: ExtractedSolution): boolean {
+  const content = sol.content.trim();
+  // 내용이 너무 짧으면 자명함 (한 줄짜리)
+  if (content.length < 80) return false;
+  // "주로 X를 Y합니다" 패턴
+  if (/^주로\s/.test(content) && content.split('\n').length < 3) return false;
+  // 식별자가 하나도 없으면 구체적인 기술 패턴이 아님
+  if (sol.identifiers.length === 0 && sol.tags.length < 3) return false;
+  return true;
+}
+
 /** Gate 3: Dedup check against existing solutions */
 function gate3(sol: ExtractedSolution): 'new' | 're-extract' | 'duplicate' {
   if (!fs.existsSync(ME_SOLUTIONS)) return 'new';
@@ -565,6 +581,12 @@ export function processExtractionResults(
     // Gate 2: Toxicity
     if (!gate2(sol)) {
       skipped.push(`${sol.name}: Gate 2 실패 (독성 필터)`);
+      continue;
+    }
+
+    // Gate 2.5: Trivial pattern rejection
+    if (!gateTrivial(sol)) {
+      skipped.push(`${sol.name}: Gate 2.5 실패 (자명한 패턴)`);
       continue;
     }
 

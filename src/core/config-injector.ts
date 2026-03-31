@@ -1,13 +1,24 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { ME_RULES, PACKS_DIR } from './paths.js';
-import { projectDir } from './paths.js';
+import { ME_DIR, ME_RULES, PACKS_DIR, projectDir } from './paths.js';
 import { loadPackConfigs } from './pack-config.js';
 import type { HarnessContext } from './types.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('config-injector');
-import type { ProjectMap } from '../engine/knowledge/types.js';
+/** 프로젝트 맵 타입 (engine/knowledge/types.ts 삭제 후 인라인) */
+interface ProjectMap {
+  summary: {
+    name: string;
+    totalFiles: number;
+    totalLines: number;
+    framework?: string;
+    packageManager?: string;
+    languages: Record<string, number>;
+  };
+  entryPoints: string[];
+  directories: Array<{ path: string; purpose?: string }>;
+}
 
 /** 디렉토리의 .md 파일에서 규칙 첫 줄(요약)을 추출 */
 function loadRulesFromDir(dir: string): string[] {
@@ -256,15 +267,103 @@ export function generateCompoundRules(context: HarnessContext): string {
   return lines.join('\n');
 }
 
+/**
+ * paths frontmatter 래퍼 — 조건부 로딩용.
+ * paths가 있으면 해당 파일 패턴을 작업할 때만 로드됨.
+ * Claude Code 공식 기능 (https://code.claude.com/docs/en/memory)
+ */
+function withPaths(content: string, paths: string[]): string {
+  return `---\npaths:\n${paths.map(p => `  - "${p}"`).join('\n')}\n---\n\n${content}`;
+}
+
+/**
+ * 학습된 선호/사고 패턴을 .claude/rules/ 규칙으로 변환.
+ * prompt-learner가 생성한 솔루션 파일(prefer-*, workflow-*, think-*)을 읽어
+ * 사람이 읽을 수 있는 규칙 파일로 포맷합니다.
+ */
+function generateBehavioralRules(): string {
+  const lines: string[] = ['# Tenetx — Learned Patterns', '# auto-generated from observed interactions', ''];
+
+  try {
+    const solDir = path.join(ME_DIR, 'solutions');
+    if (!fs.existsSync(solDir)) return lines.join('\n');
+
+    const files = fs.readdirSync(solDir).filter(f => f.endsWith('.md'));
+    const categories: Record<string, string[]> = {
+      'Thinking Style': [],
+      'Response Preferences': [],
+      'Workflow': [],
+    };
+
+    for (const file of files) {
+      const filePath = path.join(solDir, file);
+      if (fs.lstatSync(filePath).isSymbolicLink()) continue;
+      const content = fs.readFileSync(filePath, 'utf-8');
+      // description 추출
+      const nameMatch = content.match(/name:\s*"?([^"\n]+)"?/);
+      const name = nameMatch?.[1] ?? file;
+
+      // Context에서 감지 횟수 추출
+      const countMatch = content.match(/(\d+)\s*(?:prompts?|write|mode|times)/i);
+      const count = countMatch?.[1] ?? '';
+      const countStr = count ? ` (${count}회 관찰)` : '';
+
+      // Content 줄에서 description 추출
+      const descStart = content.indexOf('## Content');
+      if (descStart === -1) continue;
+      const desc = content.slice(descStart + 11).trim().split('\n')[0];
+      if (!desc || desc.length < 5) continue;
+
+      // 카테고리 분류
+      if (name.startsWith('think-')) {
+        categories['Thinking Style'].push(`- ${desc}${countStr}`);
+      } else if (name.startsWith('workflow-')) {
+        categories['Workflow'].push(`- ${desc}${countStr}`);
+      } else if (name.startsWith('prefer-') || name.startsWith('writes-') || name.startsWith('works-')) {
+        categories['Response Preferences'].push(`- ${desc}${countStr}`);
+      }
+    }
+
+    for (const [cat, items] of Object.entries(categories)) {
+      if (items.length === 0) continue;
+      lines.push(`## ${cat}`);
+      lines.push(...items);
+      lines.push('');
+    }
+  } catch {
+    // 솔루션 디렉토리 접근 실패 시 빈 규칙
+  }
+
+  return lines.length <= 3 ? '' : lines.join('\n');
+}
+
 /** 모든 규칙 파일을 생성하여 반환 */
 export function generateClaudeRuleFiles(context: HarnessContext): Record<string, string> {
-  return {
-    'security.md': generateSecurityRules(context),
+  const rules: Record<string, string> = {
+    // 항상 로드 (핵심 원칙 — 짧으므로 캐시 효율적)
     'golden-principles.md': generateGoldenPrinciples(context),
-    'anti-pattern.md': generateAntiPatternRules(),
-    'routing.md': generateRoutingRules(context),
     'compound.md': generateCompoundRules(context),
+
+    // 조건부 로딩 — 관련 파일 작업 시에만 활성화
+    'security.md': withPaths(generateSecurityRules(context), [
+      '*.config.*', 'package.json', 'Dockerfile', 'docker-compose*',
+      '*.env*', '.github/**', 'scripts/**',
+    ]),
+    'anti-pattern.md': withPaths(generateAntiPatternRules(), [
+      'src/**/*.ts', 'src/**/*.tsx', 'src/**/*.js',
+    ]),
+    'routing.md': withPaths(generateRoutingRules(context), [
+      'src/**/*.ts', 'agents/**',
+    ]),
   };
+
+  // 학습된 행동 패턴 → 규칙 파일 (항상 로드 — 사고 패턴은 모든 작업에 적용)
+  const behavioral = generateBehavioralRules();
+  if (behavioral) {
+    rules['forge-behavioral.md'] = behavioral;
+  }
+
+  return rules;
 }
 
 /** 하위 호환: 단일 규칙 문자열 생성 (기존 테스트 호환) */
@@ -279,7 +378,7 @@ export async function registerTmuxBindings(): Promise<void> {
   try {
     // prefix + T = 대시보드 토글 (Ctrl+B → Shift+T)
     // D는 detach와 혼동될 수 있으므로 T(enet) 사용
-    execFileSync('tmux', ['bind-key', 'T', 'run-shell', 'tenetx toggle-dashboard'], { stdio: 'ignore' });
+    execFileSync('tmux', ['bind-key', 'T', 'run-shell', 'tenetx me'], { stdio: 'ignore' });
   } catch (e) {
     log.debug('tmux 키바인딩 등록 실패', e);
   }

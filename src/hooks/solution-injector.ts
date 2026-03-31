@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { isHookEnabled } from './hook-config.js';
 import { matchSolutions } from '../engine/solution-matcher.js';
 import { resolveScope } from '../core/scope-resolver.js';
 import { createLogger } from '../core/logger.js';
@@ -19,10 +20,13 @@ import { createLogger } from '../core/logger.js';
 const log = createLogger('solution-injector');
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { filterSolutionContent } from './prompt-injection-filter.js';
+// filterSolutionContent는 MCP solution-reader에서 사용 (Tier 3)
 import { recordPrompt } from '../engine/prompt-learner.js';
 import { incrementWorkflowCounter } from '../engine/workflow-compound.js';
 import { track } from '../lab/tracker.js';
+import { calculateBudget } from './shared/context-budget.js';
+import { writeSignal } from './shared/plugin-signal.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 interface HookInput {
   prompt: string;
@@ -32,8 +36,6 @@ interface HookInput {
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const STATE_DIR = path.join(COMPOUND_HOME, 'state');
 const MAX_SOLUTIONS_PER_SESSION = 10;
-const MAX_SOLUTION_LENGTH = 1500; // 솔루션당 최대 글자 수
-const MAX_INJECTED_CHARS_PER_SESSION = 8000; // 세션당 총 주입 문자 수 상한 (~2K tokens)
 
 /** 세션별 이미 주입된 솔루션 추적 (중복 방지) */
 function getSessionCachePath(sessionId: string): string {
@@ -71,29 +73,18 @@ function saveSessionCache(sessionId: string, injected: Set<string>, totalInjecte
 }
 
 /** XML 속성/내용 이스케이프 */
-function escapeXmlAttr(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
-/** 솔루션 파일 내용을 읽어서 요약 + 본문 반환 */
-function readSolutionContent(filePath: string): string {
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8').trim();
-    const truncated = content.length <= MAX_SOLUTION_LENGTH
-      ? content
-      : `${content.slice(0, MAX_SOLUTION_LENGTH)}\n\n... (truncated)`;
-    const filtered = filterSolutionContent(truncated);
-    if (!filtered.safe) return ''; // skip unsafe content
-    return filtered.sanitized;
-  } catch {
-    return '';
-  }
-}
+// readSolutionContent 제거됨 — Progressive Disclosure로 전문 읽기 불필요
+// Tier 3(전문)은 MCP compound-read가 담당
 
 async function main(): Promise<void> {
   const input = await readStdinJSON<HookInput>();
+  if (!isHookEnabled('solution-injector')) {
+    console.log(approve());
+    return;
+  }
   if (!input?.prompt) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -103,20 +94,22 @@ async function main(): Promise<void> {
   try { recordPrompt(input.prompt, sessionId); } catch (e) { log.debug('prompt 기록 실패 — pattern learning 누락', e); }
   try { incrementWorkflowCounter('prompt'); } catch (e) { log.debug('workflow prompt counter 증가 실패', e); }
 
+  // 어댑티브 버짓: 다른 플러그인 감지 시 주입��� ���동 축소
+  const cwd = process.env.COMPOUND_CWD ?? process.cwd();
+  const budget = calculateBudget(cwd);
+
   const cache = loadSessionCache(sessionId);
   const injected = cache.injected;
   let totalInjectedChars = cache.totalInjectedChars;
 
-  if (injected.size >= MAX_SOLUTIONS_PER_SESSION || totalInjectedChars >= MAX_INJECTED_CHARS_PER_SESSION) {
-    if (totalInjectedChars >= MAX_INJECTED_CHARS_PER_SESSION) {
-      log.debug(`세션 토큰 상한 도달: ${totalInjectedChars} chars`);
+  if (injected.size >= MAX_SOLUTIONS_PER_SESSION || totalInjectedChars >= budget.solutionSessionMax) {
+    if (totalInjectedChars >= budget.solutionSessionMax) {
+      log.debug(`세션 토큰 상한 도달: ${totalInjectedChars}/${budget.solutionSessionMax} chars (factor=${budget.factor})`);
     }
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
-  // 현재 작업 디렉토리 (환경변수에서 가져오거나 프로세스 cwd 사용)
-  const cwd = process.env.COMPOUND_CWD ?? process.cwd();
   const scope = resolveScope(cwd);
 
   // 프롬프트와 관련된 솔루션 매칭
@@ -124,11 +117,11 @@ async function main(): Promise<void> {
     .filter(m => !injected.has(m.name));
 
   if (matches.length === 0) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
-  // 최대 3개까지 주입 (컨텍스트 오버로드 방지), experiment는 1개 제한
+  // 어댑티브 프롬프트당 솔루션 수 제한, experiment는 1개 제한
   let experimentCount = 0;
   const toInject = [];
   for (const sol of matches) {
@@ -138,15 +131,19 @@ async function main(): Promise<void> {
       experimentCount++;
     }
     toInject.push(sol);
-    if (toInject.length >= Math.min(3, MAX_SOLUTIONS_PER_SESSION - injected.size)) break;
+    if (toInject.length >= Math.min(budget.solutionsPerPrompt, MAX_SOLUTIONS_PER_SESSION - injected.size)) break;
   }
 
-  // Track injected chars for token cost guardrail
+  // Progressive Disclosure Tier 2: 요약만 push, 전문은 MCP compound-read로 pull
+  // 근거: Anthropic "smallest set of high-signal tokens" + Cursor 46.9% 토큰 절감
+  const summaries = new Map<string, string>();
   let newChars = 0;
   for (const sol of toInject) {
     injected.add(sol.name);
-    const content = readSolutionContent(sol.path);
-    newChars += content.length;
+    // Tier 2: 한 줄 요약만 생성 (전문 읽기 없음 → 토큰 대폭 절감)
+    const summary = `${sol.name} [${sol.type}|${sol.confidence.toFixed(2)}]: ${sol.matchedTags.slice(0, 5).join(', ')}`;
+    summaries.set(sol.name, summary);
+    newChars += summary.length;
   }
   totalInjectedChars += newChars;
   saveSessionCache(sessionId, injected, totalInjectedChars);
@@ -202,22 +199,23 @@ async function main(): Promise<void> {
     });
   }
 
-  // 솔루션 내용을 Claude 컨텍스트에 주입
+  // Progressive Disclosure: Tier 1(인덱스) + Tier 2(매칭 요약) push
+  // Tier 3(전문)은 compound-read MCP tool로 pull
   const injections = toInject.map(sol => {
-    const content = readSolutionContent(sol.path);
-    const scopeLabel = sol.scope === 'me' ? 'personal' : sol.scope === 'team' ? 'team' : 'project';
-    return `<compound-solution name="${escapeXmlAttr(sol.name)}" status="${sol.status}" confidence="${sol.confidence.toFixed(2)}" type="${sol.type}" scope="${scopeLabel}" relevance="${sol.relevance.toFixed(2)}">\n${content}\n</compound-solution>`;
-  }).join('\n\n');
+    const summary = summaries.get(sol.name) ?? sol.name;
+    return `- ${summary}`;
+  }).join('\n');
 
-  const header = `Below are relevant solutions accumulated from previous work. Refer to these for the current task:\n\n`;
+  const header = `Matched solutions (use compound-read tool for full content):\n`;
+  const fullInjection = header + injections;
 
-  console.log(JSON.stringify({
-    result: 'approve',
-    message: header + injections,
-  }));
+  // 플러그인 시그널 기록 (다른 플러그인이 참고할 수 있도록)
+  try { writeSignal(sessionId, 'UserPromptSubmit', fullInjection.length); } catch (e) { log.debug('plugin signal 기록 실패', e); }
+
+  console.log(approve(fullInjection));
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] solution-injector: ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

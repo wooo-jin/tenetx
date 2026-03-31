@@ -109,23 +109,25 @@ export function checkConfidenceDemotion(fm: SolutionFrontmatter): SolutionStatus
 export function checkIdentifierStaleness(fm: SolutionFrontmatter, cwd: string): boolean {
   if (fm.identifiers.length === 0) return false; // no identifiers to check
   try {
-    let found = 0;
-    for (const id of fm.identifiers.slice(0, 5)) { // check max 5 to limit I/O
-      if (id.length < 4) continue;
-      try {
-        // Use execFileSync to prevent shell injection — arguments are passed
-        // directly to the process without shell interpretation
-        execFileSync('grep', [
-          '-r',
-          '--include=*.ts', '--include=*.tsx',
-          '--include=*.js', '--include=*.jsx',
-          '-l', id, '.',
-        ], { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] });
-        found++;
-      } catch { /* grep exit code 1 = no matches found */ }
-    }
-    return found === 0; // stale if NO identifiers found in codebase
-  } catch { return false; } // don't mark stale on error
+    const validIds = fm.identifiers.slice(0, 5).filter(id => id.length >= 6);
+    // All identifiers were too short — nothing to grep, treat as stale (matches original behavior)
+    if (validIds.length === 0) return true;
+    // Escape regex metacharacters and join with OR for a single grep call
+    // (previously: one execFileSync per identifier — up to 15s worst case)
+    const pattern = validIds.map(id => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    execFileSync('grep', [
+      '-r', '-E',
+      '--include=*.ts', '--include=*.tsx',
+      '--include=*.js', '--include=*.jsx',
+      '-l', pattern, '.',
+    ], { cwd, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
+    return false; // grep exit 0 = at least one identifier found = not stale
+  } catch (e: unknown) {
+    // grep exit 1 = no matches found = stale
+    // Other errors (timeout, ENOENT) = don't penalize — same as original outer catch behavior
+    const status = (e as NodeJS.ErrnoException & { status?: number }).status;
+    return status === 1;
+  }
 }
 
 /** Status-specific staleness thresholds (days).
@@ -169,9 +171,16 @@ export function updateSolutionFile(filePath: string, updates: Partial<SolutionFr
       updated: today,
     };
 
-    fs.writeFileSync(filePath, serializeSolutionV3(solution), 'utf-8');
+    // Atomic write: tmp → rename. 크래시 시 파일 corruption 방지.
+    // 다른 상태 파일은 atomicWriteJSON 사용, Markdown은 텍스트이므로 인라인 구현.
+    const tmpFile = `${filePath}.tmp.${process.pid}`;
+    fs.writeFileSync(tmpFile, serializeSolutionV3(solution), 'utf-8');
+    fs.renameSync(tmpFile, filePath);
     return true;
-  } catch {
+  } catch (e) {
+    // tmp 파일 정리 시도
+    try { fs.unlinkSync(`${filePath}.tmp.${process.pid}`); } catch { /* ignore */ }
+    log.debug(`Failed to update solution file: ${filePath}`, e);
     return false;
   }
 }
@@ -229,20 +238,9 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
           continue;
         }
 
-        // 4. Identifier staleness — code references no longer exist
-        if (fm.identifiers.length > 0) {
-          const effectiveCwd = process.env.COMPOUND_CWD ?? process.cwd();
-          if (checkIdentifierStaleness(fm, effectiveCwd)) {
-            const newConf = Math.max(0, fm.confidence - 20);
-            if (updateSolutionFile(filePath, { confidence: newConf })) {
-              result.demoted.push(`${fm.name}: identifier-stale (confidence → ${newConf})`);
-              track('compound-demoted', sessionId, { solutionName: fm.name, reason: 'identifier-stale' });
-            }
-            continue;
-          }
-        }
-
-        // 5. Check promotion (with minimum age gate based on updated timestamp)
+        // 4. Check promotion FIRST (with minimum age gate based on updated timestamp)
+        //    Promotion must run before identifier staleness to give solutions a chance
+        //    to be promoted before being penalized for stale identifiers.
         if (checkPromotion(fm)) {
           const minAgeMs = MIN_AGE_FOR_PROMOTION[fm.status] ?? 0;
           const ageMs = Date.now() - new Date(fm.updated || fm.created).getTime();
@@ -254,6 +252,20 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
                 track('compound-promoted', sessionId, { solutionName: fm.name, from: fm.status, to: next });
               }
             }
+            continue;
+          }
+        }
+
+        // 5. Identifier staleness — code references no longer exist
+        if (fm.identifiers.length > 0) {
+          const effectiveCwd = process.env.COMPOUND_CWD ?? process.cwd();
+          if (checkIdentifierStaleness(fm, effectiveCwd)) {
+            const newConf = Math.max(0, fm.confidence - 0.20);
+            if (updateSolutionFile(filePath, { confidence: newConf })) {
+              result.demoted.push(`${fm.name}: identifier-stale (confidence → ${newConf})`);
+              track('compound-demoted', sessionId, { solutionName: fm.name, reason: 'identifier-stale' });
+            }
+            continue;
           }
         }
       } catch (e) {
@@ -297,6 +309,9 @@ export function detectContradictions(dirs: string[]): string[] {
     } catch { /* 솔루션 파일 파싱 실패 무시 — 중복 감지는 best-effort */ }
   }
 
+  // Pre-build tag Sets for O(1) lookup — avoids O(m²) per pair
+  const tagSets = solutions.map(s => new Set(s.tags));
+
   // Pairwise comparison
   for (let i = 0; i < solutions.length; i++) {
     for (let j = i + 1; j < solutions.length; j++) {
@@ -304,7 +319,7 @@ export function detectContradictions(dirs: string[]): string[] {
       const b = solutions[j];
 
       // Tags overlap > 70%
-      const overlap = a.tags.filter(t => b.tags.includes(t));
+      const overlap = a.tags.filter(t => tagSets[j].has(t));
       const overlapRatio = overlap.length / Math.max(a.tags.length, b.tags.length, 1);
       if (overlapRatio < 0.7) continue;
 

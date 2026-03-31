@@ -122,6 +122,33 @@ describe('Thompson Sampling', () => {
       expect(state.posteriors['d'].sigma2).toBeLessThanOrEqual(0.04);
     });
 
+    it('50회 업데이트 후에도 μ가 여전히 변한다 (관측수 기반 감쇠)', () => {
+      const state = initThompsonState({ d: 0.5 });
+      // 50회 동일 방향 보상으로 baseline을 만든 뒤 반대 방향 보상
+      for (let i = 0; i < 50; i++) {
+        updatePosterior(state, makeReward(0.3, { d: 0.3 }));
+      }
+      const muAfter50 = state.posteriors['d'].mu;
+      // 51번째에 높은 보상 + 높은 샘플 → mu가 여전히 상승해야 함
+      updatePosterior(state, makeReward(0.9, { d: 0.7 }));
+      const muAfter51 = state.posteriors['d'].mu;
+      // 핵심: 50회 후에도 μ가 변해야 함 (이전 conjugate는 5회 후 정지)
+      expect(Math.abs(muAfter51 - muAfter50)).toBeGreaterThan(0.0001);
+    });
+
+    it('σ² 감쇠가 관측수에 비례하여 점진적이다 (conjugate처럼 급감하지 않음)', () => {
+      const state = initThompsonState({ d: 0.5 });
+      const sigma2Values: number[] = [state.posteriors['d'].sigma2];
+      for (let i = 0; i < 30; i++) {
+        updatePosterior(state, makeReward(0.5, { d: 0.5 }));
+        sigma2Values.push(state.posteriors['d'].sigma2);
+      }
+      // 5회 후 σ²가 초기값의 50% 이상 유지 (conjugate는 5%)
+      expect(sigma2Values[5]).toBeGreaterThan(0.04 * 0.5);
+      // 30회 후 σ²가 초기값의 25% 이상 유지
+      expect(sigma2Values[30]).toBeGreaterThan(0.04 * 0.25);
+    });
+
     it('BKT 조절 후에도 σ²는 유한 범위 [MIN, MAX] 내에 있다', () => {
       const state = initThompsonState({ d: 0.5 });
       // P(known)=0 (최대 탐색) 반복 적용
@@ -136,6 +163,27 @@ describe('Thompson Sampling', () => {
         adjustSigmaWithBKT(state, { d: 1.0 });
       }
       expect(state.posteriors['d'].sigma2).toBeGreaterThanOrEqual(0.001);
+    });
+  });
+
+  describe('순차 업데이트 ordering bias (C1 후 재측정)', () => {
+    it('reward 순서를 뒤집어도 최종 μ 차이가 5% 이내', () => {
+      const rewards = Array.from({ length: 10 }, (_, i) =>
+        makeReward(0.3 + i * 0.05, { d: 0.3 + i * 0.05 }),
+      );
+
+      // 정순
+      const stateA = initThompsonState({ d: 0.5 });
+      for (const r of rewards) updatePosterior(stateA, r);
+
+      // 역순
+      const stateB = initThompsonState({ d: 0.5 });
+      for (const r of [...rewards].reverse()) updatePosterior(stateB, r);
+
+      const muA = stateA.posteriors['d'].mu;
+      const muB = stateB.posteriors['d'].mu;
+      // C1 수정 후 alpha 비율 ~1.25:1이므로 순서 차이가 매우 작아야 함
+      expect(Math.abs(muA - muB) / Math.max(Math.abs(muA), 0.001)).toBeLessThan(0.05);
     });
   });
 

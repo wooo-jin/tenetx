@@ -18,6 +18,10 @@
 
 import { readStdinJSON } from './shared/read-stdin.js';
 import { readNotepad } from '../core/notepad.js';
+import { isHookEnabled } from './hook-config.js';
+import { truncateContent } from './shared/injection-caps.js';
+import { calculateBudget } from './shared/context-budget.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 interface HookInput {
   prompt: string;
@@ -29,8 +33,12 @@ interface HookInput {
 
 async function main(): Promise<void> {
   const input = await readStdinJSON<HookInput>();
+  if (!isHookEnabled('notepad-injector')) {
+    console.log(approve());
+    return;
+  }
   if (!input?.prompt) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -39,21 +47,19 @@ async function main(): Promise<void> {
 
   if (!notepadContent.trim()) {
     // notepad가 비어있으면 아무것도 주입하지 않음
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
   // 태그 이스케이프: notepad 내용 내의 닫는 태그를 안전하게 처리
-  const safeContent = notepadContent.trim().replace(/<\/tenetx-notepad>/g, '&lt;/tenetx-notepad&gt;');
+  const safeContent = truncateContent(notepadContent.trim(), calculateBudget(effectiveCwd).notepadMax)
+    .replace(/<\/tenetx-notepad>/g, '&lt;/tenetx-notepad&gt;');
   const injection = `<tenetx-notepad>\n${safeContent}\n</tenetx-notepad>`;
 
-  console.log(JSON.stringify({
-    result: 'approve',
-    message: injection,
-  }));
+  console.log(approve(injection));
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

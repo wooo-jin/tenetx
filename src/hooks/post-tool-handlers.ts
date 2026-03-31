@@ -121,6 +121,8 @@ export function updateNegativeEvidence(solutionName: string): void {
       const files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
       for (const file of files) {
         const filePath = path.join(dir, file);
+        // Security: symlink을 통한 임의 파일 읽기/쓰기 방지
+        if (fs.lstatSync(filePath).isSymbolicLink()) continue;
         const content = fs.readFileSync(filePath, 'utf-8');
         if (!content.includes(`name: "${solutionName}"`) && !content.includes(`name: ${solutionName}`)) continue;
 

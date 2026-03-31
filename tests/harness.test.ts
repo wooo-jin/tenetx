@@ -164,13 +164,13 @@ describe('prepareHarness() integration', () => {
     const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
     expect(settings.statusLine).toEqual({
       type: 'command',
-      command: 'tenetx status',
+      command: 'tenetx me',
     });
   });
 
   // ── statusLine 보존 테스트 ──
 
-  it('기존 tenetx statusLine → 덮어쓰기', async () => {
+  it('기존 tenetx meLine → 덮어쓰기', async () => {
     fs.mkdirSync(TEST_CLAUDE_DIR, { recursive: true });
     fs.writeFileSync(TEST_SETTINGS_PATH, JSON.stringify({
       statusLine: { type: 'command', command: 'tenetx old-status' },
@@ -179,7 +179,7 @@ describe('prepareHarness() integration', () => {
     await prepareHarness(TEST_CWD);
 
     const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
-    expect(settings.statusLine.command).toBe('tenetx status');
+    expect(settings.statusLine.command).toBe('tenetx me');
   });
 
   it('기존 커스텀 statusLine → 보존', async () => {
@@ -204,7 +204,7 @@ describe('prepareHarness() integration', () => {
     const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
     expect(settings.statusLine).toEqual({
       type: 'command',
-      command: 'tenetx status',
+      command: 'tenetx me',
     });
   });
 

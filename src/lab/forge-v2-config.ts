@@ -64,13 +64,15 @@ export function saveForgeV2Config(config: ForgeV2Config): void {
  * 무효 조합 시 경고 로그.
  */
 export function validateForgeV2Config(config: ForgeV2Config): ForgeV2Config {
-  if (config.preferenceTracing && !config.thompsonSampling) {
+  // 새 객체 반환 — 원본 config를 변이하지 않음
+  const result = { ...config };
+  if (result.preferenceTracing && !result.thompsonSampling) {
     log.debug('preferenceTracing requires thompsonSampling — auto-enabling');
-    config.thompsonSampling = true;
+    result.thompsonSampling = true;
   }
-  if (config.dimensionCorrelation && !config.thompsonSampling) {
+  if (result.dimensionCorrelation && !result.thompsonSampling) {
     log.debug('dimensionCorrelation requires thompsonSampling — auto-enabling');
-    config.thompsonSampling = true;
+    result.thompsonSampling = true;
   }
-  return config;
+  return result;
 }

@@ -38,7 +38,7 @@ describe('db-guard main()', () => {
     mockReadStdinJSON.mockResolvedValue(null);
     await import('../src/hooks/db-guard.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -49,7 +49,7 @@ describe('db-guard main()', () => {
     });
     await import('../src/hooks/db-guard.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -60,7 +60,7 @@ describe('db-guard main()', () => {
     });
     await import('../src/hooks/db-guard.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('reject'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":false'))).toBe(true);
       expect(logOutput.some(l => l.includes('Dangerous SQL'))).toBe(true);
     });
   });
@@ -72,7 +72,7 @@ describe('db-guard main()', () => {
     });
     await import('../src/hooks/db-guard.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
       expect(logOutput.some(l => l.includes('compound-sql-warning'))).toBe(true);
     });
   });
@@ -85,7 +85,7 @@ describe('db-guard main()', () => {
     await import('../src/hooks/db-guard.js');
     await vi.waitFor(() => {
       const lastOutput = logOutput[logOutput.length - 1];
-      expect(lastOutput).toContain('approve');
+      expect(lastOutput).toContain('"continue":true');
       expect(lastOutput).not.toContain('warning');
     });
   });
@@ -98,8 +98,8 @@ describe('db-guard main()', () => {
     await import('../src/hooks/db-guard.js');
     await vi.waitFor(() => {
       const lastOutput = logOutput[logOutput.length - 1];
-      expect(lastOutput).toContain('approve');
-      expect(lastOutput).not.toContain('reject');
+      expect(lastOutput).toContain('"continue":true');
+      expect(lastOutput).not.toContain('"continue":false');
     });
   });
 });

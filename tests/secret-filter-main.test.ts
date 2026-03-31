@@ -29,7 +29,7 @@ describe('secret-filter main()', () => {
     mockReadStdinJSON.mockResolvedValue(null);
     await import('../src/hooks/secret-filter.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -41,7 +41,7 @@ describe('secret-filter main()', () => {
     await import('../src/hooks/secret-filter.js');
     await vi.waitFor(() => {
       const lastOutput = logOutput[logOutput.length - 1];
-      expect(lastOutput).toContain('approve');
+      expect(lastOutput).toContain('"continue":true');
       expect(lastOutput).not.toContain('security-warning');
     });
   });
@@ -79,7 +79,7 @@ describe('secret-filter main()', () => {
     await import('../src/hooks/secret-filter.js');
     await vi.waitFor(() => {
       const lastOutput = logOutput[logOutput.length - 1];
-      expect(lastOutput).toContain('approve');
+      expect(lastOutput).toContain('"continue":true');
       expect(lastOutput).not.toContain('security-warning');
     });
   });

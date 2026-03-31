@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **3 failing tests** — slop-detector-main.test.ts depended on local `~/.compound/hook-config.json` (now mocked)
 - **106 empty catch blocks → 0** — all replaced with `debugLog()` or descriptive comments explaining why safe to ignore
-- **70 biome lint warnings → 0** — `noAssignInExpressions`, non-null assertions, array index keys, etc.
+- **70 biome lint warnings → 5** — `noAssignInExpressions`, non-null assertions, array index keys, etc. (remaining: `useTemplate`, `useLiteralKeys`)
 - **CI coverage double-run** — merged `npm test` + `--coverage` into single vitest invocation to prevent mock state corruption
 
 ### Changed

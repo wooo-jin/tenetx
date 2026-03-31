@@ -47,7 +47,7 @@ describe('context-guard main()', () => {
     mockReadStdinJSON.mockResolvedValue(null);
     const { main } = await import('../src/hooks/context-guard.js');
     await main();
-    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+    expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
   });
 
   it('프롬프트가 있으면 상태를 기록하고 approve', async () => {
@@ -57,7 +57,7 @@ describe('context-guard main()', () => {
     });
     const { main } = await import('../src/hooks/context-guard.js');
     await main();
-    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+    expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
   });
 
   it('stop_hook_type이 있으면 approve', async () => {
@@ -67,7 +67,7 @@ describe('context-guard main()', () => {
     });
     const { main } = await import('../src/hooks/context-guard.js');
     await main();
-    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+    expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
   });
 
   it('context limit 에러가 있으면 handoff 저장', async () => {
@@ -78,7 +78,7 @@ describe('context-guard main()', () => {
     });
     const { main } = await import('../src/hooks/context-guard.js');
     await main();
-    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+    expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     expect(logOutput.some(l => l.includes('Context limit'))).toBe(true);
   });
 
@@ -89,6 +89,6 @@ describe('context-guard main()', () => {
     });
     const { main } = await import('../src/hooks/context-guard.js');
     await main();
-    expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+    expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
   });
 });

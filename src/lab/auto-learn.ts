@@ -10,7 +10,6 @@
  * exponential moving average smoothing.
  */
 
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
@@ -48,9 +47,10 @@ const MAX_DELTA_PER_CYCLE = 0.15;
  * 0.15 = more conservative for noisy behavioral signals (effective window ~12 cycles) */
 const LEARNING_RATE = 0.15;
 
-/** Neutral decay rate: pulls dimensions toward 0.5 when no evidence
+/** Neutral decay rate: pulls dimensions toward 0.5 when no evidence.
  * Prevents permanent profile drift from temporary behavior changes.
- * 0.02/cycle = ~50 cycles (days) half-life toward neutral */
+ * 0.02/cycle = ~34 cycles (days) half-life toward neutral (ln(0.5)/ln(0.98) ≈ 34.3).
+ * Conservative by design — v1 EMA 경로에서 좁은 유효 범위를 형성하여 급격한 프로필 변경 방지. */
 const NEUTRAL_DECAY_RATE = 0.02;
 
 /** Default analysis window: 30 days */
@@ -70,6 +70,7 @@ const MIN_HOURS_BETWEEN_RUNS = 24;
 const SYSTEM_INTERNAL_TYPES: ReadonlySet<string> = new Set([
   'synthesis',
   'auto-evolve',
+  'session-metrics',  // 시스템 생성 메타데이터 — 사용자 행동이 아니므로 패턴 감지에서 제외
   'compound-injected',
   'compound-reflected',
   'compound-negative',
@@ -242,6 +243,18 @@ export async function runEvolveCycle(
 ): Promise<EvolveResult> {
   try {
     // 1. Load events from the analysis window
+    // Guard: windowDays <= 0 is a degenerate case (no valid time range)
+    if (windowDays <= 0) {
+      return {
+        changed: false,
+        adjustments: [],
+        patterns: [],
+        previousVector: null,
+        newVector: null,
+        totalEventsAnalyzed: 0,
+        reason: 'Empty analysis window (windowDays ≤ 0)',
+      };
+    }
     const sinceMs = Date.now() - windowDays * 24 * 60 * 60 * 1000;
     const events = readEvents(sinceMs);
 
@@ -329,11 +342,17 @@ export async function runEvolveCycle(
       const rewards = computeSessionRewards(events);
       for (const reward of rewards) {
         if (!reward.dimensionSnapshot || Object.keys(reward.dimensionSnapshot).length === 0) {
-          reward.dimensionSnapshot = tsState.lastSample ?? previousVector;
+          // 얕은 복사: 참조 공유 방지. 원본 lastSample/previousVector가
+          // 이후 coupled delta 등에 의해 변경되어도 snapshot이 오염되지 않도록 함.
+          reward.dimensionSnapshot = { ...(tsState.lastSample ?? previousVector) };
         }
       }
 
       // 보상이 없으면 샘플링 건너뛰기 (랜덤 드리프트 방지)
+      // NOTE: updatePosterior는 μ(REINFORCE)와 σ²(관측수 기반 감쇠)를 업데이트.
+      // BKT 활성 시 σ²는 adjustSigmaWithBKT가 덮어씀 — 의도적 설계:
+      // BKT σ²가 다음 사이클의 REINFORCE α로 사용되어, P(known) 낮으면 더 빠르게 학습.
+      // σ²가 관측수 기반이므로 BKT 덮어쓰기 후에도 다음 updatePosterior에서 관측수 기반으로 재계산됨.
       if (rewards.length > 0) {
         for (const reward of rewards) {
           updatePosterior(tsState, reward);
@@ -341,18 +360,23 @@ export async function runEvolveCycle(
       }
 
       // BKT로 탐색 강도 조절 (optional)
+      // adjustSigmaWithBKT는 σ²를 P(known)과 관측 수 기반으로 직접 설정 (conjugate σ²를 덮어씀)
       if (v2Config.preferenceTracing) {
-        const { initPreferenceState, loadPreferenceStates, savePreferenceStates, updateFromPatterns, getPKnownMap } = await import('./preference-tracer.js');
+        const { initPreferenceState, loadPreferenceStates, savePreferenceStates, updateFromPatterns, getPKnownMap, reEstimateParameters } = await import('./preference-tracer.js');
         const dims = Object.keys(previousVector);
         const prefStates = loadPreferenceStates() ?? initPreferenceState(dims);
         updateFromPatterns(prefStates, patterns, previousVector);
+        // 관측 50+ 이후 BKT 파라미터 재추정 (EM-like)
+        for (const state of Object.values(prefStates)) {
+          reEstimateParameters(state);
+        }
         adjustSigmaWithBKT(tsState, getPKnownMap(prefStates));
         savePreferenceStates(prefStates);
       }
 
       // 차원 상관관계 학습 + 적용 (optional)
       if (v2Config.dimensionCorrelation) {
-        const { initCovarianceState, loadCovarianceState, saveCovarianceState, updateCovariance, computeCoupledDeltas } = await import('./dimension-correlation.js');
+        const { initCovarianceState, loadCovarianceState, saveCovarianceState, updateCovariance } = await import('./dimension-correlation.js');
         const dims = Object.keys(previousVector);
         const covState = loadCovarianceState() ?? initCovarianceState(dims);
         // 학습: 각 세션의 실제 차원 스냅샷으로 공분산 업데이트
@@ -393,10 +417,22 @@ export async function runEvolveCycle(
     }
 
     // v2 보상 수집 (TS 비활성 시만 — TS 경로에서는 이미 계산됨)
+    // 보상 데이터를 저장하여 향후 OPRO 통합 시 활용 가능하도록 함
     if (v2Config.rewardCollection && !v2Config.thompsonSampling) {
       try {
         const { computeSessionRewards } = await import('./reward.js');
-        computeSessionRewards(events);
+        const collectedRewards = computeSessionRewards(events);
+        if (collectedRewards.length > 0) {
+          const rewardHistoryPath = path.join(os.homedir(), '.compound', 'lab', 'reward-history.json');
+          const existing = safeReadJSON<Array<{ timestamp: string; sessionId: string; reward: number }>>(rewardHistoryPath, []);
+          const newEntries = collectedRewards.map(r => ({
+            timestamp: r.timestamp,
+            sessionId: r.sessionId,
+            reward: r.reward,
+          }));
+          const merged = [...existing, ...newEntries].slice(-200); // 최근 200건 유지
+          atomicWriteJSON(rewardHistoryPath, merged, { pretty: true });
+        }
       } catch (e) { log.debug('보상 수집 실패', e); }
     }
     const changed = hasVectorChanged(previousVector, newVector);

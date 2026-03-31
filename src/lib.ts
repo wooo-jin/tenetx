@@ -39,7 +39,6 @@ export {
 
 // ── Core utilities ──
 export { loadPhilosophy } from './core/philosophy-loader.js';
-export { profileTask, routeTasks, autoDelegate, type TaskProfile, type AgentPreference } from './core/codex-router.js';
 
 // ── Errors ──
 export { TenetxError, ProviderError, HookError, ConfigError, PackError, ForgeError, NonRetryableError } from './core/errors.js';

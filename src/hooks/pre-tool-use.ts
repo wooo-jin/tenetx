@@ -20,6 +20,8 @@ import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
 import { track } from '../lab/tracker.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, deny, failOpen } from './shared/hook-response.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'pre-tool-fail-counter.json');
@@ -268,6 +270,8 @@ export function updateSolutionEvidence(solutionName: string, field: 'reflected' 
       const files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
       for (const file of files) {
         const filePath = path.join(dir, file);
+        // Security: symlink을 통한 임의 파일 읽기/쓰기 방지
+        if (fs.lstatSync(filePath).isSymbolicLink()) continue;
         const content = fs.readFileSync(filePath, 'utf-8');
         if (!content.includes(`name: "${solutionName}"`) && !content.includes(`name: ${solutionName}`)) continue;
 
@@ -294,15 +298,20 @@ async function main(): Promise<void> {
     // graceful fail-close: consecutive failure counter
     const failCount = getAndIncrementFailCount();
     if (failCount >= FAIL_CLOSE_THRESHOLD) {
-      console.log(JSON.stringify({ result: 'reject', reason: `[Tenetx] PreToolUse: stdin parse failed ${failCount} consecutive times — blocking for safety.` }));
+      console.log(deny(`[Tenetx] PreToolUse: stdin parse failed ${failCount} consecutive times — blocking for safety.`));
     } else {
       process.stderr.write(`[ch-hook] stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD}), approving\n`);
-      console.log(JSON.stringify({ result: 'approve', message: `[Tenetx] ⚠ PreToolUse stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})` }));
+      console.log(approve(`[Tenetx] ⚠ PreToolUse stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})`));
     }
     return;
   }
   // 정상 파싱 성공 시 연속 실패 카운터 리셋
   resetFailCount();
+
+  if (!isHookEnabled('pre-tool-use')) {
+    console.log(approve());
+    return;
+  }
 
   const toolName = data.tool_name ?? data.toolName ?? '';
   const toolInput = data.tool_input ?? data.toolInput ?? {};
@@ -311,17 +320,11 @@ async function main(): Promise<void> {
   // Bash 도구: 위험 명령어 감지
   const check = checkDangerousCommand(toolName, toolInput);
   if (check.action === 'block') {
-    console.log(JSON.stringify({
-      result: 'reject',
-      reason: `[Tenetx] Dangerous command blocked: ${check.description}\nCommand: ${check.command}`,
-    }));
+    console.log(deny(`[Tenetx] Dangerous command blocked: ${check.description}\nCommand: ${check.command}`));
     return;
   }
   if (check.action === 'warn') {
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: `<compound-tool-warning>\n[Tenetx] ⚠ Dangerous command detected: ${check.description}\nProceed with caution.\n</compound-tool-warning>`,
-    }));
+    console.log(approve(`<compound-tool-warning>\n[Tenetx] ⚠ Dangerous command detected: ${check.description}\nProceed with caution.\n</compound-tool-warning>`));
     return;
   }
 
@@ -331,14 +334,11 @@ async function main(): Promise<void> {
   // 활성 모드 리마인더 (10회 호출당 1회 — 결정적 카운터 기반)
   const reminders = getActiveReminders();
   if (reminders.length > 0 && shouldShowReminderIO()) {
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: `<compound-reminder>\n${reminders.join('\n')}\n</compound-reminder>`,
-    }));
+    console.log(approve(`<compound-reminder>\n${reminders.join('\n')}\n</compound-reminder>`));
     return;
   }
 
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(approve());
 }
 
 main().catch((e) => {
@@ -347,5 +347,5 @@ main().catch((e) => {
   });
   process.stderr.write(`[ch-hook] ${hookErr.name}: ${hookErr.message}\n`);
   // fail-open: approve on internal error to avoid blocking all tool calls
-  console.log(JSON.stringify({ result: 'approve', message: '[Tenetx] PreToolUse: internal error — approving to avoid blocking.' }));
+  console.log(failOpen());
 });

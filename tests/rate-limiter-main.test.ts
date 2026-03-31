@@ -37,7 +37,7 @@ describe('rate-limiter main()', () => {
     mockReadStdinJSON.mockResolvedValue(null);
     await import('../src/hooks/rate-limiter.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -47,7 +47,7 @@ describe('rate-limiter main()', () => {
     });
     await import('../src/hooks/rate-limiter.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -57,7 +57,7 @@ describe('rate-limiter main()', () => {
     });
     await import('../src/hooks/rate-limiter.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -67,7 +67,7 @@ describe('rate-limiter main()', () => {
     });
     await import('../src/hooks/rate-limiter.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 });

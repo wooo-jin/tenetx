@@ -107,7 +107,10 @@ export function recordCandidateReward(
   if (!candidate) return false;
 
   candidate.rewardHistory.push(reward);
-  // 이동 평균 (최근 20개)
+  // 상한 50개 유지 (JSON 직렬화 크기 제한). 이동 평균은 최근 20개 사용.
+  if (candidate.rewardHistory.length > 50) {
+    candidate.rewardHistory = candidate.rewardHistory.slice(-50);
+  }
   const recent = candidate.rewardHistory.slice(-20);
   candidate.avgReward = recent.reduce((a, b) => a + b, 0) / recent.length;
   return true;

@@ -188,16 +188,28 @@ describe('generateClaudeRules — 프로젝트 맵 주입', () => {
   });
 });
 
-describe('generateClaudeRuleFiles — 5개 분할', () => {
-  it('5개의 규칙 파일을 생성한다', () => {
+describe('generateClaudeRuleFiles — 분할 + 조건부 로딩', () => {
+  it('규칙 파일을 생성한다 (핵심 2개 + 조건부 3개 + 학습 패턴)', () => {
     const files = generateClaudeRuleFiles(baseContext);
-    expect(Object.keys(files)).toEqual([
-      'security.md',
-      'golden-principles.md',
-      'anti-pattern.md',
-      'routing.md',
-      'compound.md',
-    ]);
+    const keys = Object.keys(files);
+    expect(keys.length).toBeGreaterThanOrEqual(5);
+    // 항상 로드
+    expect(keys).toContain('golden-principles.md');
+    expect(keys).toContain('compound.md');
+    // 조건부 로드 (paths frontmatter 포함)
+    expect(keys).toContain('security.md');
+    expect(keys).toContain('anti-pattern.md');
+    expect(keys).toContain('routing.md');
+  });
+
+  it('조건부 파일에 paths frontmatter가 포함된다', () => {
+    const files = generateClaudeRuleFiles(baseContext);
+    expect(files['security.md']).toContain('paths:');
+    expect(files['anti-pattern.md']).toContain('paths:');
+    expect(files['routing.md']).toContain('paths:');
+    // 항상 로드 파일에는 paths 없음
+    expect(files['golden-principles.md']).not.toContain('paths:');
+    expect(files['compound.md']).not.toContain('paths:');
   });
 
   it('모든 파일이 비어있지 않다', () => {
