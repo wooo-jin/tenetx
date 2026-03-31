@@ -5,6 +5,60 @@ All notable changes to tenetx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-03-31
+
+### Breaking Changes
+- **Public API**: Removed `readCodexOAuthToken`, `loadProviderConfigs`, `ProviderConfig`, `ProviderName`, `ProviderError`, `PackError`, `PackMeta`, `PackRequirement` exports from lib.ts
+- **CLI**: 37 commands → 12 (removed pack, remix, dashboard, setup, status, worktree, ask, codex-spawn, synth, wait, notify, governance, gateway, worker, proposals, scan, verify, stats, rules, marketplace, session, philosophy)
+- **Dependencies**: Removed `ink`, `react`. Added `zod` as direct dependency
+
+### Added
+- **MCP compound server**: 4 tools (compound-search, compound-list, compound-read, compound-stats) for on-demand knowledge access
+- **Behavioral learning**: 10 thinking patterns (verify-first, quality-over-speed, understand-why, pragmatic, systematic, evidence-based, risk-aware, autonomous, collaborative, incremental)
+- **Pre-compact Claude analysis**: Claude analyzes conversation for thinking patterns at context compaction (0 API cost)
+- **Session feedback**: "[tenetx] 학습된 패턴 N개 활성 중" shown at session start
+- **forge-behavioral.md**: Auto-generated rules from learned preferences
+- **Progressive Disclosure**: Push summaries (~200 tokens), pull full content via MCP (89% token reduction)
+- **Hook response utilities**: Shared approve/deny/failOpen functions (Plugin SDK format)
+- **Tool-specific matchers**: db-guard→Bash, secret-filter→Write|Edit|Bash, slop-detector→Write|Edit
+
+### Changed
+- **Codebase**: 36,977 → ~24,000 lines (35% reduction)
+- **Hook protocol**: Migrated all 17 hooks from `result/message` to `continue/systemMessage` (Plugin SDK format)
+- **Tag extraction**: Korean stopwords filter (80 words), MAX_TAGS=10, frequency-based ranking
+- **Solution matching**: Identifier-based boost (+0.15), threshold relaxed (2 tags → 1 tag or 1 identifier)
+- **Context budget**: Conservative fallback (factor=0.7 on detection failure)
+- **Rules**: Conditional loading via paths frontmatter, RULE_FILE_CAPS enforced (3000/file, 15000/total)
+- **Skill descriptions**: Updated to 3rd-person format per Claude Code Plugin SDK best practices
+- **Build**: `rm -rf dist` before tsc (clean tarball guaranteed)
+
+### Removed
+- Pack system (src/pack/, packs/, tenetx pack commands)
+- Remix system (src/remix/)
+- Dashboard TUI (src/dashboard/, ink/react dependencies)
+- 27 unused modules (synthesizer, marketplace, worktree, etc.)
+- 12 workflow mode commands (ralph, autopilot, team, etc.)
+- Philosophy generator/CLI
+- Templates directory
+- Dead INJECTION_CAPS (keywordInjectMax, perPromptTotal)
+
+### Fixed
+- **compound-lifecycle.ts**: confidence subtraction -20 → -0.20 (was zeroing on 0-1 scale)
+- **compound-lifecycle.ts**: Promotion now runs before staleness check (was blocking upgrades)
+- **compound-lifecycle.ts**: Identifier staleness aligned to 6+ chars (was 4+, mismatched with Code Reflection)
+- **session-recovery.ts**: runExtraction fire-and-forget (3056ms → 151ms)
+- **Security**: Symlink protection at 8 locations, SUDO_USER execFileSync, settings.json single-write
+- **postinstall**: Matcher field from hook-registry.json (was hardcoded '*')
+- **uninstall**: Now cleans mcpServers['tenetx-compound']
+- **Dead paths**: tenetx status→me, dashboard deleted, tmux binding fixed, REMIX_DIR removed
+- **Docs**: All 4 language READMEs rewritten, SECURITY.md updated to 2.5.x→3.0.0
+
+### Security
+- 46 issues fixed across 6 review iterations
+- All hooks fail-open with Plugin SDK format
+- Prompt injection defense: 13 patterns + Unicode NFKC + XML escaping
+- YAML bomb protection (5KB frontmatter cap, 3 anchor limit)
+
 ## [2.1.0] - 2026-03-25
 
 ### Added
