@@ -2,6 +2,9 @@ node_modules/
 dist/
 *.js.map
 
+# Career docs (private)
+.career-edit/
+
 # Internal docs
 BENCHMARK.md
 CHECKLIST.md
