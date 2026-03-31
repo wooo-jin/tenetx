@@ -9,7 +9,6 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createLogger } from '../core/logger.js';
 
@@ -18,8 +17,7 @@ import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, failOpen } from './shared/hook-response.js';
-
-const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
+import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 
 export interface Checkpoint {
   sessionId: string;
@@ -245,7 +243,7 @@ async function main(): Promise<void> {
   }
 
   // 핸드오프 파일 확인
-  const handoffDir = path.join(os.homedir(), '.compound', 'handoffs');
+  const handoffDir = path.join(COMPOUND_HOME, 'handoffs');
   if (fs.existsSync(handoffDir)) {
     try {
       const handoffs = fs.readdirSync(handoffDir)

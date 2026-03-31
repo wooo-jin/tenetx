@@ -9,7 +9,6 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('permission-handler');
@@ -18,8 +17,7 @@ import { sanitizeId } from './shared/sanitize-id.js';
 import { trackUserOverride } from '../lab/tracker.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, failOpen } from './shared/hook-response.js';
-
-const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
+import { STATE_DIR } from '../core/paths.js';
 
 interface PermissionInput {
   tool_name?: string;

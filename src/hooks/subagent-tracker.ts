@@ -10,15 +10,13 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { trackAgentCall } from '../lab/tracker.js';
 import { approve, failOpen } from './shared/hook-response.js';
-
-const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
+import { STATE_DIR } from '../core/paths.js';
 
 const MAX_CONCURRENT_AGENTS = 10;
 const AGENT_GC_AGE_MS = 60 * 60 * 1000; // 1시간 이상 종료된 에이전트는 GC

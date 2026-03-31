@@ -3,6 +3,12 @@ import * as path from 'node:path';
 
 const HOME = os.homedir();
 
+/** ~/.claude/ — Claude Code 설정 디렉토리 */
+export const CLAUDE_DIR = path.join(HOME, '.claude');
+
+/** ~/.claude/settings.json — Claude Code 설정 파일 */
+export const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
+
 /** ~/.compound/ — 하네스 홈 디렉토리 */
 export const COMPOUND_HOME = path.join(HOME, '.compound');
 

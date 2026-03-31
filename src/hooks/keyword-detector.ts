@@ -12,7 +12,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('keyword-detector');
@@ -27,7 +26,7 @@ import type { RoutingPreset } from '../engine/router.js';
 import { loadPhilosophyForProject } from '../core/philosophy-loader.js';
 import { loadGlobalConfig } from '../core/global-config.js';
 import { loadPackConfigs } from '../core/pack-config.js';
-import { PACKS_DIR } from '../core/paths.js';
+import { COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { trackModeActivation, trackHookTrigger, trackSkillInvocation } from '../lab/tracker.js';
 import { escapeAllXmlTags } from './prompt-injection-filter.js';
@@ -38,9 +37,6 @@ import { approve, failOpen } from './shared/hook-response.js';
 function escapeXmlAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const STATE_DIR = path.join(COMPOUND_HOME, 'state');
 
 interface HookInput {
   prompt: string;
@@ -238,7 +234,7 @@ function loadSkillContent(skillName: string): string | null {
   }
 
   // 글로벌 스킬 경로
-  searchPaths.push(path.join(os.homedir(), '.compound', 'skills', `${skillName}.md`));
+  searchPaths.push(path.join(COMPOUND_HOME, 'skills', `${skillName}.md`));
 
   // tenetx 패키지 내장 스킬
   const pkgSkillPath = path.resolve(

@@ -12,18 +12,15 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadHookConfig, isHookEnabled } from './hook-config.js';
 import { approve, failOpen } from './shared/hook-response.js';
+import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('context-guard');
-
-const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const STATE_DIR = path.join(COMPOUND_HOME, 'state');
 const CONTEXT_STATE_PATH = path.join(STATE_DIR, 'context-guard.json');
 
 interface ContextState {

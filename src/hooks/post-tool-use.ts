@@ -8,7 +8,6 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('post-tool-use');
@@ -24,8 +23,7 @@ import { incrementWorkflowCounter, checkWorkflowCompletion } from '../engine/wor
 import { incrementFailureCounter, checkCompoundNegative, getCompoundSuccessHint } from './post-tool-handlers.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, failOpen } from './shared/hook-response.js';
-
-const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
+import { STATE_DIR } from '../core/paths.js';
 
 // ── Types ──
 
@@ -153,7 +151,7 @@ async function main(): Promise<void> {
       try {
         const activeAgents = (() => {
           try {
-            const agentsPath = path.join(os.homedir(), '.compound', 'state', `active-agents-${sessionId}.json`);
+            const agentsPath = path.join(STATE_DIR, `active-agents-${sessionId}.json`);
             if (fs.existsSync(agentsPath)) {
               const agents = JSON.parse(fs.readFileSync(agentsPath, 'utf-8'));
               return Array.isArray(agents.agents) ? agents.agents.filter((a: { stoppedAt?: string }) => !a.stoppedAt).length : 0;

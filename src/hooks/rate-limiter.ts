@@ -8,13 +8,11 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, deny, failOpen } from './shared/hook-response.js';
-
-const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
+import { STATE_DIR } from '../core/paths.js';
 const RATE_LIMIT_PATH = path.join(STATE_DIR, 'rate-limit.json');
 const DEFAULT_LIMIT = 30; // calls per minute
 const WINDOW_MS = 60_000; // 1 minute

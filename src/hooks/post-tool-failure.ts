@@ -10,7 +10,6 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 // debugLog는 향후 확장용으로 import 유지 가능하지만, 현재 미사용
 import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
@@ -18,8 +17,7 @@ import { isHookEnabled } from './hook-config.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { approve, failOpen } from './shared/hook-response.js';
-
-const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
+import { STATE_DIR } from '../core/paths.js';
 
 interface FailureInput {
   tool_name?: string;
