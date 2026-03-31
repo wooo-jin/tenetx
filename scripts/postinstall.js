@@ -412,13 +412,18 @@ function generateAndWriteHooksJson() {
     byEvent.get(hook.event).push(hook);
   }
 
-  // hooks.json 구조 조립
+  // hooks.json 구조 조립 — matcher별 그룹핑 (best practice: 도구별 필터링)
   const hooks = {};
   for (const [event, entries] of byEvent) {
-    hooks[event] = [{
-      matcher: '*',
-      hooks: entries.map(h => {
-        // "hooks/subagent-tracker.js stop" 같은 경우 공백으로 분리
+    const byMatcher = new Map();
+    for (const h of entries) {
+      const m = h.matcher || '*';
+      if (!byMatcher.has(m)) byMatcher.set(m, []);
+      byMatcher.get(m).push(h);
+    }
+    hooks[event] = [...byMatcher.entries()].map(([matcher, matcherEntries]) => ({
+      matcher,
+      hooks: matcherEntries.map(h => {
         const spaceIdx = h.script.indexOf(' ');
         let command;
         if (spaceIdx === -1) {
@@ -430,7 +435,7 @@ function generateAndWriteHooksJson() {
         }
         return { type: 'command', command, timeout: h.timeout };
       }),
-    }];
+    }));
   }
 
   const total = HOOK_REGISTRY.length;

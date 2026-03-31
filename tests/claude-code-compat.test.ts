@@ -51,7 +51,8 @@ describe('Claude Code compatibility', () => {
       expect(Array.isArray(entries), `${eventName} must be an array`).toBe(true);
       for (const entry of entries as Record<string, unknown>[]) {
         expect(typeof entry.matcher, `${eventName} entry.matcher must be string`).toBe('string');
-        expect(entry.matcher, `${eventName} entry.matcher must be "*" (omc standard)`).toBe('*');
+        // v3: matcher는 '*' 또는 도구명 패턴 (Bash, Write|Edit 등) — Claude Code best practice
+        expect((entry.matcher as string).length > 0, `${eventName} entry.matcher must not be empty`).toBe(true);
         expect(Array.isArray(entry.hooks), `${eventName} entry.hooks must be array`).toBe(true);
         for (const hook of entry.hooks as Record<string, unknown>[]) {
           expect(typeof hook.type, `${eventName} hook.type must be string`).toBe('string');
