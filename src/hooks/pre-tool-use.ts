@@ -335,6 +335,31 @@ async function main(): Promise<void> {
   // Compound v3: Code Reflection check (non-blocking)
   try { checkCompoundReflection(toolName, toolInput, sessionId); } catch (e) { log.debug('compound reflection check 실패', e); }
 
+  // Phase 2: Agent tool 감지 → forge overlay 주입
+  // 의도: overlay와 reminder는 배타적. Agent 호출 시 overlay가 더 유용하므로 우선.
+  if (toolName === 'Agent' || toolName === 'Task') {
+    try {
+      const prompt = String(toolInput.prompt ?? toolInput.description ?? '');
+      if (prompt) {
+        const { loadForgeProfile } = await import('../forge/profile.js');
+        const { generateAgentOverlays } = await import('../forge/agent-tuner.js');
+        const { buildOverlayInjection } = await import('../orchestration/agent-overlay-injector.js');
+        const cwd = data.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
+        const profile = loadForgeProfile(cwd);
+        if (profile) {
+          const overlays = generateAgentOverlays(profile.dimensions);
+          const injection = buildOverlayInjection(prompt, overlays);
+          if (injection) {
+            console.log(approve(injection.message));
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      log.debug('agent overlay injection 실패 (정상 동작에 영향 없음)', e);
+    }
+  }
+
   // 활성 모드 리마인더 (10회 호출당 1회 — 결정적 카운터 기반)
   const reminders = getActiveReminders();
   if (reminders.length > 0 && shouldShowReminderIO()) {

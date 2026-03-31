@@ -99,6 +99,25 @@ const commands: Command[] = [
     },
   },
   {
+    name: 'pipeline',
+    description: 'Pipeline suggestions based on your forge profile',
+    handler: async () => {
+      const { loadForgeProfile } = await import('./forge/profile.js');
+      const { formatPipelineSuggestions } = await import('./orchestration/pipeline-recommender.js');
+      const profile = loadForgeProfile(process.cwd());
+      if (!profile) {
+        console.log('  Forge profile not found. Run a session first to auto-initialize.');
+        return;
+      }
+      const dims = profile.dimensions;
+      console.log(`\n${formatPipelineSuggestions({
+        qualityFocus: dims.qualityFocus,
+        riskTolerance: dims.riskTolerance,
+        autonomyPreference: dims.autonomyPreference,
+      })}\n`);
+    },
+  },
+  {
     name: 'mcp',
     description: 'MCP server management (list|templates|add|remove)',
     handler: async (args) => {
@@ -262,6 +281,7 @@ function printHelp() {
     tenetx me                       Personal dashboard
     tenetx cost                     Session cost tracking
     tenetx config hooks             Hook management
+    tenetx pipeline                 Pipeline suggestions
     tenetx mcp                      MCP server management
     tenetx init                     Initialize project
     tenetx notepad                  Session notepad
