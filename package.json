@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "build": "tsc && node scripts/copy-assets.js",
+    "build": "rm -rf dist && tsc && node scripts/copy-assets.js",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",

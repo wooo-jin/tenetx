@@ -55,7 +55,7 @@ export function loadHookConfig(hookName: string): Record<string, unknown> | null
   if (!all) return null;
 
   // v2 형식: hooks.hookName
-  const hooksSection = all['hooks'] as Record<string, Record<string, unknown>> | undefined;
+  const hooksSection = all.hooks as Record<string, Record<string, unknown>> | undefined;
   if (hooksSection?.[hookName]) return hooksSection[hookName];
 
   // 레거시 형식: 최상위에 hookName 직접 지정
@@ -77,20 +77,20 @@ export function isHookEnabled(hookName: string): boolean {
   if (!all) return true;
 
   // 1) 개별 훅 설정 (v2: hooks 섹션)
-  const hooksSection = all['hooks'] as Record<string, Record<string, unknown>> | undefined;
-  if (hooksSection?.[hookName]?.['enabled'] === false) return false;
-  if (hooksSection?.[hookName]?.['enabled'] === true) return true;
+  const hooksSection = all.hooks as Record<string, Record<string, unknown>> | undefined;
+  if (hooksSection?.[hookName]?.enabled === false) return false;
+  if (hooksSection?.[hookName]?.enabled === true) return true;
 
   // 2) 티어 설정 — compound-core는 절대 티어 비활성화로 끄지 않음
   const tier = HOOK_TIER_MAP[hookName];
   if (tier && tier !== 'compound-core') {
-    const tiers = all['tiers'] as Record<string, Record<string, unknown>> | undefined;
-    if (tiers?.[tier]?.['enabled'] === false) return false;
+    const tiers = all.tiers as Record<string, Record<string, unknown>> | undefined;
+    if (tiers?.[tier]?.enabled === false) return false;
   }
 
   // 3) 레거시 형식 (최상위 hookName.enabled)
   const legacy = all[hookName] as Record<string, unknown> | undefined;
-  if (legacy?.['enabled'] === false) return false;
+  if (legacy?.enabled === false) return false;
 
   // 4) 기본값: 활성화
   return true;

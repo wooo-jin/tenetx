@@ -316,7 +316,7 @@ async function main(): Promise<void> {
   // 스킬 컨텍스트 주입 (adaptive cap 적용)
   const injections = toInject.map(skill => {
     const capped = skill.content.length > skillCap
-      ? skill.content.slice(0, skillCap) + '\n... (capped)'
+      ? `${skill.content.slice(0, skillCap)}\n... (capped)`
       : skill.content;
     return `<compound-learned-skill name="${escapeXmlAttr(skill.name)}" description="${escapeXmlAttr(skill.description)}">\n${escapeAllXmlTags(capped)}\n</compound-learned-skill>`;
   }).join('\n\n');

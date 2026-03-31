@@ -122,7 +122,7 @@ export function writeHooksJson(hooksDir: string, options?: GenerateOptions): { a
 
   const outputPath = path.join(hooksDir, 'hooks.json');
   fs.mkdirSync(hooksDir, { recursive: true });
-  fs.writeFileSync(outputPath, JSON.stringify(json, null, 2) + '\n');
+  fs.writeFileSync(outputPath, `${JSON.stringify(json, null, 2)}\n`);
 
   return { active, disabled };
 }

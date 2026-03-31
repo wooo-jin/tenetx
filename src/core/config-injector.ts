@@ -318,7 +318,7 @@ function generateBehavioralRules(): string {
       if (name.startsWith('think-')) {
         categories['Thinking Style'].push(`- ${desc}${countStr}`);
       } else if (name.startsWith('workflow-')) {
-        categories['Workflow'].push(`- ${desc}${countStr}`);
+        categories.Workflow.push(`- ${desc}${countStr}`);
       } else if (name.startsWith('prefer-') || name.startsWith('writes-') || name.startsWith('works-')) {
         categories['Response Preferences'].push(`- ${desc}${countStr}`);
       }

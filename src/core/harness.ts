@@ -397,7 +397,7 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
   let totalWritten = 0;
   for (const [filename, content] of Object.entries(ruleFiles)) {
     const capped = content.length > PER_RULE_CAP
-      ? content.slice(0, PER_RULE_CAP) + '\n... (capped at rule file limit)\n'
+      ? `${content.slice(0, PER_RULE_CAP)}\n... (capped at rule file limit)\n`
       : content;
     if (totalWritten + capped.length > TOTAL_CAP) {
       log.debug(`rules/ 총량 캡 도달, ${filename} 생략`);

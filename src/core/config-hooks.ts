@@ -81,7 +81,7 @@ export async function displayHookStatus(cwd?: string): Promise<void> {
       tierHooks.some(h => hookConflicts.has(h.name));
 
     const tierLabel = tierAutoDisabled
-      ? `${TIER_LABELS[tier]} ${yellow('(auto-disabled — ' + getConflictingPluginName(hookConflicts) + ' detected)')}`
+      ? `${TIER_LABELS[tier]} ${yellow(`(auto-disabled — ${getConflictingPluginName(hookConflicts)} detected)`)}`
       : TIER_LABELS[tier];
 
     console.log(`    ${dim(tierLabel)}:`);

@@ -107,7 +107,7 @@ export function updatePosterior(
   reward: SessionReward,
 ): void {
   const r = reward.reward;
-  if (!isFinite(r)) return; // NaN/Infinity 방어
+  if (!Number.isFinite(r)) return; // NaN/Infinity 방어
 
   // baseline: 최근 관측의 이동 평균 (variance reduction)
   const recentRewards = state.observations.slice(-20).map(o => o.reward);

@@ -79,7 +79,7 @@ function saveTokenUsage(usage: TokenUsage): void {
 function recalculateCost(usage: TokenUsage): number {
   let total = 0;
   for (const [model, data] of Object.entries(usage.byModel)) {
-    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING['sonnet'];
+    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING.sonnet;
     total += (data.input / 1_000_000) * pricing.input;
     total += (data.output / 1_000_000) * pricing.output;
   }
