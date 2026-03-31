@@ -12,9 +12,47 @@
  */
 
 import { loadThompsonState } from '../lab/thompson-sampling.js';
+import { loadPreferenceStates } from '../lab/preference-tracer.js';
 import { loadEvolutionHistory } from '../lab/auto-learn.js';
 import { CORE_DIMENSIONS } from '../forge/dimensions.js';
 import type { TimelineData, TimelinePoint } from './types.js';
+
+// ── Preference Stability ───────────────────────────
+
+export interface PreferenceStability {
+  dimension: string;
+  pKnown: number;
+  observationCount: number;
+  isStable: boolean; // P(known) >= 0.7
+}
+
+/** BKT P(known) 안정성 데이터 로드 */
+export function getPreferenceStability(): PreferenceStability[] {
+  const states = loadPreferenceStates();
+  if (!states) return [];
+
+  return Object.entries(states).map(([dim, state]) => ({
+    dimension: dim,
+    pKnown: state.pKnown,
+    observationCount: state.observations?.length ?? 0,
+    isStable: state.pKnown >= 0.7,
+  }));
+}
+
+/** ASCII 안정성 바 렌더링 */
+export function renderStabilityBars(stability: PreferenceStability[]): string {
+  if (stability.length === 0) {
+    return '  데이터 수집 중... (BKT 선호 안정성은 세션 데이터가 축적되면 표시됩니다)';
+  }
+
+  const lines: string[] = ['  ── Preference Stability ───────────────'];
+  for (const s of stability) {
+    const bar = '█'.repeat(Math.round(s.pKnown * 20)).padEnd(20, '░');
+    const status = s.isStable ? '안정' : '학습중';
+    lines.push(`  ${s.dimension.padEnd(22)} [${bar}] ${s.pKnown.toFixed(2)}  ${status}  (${s.observationCount} obs)`);
+  }
+  return lines.join('\n');
+}
 
 // ── Data Loading ───────────────────────────────────
 

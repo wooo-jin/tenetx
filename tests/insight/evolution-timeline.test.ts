@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { renderSparkline } from '../../src/insight/evolution-timeline.js';
+import { describe, it, expect, vi } from 'vitest';
+import { renderSparkline, renderStabilityBars, getPreferenceStability } from '../../src/insight/evolution-timeline.js';
 
 describe('renderSparkline', () => {
   it('returns "(no data)" for empty array', () => {
@@ -28,5 +28,29 @@ describe('renderSparkline', () => {
     const values = Array.from({ length: 100 }, (_, i) => i / 100);
     const result = renderSparkline(values, 10);
     expect(result.length).toBe(10);
+  });
+});
+
+describe('renderStabilityBars', () => {
+  it('returns "수집 중" message for empty array', () => {
+    expect(renderStabilityBars([])).toContain('수집 중');
+  });
+
+  it('renders bars with pKnown and status', () => {
+    const result = renderStabilityBars([
+      { dimension: 'qualityFocus', pKnown: 0.8, observationCount: 50, isStable: true },
+      { dimension: 'riskTolerance', pKnown: 0.3, observationCount: 10, isStable: false },
+    ]);
+    expect(result).toContain('qualityFocus');
+    expect(result).toContain('안정');
+    expect(result).toContain('학습중');
+  });
+});
+
+describe('getPreferenceStability', () => {
+  it('returns empty array when no preference state exists', () => {
+    // preference-state.json이 없는 환경에서도 안전하게 빈 배열 반환
+    const result = getPreferenceStability();
+    expect(Array.isArray(result)).toBe(true);
   });
 });

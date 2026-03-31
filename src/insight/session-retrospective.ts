@@ -11,6 +11,9 @@
  *   규칙 4: reward baseline 이탈 — Phase 1.5 (30+ 세션 후 활성화)
  */
 
+import * as os from 'node:os';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { readEvents } from '../lab/store.js';
 import type { LabEvent } from '../lab/types.js';
 import type { RetrospectiveResult, RetrospectiveInsight } from './types.js';
@@ -115,6 +118,53 @@ function rule5FrameRecomposition(
   return insights;
 }
 
+/** 규칙 4: reward가 baseline 대비 1.5σ 이상 벗어남 (Surprise Detection) */
+export function rule4SurpriseDetection(sessionReward: number): {
+  insight: RetrospectiveInsight | null;
+  surprised: boolean;
+} {
+  // reward-history.json에서 baseline 계산
+  const historyPath = path.join(os.homedir(), '.compound', 'lab', 'reward-history.json');
+  let history: Array<{ reward: number }> = [];
+  try {
+    if (fs.existsSync(historyPath)) {
+      history = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
+    }
+  } catch { /* reward-history.json read/parse failure — surprise detection disabled for this session */ }
+
+  // 30+ 관측 필요 (게이트 조건)
+  if (!Array.isArray(history) || history.length < 30) {
+    return { insight: null, surprised: false };
+  }
+
+  const rewards = history.map(h => h.reward).filter(r => typeof r === 'number' && Number.isFinite(r));
+  if (rewards.length < 30) return { insight: null, surprised: false };
+
+  const mean = rewards.reduce((a, b) => a + b, 0) / rewards.length;
+  const variance = rewards.reduce((a, b) => a + (b - mean) ** 2, 0) / (rewards.length - 1); // Bessel's correction
+  const sigma = Math.sqrt(variance);
+
+  // σ가 0이면 (모든 reward 동일) surprise 불가
+  if (sigma < 0.001) return { insight: null, surprised: false };
+
+  const zScore = (sessionReward - mean) / sigma;
+  const surprised = Math.abs(zScore) >= 1.5;
+
+  if (surprised) {
+    const direction = zScore > 0 ? '높은' : '낮은';
+    return {
+      insight: {
+        rule: 'surprise-detection',
+        severity: 'action',
+        message: `이번 세션은 평소 대비 ${direction} reward를 보였습니다 (z=${zScore.toFixed(2)}, mean=${mean.toFixed(2)}, σ=${sigma.toFixed(2)}). 평소와 다른 패턴이 있었는지 확인하세요.`,
+      },
+      surprised: true,
+    };
+  }
+
+  return { insight: null, surprised: false };
+}
+
 // ── Main ───────────────────────────────────────────
 
 /** 세션 회고 생성 (sessionId 기반) */
@@ -123,6 +173,7 @@ export function generateRetrospective(
   sessionStartMs: number,
   sessionEndMs: number,
   avgDurationMs: number = 0,
+  sessionReward: number | null = null,
 ): RetrospectiveResult {
   const sessionEvents = readEvents(sessionStartMs, sessionEndMs)
     .filter(e => e.sessionId === sessionId);
@@ -138,6 +189,14 @@ export function generateRetrospective(
     ...rule5FrameRecomposition(sessionEvents, recentEvents),
   ];
 
+  // 규칙 4: Surprise Detection (30+ reward history 필요)
+  let surpriseDetected = false;
+  if (sessionReward !== null) {
+    const { insight, surprised } = rule4SurpriseDetection(sessionReward);
+    surpriseDetected = surprised;
+    if (insight) insights.push(insight);
+  }
+
   const durationMs = sessionEndMs - sessionStartMs;
 
   return {
@@ -146,7 +205,7 @@ export function generateRetrospective(
       ? { actual: durationMs, avgLast30: avgDurationMs, ratio: durationMs / avgDurationMs }
       : null,
     insights,
-    surpriseDetected: false, // Phase 1.5
+    surpriseDetected,
   };
 }
 

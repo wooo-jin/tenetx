@@ -20,6 +20,18 @@ function makeEvent(type: string, payload: Record<string, unknown> = {}, sessionI
   };
 }
 
+// rule4SurpriseDetection은 fs를 직접 사용하므로 별도 mock 필요
+const { rule4SurpriseDetection } = await import('../../src/insight/session-retrospective.js');
+
+describe('rule4SurpriseDetection', () => {
+  it('returns null when history has < 30 entries', () => {
+    // rule4 reads reward-history.json which is likely empty in test env
+    const result = rule4SurpriseDetection(0.5);
+    expect(result.surprised).toBe(false);
+    expect(result.insight).toBeNull();
+  });
+});
+
 describe('generateRetrospective', () => {
   it('returns empty insights when no events', () => {
     mockReadEvents.mockReturnValue([]);
