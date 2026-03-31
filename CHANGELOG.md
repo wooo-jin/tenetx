@@ -5,6 +5,26 @@ All notable changes to tenetx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-04-01
+
+### Added
+- **Understanding layer (Phase 1)**: HTML dashboard (`tenetx me --html`), Knowledge Map (`tenetx compound map`), Evolution Timeline (sparkline), Session Retrospective (5-rule pattern engine)
+- **Personalized orchestration (Phase 2)**: Pipeline Recommender (`tenetx pipeline`), Agent Overlay Injection (PreToolUse approve(message)), Contextual Bandit (Factored Beta-TS)
+- **Forge auto-init (Phase 0)**: Auto-creates forge-profile via project scan when missing, session endTime backfill, experiment cleanup (`doctor --clean-experiments`)
+- **Surprise Detection**: z-score 1.5σ deviation from reward baseline (activates after 30+ observations)
+- **Preference Stability**: BKT P(known) stability bars for dimension convergence tracking
+
+### Fixed
+- compound-search returned 0 results (tag noise + matchedTags<2 threshold + cross-language gap)
+- compound-lifecycle timeout (grep scanned node_modules/dist/.git)
+- pattern-detector ignored user-rejection events (only checked user-override)
+- 4 HIGH issues from v3 code review (MCP readOnly, gate1 mutation, test homedir, empty assertion)
+
+### Changed
+- Korean stopwords expanded (+50 words for 조사/어미/접속사)
+- Solution search: name-based matching boost for cross-language queries
+- README: honest Day 1 timeline, "50+ pattern detectors" clarification, test stats updated
+
 ## [3.0.0] - 2026-03-31
 
 ### Breaking Changes
@@ -23,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tool-specific matchers**: db-guard→Bash, secret-filter→Write|Edit|Bash, slop-detector→Write|Edit
 
 ### Changed
-- **Codebase**: 36,977 → ~24,000 lines (35% reduction)
+- **Codebase**: 36,977 → ~26,000 lines (30% reduction, Phase 1/2 added ~2,300 lines)
 - **Hook protocol**: Migrated all 17 hooks from `result/message` to `continue/systemMessage` (Plugin SDK format)
 - **Tag extraction**: Korean stopwords filter (80 words), MAX_TAGS=10, frequency-based ranking
 - **Solution matching**: Identifier-based boost (+0.15), threshold relaxed (2 tags → 1 tag or 1 identifier)

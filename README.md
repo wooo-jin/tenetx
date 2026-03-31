@@ -201,7 +201,7 @@ All hooks fail-open on error (never breaks Claude Code). Timeout: 2-5 seconds pe
 
 | Metric | Count |
 |--------|-------|
-| Source code | ~24K lines |
+| Source code | ~26K lines |
 | Tests | 1,561 across 100 files |
 | Hook registry | 19 (workflow hooks auto-disable when overlapping plugins are present) |
 | Detection patterns | 50+ |
