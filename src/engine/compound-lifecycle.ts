@@ -119,8 +119,11 @@ export function checkIdentifierStaleness(fm: SolutionFrontmatter, cwd: string): 
       '-r', '-E',
       '--include=*.ts', '--include=*.tsx',
       '--include=*.js', '--include=*.jsx',
-      '-l', pattern, '.',
-    ], { cwd, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
+      '--exclude-dir=node_modules',
+      '--exclude-dir=dist',
+      '--exclude-dir=.git',
+      '-l', '-m', '1', pattern, '.',
+    ], { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] });
     return false; // grep exit 0 = at least one identifier found = not stale
   } catch (e: unknown) {
     // grep exit 1 = no matches found = stale

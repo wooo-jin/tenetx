@@ -137,7 +137,11 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
       matchedTags: string[];
     };
 
-    if (result.matchedTags.length < 2) continue;
+    // 태그 매칭 + 이름 매칭: 솔루션 이름에 쿼리 단어가 포함되면 boost
+    const nameWords = entry.name.toLowerCase().split(/[-_]/);
+    const nameMatchCount = queryTags.filter(t => nameWords.includes(t)).length;
+    if (result.matchedTags.length === 0 && nameMatchCount === 0) continue;
+    const nameBoost = nameMatchCount * 0.1;
 
     results.push({
       name: entry.name,
@@ -146,8 +150,8 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
       type: entry.type,
       scope: entry.scope,
       tags: entry.tags,
-      relevance: result.relevance,
-      matchedTags: result.matchedTags,
+      relevance: result.relevance + nameBoost,
+      matchedTags: [...result.matchedTags, ...queryTags.filter(t => nameWords.includes(t) && !result.matchedTags.includes(t))],
     });
   }
 
