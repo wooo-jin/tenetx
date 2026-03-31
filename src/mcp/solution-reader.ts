@@ -229,7 +229,9 @@ export function readSolution(name: string, options?: { dirs?: SolutionDirConfig[
   try {
     parsed.frontmatter.evidence.sessions += 1;
     parsed.frontmatter.updated = new Date().toISOString().split('T')[0];
-    fs.writeFileSync(entry.filePath, serializeSolutionV3(parsed));
+    const tmpPath = entry.filePath + '.tmp';
+    fs.writeFileSync(tmpPath, serializeSolutionV3(parsed));
+    fs.renameSync(tmpPath, entry.filePath);
   } catch {
     // evidence 업데이트 실패는 무시 — 읽기 결과는 정상 반환
   }

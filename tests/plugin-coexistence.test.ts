@@ -330,28 +330,34 @@ Use vi.mock() for module-level mocking and vi.spyOn() for individual function sp
     expect(detail!.content).not.toContain('truncated');
   });
 
-  it('hook matcher와 MCP reader가 동일 인덱스를 공유한다', () => {
-    // top-level import 사용
-    const dirs = [{ dir: path.join(tmpDir, 'solutions'), scope: 'me' as const }];
+  it('hook matcher와 MCP reader가 동일 솔루션을 찾을 수 있다', () => {
+    // matchSolutions는 project dir에서 .compound/solutions/를 탐색하므로
+    // 해당 경로에 솔루션을 배치하여 양쪽 모두 검증 가능하게 구성
+    const projectSolDir = path.join(tmpDir, '.compound', 'solutions');
+    fs.mkdirSync(projectSolDir, { recursive: true });
+    fs.copyFileSync(
+      path.join(tmpDir, 'solutions', 'shared-pattern.md'),
+      path.join(projectSolDir, 'shared-pattern.md'),
+    );
+
+    const dirs = [{ dir: projectSolDir, scope: 'me' as const }];
 
     // MCP 검색
     resetIndexCache();
     const mcpResults = searchSolutions('vitest mock testing typescript', { dirs });
 
-    // Hook matcher (동일 디렉토리)
+    // Hook matcher (project dir 경로)
     resetIndexCache();
     const hookResults = matchSolutions('vitest mock testing typescript', {
-      me: { philosophyPath: '', solutionCount: 1, ruleCount: 0 },
-      project: { path: tmpDir, solutionCount: 0 },
-      summary: 'Me(1)',
+      me: { philosophyPath: '', solutionCount: 0, ruleCount: 0 },
+      project: { path: tmpDir, solutionCount: 1 },
+      summary: 'Me(0)',
     }, tmpDir);
 
     // 양쪽 모두 shared-pattern을 찾아야 함
-    // hook matcher는 ME_SOLUTIONS(~/.compound/me/solutions/) + project dir을 사용
-    // tmpDir의 솔루션은 project dir의 .compound/solutions/에 있지 않으므로
-    // hook matcher에서는 못 찾을 수 있음 — 이건 정상 동작 (경로가 다름)
-    // 대신 MCP에서는 dirs를 직접 지정하므로 항상 찾음
     expect(mcpResults.length).toBeGreaterThanOrEqual(1);
-    // hookResults는 ME_SOLUTIONS에 해당 솔루션이 없으면 빈 배열 가능
+    expect(mcpResults[0].name).toBe('shared-pattern');
+    expect(hookResults.length).toBeGreaterThanOrEqual(1);
+    expect(hookResults[0].name).toBe('shared-pattern');
   });
 });

@@ -133,7 +133,7 @@ export function registerTools(server: McpServer): void {
       inputSchema: {
         name: z.string().describe('Solution name (slug) to read'),
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: false },
     },
     async ({ name }) => {
       const result = readSolution(name, {
