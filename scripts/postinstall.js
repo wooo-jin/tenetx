@@ -108,11 +108,7 @@ function ensureDirectories() {
     join(COMPOUND_HOME, 'sessions'),
     join(COMPOUND_HOME, 'state'),
     join(COMPOUND_HOME, 'handoffs'),
-    join(COMPOUND_HOME, 'plans'),
-    join(COMPOUND_HOME, 'specs'),
-    join(COMPOUND_HOME, 'skills'),
-    join(COMPOUND_HOME, 'artifacts', 'ask'),
-    join(COMPOUND_HOME, 'packs'),
+    join(COMPOUND_HOME, 'lab'),
     CLAUDE_DIR,
   ];
   for (const dir of dirs) {
