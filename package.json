@@ -59,6 +59,7 @@
     "dist/",
     "agents/",
     "commands/",
+    "skills/",
     "scripts/postinstall.js",
     ".claude-plugin/",
     "hooks/",

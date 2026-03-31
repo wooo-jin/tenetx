@@ -135,6 +135,22 @@ const commands: Command[] = [
   },
 ];
 
+/** 최소 편집 거리 (유사 명령 제안용) */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
 function findCommand(name: string): Command | undefined {
   return commands.find(
     (c) => c.name === name || (c.aliases?.includes(name)),
@@ -159,6 +175,18 @@ async function main() {
   if (cmd) {
     await cmd.handler(args.slice(1));
     return;
+  }
+
+  // 등록되지 않은 서브커맨드는 에러 처리
+  // 플래그(--resume 등), 따옴표 프롬프트, 인자 없는 실행은 하네스로 통과
+  if (args[0] && !args[0].startsWith('-') && !args[0].startsWith('"') && !args[0].startsWith("'")) {
+    const suggestion = commands
+      .map(c => ({ name: c.name, dist: levenshtein(args[0], c.name) }))
+      .filter(c => c.dist <= 3)
+      .sort((a, b) => a.dist - b.dist)[0];
+    const hint = suggestion ? `\n  Did you mean: tenetx ${suggestion.name}` : '';
+    console.error(`[tenetx] Unknown command: ${args[0]}${hint}\n  Run "tenetx help" for available commands.`);
+    process.exit(1);
   }
 
   // Default: run Claude Code with harness
@@ -227,9 +255,9 @@ function printHelp() {
     tenetx cost                     Session cost tracking
     tenetx config hooks             Hook management
     tenetx mcp                      MCP server management
+    tenetx init                     Initialize project
     tenetx notepad                  Session notepad
     tenetx doctor                   System diagnostics
-    tenetx install --plugin         Register as Claude Code plugin
     tenetx uninstall                Remove tenetx
 `);
 }

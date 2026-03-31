@@ -19,6 +19,7 @@ import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
 import { track } from '../lab/tracker.js';
+import { isReflectionCandidate } from './compound-reflection.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, deny, failOpen } from './shared/hook-response.js';
 import { COMPOUND_HOME, ME_SOLUTIONS, ME_RULES, STATE_DIR } from '../core/paths.js';
@@ -203,15 +204,20 @@ function resetFailCount(): void {
   try { if (fs.existsSync(FAIL_COUNTER_PATH)) fs.unlinkSync(FAIL_COUNTER_PATH); } catch (e) { log.debug('fail counter reset failed — counter stays elevated', e); }
 }
 
-/** Compound v3: detect if Edit/Write code reflects injected solution identifiers */
+/**
+ * Compound v3: detect if Edit/Write code reflects injected solution identifiers.
+ *
+ * false positive 방지를 위한 3중 필터 적용 (compound-reflection.ts):
+ *   1. 시간 윈도우: 주입 후 15분 이내만 반영 인정
+ *   2. 매칭 비율: 유효 식별자의 50% 이상 매칭 필요
+ *   3. 공통 식별자 차단: 프레임워크 기본 용어 제외
+ */
 function checkCompoundReflection(toolName: string, toolInput: Record<string, unknown>, sessionId: string): void {
-  // Only check Edit and Write tools
   if (toolName !== 'Edit' && toolName !== 'Write') return;
 
   const code = String(toolInput.new_string ?? toolInput.content ?? '');
   if (!code || code.length < 10) return;
 
-  // Load injection cache
   const cachePath = path.join(STATE_DIR, `injection-cache-${sanitizeId(sessionId)}.json`);
   if (!fs.existsSync(cachePath)) return;
 
@@ -219,31 +225,31 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
     const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
     if (!Array.isArray(cache.solutions)) return;
 
+    const now = new Date();
+
     for (const sol of cache.solutions) {
       if (!Array.isArray(sol.identifiers) || sol.identifiers.length === 0) continue;
 
-      // Require at least 2 identifiers to match, each 6+ chars (reduce false positives)
-      // Short identifiers (e.g. "Error", "state") are too common and cause false reflection counts
-      const minMatch = Math.min(2, sol.identifiers.length);
-      const matchCount = sol.identifiers.filter(
-        (id: string) => id.length >= 6 && code.includes(id)
-      ).length;
+      const result = isReflectionCandidate({
+        identifiers: sol.identifiers,
+        code,
+        injectedAt: sol.injectedAt ?? '',
+        now,
+      });
 
-      if (matchCount >= minMatch) {
+      if (result.reflected) {
         track('compound-reflected', sessionId, {
           solutionName: sol.name,
-          matchedIdentifiers: matchCount,
+          matchedIdentifiers: result.matchedCount,
+          eligibleIdentifiers: result.eligibleCount,
           totalIdentifiers: sol.identifiers.length,
         });
 
-        // Update evidence in solution file
         updateSolutionEvidence(sol.name, 'reflected');
 
-        // Update sessions counter once per session per solution
         if (!sol._sessionCounted) {
           updateSolutionEvidence(sol.name, 'sessions');
           sol._sessionCounted = true;
-          // Persist the flag back to injection-cache
           atomicWriteJSON(cachePath, cache);
         }
       }
