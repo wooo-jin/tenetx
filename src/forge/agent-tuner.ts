@@ -6,6 +6,20 @@
  *
  * 각 차원은 풍부한 행동 지시 문장을 생성 — 체크리스트 조각이 아닌
  * 개발자에 대한 브리핑 형태의 오버레이.
+ *
+ * Module Structure:
+ * - Lines 1-17: Imports, types, AGENT_GENERATORS record declaration
+ * - Lines 18-90: code-reviewer generator (review depth, communication, autonomy, merge policy)
+ * - Lines 91-150: security-reviewer generator (scan scope, depth, reporting, action policy)
+ * - Lines 153-230: executor generator (execution style, verification, code style, progress)
+ * - Lines 232-290: explore generator (exploration depth, report format, scope)
+ * - Lines 293-365: architect generator (design philosophy, change management, scalability)
+ * - Lines 366-430: test-engineer generator (coverage target, test scope, regression, reporting)
+ * - Lines 430-490: critic generator (critique scope, feedback format, design critique)
+ * - Lines 491-560: refactoring-expert generator (scope, safety, communication, execution)
+ * - Lines 560-625: performance-reviewer generator (analysis depth, optimization, reporting)
+ * - Lines 628-700: debugger generator (investigation style, fix quality, debug reporting)
+ * - Lines 700-735: Public API — generateAgentOverlays, formatOverlayAsMarkdown
  */
 
 import type { AgentOverlay, DimensionVector } from './types.js';

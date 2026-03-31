@@ -1,3 +1,16 @@
+/**
+ * Tenetx — Core Harness (prepareHarness entry point)
+ *
+ * Module Structure:
+ * - Lines 1-65: Imports, utility helpers (getPackageRoot, isFirstRun, ensureDirectories)
+ * - Lines 66-150: injectSettings — Claude Code settings.json injection & hook cleanup
+ * - Lines 150-250: contentHash, agent hash persistence, forge overlay helpers
+ * - Lines 250-350: installAgentsFromDir — hash-based agent copy with user-edit protection
+ * - Lines 350-500: installAgents, injectClaudeRuleFiles, ensureGitignore, slash command helpers
+ * - Lines 500-575: installSlashCommands — global + pack skill installation
+ * - Lines 575-795: prepareHarness — main orchestration (dirs, philosophy, forge, agents, rules, auto-learn)
+ */
+
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
