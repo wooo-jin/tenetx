@@ -1,25 +1,37 @@
 /**
  * Tests for lab/experiment.ts
  *
- * Isolation strategy: each test creates experiments with unique names derived
- * from the test run timestamp + process PID, so concurrent runs do not collide.
- * Experiments are stored as individual JSON files (~/.compound/lab/experiments/<id>.json)
- * and are NOT cleaned up — they are small and the test IDs prevent interference.
+ * Isolation strategy: vi.mock('node:os') redirects homedir() to a tmp directory
+ * so experiment files are never written to the real ~/.compound/.
+ * Each test run uses a unique directory cleaned up in afterAll.
  */
-import { describe, it, expect } from 'vitest';
-import {
+import { describe, it, expect, afterAll, vi } from 'vitest';
+import * as fs from 'node:fs';
+
+const TEST_HOME = `/tmp/tenetx-test-experiment-${Date.now()}-${process.pid}`;
+
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  return { ...actual, homedir: () => TEST_HOME };
+});
+
+const {
   createExperiment,
   addDataPoint,
   completeExperiment,
   cancelExperiment,
   getExperimentStatus,
-} from '../../src/lab/experiment.js';
+} = await import('../../src/lab/experiment.js');
 
 const RUN_TAG = `exp-test-${Date.now()}-${process.pid}`;
 
 function uniqueName(label: string): string {
   return `${RUN_TAG}-${label}`;
 }
+
+afterAll(() => {
+  fs.rmSync(TEST_HOME, { recursive: true, force: true });
+});
 
 // ---------------------------------------------------------------------------
 // createExperiment

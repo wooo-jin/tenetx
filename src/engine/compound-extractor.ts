@@ -167,13 +167,12 @@ function gate0(stats: { files: number; lines: number; hasCodeFiles: boolean }): 
   return true;
 }
 
-/** Gate 1: Structural validation */
+/** Gate 1: Structural validation (pure — does not mutate input) */
 function gate1(sol: ExtractedSolution): boolean {
   if (!sol.name || sol.name.length < 3) return false;
   if (!sol.tags || sol.tags.length === 0) return false;
   if (!sol.content || sol.content.length < 50) return false;
   if (!sol.context) return false;
-  sol.identifiers = sol.identifiers.filter(id => id.length >= 4);
   return true;
 }
 
@@ -885,6 +884,9 @@ export function processExtractionResults(
       skipped.push(evaluation.message ?? `${sol.name}: 재추출`);
       continue;
     }
+
+    // Clean identifiers before saving (short identifiers are noise)
+    sol.identifiers = sol.identifiers.filter(id => id.length >= 4);
 
     // Save as experiment
     const savedName = saveExtractedSolution(sol, sessionId);
