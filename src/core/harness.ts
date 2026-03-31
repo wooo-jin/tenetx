@@ -639,6 +639,27 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     const env = buildEnv(context);
     injectSettings(env);
 
+    // 7.5. Forge 프로필 자동 초기화 (미존재 시 스캔 기반 생성)
+    try {
+      const {
+        loadForgeProfile: loadExistingProfile,
+        GLOBAL_FORGE_PROFILE,
+        signalsToDimensions,
+        createEmptyProfile,
+        saveForgeProfile,
+      } = await import('../forge/profile.js');
+      if (!loadExistingProfile(cwd)) {
+        const { scanProject } = await import('../forge/scanner.js');
+        const signals = scanProject(cwd);
+        const dimensions = signalsToDimensions(signals);
+        const profile = { ...createEmptyProfile(), dimensions, lastScan: signals };
+        saveForgeProfile(profile, GLOBAL_FORGE_PROFILE);
+        log.debug('Forge 프로필 자동 생성 (스캔 기반)');
+      }
+    } catch (e) {
+      log.debug('Forge 프로필 자동 초기화 실패 (정상 동작에 영향 없음)', e);
+    }
+
     // 8. Forge 프로필 로드 → 에이전트 오버레이 + 스킬 오버레이 + 튜닝된 규칙 생성
     let forgeOverlayMap: OverlayMap | undefined;
     let forgeSkillOverlayMap: SkillOverlayMap | undefined;

@@ -138,6 +138,37 @@ export async function runDoctor(): Promise<void> {
   }
   console.log();
 
+  // Lab 데이터 정리
+  const labExpDir = path.join(COMPOUND_HOME, 'lab', 'experiments');
+  if (exists(labExpDir)) {
+    const expFiles = fs.readdirSync(labExpDir).filter(f => f.endsWith('.json'));
+    // 1차 필터: 0바이트 또는 50바이트 미만 파일 (빠른 stat 기반)
+    const emptyFiles = expFiles.filter(f => {
+      try {
+        const stat = fs.statSync(path.join(labExpDir, f));
+        if (stat.size < 50) return true;
+        // --clean-experiments 플래그가 있을 때만 내용 파싱 (성능 보호)
+        if (!process.argv.includes('--clean-experiments')) return false;
+        const content = JSON.parse(fs.readFileSync(path.join(labExpDir, f), 'utf-8'));
+        return content.variants?.every((v: { sessionIds?: string[] }) => !v.sessionIds?.length);
+      } catch { return false; }
+    });
+    if (emptyFiles.length > 0) {
+      console.log(`  [Lab Cleanup]`);
+      console.log(`  Empty experiment files: ${emptyFiles.length} / ${expFiles.length}`);
+      if (process.argv.includes('--clean-experiments')) {
+        let cleaned = 0;
+        for (const f of emptyFiles) {
+          try { fs.unlinkSync(path.join(labExpDir, f)); cleaned++; } catch { /* skip */ }
+        }
+        console.log(`  → Cleaned ${cleaned} empty experiment files`);
+      } else {
+        console.log(`  Run \`tenetx doctor --clean-experiments\` to remove them`);
+      }
+      console.log();
+    }
+  }
+
   // 현재 디렉토리 git 정보
   console.log('  [Git]');
   try {

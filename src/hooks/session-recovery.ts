@@ -211,6 +211,35 @@ async function main(): Promise<void> {
     }
   }
 
+  // Phase 0: endTime이 없는 이전 세션 backfill (file mtime 기반)
+  // 최근 7일 파일만 대상 — 오래된 파일은 무시하여 성능 보장
+  try {
+    const { SESSIONS_DIR: sessDir } = await import('../core/paths.js');
+    if (fs.existsSync(sessDir)) {
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const sessionFiles = fs.readdirSync(sessDir)
+        .filter(f => f.endsWith('.json'))
+        .filter(f => {
+          try { return fs.statSync(path.join(sessDir, f)).mtimeMs > cutoff; } catch { return false; }
+        });
+      for (const file of sessionFiles) {
+        const fp = path.join(sessDir, file);
+        try {
+          const raw = JSON.parse(fs.readFileSync(fp, 'utf-8'));
+          if (raw.startTime && !raw.endTime) {
+            const mtime = fs.statSync(fp).mtime;
+            raw.endTime = mtime.toISOString();
+            raw.durationMs = mtime.getTime() - new Date(raw.startTime).getTime();
+            raw.recoveredEndTime = true;
+            atomicWriteJSON(fp, raw);
+          }
+        } catch { /* individual file recovery failure — skip and continue */ }
+      }
+    }
+  } catch (e) {
+    log.debug('세션 endTime backfill 실패', e);
+  }
+
   // 미완료 체크포인트 감지
   try {
     const checkpointFiles = fs.readdirSync(STATE_DIR)
