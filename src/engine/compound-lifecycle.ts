@@ -265,7 +265,6 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
               result.demoted.push(`${fm.name}: identifier-stale (confidence → ${newConf})`);
               track('compound-demoted', sessionId, { solutionName: fm.name, reason: 'identifier-stale' });
             }
-            continue;
           }
         }
       } catch (e) {

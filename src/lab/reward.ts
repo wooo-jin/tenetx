@@ -110,7 +110,7 @@ export function computeSessionRewards(events: LabEvent[]): SessionReward[] {
   for (const event of events) {
     const sid = event.sessionId;
     if (!sessions.has(sid)) sessions.set(sid, []);
-    sessions.get(sid)!.push(event);
+    sessions.get(sid)?.push(event);
   }
 
   const rewards: SessionReward[] = [];
@@ -156,6 +156,6 @@ function bellCurveScore(value: number, center: number, sigma: number): number {
 }
 
 function clamp01(v: number): number {
-  if (!isFinite(v)) return 0.5; // NaN/Infinity → 중립
+  if (!Number.isFinite(v)) return 0.5; // NaN/Infinity → 중립
   return Math.max(0, Math.min(1, v));
 }

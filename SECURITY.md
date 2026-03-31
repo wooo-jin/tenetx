@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.6.x   | ✅ Yes    |
-| < 1.6.0 | ❌ No     |
+| 2.5.x   | ✅ Yes    |
+| < 2.5.0 | ❌ No     |
 
 ## Reporting a Vulnerability
 
@@ -40,20 +40,25 @@ We appreciate responsible disclosure and will credit reporters in the release no
 This policy covers:
 
 - The `tenetx` CLI tool and its core libraries
-- Hook execution security (shell injection risks)
-- Pack loading and trust boundaries
-- Credential and token handling
+- Hook execution security (shell injection, symlink attacks)
+- Solution file handling (YAML parsing, prompt injection defense)
+- Credential and token handling (secret-filter hook)
+- Plugin registration and settings.json modifications
 
 Out of scope:
 
-- Third-party tools invoked by tenetx (Claude, Codex, Gemini)
-- Issues in user-authored packs or skills
+- Third-party tools invoked by tenetx (Claude Code, Codex, Gemini)
+- Issues in user-authored skills
 - Social engineering attacks
 
 ## Security Design Notes
 
-tenetx runs shell hooks and loads external packs. Users should:
+tenetx runs 16 shell hooks on Claude Code lifecycle events. Security measures:
 
-- Only install packs from trusted sources
-- Review hook definitions before enabling them
-- Never store secrets in pack config files — use environment variables
+- All hooks fail-open on error (never breaks Claude Code)
+- Symlink protection on all file reads (8 locations)
+- `execFileSync` only (no shell interpolation)
+- SUDO_USER validated with strict regex before use
+- Settings.json protected by lockfile + atomic write + backup
+- Prompt injection defense: 13 patterns + Unicode NFKC + XML escaping
+- Solution files: YAML bomb protection (5KB frontmatter cap, 3 anchor limit)
