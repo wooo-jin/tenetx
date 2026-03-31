@@ -122,6 +122,28 @@ interface ModeState {
 
 const PERSISTENT_MODES = ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline'];
 
+interface SessionStartPayload {
+  session_id?: string;
+  cwd?: string;
+}
+
+export function resolveSessionStartContext(rawInput: string): { sessionId: string; cwd: string } {
+  const fallbackCwd = process.env.COMPOUND_CWD ?? process.cwd();
+
+  try {
+    const parsed = JSON.parse(rawInput) as SessionStartPayload;
+    return {
+      sessionId: parsed.session_id?.trim() || `session-${Date.now()}`,
+      cwd: parsed.cwd?.trim() || fallbackCwd,
+    };
+  } catch {
+    return {
+      sessionId: `session-${Date.now()}`,
+      cwd: fallbackCwd,
+    };
+  }
+}
+
 async function main(): Promise<void> {
   // SessionStart 훅은 stdin으로 세션 정보를 받음 (타임아웃 포함)
   const chunks: string[] = [];
@@ -135,6 +157,7 @@ async function main(): Promise<void> {
     process.stdin.on('data', (chunk) => chunks.push(String(chunk)));
     process.stdin.on('end', () => { clearTimeout(timeout); resolve(); });
   });
+  const sessionContext = resolveSessionStartContext(chunks.join(''));
 
   if (!isHookEnabled('session-recovery')) {
     console.log(approve());
@@ -232,7 +255,7 @@ async function main(): Promise<void> {
       recoveryMessages.push(
         `<compound-pending>` +
         `\nCompound loop was scheduled in the previous session (${pending.promptCount ?? '?'} prompts).` +
-        `\nRun \`tenetx compound\` to extract patterns/solutions.` +
+        `\nRun \`tenetx compound\` to preview, then \`tenetx compound --save\` to persist patterns/solutions.` +
         `\n</compound-pending>`
       );
       // 마커 삭제 (한 번만 안내)
@@ -269,11 +292,11 @@ async function main(): Promise<void> {
 
   // Compound v3: Trigger lazy extraction — fire-and-forget (성능: 3초→0초)
   // SessionStart 훅은 3초 타임아웃이므로 git diff 분석을 동기 실행하면 초과함
-  const sessionId = `session-${Date.now()}`;
+  const sessionId = sessionContext.sessionId;
   try {
     const { runExtraction, isExtractionPaused } = await import('../engine/compound-extractor.js');
     if (!isExtractionPaused()) {
-      const cwd = process.env.COMPOUND_CWD ?? process.cwd();
+      const cwd = sessionContext.cwd;
       // 결과를 기다리지 않음 — 백그라운드에서 추출
       runExtraction(cwd, sessionId).catch(e => log.debug('lazy extraction 실패', e));
     }

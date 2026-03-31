@@ -30,11 +30,11 @@ Installation automatically:
 tenetx
 ```
 
-That's it. Tenetx wraps Claude Code and starts learning silently. You'll see Claude Code open as normal — but 16 hooks are now observing your patterns.
+That's it. Tenetx wraps Claude Code and starts learning silently. You'll see Claude Code open as normal — but up to 19 hooks are now observing your patterns.
 
 ### What happens in the background
 
-- **prompt-learner** records your prompts and detects preferences (35 patterns)
+- **prompt-learner** records your prompts and detects 50+ behavioral patterns
 - **post-tool-use** tracks modified files and tool usage
 - **pre-tool-use** runs Code Reflection (detects when Claude uses your patterns)
 - **solution-injector** pushes relevant knowledge when it matches your prompt
@@ -68,7 +68,9 @@ The difference: harness mode (`tenetx`) updates your profile and regenerates rul
 tenetx                    # Start with harness (recommended)
 tenetx forge              # Profile your working style
 tenetx me                 # Personal dashboard (profile, patterns, cost)
-tenetx compound           # View accumulated knowledge
+tenetx compound           # Preview auto compound analysis
+tenetx compound --save    # Save previewed technical insights
+tenetx compound interactive # Manual insight capture in a TTY session
 tenetx lab                # Adaptive optimization metrics
 tenetx cost               # Session cost tracking
 tenetx config hooks       # Hook management
@@ -94,5 +96,6 @@ Checks Node.js version, Claude Code installation, `~/.compound/` structure, plug
 ## Next Steps
 
 - Run `tenetx me` after a few sessions to see what tenetx learned
-- Check `~/.compound/me/solutions/` for accumulated patterns
+- Check `~/.compound/me/solutions/` for technical compound knowledge
+- Check `~/.compound/me/behavior/` for learned behavioral patterns
 - Read the [README](../README.md) for architecture details

@@ -9,19 +9,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { createLogger } from '../core/logger.js';
+import { ALL_MODES, COMPOUND_HOME, PACKS_DIR, SESSIONS_DIR } from '../core/paths.js';
 
 const log = createLogger('lab-history');
 import { saveSnapshot, listSnapshots, countEvents } from './store.js';
 import { getAverageEffectiveness } from './scorer.js';
 import type { HarnessSnapshot, SnapshotTrigger } from './types.js';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const SESSIONS_DIR = path.join(COMPOUND_HOME, 'sessions');
-const PACKS_DIR = path.join(COMPOUND_HOME, 'packs');
 
 // ---------------------------------------------------------------------------
 // Snapshot Creation
@@ -47,12 +40,26 @@ function discoverAgents(cwd?: string): string[] {
   return agents;
 }
 
-/** Discover active hooks from settings */
-function discoverHooks(): string[] {
+/** Discover active hooks from generated hooks.json or legacy settings */
+function discoverHooks(cwd?: string): string[] {
   const hooks: string[] = [];
+  const hooksJsonPath = path.join(cwd ?? process.cwd(), 'hooks', 'hooks.json');
   const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
 
   try {
+    if (fs.existsSync(hooksJsonPath)) {
+      const hooksJson = JSON.parse(fs.readFileSync(hooksJsonPath, 'utf-8'));
+      const hooksConfig = hooksJson.hooks as Record<string, unknown[]> | undefined;
+      if (hooksConfig) {
+        for (const [eventName, entries] of Object.entries(hooksConfig)) {
+          if (Array.isArray(entries) && entries.length > 0) {
+            hooks.push(eventName);
+          }
+        }
+        return hooks;
+      }
+    }
+
     if (fs.existsSync(settingsPath)) {
       const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       const hooksConfig = settings.hooks as Record<string, unknown[]> | undefined;
@@ -130,12 +137,6 @@ function loadRoutingPreset(): string {
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Known mode names (matches paths.ts ALL_MODES) */
-const ALL_MODES = [
-  'ralph', 'autopilot', 'ultrawork', 'team', 'pipeline',
-  'ccg', 'ralplan', 'deep-interview',
-];
-
 /**
  * Create a harness snapshot capturing current configuration state.
  */
@@ -149,8 +150,8 @@ export function createSnapshot(
     trigger,
     philosophy: loadPhilosophyInfo(),
     agents: discoverAgents(cwd),
-    hooks: discoverHooks(),
-    modes: ALL_MODES,
+    hooks: discoverHooks(cwd),
+    modes: [...ALL_MODES],
     routingPreset: loadRoutingPreset(),
     packs: discoverPacks(),
     metricsSummary: {

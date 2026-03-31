@@ -106,10 +106,10 @@ async function main(): Promise<void> {
   // 오래된 handoff 정리
   cleanOldHandoffs();
 
-  // 기존 솔루션 목록 로드 (중복 방지)
+  // 기존 behavioral 패턴 목록 로드 (중복 방지)
   let existingSolutions: string[] = [];
   try {
-    const solDir = path.join(COMPOUND_HOME, 'me', 'solutions');
+    const solDir = path.join(COMPOUND_HOME, 'me', 'behavior');
     if (fs.existsSync(solDir)) {
       existingSolutions = fs.readdirSync(solDir).filter(f => f.endsWith('.md')).map(f => f.replace('.md', ''));
     }
@@ -128,27 +128,18 @@ DO NOT extract code patterns or technical solutions. Extract HOW THE USER THINKS
 - Workflow habits (e.g., "always reviews 3+ times", "plans before implementing")
 - Values/philosophy (e.g., "quality over speed", "pragmatic over theoretical")
 
-For each pattern found, write a file to ~/.compound/me/solutions/{slug}.md in this EXACT format:
+For each pattern found, write a file to ~/.compound/me/behavior/{slug}.md in this EXACT format:
 \`\`\`
 ---
 name: "{slug}"
 version: 1
-status: "candidate"
+kind: "{thinking|preference|workflow}"
+observedCount: 1
 confidence: 0.6
-type: "decision"
-scope: "me"
 tags: ["thinking", "{category}", "{specific-tag}"]
-identifiers: []
-evidence:
-  injected: 0
-  reflected: 0
-  negative: 0
-  sessions: 1
-  reExtracted: 0
 created: "${new Date().toISOString().split('T')[0]}"
 updated: "${new Date().toISOString().split('T')[0]}"
-supersedes: null
-extractedBy: "auto"
+source: "pre-compact"
 ---
 
 ## Context

@@ -49,7 +49,7 @@ const commands: Command[] = [
   },
   {
     name: 'compound',
-    description: 'Compound loop (knowledge accumulation)',
+    description: 'Preview/save compound insights and manage accumulated knowledge',
     handler: async (args) => {
       const { handleCompound } = await import('./engine/compound-loop.js');
       await handleCompound(args);
@@ -250,7 +250,8 @@ function printHelp() {
   Commands:
     tenetx forge                    Personalize your coding profile
     tenetx lab                      Adaptive optimization engine
-    tenetx compound                 Knowledge accumulation loop
+    tenetx compound                 Preview auto compound analysis
+    tenetx compound --save          Save previewed technical insights
     tenetx me                       Personal dashboard
     tenetx cost                     Session cost tracking
     tenetx config hooks             Hook management

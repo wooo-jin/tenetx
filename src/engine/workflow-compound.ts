@@ -8,9 +8,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { STATE_DIR, ME_SOLUTIONS } from '../core/paths.js';
-import { serializeSolutionV3, DEFAULT_EVIDENCE } from './solution-format.js';
-import type { SolutionV3 } from './solution-format.js';
+import { STATE_DIR } from '../core/paths.js';
+import { saveBehaviorPattern } from './behavior-store.js';
 import { track } from '../lab/tracker.js';
 import { createLogger } from '../core/logger.js';
 
@@ -55,8 +54,8 @@ export function incrementWorkflowCounter(type: 'prompt' | 'toolCall'): void {
   } catch (e) { log.debug('workflow 카운터 증가 실패 — 통계 손실 가능', e); }
 }
 
-/** Check if a workflow completed successfully and extract a workflow pattern */
-export function checkWorkflowCompletion(sessionId: string): void {
+/** Capture a workflow pattern once enough activity has accumulated */
+export function captureWorkflowPattern(sessionId: string): void {
   try {
     if (!fs.existsSync(WORKFLOW_STATE_PATH)) return;
     const state: WorkflowState = JSON.parse(fs.readFileSync(WORKFLOW_STATE_PATH, 'utf-8'));
@@ -72,37 +71,22 @@ export function checkWorkflowCompletion(sessionId: string): void {
     const insight = generateWorkflowInsight(state, durationMin);
     if (!insight) return;
 
-    // Save as compound solution
     const today = new Date().toISOString().split('T')[0];
-    const solution: SolutionV3 = {
+    const writeResult = saveBehaviorPattern({
       frontmatter: {
         name: insight.name,
         version: 1,
-        status: 'experiment',
+        kind: 'workflow',
+        observedCount: 1,
         confidence: 0.3,
-        type: 'decision',
-        scope: 'me',
         tags: insight.tags,
-        identifiers: [],
-        evidence: { ...DEFAULT_EVIDENCE },
         created: today,
         updated: today,
-        supersedes: null,
-        extractedBy: 'auto',
+        source: 'workflow-completion',
       },
       context: insight.context,
       content: insight.content,
-    };
-
-    const solutionPath = path.join(ME_SOLUTIONS, `${insight.name}.md`);
-    if (fs.existsSync(solutionPath)) {
-      // Already exists — don't overwrite
-      clearWorkflowState();
-      return;
-    }
-
-    fs.mkdirSync(ME_SOLUTIONS, { recursive: true });
-    fs.writeFileSync(solutionPath, serializeSolutionV3(solution));
+    }, { mergeObservedCount: true });
 
     track('compound-extracted', sessionId, {
       solutionName: insight.name,
@@ -110,12 +94,13 @@ export function checkWorkflowCompletion(sessionId: string): void {
       source: 'workflow-completion',
       mode: state.activeMode,
       duration: durationMin,
+      status: writeResult.status,
     });
 
     log.debug(`워크플로우 패턴 추출: ${insight.name}`);
     clearWorkflowState();
   } catch (e) {
-    log.debug('workflow completion 체크 실패', e);
+    log.debug('workflow pattern capture 실패', e);
   }
 }
 
@@ -139,7 +124,7 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
   switch (mode) {
     case 'autopilot':
       return {
-        name: `autopilot-run-${Date.now()}`,
+        name: 'workflow-autopilot-completion',
         tags: ['workflow', 'autopilot', 'autonomous', 'pipeline'],
         context: 'Autopilot mode completed a task autonomously',
         content: `Autopilot execution: ${efficiency}. 5-stage pipeline (explore→plan→implement→QA→verify) was used for this task.`,
@@ -147,7 +132,7 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
 
     case 'ralph':
       return {
-        name: `ralph-completion-${Date.now()}`,
+        name: 'workflow-ralph-completion',
         tags: ['workflow', 'ralph', 'iterative', 'completion'],
         context: 'Ralph mode completed with verify/fix loop',
         content: `Ralph iteration: ${efficiency}. Task was completed through iterative verify/fix cycles until all criteria were met.`,
@@ -155,7 +140,7 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
 
     case 'team':
       return {
-        name: `team-execution-${Date.now()}`,
+        name: 'workflow-team-execution',
         tags: ['workflow', 'team', 'parallel', 'multi-agent'],
         context: 'Team mode completed with parallel agents',
         content: `Team execution: ${efficiency}. Multiple specialized agents worked in parallel to complete the task.`,
@@ -163,7 +148,7 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
 
     case 'tdd':
       return {
-        name: `tdd-cycle-${Date.now()}`,
+        name: 'workflow-tdd-cycle',
         tags: ['workflow', 'tdd', 'testing', 'red-green-refactor'],
         context: 'TDD cycle completed (red→green→refactor)',
         content: `TDD cycle: ${efficiency}. Tests were written first, then implementation, then refactoring.`,
@@ -171,7 +156,7 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
 
     case 'ultrawork':
       return {
-        name: `ultrawork-burst-${Date.now()}`,
+        name: 'workflow-ultrawork-burst',
         tags: ['workflow', 'ultrawork', 'parallel', 'burst'],
         context: 'Ultrawork burst mode completed',
         content: `Ultrawork burst: ${efficiency}. Maximum parallelism was used for independent tasks.`,
@@ -179,7 +164,7 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
 
     case 'pipeline':
       return {
-        name: `pipeline-run-${Date.now()}`,
+        name: 'workflow-pipeline-run',
         tags: ['workflow', 'pipeline', 'sequential', 'stages'],
         context: 'Pipeline mode completed sequential stages',
         content: `Pipeline execution: ${efficiency}. Tasks were processed sequentially through defined stages.`,
@@ -187,7 +172,7 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
 
     case 'ccg':
       return {
-        name: `ccg-synthesis-${Date.now()}`,
+        name: 'workflow-ccg-synthesis',
         tags: ['workflow', 'ccg', 'multi-model', 'synthesis'],
         context: 'CCG tri-model synthesis completed',
         content: `CCG synthesis: ${efficiency}. Three models (Claude/Codex/Gemini) cross-validated the result.`,
@@ -197,7 +182,7 @@ function generateWorkflowInsight(state: WorkflowState, durationMin: number): Wor
       // Unknown/external mode (e.g. triggered via OMC or third-party plugin) —
       // record as external-{modeName} so compound learning is not silently skipped
       return {
-        name: `external-${mode}-${Date.now()}`,
+        name: `workflow-external-${mode}`,
         tags: ['workflow', 'external', mode],
         context: `External mode "${mode}" completed`,
         content: `External workflow execution: ${efficiency}. Mode "${mode}" was triggered outside tenetx core (e.g. OMC or plugin).`,

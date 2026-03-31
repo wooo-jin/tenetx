@@ -10,7 +10,7 @@
   <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://www.npmjs.com/package/tenetx"><img src="https://img.shields.io/npm/v/tenetx.svg" alt="npm version"/></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
-  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-1450_across_85_files-brightgreen.svg" alt="Tests"/></a>
+  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-passing-brightgreen.svg" alt="Tests"/></a>
 </p>
 
 <p align="center">
@@ -51,7 +51,7 @@ Designed to coexist with other plugins (OMC, superpowers, claude-mem) — detect
 ```
 You code normally
     ↓
-16 hooks observe silently (prompt patterns, tool usage, code reflection)
+Up to 19 hooks observe silently (prompt patterns, tool usage, code reflection)
     ↓
 Patterns detected → Solutions stored → Evidence tracked
     ↓
@@ -62,16 +62,18 @@ Next session: personalized rules auto-generated + feedback shown
 
 ### The Compound Loop
 
-Solutions earn trust through real usage:
+Technical solutions earn trust through real usage:
 
 | Status | Confidence | How to reach |
 |--------|-----------|--------------|
 | experiment | 0.3 | Auto-extracted from git diff or Claude analysis |
-| candidate | 0.6 | reflected >= 2, sessions >= 2 |
-| verified | 0.8 | reflected >= 4, sessions >= 3 |
-| mature | 0.85 | reflected >= 8, sessions >= 5, sustained 30 days |
+| candidate | 0.55 | reflected >= 3 and sessions >= 3, or reExtracted >= 2 and reflected >= 1 |
+| verified | 0.75 | reflected >= 4 and sessions >= 3, or reExtracted >= 2 |
+| mature | 0.90 | reflected >= 8, sessions >= 5, negative <= 1, sustained 7+ days |
 
 **Code Reflection** detects when Claude actually uses your pattern. Build/test failures automatically demote bad patterns. Circuit breaker auto-retires patterns with 2+ failures.
+
+Behavioral learning is stored separately under `~/.compound/me/behavior/` and only feeds generated `.claude/rules/`. Technical compound knowledge remains under `~/.compound/me/solutions/`.
 
 ### What Gets Learned
 
@@ -82,7 +84,7 @@ Not just surface preferences ("use Korean") — **thinking patterns**:
 - "This user plans before implementing" → design-first workflow
 - "This user wants evidence, not intuition" → data-driven decisions
 
-35 detection patterns (25 surface + 10 thinking) + Claude semantic analysis at compaction.
+50+ learned preference/workflow/thinking patterns + Claude semantic analysis at compaction.
 
 ---
 
@@ -113,13 +115,17 @@ tenetx forge              # Profile your working style (optional, enhances learn
 tenetx                    # Start Claude Code with harness
 tenetx forge              # Profile your working style (scan + interview)
 tenetx me                 # Personal dashboard (profile, patterns, cost)
-tenetx compound           # View/manage accumulated knowledge
+tenetx compound           # Preview auto compound analysis
+tenetx compound --save    # Save previewed technical insights
+tenetx compound interactive # Manually capture insights in a TTY session
 tenetx lab                # Adaptive optimization metrics
 tenetx cost               # Session cost tracking
 tenetx config hooks       # Hook management
 tenetx mcp                # MCP server management
 tenetx notepad            # Session notepad
 tenetx doctor             # System diagnostics
+tenetx init               # Initialize a project
+tenetx uninstall          # Remove tenetx cleanly
 ```
 
 ### MCP Tools (available to Claude during sessions)
@@ -139,8 +145,8 @@ Claude can pull knowledge on-demand via MCP. Hook injection pushes summaries aut
 
 | Layer | Purpose | Components |
 |-------|---------|------------|
-| **Observe** | Watch how you work | 16 hooks (compound-core 8, safety 4, workflow 4) |
-| **Extract** | Find patterns | prompt-learner (35 patterns) + Claude analysis (pre-compact) |
+| **Observe** | Watch how you work | Up to 19 hooks (compound-core 8, safety 4, workflow 7) |
+| **Extract** | Find patterns | prompt-learner (50+ behavioral detectors) + compound-extractor (technical solutions) + Claude analysis (pre-compact) |
 | **Profile** | Model your style | Forge (5 dimensions) + Lab (adaptive optimization) |
 | **Inject** | Apply knowledge | .claude/rules/ + solution-injector (push) + MCP (pull) |
 | **Measure** | Track evidence | Code Reflection, lifecycle promotion, session tracking |
@@ -174,7 +180,7 @@ Lab auto-adjusts daily based on observed behavior (EMA α=0.15, max ±0.1/day).
 
 ## Safety
 
-16 hooks provide security by default:
+Hook system provides security by default:
 
 - **secret-filter**: Masks API keys, tokens in tool output
 - **db-guard**: Blocks DROP TABLE, TRUNCATE, dangerous SQL
@@ -192,9 +198,9 @@ All hooks fail-open on error (never breaks Claude Code). Timeout: 2-5 seconds pe
 | Metric | Count |
 |--------|-------|
 | Source code | ~24K lines |
-| Tests | 1,450 across 85 files |
-| Active hooks | 16 (of 19, 3 yielded to OMC) |
-| Detection patterns | 35 (25 surface + 10 thinking) |
+| Tests | 1.4K+ across 80+ files |
+| Hook registry | 19 (workflow hooks auto-disable when overlapping plugins are present) |
+| Detection patterns | 50+ |
 | MCP tools | 4 |
 | Dependencies | 3 (js-yaml, @modelcontextprotocol/sdk, zod) |
 

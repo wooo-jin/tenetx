@@ -19,7 +19,7 @@ import { recordTokenUsage as recordLabCost } from '../lab/cost-tracker.js';
 import { saveCheckpoint } from './session-recovery.js';
 import { trackSessionMetrics } from '../lab/tracker.js';
 import { recordWriteContent } from '../engine/prompt-learner.js';
-import { incrementWorkflowCounter, checkWorkflowCompletion } from '../engine/workflow-compound.js';
+import { incrementWorkflowCounter, captureWorkflowPattern } from '../engine/workflow-compound.js';
 import { incrementFailureCounter, checkCompoundNegative, getCompoundSuccessHint } from './post-tool-handlers.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, failOpen } from './shared/hook-response.js';
@@ -194,10 +194,10 @@ async function main(): Promise<void> {
   // 5. Compound negative signal (non-blocking)
   try { checkCompoundNegative(toolName, toolResponse, sessionId); } catch (e) { log.debug('compound negative check 실패', e); }
 
-  // 6. Workflow counter (non-blocking)
+  // 6. Workflow counter + pattern capture (non-blocking)
   try {
     incrementWorkflowCounter('toolCall');
-    if (modState.toolCallCount % 20 === 0) checkWorkflowCompletion(sessionId);
+    captureWorkflowPattern(sessionId);
   } catch (e) { log.debug('workflow counter increment 실패', e); }
 
   // 7. Compound success hint (non-blocking)

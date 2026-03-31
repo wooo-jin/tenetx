@@ -26,7 +26,7 @@ import type { RoutingPreset } from '../engine/router.js';
 import { loadPhilosophyForProject } from '../core/philosophy-loader.js';
 import { loadGlobalConfig } from '../core/global-config.js';
 import { loadPackConfigs } from '../core/pack-config.js';
-import { COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
+import { ALL_MODES, COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { trackModeActivation, trackHookTrigger, trackSkillInvocation } from '../lab/tracker.js';
 import { escapeAllXmlTags } from './prompt-injection-filter.js';
@@ -44,12 +44,19 @@ interface HookInput {
   cwd?: string;
 }
 
-interface KeywordMatch {
+export interface KeywordMatch {
   type: 'skill' | 'inject' | 'cancel';
   keyword: string;
   skill?: string;
   prompt?: string;
   message?: string;
+}
+
+const WORKFLOW_TRACKED_INJECTS = new Set(['benchmark']);
+
+export function shouldTrackWorkflowActivation(match: KeywordMatch): boolean {
+  if (match.type === 'inject') return WORKFLOW_TRACKED_INJECTS.has(match.keyword);
+  return match.type === 'skill';
 }
 
 // sanitizeForDetection은 shared/sanitize.ts에서 import
@@ -83,16 +90,16 @@ export const KEYWORD_PATTERNS: Array<{
   // 인젝션 모드
   { pattern: /\bultrathink\b/i, keyword: 'ultrathink', type: 'inject' },
   { pattern: /\bdeepsearch\b/i, keyword: 'deepsearch', type: 'inject' },
-  { pattern: /(?:^|\s)tdd(?:\s+(?:모드|mode|방식|으로|해|해줘|시작|적용)|\s*$)/im, keyword: 'tdd', type: 'inject' },
-  { pattern: /(?:code[- ]?review|코드\s*리뷰)\s*(?:해|해줘|시작|해봐|부탁|mode|모드)/i, keyword: 'code-review', type: 'inject' },
-  { pattern: /(?:security[- ]?review|보안\s*리뷰|보안\s*검토)\s*(?:해|해줘|시작|해봐|부탁|mode|모드)/i, keyword: 'security-review', type: 'inject' },
+  { pattern: /(?:^|\s)tdd(?:\s+(?:모드|mode|방식|으로|해|해줘|시작|적용)|\s*$)/im, keyword: 'tdd', type: 'skill', skill: 'tdd' },
+  { pattern: /(?:code[- ]?review|코드\s*리뷰)\s*(?:해|해줘|시작|해봐|부탁|mode|모드)/i, keyword: 'code-review', type: 'skill', skill: 'code-review' },
+  { pattern: /(?:security[- ]?review|보안\s*리뷰|보안\s*검토)\s*(?:해|해줘|시작|해봐|부탁|mode|모드)/i, keyword: 'security-review', type: 'skill', skill: 'security-review' },
 
   // 실용 스킬 — 명시적 모드 호출만 매칭 (일상 단어 false positive 방지)
-  { pattern: /\bgit[- ]?master\b/i, keyword: 'git-master', type: 'inject' },
+  { pattern: /\bgit[- ]?master\b/i, keyword: 'git-master', type: 'skill', skill: 'git-master' },
   { pattern: /\b(benchmark|벤치마크)\s*(?:mode|모드|해|해줘|시작|실행|돌려)|성능\s*측정/i, keyword: 'benchmark', type: 'inject' },
-  { pattern: /\b(migrate|마이그레이션)\s*(?:mode|모드|해|해줘|시작|실행|진행)/i, keyword: 'migrate', type: 'inject' },
-  { pattern: /\b(debug[- ]?detective|디버그\s*탐정|체계적\s*디버깅)\b/i, keyword: 'debug-detective', type: 'inject' },
-  { pattern: /\b(refactor|리팩토링|리팩터)\s*(?:mode|모드|해|해줘|시작|실행|진행)/i, keyword: 'refactor', type: 'inject' },
+  { pattern: /\b(migrate|마이그레이션)\s*(?:mode|모드|해|해줘|시작|실행|진행)/i, keyword: 'migrate', type: 'skill', skill: 'migrate' },
+  { pattern: /\b(debug[- ]?detective|디버그\s*탐정|체계적\s*디버깅)\b/i, keyword: 'debug-detective', type: 'skill', skill: 'debug-detective' },
+  { pattern: /\b(refactor|리팩토링|리팩터)\s*(?:mode|모드|해|해줘|시작|실행|진행)/i, keyword: 'refactor', type: 'skill', skill: 'refactor' },
 ];
 
 // ── 인젝션 메시지 ──
@@ -379,7 +386,7 @@ async function main(): Promise<void> {
       try { fs.unlinkSync(ralphLoopState); } catch { /* 파일 없으면 무시 */ }
     } else {
       // 모든 모드 상태 초기화 (ralplan, deep-interview 포함)
-      for (const mode of ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview', 'ecomode']) {
+      for (const mode of ALL_MODES) {
         clearState(`${mode}-state`);
       }
       const ralphLoopState = path.join(cancelCwd, '.claude', 'ralph-loop.local.md');
@@ -401,8 +408,10 @@ async function main(): Promise<void> {
       return;
     }
     const injectStart = Date.now();
-    try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode usage 기록 실패', e); }
-    try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode start 기록 실패', e); }
+    if (shouldTrackWorkflowActivation(match)) {
+      try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode usage 기록 실패', e); }
+      try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode start 기록 실패', e); }
+    }
     trackModeActivation(input.session_id ?? 'unknown', match.keyword, 'keyword');
     try { trackSkillInvocation(sessionId, match.keyword, Date.now() - injectStart, 'success'); } catch { /* non-blocking */ }
     console.log(approve(match.message));

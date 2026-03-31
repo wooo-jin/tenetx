@@ -1,9 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { ME_DIR, ME_RULES, PACKS_DIR, projectDir } from './paths.js';
+import { ME_BEHAVIOR, ME_RULES, PACKS_DIR, projectDir } from './paths.js';
 import { loadPackConfigs } from './pack-config.js';
 import type { HarnessContext } from './types.js';
 import { createLogger } from './logger.js';
+import { parseBehaviorPattern } from '../engine/behavior-format.js';
+import { parseSolutionV3 } from '../engine/solution-format.js';
 
 const log = createLogger('config-injector');
 /** 프로젝트 맵 타입 (engine/knowledge/types.ts 삭제 후 인라인) */
@@ -27,15 +29,39 @@ function loadRulesFromDir(dir: string): string[] {
     return fs.readdirSync(dir)
       .filter(f => f.endsWith('.md'))
       .map(f => {
-        const content = fs.readFileSync(path.join(dir, f), 'utf-8').trim();
-        // 첫 번째 의미있는 줄 추출 (# 헤더 또는 본문)
-        const firstLine = content.split('\n').find(l => l.trim() && !l.startsWith('---'));
-        return firstLine?.replace(/^#+\s*/, '').trim() ?? f.replace('.md', '');
-      });
+        const filePath = path.join(dir, f);
+        if (fs.lstatSync(filePath).isSymbolicLink()) return null;
+
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const parsed = parseSolutionV3(content);
+        const body = parsed ? parsed.content : stripFrontmatter(content);
+        const firstLine = firstMeaningfulLine(body);
+        return firstLine ?? f.replace('.md', '');
+      })
+      .filter((rule): rule is string => Boolean(rule));
   } catch (e) {
     log.debug(`규칙 디렉토리 읽기 실패: ${dir}`, e);
     return [];
   }
+}
+
+function stripFrontmatter(content: string): string {
+  const trimmed = content.trimStart();
+  if (!trimmed.startsWith('---')) return content;
+
+  const endIdx = trimmed.indexOf('---', 3);
+  if (endIdx === -1) return content;
+  return trimmed.slice(endIdx + 3);
+}
+
+function firstMeaningfulLine(content: string): string | null {
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (line === '## Context' || line === '## Content') continue;
+    return line.replace(/^#+\s*/, '').trim();
+  }
+  return null;
 }
 
 /** 프로젝트 맵에서 에이전트용 요약 생성 */
@@ -278,17 +304,16 @@ function withPaths(content: string, paths: string[]): string {
 
 /**
  * 학습된 선호/사고 패턴을 .claude/rules/ 규칙으로 변환.
- * prompt-learner가 생성한 솔루션 파일(prefer-*, workflow-*, think-*)을 읽어
+ * prompt-learner가 생성한 behavioral 파일을 읽어
  * 사람이 읽을 수 있는 규칙 파일로 포맷합니다.
  */
 function generateBehavioralRules(): string {
   const lines: string[] = ['# Tenetx — Learned Patterns', '# auto-generated from observed interactions', ''];
 
   try {
-    const solDir = path.join(ME_DIR, 'solutions');
-    if (!fs.existsSync(solDir)) return lines.join('\n');
+    if (!fs.existsSync(ME_BEHAVIOR)) return lines.join('\n');
 
-    const files = fs.readdirSync(solDir).filter(f => f.endsWith('.md'));
+    const files = fs.readdirSync(ME_BEHAVIOR).filter(f => f.endsWith('.md'));
     const categories: Record<string, string[]> = {
       'Thinking Style': [],
       'Response Preferences': [],
@@ -296,30 +321,22 @@ function generateBehavioralRules(): string {
     };
 
     for (const file of files) {
-      const filePath = path.join(solDir, file);
+      const filePath = path.join(ME_BEHAVIOR, file);
       if (fs.lstatSync(filePath).isSymbolicLink()) continue;
-      const content = fs.readFileSync(filePath, 'utf-8');
-      // description 추출
-      const nameMatch = content.match(/name:\s*"?([^"\n]+)"?/);
-      const name = nameMatch?.[1] ?? file;
+      const parsed = parseBehaviorPattern(fs.readFileSync(filePath, 'utf-8'));
+      if (!parsed) continue;
 
-      // Context에서 감지 횟수 추출
-      const countMatch = content.match(/(\d+)\s*(?:prompts?|write|mode|times)/i);
-      const count = countMatch?.[1] ?? '';
-      const countStr = count ? ` (${count}회 관찰)` : '';
-
-      // Content 줄에서 description 추출
-      const descStart = content.indexOf('## Content');
-      if (descStart === -1) continue;
-      const desc = content.slice(descStart + 11).trim().split('\n')[0];
+      const countStr = parsed.frontmatter.observedCount > 0
+        ? ` (${parsed.frontmatter.observedCount}회 관찰)`
+        : '';
+      const desc = parsed.content.trim().split('\n')[0];
       if (!desc || desc.length < 5) continue;
 
-      // 카테고리 분류
-      if (name.startsWith('think-')) {
+      if (parsed.frontmatter.kind === 'thinking') {
         categories['Thinking Style'].push(`- ${desc}${countStr}`);
-      } else if (name.startsWith('workflow-')) {
+      } else if (parsed.frontmatter.kind === 'workflow') {
         categories.Workflow.push(`- ${desc}${countStr}`);
-      } else if (name.startsWith('prefer-') || name.startsWith('writes-') || name.startsWith('works-')) {
+      } else if (parsed.frontmatter.kind === 'preference') {
         categories['Response Preferences'].push(`- ${desc}${countStr}`);
       }
     }

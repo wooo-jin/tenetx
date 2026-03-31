@@ -103,6 +103,7 @@ function ensureDirectories() {
     COMPOUND_HOME,
     join(COMPOUND_HOME, 'me'),
     join(COMPOUND_HOME, 'me', 'solutions'),
+    join(COMPOUND_HOME, 'me', 'behavior'),
     join(COMPOUND_HOME, 'me', 'rules'),
     join(COMPOUND_HOME, 'me', 'skills'),
     join(COMPOUND_HOME, 'sessions'),

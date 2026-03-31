@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { COMPOUND_HOME, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from './paths.js';
+import { COMPOUND_HOME, ME_BEHAVIOR, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from './paths.js';
 
 /** ~/.claude/projects/ — Claude Code 세션 저장 경로 */
 const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
@@ -49,6 +49,7 @@ export async function runDoctor(): Promise<void> {
   check('~/.compound/', exists(COMPOUND_HOME));
   check('~/.compound/me/', exists(ME_DIR));
   check('~/.compound/me/solutions/', exists(ME_SOLUTIONS));
+  check('~/.compound/me/behavior/', exists(ME_BEHAVIOR));
   check('~/.compound/me/rules/', exists(ME_RULES));
   check('~/.compound/packs/', exists(PACKS_DIR));
   check('~/.compound/sessions/', exists(SESSIONS_DIR));
@@ -67,6 +68,10 @@ export async function runDoctor(): Promise<void> {
   if (exists(ME_SOLUTIONS)) {
     const solutions = fs.readdirSync(ME_SOLUTIONS).filter((f) => f.endsWith('.md')).length;
     console.log(`  Personal solutions: ${solutions}`);
+  }
+  if (exists(ME_BEHAVIOR)) {
+    const behavior = fs.readdirSync(ME_BEHAVIOR).filter((f) => f.endsWith('.md')).length;
+    console.log(`  Behavioral patterns: ${behavior}`);
   }
   if (exists(ME_RULES)) {
     const rules = fs.readdirSync(ME_RULES).filter((f) => f.endsWith('.md')).length;

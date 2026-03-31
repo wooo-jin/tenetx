@@ -25,7 +25,7 @@ import { track } from '../lab/tracker.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('compound-extractor');
-import { ME_SOLUTIONS, STATE_DIR } from '../core/paths.js';
+import { CLAUDE_DIR, ME_SOLUTIONS, STATE_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from '../hooks/shared/atomic-write.js';
 
 const LAST_EXTRACTION_PATH = path.join(STATE_DIR, 'last-extraction.json');
@@ -51,6 +51,22 @@ interface ExtractedSolution {
   identifiers: string[];
   context: string;
   content: string;
+}
+
+interface WriteContextEntry {
+  filePath: string;
+  contentSnippet: string;
+  fileExtension: string;
+}
+
+interface ExtractionAnalysis {
+  state: LastExtraction;
+  today: string;
+  headSha: string;
+  extracted: ExtractedSolution[];
+  reason?: string;
+  stats?: { files: number; lines: number; hasCodeFiles: boolean };
+  persistStateWithoutSaving: boolean;
 }
 
 /** Load last extraction state */
@@ -116,7 +132,10 @@ function getDiffStats(cwd: string, lastSha: string): { files: number; lines: num
     const stat = execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 5000 });
     const lines = stat.split('\n').filter(l => l.trim());
     const codeExts = /\.(ts|tsx|js|jsx|py|rs|go|java|rb|c|cpp|h|swift|kt)$/;
-    const hasCodeFiles = lines.some(l => codeExts.test(l));
+    const hasCodeFiles = lines.some(line => {
+      const filePath = line.split('|')[0]?.trim() ?? '';
+      return codeExts.test(filePath);
+    });
     const lastLine = lines[lines.length - 1] ?? '';
     const changedMatch = lastLine.match(/(\d+)\s+files?\s+changed/);
     const insertMatch = lastLine.match(/(\d+)\s+insertion/);
@@ -293,32 +312,24 @@ function extractFromDiff(gitLog: string, gitDiff: string): ExtractedSolution[] {
 /** Extract patterns from accumulated session context (prompts + writes + diff) */
 function extractFromSessionContext(
   gitDiff: string,
+  cwd: string,
+  lastExtractedAt: string,
 ): ExtractedSolution[] {
   const solutions: ExtractedSolution[] = [];
 
+  const claudeContext = loadClaudeProjectSessionContext(cwd, lastExtractedAt);
+
   // Load recent prompts
-  const promptHistoryPath = path.join(STATE_DIR, 'prompt-history.jsonl');
-  let prompts: string[] = [];
-  try {
-    if (fs.existsSync(promptHistoryPath)) {
-      const lines = fs.readFileSync(promptHistoryPath, 'utf-8').split('\n').filter(Boolean);
-      prompts = lines.slice(-50).map(l => {
-        try { return JSON.parse(l).prompt as string; } catch { return ''; }
-      }).filter(Boolean);
-    }
-  } catch (e) { log.debug('prompt-history.jsonl 읽기 실패 — session context 추출 건너뜀', e); }
+  let prompts = claudeContext.prompts;
+  if (prompts.length === 0) {
+    prompts = loadPromptHistoryFallback();
+  }
 
   // Load recent writes
-  const writeHistoryPath = path.join(STATE_DIR, 'write-history.jsonl');
-  let writes: Array<{ filePath: string; contentSnippet: string; fileExtension: string }> = [];
-  try {
-    if (fs.existsSync(writeHistoryPath)) {
-      const lines = fs.readFileSync(writeHistoryPath, 'utf-8').split('\n').filter(Boolean);
-      writes = lines.slice(-30).map(l => {
-        try { return JSON.parse(l); } catch { return null; }
-      }).filter(Boolean);
-    }
-  } catch (e) { log.debug('write-history.jsonl 읽기 실패 — session context 추출 건너뜀', e); }
+  let writes = claudeContext.writes;
+  if (writes.length === 0) {
+    writes = loadWriteHistoryFallback();
+  }
 
   // 1. Detect recurring request patterns from prompts
   // Group similar prompts by extracting key action words
@@ -411,6 +422,184 @@ function extractFromSessionContext(
   return solutions;
 }
 
+function normalizeProjectPath(cwd: string): string {
+  const resolved = path.resolve(cwd);
+  try {
+    return typeof fs.realpathSync.native === 'function'
+      ? fs.realpathSync.native(resolved)
+      : fs.realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
+function getProjectPathCandidates(cwd: string): string[] {
+  const resolved = path.resolve(cwd);
+  const candidates = new Set<string>([resolved, normalizeProjectPath(cwd)]);
+
+  try {
+    if (fs.lstatSync(resolved).isSymbolicLink()) {
+      candidates.add(path.resolve(path.dirname(resolved), fs.readlinkSync(resolved)));
+    }
+  } catch {
+    // Ignore lstat/readlink failures; raw + realpath candidates are enough.
+  }
+
+  for (const candidate of [...candidates]) {
+    candidates.add(normalizeProjectPath(candidate));
+  }
+
+  return [...candidates];
+}
+
+function getClaudeProjectDirs(cwd: string): string[] {
+  return getProjectPathCandidates(cwd)
+    .map(candidate => path.join(CLAUDE_DIR, 'projects', candidate.replace(/[:\\/]/g, '-')));
+}
+
+function listClaudeSessionFiles(projectDirs: string[], maxFiles: number): Array<{ filePath: string; mtimeMs: number }> {
+  return projectDirs
+    .flatMap(projectDir =>
+      fs.readdirSync(projectDir)
+        .filter(f => f.endsWith('.jsonl'))
+        .map(file => {
+          const filePath = path.join(projectDir, file);
+          return { filePath, mtimeMs: fs.statSync(filePath).mtimeMs };
+        }))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)
+    .slice(0, maxFiles);
+}
+
+function getAllClaudeProjectDirs(): string[] {
+  const projectsRoot = path.join(CLAUDE_DIR, 'projects');
+  if (!fs.existsSync(projectsRoot)) return [];
+
+  return fs.readdirSync(projectsRoot)
+    .map(name => path.join(projectsRoot, name))
+    .filter(dir => {
+      try {
+        return fs.statSync(dir).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+}
+
+function collectClaudeProjectSessionContext(
+  files: Array<{ filePath: string; mtimeMs: number }>,
+  cwdCandidates: Set<string>,
+  cutoffMs: number,
+): { prompts: string[]; writes: WriteContextEntry[] } {
+  const prompts: string[] = [];
+  const writes: WriteContextEntry[] = [];
+
+  for (const file of files) {
+    const lines = fs.readFileSync(file.filePath, 'utf-8').split('\n').filter(Boolean);
+    for (const line of lines) {
+      let entry: Record<string, unknown>;
+      try {
+        entry = JSON.parse(line);
+      } catch {
+        continue;
+      }
+
+      const entryCandidates = typeof entry.cwd === 'string' ? getProjectPathCandidates(entry.cwd) : [];
+      if (!entryCandidates.some(candidate => cwdCandidates.has(candidate))) continue;
+
+      const timestamp = typeof entry.timestamp === 'string' ? new Date(entry.timestamp).getTime() : Number.NaN;
+      if (cutoffMs && Number.isFinite(timestamp) && timestamp <= cutoffMs) continue;
+
+      if (entry.type === 'user') {
+        const message = entry.message as { role?: string; content?: unknown } | undefined;
+        if (message?.role === 'user' && typeof message.content === 'string') {
+          prompts.push(message.content);
+        }
+        continue;
+      }
+
+      if (entry.type !== 'assistant') continue;
+      const message = entry.message as { role?: string; content?: unknown } | undefined;
+      if (message?.role !== 'assistant' || !Array.isArray(message.content)) continue;
+
+      for (const item of message.content) {
+        if (typeof item !== 'object' || item === null) continue;
+        const toolUse = item as {
+          type?: string;
+          name?: string;
+          input?: Record<string, unknown>;
+        };
+        if (toolUse.type !== 'tool_use') continue;
+        if (toolUse.name !== 'Write' && toolUse.name !== 'Edit') continue;
+        const filePath = String(toolUse.input?.file_path ?? toolUse.input?.filePath ?? '');
+        const content = String(toolUse.input?.content ?? toolUse.input?.new_string ?? '');
+        if (!filePath || !content) continue;
+        writes.push({
+          filePath: filePath.slice(-100),
+          contentSnippet: content.slice(0, 200),
+          fileExtension: path.extname(filePath).toLowerCase(),
+        });
+      }
+    }
+  }
+
+  return {
+    prompts: prompts.slice(-50),
+    writes: writes.slice(-30),
+  };
+}
+
+function loadPromptHistoryFallback(): string[] {
+  const promptHistoryPath = path.join(STATE_DIR, 'prompt-history.jsonl');
+  try {
+    if (!fs.existsSync(promptHistoryPath)) return [];
+    const lines = fs.readFileSync(promptHistoryPath, 'utf-8').split('\n').filter(Boolean);
+    return lines.slice(-50).map(l => {
+      try { return JSON.parse(l).prompt as string; } catch { return ''; }
+    }).filter(Boolean);
+  } catch (e) {
+    log.debug('prompt-history.jsonl 읽기 실패 — session context fallback 건너뜀', e);
+    return [];
+  }
+}
+
+function loadWriteHistoryFallback(): WriteContextEntry[] {
+  const writeHistoryPath = path.join(STATE_DIR, 'write-history.jsonl');
+  try {
+    if (!fs.existsSync(writeHistoryPath)) return [];
+    const lines = fs.readFileSync(writeHistoryPath, 'utf-8').split('\n').filter(Boolean);
+    return lines.slice(-30).map(l => {
+      try { return JSON.parse(l) as WriteContextEntry; } catch { return null; }
+    }).filter((entry): entry is WriteContextEntry => entry !== null);
+  } catch (e) {
+    log.debug('write-history.jsonl 읽기 실패 — session context fallback 건너뜀', e);
+    return [];
+  }
+}
+
+function loadClaudeProjectSessionContext(
+  cwd: string,
+  lastExtractedAt: string,
+): { prompts: string[]; writes: WriteContextEntry[] } {
+  const cwdCandidates = new Set(getProjectPathCandidates(cwd));
+  const projectDirs = getClaudeProjectDirs(cwd).filter(dir => fs.existsSync(dir));
+  const cutoffMs = lastExtractedAt ? new Date(lastExtractedAt).getTime() : 0;
+
+  try {
+    if (projectDirs.length > 0) {
+      const primary = collectClaudeProjectSessionContext(listClaudeSessionFiles(projectDirs, 5), cwdCandidates, cutoffMs);
+      if (primary.prompts.length > 0 || primary.writes.length > 0) return primary;
+    }
+
+    const fallbackDirs = getAllClaudeProjectDirs().filter(dir => !projectDirs.includes(dir));
+    if (fallbackDirs.length === 0) return { prompts: [], writes: [] };
+
+    return collectClaudeProjectSessionContext(listClaudeSessionFiles(fallbackDirs, 20), cwdCandidates, cutoffMs);
+  } catch (e) {
+    log.debug('Claude project session context 로드 실패 — fallback 사용', e);
+    return { prompts: [], writes: [] };
+  }
+}
+
 function findCommonPrefix(strings: string[]): string {
   if (strings.length === 0) return '';
   let prefix = strings[0];
@@ -493,13 +682,7 @@ function updateReExtractedCounter(tags: string[]): void {
 }
 
 /** Main extraction function — called from SessionStart or CLI */
-export async function runExtraction(cwd: string, sessionId: string): Promise<{
-  extracted: string[];
-  skipped: string[];
-  reason?: string;
-}> {
-  const result = { extracted: [] as string[], skipped: [] as string[] };
-
+function analyzeExtraction(cwd: string, options?: { enforceDailyLimit?: boolean }): ExtractionAnalysis {
   const state = loadLastExtraction();
   const today = new Date().toISOString().split('T')[0];
 
@@ -510,14 +693,28 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   }
 
   // Daily limit check
-  if (state.extractionsToday >= MAX_EXTRACTIONS_PER_DAY) {
-    return { ...result, reason: `일일 추출 한도 도달 (${MAX_EXTRACTIONS_PER_DAY}/일)` };
+  if (options?.enforceDailyLimit !== false && state.extractionsToday >= MAX_EXTRACTIONS_PER_DAY) {
+    return {
+      state,
+      today,
+      headSha: '',
+      extracted: [],
+      reason: `일일 추출 한도 도달 (${MAX_EXTRACTIONS_PER_DAY}/일)`,
+      persistStateWithoutSaving: false,
+    };
   }
 
   // Check for new commits
   const gitLog = getNewCommits(cwd, state.lastCommitSha);
   if (!gitLog.trim()) {
-    return { ...result, reason: '새 커밋 없음' };
+    return {
+      state,
+      today,
+      headSha: '',
+      extracted: [],
+      reason: '새 커밋 없음',
+      persistStateWithoutSaving: false,
+    };
   }
 
   // Get current HEAD sha
@@ -525,14 +722,28 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
   try {
     headSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   } catch {
-    return { ...result, reason: 'git HEAD 조회 실패' };
+    return {
+      state,
+      today,
+      headSha: '',
+      extracted: [],
+      reason: 'git HEAD 조회 실패',
+      persistStateWithoutSaving: false,
+    };
   }
 
   // Gate 0: Worth extracting?
   const stats = getDiffStats(cwd, state.lastCommitSha);
   if (!gate0(stats)) {
-    saveLastExtraction({ ...state, lastCommitSha: headSha, lastExtractedAt: new Date().toISOString() });
-    return { ...result, reason: `Gate 0: 추출 가치 부족 (${stats.files} files, ${stats.lines} lines)` };
+    return {
+      state,
+      today,
+      headSha,
+      extracted: [],
+      reason: `Gate 0: 추출 가치 부족 (${stats.files} files, ${stats.lines} lines)`,
+      stats,
+      persistStateWithoutSaving: true,
+    };
   }
 
   // Get diff for extraction prompt
@@ -543,7 +754,7 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
 
   // Combine git diff analysis + session context analysis
   const diffPatterns = extractFromDiff(gitLog, gitDiff);
-  const contextPatterns = extractFromSessionContext(gitDiff);
+  const contextPatterns = extractFromSessionContext(gitDiff, cwd, state.lastExtractedAt);
   const extracted = [...diffPatterns, ...contextPatterns].slice(0, 3); // max 3 total
 
   // Enrich extracted solutions with commit message context
@@ -555,19 +766,92 @@ export async function runExtraction(cwd: string, sessionId: string): Promise<{
     }
   }
 
-  if (extracted.length > 0) {
-    const { saved, skipped } = processExtractionResults(JSON.stringify(extracted), sessionId);
+  return {
+    state,
+    today,
+    headSha,
+    extracted,
+    stats,
+    persistStateWithoutSaving: false,
+  };
+}
+
+function evaluateExtractedSolution(sol: ExtractedSolution): { action: 'accept' | 'skip' | 'duplicate' | 're-extract'; message?: string } {
+  if (!gate1(sol)) return { action: 'skip', message: `${sol.name ?? 'unnamed'}: Gate 1 실패 (구조 검증)` };
+  if (!gate2(sol)) return { action: 'skip', message: `${sol.name}: Gate 2 실패 (독성 필터)` };
+  if (!gateTrivial(sol)) return { action: 'skip', message: `${sol.name}: Gate 2.5 실패 (자명한 패턴)` };
+
+  const dupResult = gate3(sol);
+  if (dupResult === 'duplicate') return { action: 'duplicate', message: `${sol.name}: Gate 3 중복` };
+  if (dupResult === 're-extract') return { action: 're-extract', message: `${sol.name}: 재추출 (기존 솔루션 강화)` };
+
+  return { action: 'accept' };
+}
+
+export async function previewExtraction(cwd: string): Promise<{
+  preview: ExtractedSolution[];
+  skipped: string[];
+  reason?: string;
+}> {
+  const analysis = analyzeExtraction(cwd, { enforceDailyLimit: false });
+  if (analysis.reason) {
+    return { preview: [], skipped: [], reason: analysis.reason };
+  }
+
+  const preview: ExtractedSolution[] = [];
+  const skipped: string[] = [];
+
+  for (const sol of analysis.extracted.slice(0, 3)) {
+    const evaluation = evaluateExtractedSolution(sol);
+    if (evaluation.action === 'accept') {
+      preview.push(sol);
+      continue;
+    }
+    if (evaluation.action === 're-extract') {
+      skipped.push(evaluation.message ?? `${sol.name}: 재추출`);
+      continue;
+    }
+    skipped.push(evaluation.message ?? `${sol.name}: skipped`);
+  }
+
+  return { preview, skipped };
+}
+
+/** Main extraction function — called from SessionStart or CLI */
+export async function runExtraction(cwd: string, sessionId: string): Promise<{
+  extracted: string[];
+  skipped: string[];
+  reason?: string;
+}> {
+  const result = { extracted: [] as string[], skipped: [] as string[] };
+  const analysis = analyzeExtraction(cwd);
+
+  if (analysis.reason) {
+    if (analysis.persistStateWithoutSaving && analysis.headSha) {
+      saveLastExtraction({
+        ...analysis.state,
+        lastCommitSha: analysis.headSha,
+        lastExtractedAt: new Date().toISOString(),
+      });
+    }
+    return { ...result, reason: analysis.reason };
+  }
+
+  if (analysis.extracted.length > 0) {
+    const { saved, skipped } = processExtractionResults(JSON.stringify(analysis.extracted), sessionId);
     result.extracted = saved;
     result.skipped = skipped;
   }
 
   // Update extraction state
-  state.lastCommitSha = headSha;
-  state.lastExtractedAt = new Date().toISOString();
-  state.extractionsToday++;
-  saveLastExtraction(state);
+  analysis.state.lastCommitSha = analysis.headSha;
+  analysis.state.lastExtractedAt = new Date().toISOString();
+  analysis.state.extractionsToday++;
+  saveLastExtraction(analysis.state);
 
-  log.debug(`로컬 추출 완료: ${result.extracted.length} saved, ${result.skipped.length} skipped (${stats.files} files, ${stats.lines} lines)`);
+  if (analysis.stats) {
+    log.debug(`로컬 추출 완료: ${result.extracted.length} saved, ${result.skipped.length} skipped (${analysis.stats.files} files, ${analysis.stats.lines} lines)`);
+  }
 
   return result;
 }
@@ -590,34 +874,15 @@ export function processExtractionResults(
 
   // Max 3 per extraction
   for (const sol of solutions.slice(0, 3)) {
-    // Gate 1: Structure
-    if (!gate1(sol)) {
-      skipped.push(`${sol.name ?? 'unnamed'}: Gate 1 실패 (구조 검증)`);
+    const evaluation = evaluateExtractedSolution(sol);
+    if (evaluation.action === 'skip' || evaluation.action === 'duplicate') {
+      skipped.push(evaluation.message ?? `${sol.name}: skipped`);
       continue;
     }
-
-    // Gate 2: Toxicity
-    if (!gate2(sol)) {
-      skipped.push(`${sol.name}: Gate 2 실패 (독성 필터)`);
-      continue;
-    }
-
-    // Gate 2.5: Trivial pattern rejection
-    if (!gateTrivial(sol)) {
-      skipped.push(`${sol.name}: Gate 2.5 실패 (자명한 패턴)`);
-      continue;
-    }
-
-    // Gate 3: Dedup
-    const dupResult = gate3(sol);
-    if (dupResult === 'duplicate') {
-      skipped.push(`${sol.name}: Gate 3 중복`);
-      continue;
-    }
-    if (dupResult === 're-extract') {
+    if (evaluation.action === 're-extract') {
       // Increment reExtracted counter on existing solution
       try { updateReExtractedCounter(sol.tags); } catch (e) { log.debug('re-extract 카운터 업데이트 실패', e); }
-      skipped.push(`${sol.name}: 재추출 (기존 솔루션 강화)`);
+      skipped.push(evaluation.message ?? `${sol.name}: 재추출`);
       continue;
     }
 
