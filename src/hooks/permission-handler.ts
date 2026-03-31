@@ -16,6 +16,8 @@ const log = createLogger('permission-handler');
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { trackUserOverride } from '../lab/tracker.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -83,7 +85,11 @@ function logPermissionRequest(sessionId: string, toolName: string, decision: str
 async function main(): Promise<void> {
   const data = await readStdinJSON<PermissionInput>();
   if (!data) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
+    return;
+  }
+  if (!isHookEnabled('permission-handler')) {
+    console.log(approve());
     return;
   }
 
@@ -93,14 +99,14 @@ async function main(): Promise<void> {
   // 안전 도구는 항상 승인
   if (SAFE_TOOLS.has(toolName)) {
     logPermissionRequest(sessionId, toolName, 'auto-approve-safe');
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
   // autopilot 모드가 아니면 기본 동작 (Claude Code 기본 권한 흐름)
   if (!isAutopilotActive()) {
     logPermissionRequest(sessionId, toolName, 'pass-through');
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -118,19 +124,16 @@ async function main(): Promise<void> {
       ? `[Tenetx] ⚠ Autopilot: Bash tool auto-approved — passed pre-tool-use validation. Beware of unexpected commands.`
       : `[Tenetx] Autopilot: ${toolName} tool execution auto-approved.`;
 
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: `<compound-permission>\n${warningLevel}\n</compound-permission>`,
-    }));
+    console.log(approve(`<compound-permission>\n${warningLevel}\n</compound-permission>`));
     return;
   }
 
   // 기타 도구: autopilot 모드에서 자동 승인
   logPermissionRequest(sessionId, toolName, 'autopilot-approve');
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(approve());
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

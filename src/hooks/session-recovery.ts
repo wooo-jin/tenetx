@@ -16,6 +16,8 @@ import { createLogger } from '../core/logger.js';
 const log = createLogger('session-recovery');
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -136,8 +138,13 @@ async function main(): Promise<void> {
     process.stdin.on('end', () => { clearTimeout(timeout); resolve(); });
   });
 
+  if (!isHookEnabled('session-recovery')) {
+    console.log(approve());
+    return;
+  }
+
   if (!fs.existsSync(STATE_DIR)) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -166,13 +173,15 @@ async function main(): Promise<void> {
       }
 
       const elapsedMinutes = Math.round(elapsed / 60000);
+      // Security: 상태 파일의 사용자 입력을 XML에 삽입하기 전 이스케이프
+      const escXml = (s: string) => s.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]!);
       recoveryMessages.push(
         `<compound-recovery mode="${mode}">` +
         `\n${mode} mode from previous session has been recovered.` +
         `\nStarted: ${state.startedAt} (${elapsedMinutes} minutes ago)` +
-        (state.prompt ? `\nOriginal request: ${state.prompt}` : '') +
-        (state.stage ? `\nCurrent stage: ${state.stage}` : '') +
-        (state.completedSteps?.length ? `\nCompleted steps: ${state.completedSteps.join(', ')}` : '') +
+        (state.prompt ? `\nOriginal request: ${escXml(state.prompt)}` : '') +
+        (state.stage ? `\nCurrent stage: ${escXml(state.stage)}` : '') +
+        (state.completedSteps?.length ? `\nCompleted steps: ${state.completedSteps.map((s: string) => escXml(s)).join(', ')}` : '') +
         `\n\nContinue the previous work. To stop, type "canceltenetx".` +
         `\n</compound-recovery>`
       );
@@ -199,13 +208,16 @@ async function main(): Promise<void> {
           continue;
         }
         const elapsedMin = Math.round(age / 60000);
+        const safeSessionId = String(cp.sessionId).replace(/[&"<>]/g, '_');
+        const safeLastTool = String(cp.lastToolCall ?? '').replace(/[<>]/g, '_');
+        const safeCwd = String(cp.cwd ?? '').replace(/[<>]/g, '_');
         recoveryMessages.push(
-          `<compound-checkpoint session="${cp.sessionId}">` +
+          `<compound-checkpoint session="${safeSessionId}">` +
           `\nIncomplete checkpoint found (${elapsedMin} minutes ago)` +
           `\n- Modified files: ${cp.modifiedFiles.length}` +
           `\n- Tool calls: ${cp.toolCallCount}` +
-          `\n- Last tool: ${cp.lastToolCall}` +
-          `\n- Working directory: ${cp.cwd}` +
+          `\n- Last tool: ${safeLastTool}` +
+          `\n- Working directory: ${safeCwd}` +
           `\n</compound-checkpoint>`
         );
       } catch { /* 개별 파일 파싱 실패 무시 */ }
@@ -243,9 +255,13 @@ async function main(): Promise<void> {
       if (handoffs.length > 0) {
         const latest = handoffs[handoffs.length - 1];
         const latestPath = path.join(handoffDir, latest);
-        const content = fs.readFileSync(latestPath, 'utf-8');
+        // Security: symlink 방지 + XML 이스케이프
+        if (fs.lstatSync(latestPath).isSymbolicLink()) throw new Error('symlink rejected');
+        const raw = fs.readFileSync(latestPath, 'utf-8');
+        const safeName = latest.replace(/[&"<>]/g, '_');
+        const escaped = raw.replace(/<\/?[a-zA-Z][\w-]*(?:\s[^>]*)?\/?>/g, m => m.replace(/</g, '&lt;').replace(/>/g, '&gt;'));
         recoveryMessages.push(
-          `<compound-handoff file="${latest}">\n${content}\n</compound-handoff>`
+          `<compound-handoff file="${safeName}">\n${escaped}\n</compound-handoff>`
         );
         // 마커 삭제 (한 번만 안내 — pending-compound.json과 동일 패턴)
         try { fs.unlinkSync(latestPath); } catch (e) { log.debug('handoff 파일 삭제 실패', e); }
@@ -253,22 +269,32 @@ async function main(): Promise<void> {
     } catch (e) { log.debug('handoff 파일 읽기 실패', e); }
   }
 
-  // Compound v3: Trigger lazy extraction if new commits exist
+  // Compound v3: Trigger lazy extraction — fire-and-forget (성능: 3초→0초)
+  // SessionStart 훅은 3초 타임아웃이므로 git diff 분석을 동기 실행하면 초과함
   const sessionId = `session-${Date.now()}`;
   try {
     const { runExtraction, isExtractionPaused } = await import('../engine/compound-extractor.js');
     if (!isExtractionPaused()) {
       const cwd = process.env.COMPOUND_CWD ?? process.cwd();
-      await runExtraction(cwd, sessionId);
+      // 결과를 기다리지 않음 — 백그라운드에서 추출
+      runExtraction(cwd, sessionId).catch(e => log.debug('lazy extraction 실패', e));
     }
-  } catch (e) { log.debug('lazy extraction 실패', e); }
+  } catch (e) { log.debug('lazy extraction import 실패', e); }
 
-  // Compound v3: Detect preference patterns from prompt history
+  // Compound v3: Detect preference patterns → 사용자에게 피드백
   try {
     const { detectPreferencePatterns } = await import('../engine/prompt-learner.js');
     const patterns = detectPreferencePatterns(sessionId);
     if (patterns.created.length > 0) {
-      log.debug(`새 선호도 패턴 감지: ${patterns.created.join(', ')}`);
+      recoveryMessages.push(
+        `[tenetx] 새로 학습됨: ${patterns.created.join(', ')}`,
+      );
+    }
+    if (patterns.detected.length > 0 && patterns.created.length === 0) {
+      // 새로 생성된 건 없지만 감지된 패턴이 있으면 간략히 표시
+      recoveryMessages.push(
+        `[tenetx] 학습된 패턴 ${patterns.detected.length}개 활성 중`,
+      );
     }
   } catch (e) { log.debug('preference pattern detection 실패', e); }
 
@@ -277,7 +303,7 @@ async function main(): Promise<void> {
     const { detectContentPatterns } = await import('../engine/prompt-learner.js');
     const contentPatterns = detectContentPatterns(sessionId);
     if (contentPatterns.created.length > 0) {
-      log.debug(`새 콘텐츠 패턴 감지: ${contentPatterns.created.join(', ')}`);
+      recoveryMessages.push(`[tenetx] 콘텐츠 패턴 학습: ${contentPatterns.created.join(', ')}`);
     }
   } catch (e) { log.debug('content pattern detection 실패', e); }
 
@@ -286,7 +312,7 @@ async function main(): Promise<void> {
     const { detectWorkflowPatterns } = await import('../engine/prompt-learner.js');
     const workflowPatterns = detectWorkflowPatterns(sessionId);
     if (workflowPatterns.created.length > 0) {
-      log.debug(`새 워크플로우 패턴 감지: ${workflowPatterns.created.join(', ')}`);
+      recoveryMessages.push(`[tenetx] 워크플로우 패턴 학습: ${workflowPatterns.created.join(', ')}`);
     }
   } catch (e) { log.debug('workflow pattern detection 실패', e); }
 
@@ -310,12 +336,9 @@ async function main(): Promise<void> {
   } catch (e) { log.debug('lifecycle check 실패', e); }
 
   if (recoveryMessages.length > 0) {
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: recoveryMessages.join('\n\n'),
-    }));
+    console.log(approve(recoveryMessages.join('\n\n')));
   } else {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
   }
 }
 
@@ -324,6 +347,6 @@ async function main(): Promise<void> {
 if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fileURLToPath(import.meta.url)) {
   main().catch((e) => {
     process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(failOpen());
   });
 }

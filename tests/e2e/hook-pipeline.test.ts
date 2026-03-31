@@ -48,7 +48,7 @@ describe('Hook Pipeline E2E', () => {
     const result = await runHook('solution-injector', null);
     const output = parseOutput(result.stdout);
     expect(output).not.toBeNull();
-    expect(output?.result).toBe('approve');
+    expect(output?.continue).toBe(true);
   });
 
   it('solution-injector: valid prompt → approve (with or without solutions)', async () => {
@@ -58,10 +58,10 @@ describe('Hook Pipeline E2E', () => {
     });
     const output = parseOutput(result.stdout);
     expect(output).not.toBeNull();
-    expect(output?.result).toBe('approve');
+    expect(output?.continue).toBe(true);
     // message is optional — only present when solutions are injected
-    if (output?.message) {
-      expect(typeof output.message).toBe('string');
+    if (output?.systemMessage) {
+      expect(typeof output.systemMessage).toBe('string');
     }
   });
 
@@ -72,7 +72,7 @@ describe('Hook Pipeline E2E', () => {
     });
     const output = parseOutput(result.stdout);
     expect(output).not.toBeNull();
-    expect(output?.result).toBe('approve');
+    expect(output?.continue).toBe(true);
   });
 
   it('pre-tool-use: Read tool → approve (not dangerous)', async () => {
@@ -83,7 +83,7 @@ describe('Hook Pipeline E2E', () => {
     });
     const output = parseOutput(result.stdout);
     expect(output).not.toBeNull();
-    expect(output?.result).toBe('approve');
+    expect(output?.continue).toBe(true);
   });
 
   it('slop-detector: clean Write → approve', async () => {
@@ -93,9 +93,9 @@ describe('Hook Pipeline E2E', () => {
     });
     const output = parseOutput(result.stdout);
     expect(output).not.toBeNull();
-    expect(output?.result).toBe('approve');
+    expect(output?.continue).toBe(true);
     // Should NOT contain slop warning for clean code
-    expect(output?.message ?? '').not.toContain('compound-slop-warning');
+    expect(output?.systemMessage ?? '').not.toContain('compound-slop-warning');
   });
 
   it('db-guard: SELECT query → approve', async () => {
@@ -107,7 +107,7 @@ describe('Hook Pipeline E2E', () => {
     const output = parseOutput(result.stdout);
     expect(output).not.toBeNull();
     // db-guard should approve SELECT (read-only)
-    expect(output?.result).toBe('approve');
+    expect(output?.continue).toBe(true);
   });
 
   it('hooks output valid JSON on stdout', async () => {
@@ -117,7 +117,7 @@ describe('Hook Pipeline E2E', () => {
       const result = await runHook(hook, { prompt: 'test', session_id: 'e2e-json-check' });
       const output = parseOutput(result.stdout);
       expect(output, `${hook} must output valid JSON`).not.toBeNull();
-      expect(output?.result, `${hook} must include result field`).toBeDefined();
+      expect(output?.continue, `${hook} must include continue field`).toBeDefined();
     }
   });
 });

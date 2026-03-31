@@ -124,8 +124,11 @@ export function getAllExperiments(): LabExperiment[] {
 }
 
 /**
- * Auto-assign a session to a variant in running experiments.
+ * Auto-assign a session to a variant in ALL running experiments.
  * Uses deterministic hash-based assignment for reproducible A/B splits.
+ *
+ * Note: 세션은 모든 running experiment에 할당되지만,
+ * 반환값은 **첫 번째 새 할당**만 포함합니다 (나머지는 silent).
  */
 export function assignSessionVariant(sessionId: string): { experimentId: string; variant: string } | null {
   try {
@@ -177,6 +180,7 @@ export function collectExperimentData(): void {
     const sessionMetrics = recentEvents.filter(e => e.type === 'session-metrics');
 
     for (const experiment of experiments) {
+      let changed = false;
       for (const event of sessionMetrics) {
         const sessionId = event.sessionId;
 
@@ -193,9 +197,11 @@ export function collectExperimentData(): void {
         const value = extractMetricValue(event, experiment.metric);
         if (value !== null) {
           assignedVariant.metricValues.push(value);
-          saveExperiment(experiment);
+          changed = true;
         }
       }
+      // experiment당 1회만 저장 (루프 내 반복 I/O 방지)
+      if (changed) saveExperiment(experiment);
     }
   } catch (e) {
     log.debug('Failed to collect experiment data', e);

@@ -893,4 +893,57 @@ describe('patternsToDimensionAdjustments', () => {
     expect(() => patternsToDimensionAdjustments(patterns)).not.toThrow();
     expect(patternsToDimensionAdjustments(patterns)).toEqual([]);
   });
+
+  describe('qualityFocus 진화 불균형 정규화', () => {
+    it('qualityFocus 3개 패턴 각각의 개별 |delta|가 autonomyPreference 개별 |delta|보다 작다', () => {
+      // qualityFocus: 3 patterns → each delta normalized by /3
+      // autonomyPreference: 2 patterns → each delta normalized by /2
+      // 같은 confidence에서 qf 개별 |delta| < ap 개별 |delta|
+      const qfAdj = patternsToDimensionAdjustments([
+        makePattern('frequent-tdd', { confidence: 0.8 }),
+      ]);
+      const apAdj = patternsToDimensionAdjustments([
+        makePattern('low-intervention', { confidence: 0.8 }),
+      ]);
+
+      const qfDelta = Math.abs(qfAdj[0].delta);
+      const apDelta = Math.abs(apAdj[0].delta);
+
+      // qf: 0.05*0.8/3 ≈ 0.0133, ap: 0.05*0.8/2 = 0.02
+      expect(qfDelta).toBeLessThan(apDelta);
+      expect(qfDelta).toBeCloseTo(0.05 * 0.8 / 3, 4);
+      expect(apDelta).toBeCloseTo(0.05 * 0.8 / 2, 4);
+    });
+
+    it('같은 방향 3개 패턴 모두 활성 시 합산이 단일 차원 단일 패턴과 동등 규모', () => {
+      // qualityFocus: 3개 같은 방향 → sum = 3 × (0.05*0.8/3) = 0.04
+      // abstractionLevel: 2개 중 1개 → 0.05*0.8/2 = 0.02
+      const qfAdj = patternsToDimensionAdjustments([
+        makePattern('frequent-tdd', { confidence: 0.8 }),
+        makePattern('frequent-escalation', { confidence: 0.8 }),
+      ]);
+      const qfSum = qfAdj.reduce((s, a) => s + a.delta, 0);
+      // 2개 같은 방향: 2 × (0.05*0.8/3) ≈ 0.0267
+      // 정규화 없었다면: 2 × 0.04 = 0.08 — 3배 차이
+      // 정규화 후: 0.0267 — 합리적 크기
+      expect(qfSum).toBeCloseTo(2 * 0.05 * 0.8 / 3, 4);
+    });
+
+    it('단일 패턴의 delta는 정규화로 인해 원래보다 작다 (패턴 수 > 1인 차원)', () => {
+      const patterns = [makePattern('frequent-tdd', { confidence: 1.0 })];
+      const adjustments = patternsToDimensionAdjustments(patterns);
+      // qualityFocus에 3개 패턴 → delta = 0.05 * 1.0 / 3 ≈ 0.0167
+      expect(adjustments[0].delta).toBeLessThan(0.05);
+      expect(adjustments[0].delta).toBeGreaterThan(0);
+    });
+
+    it('패턴 1개인 차원 (riskTolerance)는 정규화 영향 없음', () => {
+      // riskTolerance: frequent-security-blocks (down) + risk-tolerance-up (up) = 2개
+      // 하지만 각각 반대 방향이라 하나만 활성 시 정규화 적용됨
+      const patterns = [makePattern('frequent-security-blocks', { confidence: 1.0 })];
+      const adjustments = patternsToDimensionAdjustments(patterns);
+      // delta = -0.05 * 1.0 / 2 = -0.025
+      expect(adjustments[0].delta).toBeCloseTo(-0.025, 3);
+    });
+  });
 });

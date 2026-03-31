@@ -11,6 +11,8 @@
 
 import { readStdinJSON } from './shared/read-stdin.js';
 import { trackHookTrigger } from '../lab/tracker.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 type Intent = 'implement' | 'debug' | 'refactor' | 'explain' | 'review' | 'explore' | 'design' | 'general';
 
@@ -57,8 +59,12 @@ function classifyIntent(prompt: string): Intent {
 
 async function main(): Promise<void> {
   const input = await readStdinJSON<HookInput>();
+  if (!isHookEnabled('intent-classifier')) {
+    console.log(approve());
+    return;
+  }
   if (!input?.prompt) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -69,18 +75,15 @@ async function main(): Promise<void> {
   trackHookTrigger(sessionId, 'intent-classifier', 'UserPromptSubmit', 'approve');
 
   if (intent === 'general') {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
   const hint = INTENT_HINTS[intent];
-  console.log(JSON.stringify({
-    result: 'approve',
-    message: `[intent: ${intent}] ${hint}`,
-  }));
+  console.log(approve(`[intent: ${intent}] ${hint}`));
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

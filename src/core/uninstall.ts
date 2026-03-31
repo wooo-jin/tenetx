@@ -168,6 +168,15 @@ function cleanSettings(): void {
     }
   }
 
+  // mcpServers에서 tenetx-compound 제거
+  const mcpServers = settings.mcpServers as Record<string, unknown> | undefined;
+  if (mcpServers && 'tenetx-compound' in mcpServers) {
+    delete mcpServers['tenetx-compound'];
+    if (Object.keys(mcpServers).length === 0) {
+      delete settings.mcpServers;
+    }
+  }
+
   acquireLock();
   try {
     atomicWriteFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));

@@ -36,12 +36,6 @@ export const LAB_DIR = path.join(COMPOUND_HOME, 'lab');
 /** ~/.compound/lab/events.jsonl — Lab 이벤트 로그 (JSONL) */
 export const LAB_EVENTS = path.join(LAB_DIR, 'events.jsonl');
 
-/** ~/.compound/remix/ — Remix 데이터 디렉토리 */
-export const REMIX_DIR = path.join(COMPOUND_HOME, 'remix');
-
-/** ~/.compound/remix/provenance.json — 리믹스 컴포넌트 출처 추적 */
-export const REMIX_PROVENANCE = path.join(REMIX_DIR, 'provenance.json');
-
 /** ~/.compound/me/forge-profile.json — 글로벌 Forge 프로필 */
 export const FORGE_PROFILE = path.join(ME_DIR, 'forge-profile.json');
 

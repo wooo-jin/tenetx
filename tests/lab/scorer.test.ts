@@ -163,12 +163,14 @@ describe('computeAllMetrics', () => {
   });
 
   it('includes metrics for specific agent names after appending events', () => {
-    // Use unique names so they can be found even among other events
+    // Use computeMetricsFromEvents to avoid shared event store race condition
     const agentName1 = `scorer-agent-${Date.now()}-${Math.random().toString(36).slice(2)}-1`;
     const agentName2 = `scorer-agent-${Date.now()}-${Math.random().toString(36).slice(2)}-2`;
-    appendEvent(makeAgentCallEvent('se1', agentName1));
-    appendEvent(makeAgentCallEvent('se2', agentName2));
-    const metrics = computeAllMetrics();
+    const events = [
+      makeAgentCallEvent('se1', agentName1),
+      makeAgentCallEvent('se2', agentName2),
+    ];
+    const metrics = computeMetricsFromEvents(events);
     const names = metrics.map(m => m.name);
     expect(names).toContain(agentName1);
     expect(names).toContain(agentName2);

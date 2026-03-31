@@ -9,7 +9,8 @@
 
 import { readStdinJSON } from './shared/read-stdin.js';
 import { createLogger } from '../core/logger.js';
-import { loadHookConfig } from './hook-config.js';
+import { isHookEnabled, loadHookConfig } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 const log = createLogger('slop-detector');
 
@@ -52,21 +53,19 @@ export function detectSlop(text: string): Array<{ message: string; severity: 'wa
 }
 
 async function main(): Promise<void> {
-  const config = loadHookConfig('slop-detector');
+  const data = await readStdinJSON<PostToolInput>();
 
-  // enabled 플래그: config에서 명시적으로 false이면 비활성화
-  if (config?.enabled === false) {
-    console.log(JSON.stringify({ result: 'approve' }));
+  if (!isHookEnabled('slop-detector')) {
+    console.log(approve());
     return;
   }
 
   // maxAllowedPatterns: config에서 읽거나 기본값(0 = 1개라도 있으면 경고) 사용
+  const config = loadHookConfig('slop-detector');
   const maxAllowedPatterns =
     typeof config?.maxAllowedPatterns === 'number' ? config.maxAllowedPatterns : 0;
-
-  const data = await readStdinJSON<PostToolInput>();
   if (!data) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -74,7 +73,7 @@ async function main(): Promise<void> {
 
   // Write/Edit 도구일 때만 검사
   if (toolName !== 'Write' && toolName !== 'Edit') {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -89,7 +88,7 @@ async function main(): Promise<void> {
 
   const combined = textsToCheck.join('\n');
   if (!combined) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -101,20 +100,17 @@ async function main(): Promise<void> {
         const icon = d.severity === 'warn' ? '⚠' : 'ℹ';
         return `- ${icon} ${d.message}`;
       });
-      console.log(JSON.stringify({
-        result: 'approve',
-        message: `<compound-slop-warning>\n[Tenetx] AI slop detected:\n${lines.join('\n')}\nCleanup recommended.\n</compound-slop-warning>`,
-      }));
+      console.log(approve(`<compound-slop-warning>\n[Tenetx] AI slop detected:\n${lines.join('\n')}\nCleanup recommended.\n</compound-slop-warning>`));
     } else {
-      console.log(JSON.stringify({ result: 'approve' }));
+      console.log(approve());
     }
   } catch (e) {
     log.debug('슬롭 감지 실패', e);
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(failOpen());
   }
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

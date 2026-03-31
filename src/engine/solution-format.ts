@@ -194,9 +194,35 @@ export function isV1Format(content: string): boolean {
 
 // ── Tag Extraction ──
 
+/** 한국어 불용어 — 태그로 의미 없는 일반 단어 */
+const KO_STOPWORDS = new Set([
+  '적용', '패턴', '모든', '같은', '발견', '다른', '사용', '경우', '위해',
+  '통해', '대한', '이후', '때문', '하는', '있는', '없는', '되는', '관련',
+  '해야', '하고', '있다', '없다', '한다', '이런', '그런', '저런', '매우',
+  '항상', '모두', '각각', '대해', '여러', '시작', '그것', '이것', '저것',
+  '아주', '정말', '너무', '많이', '자주', '가장', '먼저', '이미', '아직',
+  '그냥', '바로', '다시', '함께', '위한', '따라', '부분', '전체', '방법',
+  '내용', '결과', '문제', '시점', '설정', '작업', '확인', '수행', '처리',
+  '기본', '추가', '변경', '제거', '포함', '생성', '실행', '완료', '필요',
+]);
+
+/** 영어 불용어 */
+const EN_STOPWORDS = new Set([
+  'the', 'and', 'for', 'that', 'this', 'with', 'from', 'are', 'was',
+  'were', 'been', 'have', 'has', 'had', 'not', 'but', 'all', 'can',
+  'will', 'use', 'used', 'using', 'when', 'each', 'which', 'their',
+  'also', 'into', 'more', 'some', 'than', 'other', 'should', 'would',
+  'could', 'about', 'after', 'before', 'between', 'does', 'only',
+]);
+
+/** 최대 태그 수 — Jaccard 분모 희석 방지 */
+const MAX_TAGS = 10;
+
 /**
- * Extract tags from text. Korean 2-char words are preserved (e.g. "에러", "배포").
- * English words require 3+ chars.
+ * Extract tags from text.
+ * Korean 2-char words preserved (e.g. "에러", "배포"), stopwords filtered.
+ * English words require 3+ chars, stopwords filtered.
+ * Tags capped at MAX_TAGS, ranked by frequency.
  */
 export function extractTags(text: string): string[] {
   const cleaned = text
@@ -204,19 +230,22 @@ export function extractTags(text: string): string[] {
     .replace(/[^가-힣a-z0-9\s]/g, ' ');
 
   const words = cleaned.split(/\s+/).filter(Boolean);
-  const tags = new Set<string>();
+  const freq = new Map<string, number>();
 
   for (const w of words) {
-    // Check if the word contains Korean characters
     const isKorean = /[가-힣]/.test(w);
-    if (isKorean && w.length > 1) {
-      tags.add(w);
-    } else if (!isKorean && w.length > 2) {
-      tags.add(w);
+    if (isKorean && w.length > 1 && !KO_STOPWORDS.has(w)) {
+      freq.set(w, (freq.get(w) ?? 0) + 1);
+    } else if (!isKorean && w.length > 2 && !EN_STOPWORDS.has(w)) {
+      freq.set(w, (freq.get(w) ?? 0) + 1);
     }
   }
 
-  return [...tags];
+  // 빈도 높은 순으로 MAX_TAGS개만 반환
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_TAGS)
+    .map(([tag]) => tag);
 }
 
 // ── Migration ──

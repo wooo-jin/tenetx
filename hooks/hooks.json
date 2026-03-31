@@ -1,5 +1,5 @@
 {
-  "description": "Tenetx harness hooks for passive tracking and context injection",
+  "description": "Tenetx harness hooks (auto-generated, 16/19 active)",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -7,23 +7,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/intent-classifier.js\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/solution-injector.js\"",
             "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/keyword-detector.js\"",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/skill-injector.js\"",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/context-guard.js\"",
-            "timeout": 2
           },
           {
             "type": "command",
@@ -32,8 +17,8 @@
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/solution-injector.js\"",
-            "timeout": 3
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/context-guard.js\"",
+            "timeout": 2
           }
         ]
       }
@@ -45,6 +30,40 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/session-recovery.js\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/post-tool-use.js\"",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/secret-filter.js\"",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/slop-detector.js\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/pre-compact.js\"",
             "timeout": 3
           }
         ]
@@ -84,24 +103,14 @@
         ]
       }
     ],
-    "PostToolUse": [
+    "PermissionRequest": [
       {
         "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/post-tool-use.js\"",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/secret-filter.js\"",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/slop-detector.js\"",
-            "timeout": 3
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/permission-handler.js\"",
+            "timeout": 2
           }
         ]
       }
@@ -125,30 +134,6 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/subagent-tracker.js\" stop",
-            "timeout": 2
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/pre-compact.js\"",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/permission-handler.js\"",
             "timeout": 2
           }
         ]

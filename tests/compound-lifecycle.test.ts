@@ -11,6 +11,35 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => TEST_HOME };
 });
 
+// paths.ts는 모듈 초기화 시 os.homedir()를 평가하므로
+// vi.mock('node:os')만으로는 ME_SOLUTIONS 상수가 이미 실제 홈 경로로
+// 고정된다. paths 모듈 전체를 mock해 TEST_HOME 기반 경로로 덮어쓴다.
+vi.mock('../src/core/paths.js', () => {
+  const p = require('node:path');
+  const BASE = '/tmp/tenetx-test-lifecycle';
+  const COMPOUND_HOME = p.join(BASE, '.compound');
+  const ME_DIR = p.join(COMPOUND_HOME, 'me');
+  return {
+    COMPOUND_HOME,
+    ME_DIR,
+    ME_SOLUTIONS: p.join(ME_DIR, 'solutions'),
+    ME_RULES: p.join(ME_DIR, 'rules'),
+    ME_PHILOSOPHY: p.join(ME_DIR, 'philosophy.json'),
+    PACKS_DIR: p.join(COMPOUND_HOME, 'packs'),
+    STATE_DIR: p.join(COMPOUND_HOME, 'state'),
+    SESSIONS_DIR: p.join(COMPOUND_HOME, 'sessions'),
+    GLOBAL_CONFIG: p.join(COMPOUND_HOME, 'config.json'),
+    LAB_DIR: p.join(COMPOUND_HOME, 'lab'),
+    LAB_EVENTS: p.join(COMPOUND_HOME, 'lab', 'events.jsonl'),
+    FORGE_PROFILE: p.join(ME_DIR, 'forge-profile.json'),
+    ALL_MODES: ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview'],
+    projectDir: (cwd: string) => p.join(cwd, '.compound'),
+    packLinkPath: (cwd: string) => p.join(cwd, '.compound', 'pack.link'),
+    projectPhilosophyPath: (cwd: string) => p.join(cwd, '.compound', 'philosophy.json'),
+    projectForgeProfilePath: (cwd: string) => p.join(cwd, '.compound', 'forge-profile.json'),
+  };
+});
+
 import {
   runLifecycleCheck,
   verifySolution,

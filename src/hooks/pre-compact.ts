@@ -13,6 +13,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 const log = createLogger('pre-compact');
 
@@ -96,44 +98,90 @@ function cleanOldHandoffs(): void {
 async function main(): Promise<void> {
   const data = await readStdinJSON() ?? {};
 
+  if (!isHookEnabled('pre-compact')) {
+    console.log(approve());
+    return;
+  }
+
   const sessionId = (data.session_id as string) ?? 'default';
 
   // 오래된 handoff 정리
   cleanOldHandoffs();
 
+  // 기존 솔루션 목록 로드 (중복 방지)
+  let existingSolutions: string[] = [];
+  try {
+    const solDir = path.join(COMPOUND_HOME, 'me', 'solutions');
+    if (fs.existsSync(solDir)) {
+      existingSolutions = fs.readdirSync(solDir).filter(f => f.endsWith('.md')).map(f => f.replace('.md', ''));
+    }
+  } catch { /* ignore */ }
+  const existingList = existingSolutions.length > 0
+    ? `\nAlready captured (skip these): ${existingSolutions.slice(-10).join(', ')}`
+    : '';
+
   const compoundHint = `
-<compound-auto-extract>
-[Tenetx] 컨텍스트 압축이 시작됩니다. 압축 전에 이 세션에서 배운 것을 축적하세요.
+<tenetx-compound-extract>
+Context is about to be compacted. Before it's lost, analyze this conversation and extract the USER's behavioral patterns.
 
-이 대화에서 재사용 가능한 패턴이 있다면 다음 명령어로 저장하세요:
-tenetx compound --solution "제목" "내용 (왜 이 접근을 사용했는지 포함)"
+DO NOT extract code patterns or technical solutions. Extract HOW THE USER THINKS:
+- Decision-making style (e.g., "always verifies before trusting", "prefers data over intuition")
+- Communication preferences (e.g., "wants Korean responses", "hates long explanations")
+- Workflow habits (e.g., "always reviews 3+ times", "plans before implementing")
+- Values/philosophy (e.g., "quality over speed", "pragmatic over theoretical")
 
-추출 기준:
-- 다른 프로젝트/세션에서도 적용 가능한 것만
-- 일회성 우회/핫픽스는 제외
-- 추출할 것이 없으면 무시하고 작업을 계속하세요
+For each pattern found, write a file to ~/.compound/me/solutions/{slug}.md in this EXACT format:
+\`\`\`
+---
+name: "{slug}"
+version: 1
+status: "candidate"
+confidence: 0.6
+type: "decision"
+scope: "me"
+tags: ["thinking", "{category}", "{specific-tag}"]
+identifiers: []
+evidence:
+  injected: 0
+  reflected: 0
+  negative: 0
+  sessions: 1
+  reExtracted: 0
+created: "${new Date().toISOString().split('T')[0]}"
+updated: "${new Date().toISOString().split('T')[0]}"
+supersedes: null
+extractedBy: "auto"
+---
 
-이 메시지는 자동 생성되었습니다. 강제가 아닌 제안입니다.
-</compound-auto-extract>`;
+## Context
+{When and why this pattern was observed in this conversation}
+
+## Content
+{Concrete description of the behavioral pattern, with specific examples from this session}
+\`\`\`
+
+Rules:
+- Extract 0-3 patterns MAX (quality over quantity)
+- Skip if nothing non-obvious was observed
+- Skip patterns that are trivially obvious ("uses TypeScript")
+- Each pattern must be specific enough to change Claude's behavior in future sessions${existingList}
+</tenetx-compound-extract>`;
 
   // 스냅샷 저장
   try {
     const snapshotPath = saveCompactionSnapshot(sessionId);
     if (snapshotPath) {
-      console.log(JSON.stringify({
-        result: 'approve',
-        message: `<compound-compact-info>\n[Tenetx] Pre-compaction state snapshot saved: ${path.basename(snapshotPath)}\nActive modes are preserved after compaction.\n</compound-compact-info>\n${compoundHint}`,
-      }));
+      console.log(approve(`<compound-compact-info>\n[Tenetx] Pre-compaction state snapshot saved: ${path.basename(snapshotPath)}\nActive modes are preserved after compaction.\n</compound-compact-info>\n${compoundHint}`));
       return;
     }
   } catch (e) {
     log.debug('스냅샷 저장 실패', e);
   }
 
-  console.log(JSON.stringify({ result: 'approve', message: compoundHint }));
+  console.log(approve(compoundHint));
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

@@ -11,6 +11,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, deny, failOpen } from './shared/hook-response.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const RATE_LIMIT_PATH = path.join(STATE_DIR, 'rate-limit.json');
@@ -75,7 +77,11 @@ async function main(): Promise<void> {
   const data = await readStdinJSON<PreToolInput>(1500); // Must finish within plugin.json timeout (2000ms)
   if (!data) {
     // stdin 파싱 실패 — 통과 (rate limiter는 fail-open)
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(failOpen());
+    return;
+  }
+  if (!isHookEnabled('rate-limiter')) {
+    console.log(approve());
     return;
   }
 
@@ -83,7 +89,7 @@ async function main(): Promise<void> {
 
   // MCP 도구만 추적 (mcp__ 접두사)
   if (!toolName.startsWith('mcp__')) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -96,17 +102,14 @@ async function main(): Promise<void> {
   }
 
   if (exceeded) {
-    console.log(JSON.stringify({
-      result: 'reject',
-      reason: `[Tenetx] Rate limit exceeded (${count}/${DEFAULT_LIMIT}/min). Wait before retrying.`,
-    }));
+    console.log(deny(`[Tenetx] Rate limit exceeded (${count}/${DEFAULT_LIMIT}/min). Wait before retrying.`));
     return;
   }
 
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(approve());
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

@@ -17,7 +17,7 @@ import type { LabEvent, SessionReward } from './types.js';
 
 const log = createLogger('reward');
 
-/** 보상 가중치 */
+/** 보상 가중치 — 합은 반드시 1.0 (유지보수 시 확인 필수) */
 const WEIGHTS = {
   nonOverrideRate: 0.30,
   successRate: 0.25,
@@ -25,6 +25,12 @@ const WEIGHTS = {
   durationScore: 0.15,
   lowBlockRate: 0.15,
 } as const;
+
+// 컴파일 타임 합 검증은 불가하므로 모듈 로드 시 런타임 검증
+const _weightSum = Object.values(WEIGHTS).reduce((a, b) => a + b, 0);
+if (Math.abs(_weightSum - 1.0) > 1e-6) {
+  throw new Error(`Reward WEIGHTS sum must be 1.0, got ${_weightSum}`);
+}
 
 /** 행동 이벤트 타입 (override 비율 계산 분모) */
 const ACTION_EVENT_TYPES = new Set([
@@ -50,7 +56,7 @@ export function computeRewardComponents(
     e.type === 'agent-call' || e.type === 'skill-invocation',
   );
   const successCount = taskEvents.filter(e =>
-    (e.payload.result as string) === 'success',
+    String(e.payload.result ?? '') === 'success',
   ).length;
   const successRate = taskEvents.length > 0
     ? successCount / taskEvents.length
@@ -82,7 +88,7 @@ export function computeRewardComponents(
   // lowBlockRate: 1 - block비율
   const hookEvents = sessionEvents.filter(e => e.type === 'hook-trigger');
   const blockCount = hookEvents.filter(e =>
-    (e.payload.result as string) === 'block',
+    String(e.payload.result ?? '') === 'block',
   ).length;
   const lowBlockRate = hookEvents.length > 0
     ? 1 - (blockCount / hookEvents.length)

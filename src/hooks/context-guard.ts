@@ -17,7 +17,8 @@ import { fileURLToPath } from 'node:url';
 import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { loadHookConfig } from './hook-config.js';
+import { loadHookConfig, isHookEnabled } from './hook-config.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 const log = createLogger('context-guard');
 
@@ -73,8 +74,12 @@ function saveContextState(state: ContextState): void {
 
 export async function main(): Promise<void> {
   const input = await readStdinJSON<{ prompt?: string; session_id?: string; stop_hook_type?: string; error?: string }>();
+  if (!isHookEnabled('context-guard')) {
+    console.log(approve());
+    return;
+  }
   if (!input) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -87,10 +92,7 @@ export async function main(): Promise<void> {
       const errorMsg = input.error;
       if (/context.*limit|token.*limit|conversation.*too.*long/i.test(errorMsg)) {
         saveHandoff(sessionId, 'context-limit', errorMsg);
-        console.log(JSON.stringify({
-          result: 'approve',
-          message: `[Tenetx] Context limit reached. Current state has been saved to ~/.compound/handoffs/.\nThe previous work will be automatically recovered in the next session.`,
-        }));
+        console.log(approve(`[Tenetx] Context limit reached. Current state has been saved to ~/.compound/handoffs/.\nThe previous work will be automatically recovered in the next session.`));
         return;
       }
     }
@@ -102,13 +104,13 @@ export async function main(): Promise<void> {
       }
     }
 
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
   // error만 있는 경우 (stop_hook_type 없이)
   if (input.error) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -126,17 +128,14 @@ export async function main(): Promise<void> {
     if (shouldWarn(state, charsThreshold !== undefined ? { charsThreshold } : {})) {
       state.lastWarningAt = Date.now();
       saveContextState(state);
-      console.log(JSON.stringify({
-        result: 'approve',
-        message: buildContextWarningMessage(state.promptCount, state.totalChars),
-      }));
+      console.log(approve(buildContextWarningMessage(state.promptCount, state.totalChars)));
       return;
     }
 
     saveContextState(state);
   }
 
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(approve());
 }
 
 /** 세션 종료 후 compound loop 실행이 필요함을 마킹 */
@@ -201,6 +200,6 @@ function saveHandoff(sessionId: string, reason: string, detail: string): void {
 if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fileURLToPath(import.meta.url)) {
   main().catch((e) => {
     process.stderr.write(`[ch-hook] ${e instanceof Error ? e.message : String(e)}\n`);
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(failOpen());
   });
 }

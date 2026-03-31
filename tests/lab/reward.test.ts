@@ -121,5 +121,47 @@ describe('Reward Function', () => {
         expect(r.reward).toBeLessThanOrEqual(1);
       }
     });
+
+    it('빈 이벤트 배열은 빈 보상 배열을 반환한다', () => {
+      const rewards = computeSessionRewards([]);
+      expect(rewards).toEqual([]);
+    });
+  });
+
+  describe('WEIGHTS 무결성', () => {
+    it('보상 가중치 합이 1.0이다 (모듈 로드 시 자동 검증)', () => {
+      // reward.ts 모듈이 성공적으로 import 되었다면 이미 검증 통과
+      // 명시적으로 한번 더 확인
+      const components = computeRewardComponents([]);
+      const keys = Object.keys(components);
+      expect(keys.length).toBe(5);
+    });
+  });
+
+  describe('극단 시나리오', () => {
+    it('매우 긴 세션 (1000개 이벤트)도 안전하게 처리', () => {
+      const events = Array.from({ length: 1000 }, (_, i) =>
+        makeEvent(
+          i % 3 === 0 ? 'agent-call' : i % 3 === 1 ? 'hook-trigger' : 'skill-invocation',
+          { result: i % 5 === 0 ? 'error' : 'success', name: `agent-${i % 10}`, hookName: `hook-${i % 5}`, skillName: `skill-${i % 3}`, durationMs: 100 },
+        ),
+      );
+      const rewards = computeSessionRewards(events);
+      for (const r of rewards) {
+        expect(r.reward).toBeGreaterThanOrEqual(0);
+        expect(r.reward).toBeLessThanOrEqual(1);
+        expect(isFinite(r.reward)).toBe(true);
+      }
+    });
+
+    it('NaN estimatedCost는 costEfficiency를 0.5 (중립)으로 유지', () => {
+      const events = [
+        makeEvent('agent-call', { result: 'success' }),
+        makeEvent('agent-call', { result: 'success' }),
+        makeEvent('session-metrics', { estimatedCost: NaN }),
+      ];
+      const comp = computeRewardComponents(events);
+      expect(comp.costEfficiency).toBe(0.5);
+    });
   });
 });

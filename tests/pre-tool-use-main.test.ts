@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 
 const { TEST_HOME, mockReadStdinJSON } = vi.hoisted(() => ({
   TEST_HOME: '/tmp/tenetx-test-pre-tool-main',
@@ -49,7 +48,7 @@ describe('pre-tool-use main()', () => {
     mockReadStdinJSON.mockResolvedValue(null);
     await import('../src/hooks/pre-tool-use.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -60,7 +59,7 @@ describe('pre-tool-use main()', () => {
     });
     await import('../src/hooks/pre-tool-use.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('reject'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":false'))).toBe(true);
       expect(logOutput.some(l => l.includes('Dangerous command'))).toBe(true);
     });
   });
@@ -72,7 +71,7 @@ describe('pre-tool-use main()', () => {
     });
     await import('../src/hooks/pre-tool-use.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -83,7 +82,7 @@ describe('pre-tool-use main()', () => {
     });
     await import('../src/hooks/pre-tool-use.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -94,7 +93,7 @@ describe('pre-tool-use main()', () => {
     });
     await import('../src/hooks/pre-tool-use.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('reject'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":false'))).toBe(true);
     });
   });
 
@@ -106,7 +105,7 @@ describe('pre-tool-use main()', () => {
     await import('../src/hooks/pre-tool-use.js');
     await vi.waitFor(() => {
       // git push --force는 패턴에 따라 warn 또는 pass
-      expect(logOutput.some(l => l.includes('approve') || l.includes('reject'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true') || l.includes('"continue":false'))).toBe(true);
     });
   });
 });

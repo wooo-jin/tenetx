@@ -14,8 +14,10 @@ import * as os from 'node:os';
 // debugLog는 향후 확장용으로 import 유지 가능하지만, 현재 미사용
 import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
+import { isHookEnabled } from './hook-config.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { approve, failOpen } from './shared/hook-response.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 
@@ -96,8 +98,12 @@ function getRecoverySuggestion(error: string, toolName: string): string {
 
 async function main(): Promise<void> {
   const data = await readStdinJSON<FailureInput>();
+  if (!isHookEnabled('post-tool-failure')) {
+    console.log(approve());
+    return;
+  }
   if (!data) {
-    console.log(JSON.stringify({ result: 'approve' }));
+    console.log(approve());
     return;
   }
 
@@ -123,18 +129,12 @@ async function main(): Promise<void> {
 
   // 3회 이상 반복 실패 시 강화된 경고
   if (failCount >= 3) {
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: `<compound-failure-warning>\n[Tenetx] ⚠ ${toolName} tool has failed ${failCount} times in this session.\nRecovery suggestion: ${suggestion}\nTry a different approach or analyze the issue before retrying.\n</compound-failure-warning>`,
-    }));
+    console.log(approve(`<compound-failure-warning>\n[Tenetx] ⚠ ${toolName} tool has failed ${failCount} times in this session.\nRecovery suggestion: ${suggestion}\nTry a different approach or analyze the issue before retrying.\n</compound-failure-warning>`));
     return;
   }
 
   // 일반 실패 안내
-  console.log(JSON.stringify({
-    result: 'approve',
-    message: `<compound-failure-info>\n[Tenetx] ${toolName} failed (${failCount} time(s)). ${suggestion}\n</compound-failure-info>`,
-  }));
+  console.log(approve(`<compound-failure-info>\n[Tenetx] ${toolName} failed (${failCount} time(s)). ${suggestion}\n</compound-failure-info>`));
 }
 
 main().catch((e) => {
@@ -142,5 +142,5 @@ main().catch((e) => {
     hookName: 'post-tool-failure', eventType: 'PostToolUseFailure', cause: e,
   });
   process.stderr.write(`[ch-hook] ${hookErr.name}: ${hookErr.message}\n`);
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(failOpen());
 });

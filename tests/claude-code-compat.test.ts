@@ -68,23 +68,23 @@ describe('Claude Code compatibility', () => {
     const hooksFile = JSON.parse(fs.readFileSync(HOOKS_JSON_PATH, 'utf-8'));
     const hooks = hooksFile.hooks as Record<string, unknown[]>;
 
-    const requiredEvents = [
+    // compound-core 필수 이벤트 — 다른 플러그인 감지 여부와 무관하게 항상 존재해야 함
+    const compoundCoreEvents = [
       'UserPromptSubmit',
       'PreToolUse',
       'PostToolUse',
       'SessionStart',
       'Stop',
-      'SubagentStart',
-      'SubagentStop',
       'PreCompact',
-      'PermissionRequest',
-      'PostToolUseFailure',
     ];
 
-    for (const event of requiredEvents) {
-      expect(hooks[event], `훅 이벤트 '${event}'가 존재해야 함`).toBeDefined();
+    for (const event of compoundCoreEvents) {
+      expect(hooks[event], `compound-core 훅 이벤트 '${event}'가 존재해야 함`).toBeDefined();
       expect(Array.isArray(hooks[event]), `hooks.${event} must be array`).toBe(true);
     }
+
+    // workflow 이벤트는 플러그인 상황에 따라 존재하지 않을 수 있음 (동적 생성)
+    // SubagentStart, SubagentStop, PermissionRequest, PostToolUseFailure
   });
 
   it('훅 커맨드가 ${CLAUDE_PLUGIN_ROOT} 기반 경로를 사용한다', () => {

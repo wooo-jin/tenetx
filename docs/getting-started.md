@@ -6,7 +6,7 @@ Get from zero to a philosophy-driven Claude Code session in 5 minutes.
 
 ## Prerequisites
 
-- **Node.js** >= 18
+- **Node.js** >= 20
 - **Claude Code** installed and authenticated (`claude --version` should work)
 
 ---
@@ -25,17 +25,17 @@ tenetx --version
 
 ---
 
-## First Run: Setup
+## First Run
 
-Run the interactive setup wizard. It asks 3 questions in ~30 seconds:
+Run tenetx for the first time — it automatically sets up your environment:
 
 ```bash
-tenetx setup
+tenetx
 ```
 
-The setup wizard will:
+On first run, tenetx will:
 1. Create `~/.compound/` — your personal knowledge directory
-2. Generate a default `philosophy.yaml` based on your answers
+2. Generate a default configuration
 3. Inject hooks and routing into `~/.claude/settings.json`
 
 **What it creates:**

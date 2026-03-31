@@ -10,6 +10,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { isHookEnabled } from './hook-config.js';
+import { approve, deny, failOpen } from './shared/hook-response.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'db-guard-fail-counter.json');
@@ -87,38 +89,37 @@ async function main(): Promise<void> {
   if (!data) {
     const failCount = getAndIncrementFailCount();
     if (failCount >= FAIL_CLOSE_THRESHOLD) {
-      console.log(JSON.stringify({ result: 'reject', reason: `[Tenetx] DB Guard: stdin parse failed ${failCount} consecutive times — blocking for safety.` }));
+      console.log(deny(`[Tenetx] DB Guard: stdin parse failed ${failCount} consecutive times — blocking for safety.`));
     } else {
       process.stderr.write(`[ch-hook] db-guard stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})\n`);
-      console.log(JSON.stringify({ result: 'approve' }));
+      console.log(approve());
     }
     return;
   }
   resetFailCount();
+
+  if (!isHookEnabled('db-guard')) {
+    console.log(approve());
+    return;
+  }
 
   const toolName = data.tool_name ?? data.toolName ?? '';
   const toolInput = data.tool_input ?? data.toolInput ?? {};
 
   const check = checkDangerousSql(toolName, toolInput);
   if (check.action === 'block') {
-    console.log(JSON.stringify({
-      result: 'reject',
-      reason: `[Tenetx] Dangerous SQL blocked: ${check.description}`,
-    }));
+    console.log(deny(`[Tenetx] Dangerous SQL blocked: ${check.description}`));
     return;
   }
   if (check.action === 'warn') {
-    console.log(JSON.stringify({
-      result: 'approve',
-      message: `<compound-sql-warning>\n[Tenetx] ⚠ Dangerous SQL detected: ${check.description}\nProceed with caution.\n</compound-sql-warning>`,
-    }));
+    console.log(approve(`<compound-sql-warning>\n[Tenetx] ⚠ Dangerous SQL detected: ${check.description}\nProceed with caution.\n</compound-sql-warning>`));
     return;
   }
 
-  console.log(JSON.stringify({ result: 'approve' }));
+  console.log(approve());
 }
 
 main().catch((e) => {
   process.stderr.write(`[ch-hook] DB Guard error: ${e instanceof Error ? e.message : String(e)}\n`);
-  console.log(JSON.stringify({ result: 'approve', message: '[Tenetx] DB Guard: internal error — approving to avoid blocking.' }));
+  console.log(failOpen());
 });

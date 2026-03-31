@@ -57,12 +57,14 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
     for (const file of files) {
       try {
         const filePath = path.join(dir, file);
+
+        // Security: symlink을 통한 임의 파일 읽기 방지 (모든 형식 공통)
+        if (fs.lstatSync(filePath).isSymbolicLink()) continue;
+
         let content = fs.readFileSync(filePath, 'utf-8');
         const fileMtime = fs.statSync(filePath).mtimeMs;
 
         if (!content.trimStart().startsWith('---') && isV1Format(content)) {
-          // Safety: reject symlinks to prevent arbitrary file writes
-          if (fs.lstatSync(filePath).isSymbolicLink()) continue;
           const migrated = migrateV1toV3(content, filePath);
           fs.writeFileSync(filePath, migrated);
           content = migrated;
@@ -91,6 +93,9 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
     }
 
     fileEntries.sort((a, b) => b.mtime - a.mtime);
+    if (fileEntries.length > 100) {
+      console.warn(`[tenetx] Warning: ${dir} has ${fileEntries.length} solutions, only the 100 most recent are indexed.`);
+    }
     const limited = fileEntries.slice(0, 100);
     for (const { entry } of limited) {
       entries.push(entry);

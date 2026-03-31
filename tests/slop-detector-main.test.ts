@@ -16,6 +16,7 @@ vi.mock('../src/hooks/shared/read-stdin.js', () => ({
 // hook-config mock — 로컬 ~/.compound/hook-config.json에 의존하지 않도록 격리
 vi.mock('../src/hooks/hook-config.js', () => ({
   loadHookConfig: vi.fn().mockReturnValue(null),
+  isHookEnabled: vi.fn().mockReturnValue(true),
 }));
 
 // logger mock
@@ -54,7 +55,7 @@ describe('slop-detector main()', () => {
     await import('../src/hooks/slop-detector.js');
     // main()이 catch에서 실행됨 — approve 출력
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 
@@ -77,7 +78,7 @@ describe('slop-detector main()', () => {
     await import('../src/hooks/slop-detector.js');
     await vi.waitFor(() => {
       const lastOutput = logOutput[logOutput.length - 1];
-      expect(lastOutput).toContain('approve');
+      expect(lastOutput).toContain('"continue":true');
       expect(lastOutput).not.toContain('compound-slop-warning');
     });
   });
@@ -89,7 +90,7 @@ describe('slop-detector main()', () => {
     });
     await import('../src/hooks/slop-detector.js');
     await vi.waitFor(() => {
-      expect(logOutput.some(l => l.includes('approve'))).toBe(true);
+      expect(logOutput.some(l => l.includes('"continue":true'))).toBe(true);
     });
   });
 

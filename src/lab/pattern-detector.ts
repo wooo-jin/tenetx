@@ -256,7 +256,7 @@ function detectVerboseOverridePattern(events: LabEvent[]): BehavioralPattern | n
   if (verboseOverrides.length < 3) return null;
 
   const range = timeRange(verboseOverrides);
-  const totalOverrides = overrideEvents.length || 1;
+  const totalOverrides = overrideEvents.length; // ≥5 guaranteed by early return above
   return makePattern(
     'verbose-override',
     'avoidance',
@@ -463,7 +463,41 @@ export function detectPatterns(
 }
 
 /**
+ * Pattern → dimension mapping table.
+ * Centralized to ensure consistent delta calculation and normalization.
+ */
+const PATTERN_DIMENSION_DELTAS: Record<string, { dimension: string; deltaSign: 1 | -1; baseDelta: number }> = {
+  'high-override-rate':       { dimension: 'autonomyPreference',  deltaSign: -1, baseDelta: 0.05 },
+  'low-intervention':         { dimension: 'autonomyPreference',  deltaSign:  1, baseDelta: 0.05 },
+  'low-review-acceptance':    { dimension: 'qualityFocus',        deltaSign: -1, baseDelta: 0.05 },
+  'frequent-tdd':             { dimension: 'qualityFocus',        deltaSign:  1, baseDelta: 0.05 },
+  'frequent-escalation':      { dimension: 'qualityFocus',        deltaSign:  1, baseDelta: 0.05 },
+  'verbose-override':         { dimension: 'communicationStyle',  deltaSign:  1, baseDelta: 0.1  },
+  'frequent-architect':       { dimension: 'abstractionLevel',    deltaSign:  1, baseDelta: 0.05 },
+  'frequent-security-blocks': { dimension: 'riskTolerance',       deltaSign: -1, baseDelta: 0.05 },
+  // Forge v2: bidirectional patterns
+  'risk-tolerance-up':        { dimension: 'riskTolerance',       deltaSign:  1, baseDelta: 0.05 },
+  'communication-verbose':    { dimension: 'communicationStyle',  deltaSign: -1, baseDelta: 0.05 },
+  'abstraction-pragmatic':    { dimension: 'abstractionLevel',    deltaSign: -1, baseDelta: 0.05 },
+};
+
+/**
+ * Count how many patterns can map to each dimension (for normalization).
+ * qualityFocus has 3 patterns (low-review, tdd, escalation) → delta / 3.
+ * This prevents dimensions with more mapped patterns from evolving faster.
+ */
+const DIMENSION_PATTERN_COUNT: Record<string, number> = {};
+for (const { dimension } of Object.values(PATTERN_DIMENSION_DELTAS)) {
+  DIMENSION_PATTERN_COUNT[dimension] = (DIMENSION_PATTERN_COUNT[dimension] ?? 0) + 1;
+}
+
+/**
  * Translate behavioral patterns into dimension adjustments.
+ *
+ * Normalization: when multiple patterns map to the same dimension,
+ * each delta is divided by the total number of patterns for that dimension.
+ * This ensures all dimensions evolve at comparable speed regardless of
+ * how many detectors feed into them.
  */
 export function patternsToDimensionAdjustments(
   patterns: BehavioralPattern[],
@@ -471,118 +505,22 @@ export function patternsToDimensionAdjustments(
   const adjustments: DimensionAdjustment[] = [];
 
   for (const pattern of patterns) {
-    switch (pattern.id) {
-      case 'high-override-rate':
-        adjustments.push({
-          dimension: 'autonomyPreference',
-          delta: -Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
+    const mapping = PATTERN_DIMENSION_DELTAS[pattern.id];
+    if (!mapping) continue;
 
-      case 'low-intervention':
-        adjustments.push({
-          dimension: 'autonomyPreference',
-          delta: Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
+    const { dimension, deltaSign, baseDelta } = mapping;
+    const patternCount = DIMENSION_PATTERN_COUNT[dimension] ?? 1;
+    // Normalize: divide by number of potential patterns for this dimension
+    const rawDelta = deltaSign * Math.min(MAX_DELTA, baseDelta * pattern.confidence);
+    const normalizedDelta = rawDelta / patternCount;
 
-      case 'low-review-acceptance':
-        adjustments.push({
-          dimension: 'qualityFocus',
-          delta: -Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-
-      case 'frequent-tdd':
-        adjustments.push({
-          dimension: 'qualityFocus',
-          delta: Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-
-      case 'frequent-escalation':
-        adjustments.push({
-          dimension: 'qualityFocus',
-          delta: Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-
-      case 'verbose-override':
-        adjustments.push({
-          dimension: 'communicationStyle',
-          delta: Math.min(MAX_DELTA, 0.1 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-
-      case 'frequent-architect':
-        adjustments.push({
-          dimension: 'abstractionLevel',
-          delta: Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-
-      case 'frequent-security-blocks':
-        adjustments.push({
-          dimension: 'riskTolerance',
-          delta: -Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-
-      // Forge v2: bidirectional patterns
-      case 'risk-tolerance-up':
-        adjustments.push({
-          dimension: 'riskTolerance',
-          delta: Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-
-      case 'communication-verbose':
-        adjustments.push({
-          dimension: 'communicationStyle',
-          delta: -Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-
-      case 'abstraction-pragmatic':
-        adjustments.push({
-          dimension: 'abstractionLevel',
-          delta: -Math.min(MAX_DELTA, 0.05 * pattern.confidence),
-          confidence: pattern.confidence,
-          evidence: pattern.description,
-          eventCount: pattern.eventCount,
-        });
-        break;
-    }
+    adjustments.push({
+      dimension,
+      delta: normalizedDelta,
+      confidence: pattern.confidence,
+      evidence: pattern.description,
+      eventCount: pattern.eventCount,
+    });
   }
 
   return adjustments;
