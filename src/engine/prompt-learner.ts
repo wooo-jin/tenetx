@@ -4,6 +4,17 @@
  * Analyzes accumulated user prompts and Claude's Write outputs
  * to detect recurring preferences, styles, and patterns.
  * Works for ALL users — not just developers.
+ *
+ * Module Structure:
+ * - Lines 1-25: Imports, constants, paths (STATE_DIR, PROMPT_HISTORY_PATH)
+ * - Lines 25-45: PromptEntry, PatternRule interfaces
+ * - Lines 42-310: PREFERENCE_PATTERNS — predefined regex-based pattern detectors
+ *     (language, format, style, document, analysis, communication, design, workflow, thinking)
+ * - Lines 312-335: recordPrompt — append prompt to JSONL history with rotation
+ * - Lines 337-445: Mode usage tracking — recordModeUsage, detectWorkflowPatterns
+ * - Lines 449-523: detectPreferencePatterns — match history against PREFERENCE_PATTERNS, create solutions
+ * - Lines 525-565: Write content tracking — recordWriteContent with JSONL rotation
+ * - Lines 567-677: detectContentPatterns — file extension & content length analysis, solution creation
  */
 
 import * as fs from 'node:fs';

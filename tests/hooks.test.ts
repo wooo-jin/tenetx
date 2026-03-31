@@ -438,12 +438,3 @@ describe('post-tool-use trackModifiedFile (10F)', () => {
   });
 });
 
-// ── plugin-installer 테스트 ──
-
-describe('plugin-installer', () => {
-  it('isPluginInstalled가 false를 반환한다 (설치 전)', async () => {
-    const { isPluginInstalled } = await import('../src/core/plugin-installer.js');
-    // 테스트 환경에서는 설치되지 않은 상태
-    expect(typeof isPluginInstalled()).toBe('boolean');
-  });
-});

@@ -8,6 +8,17 @@
  *
  * Conservative by design: small adjustments, high evidence thresholds,
  * exponential moving average smoothing.
+ *
+ * Module Structure:
+ * - Lines 1-90: Imports, constants (thresholds, rates), SYSTEM_INTERNAL_TYPES filter set
+ * - Lines 90-145: Storage helpers — atomicWrite, load/save for evolution history, patterns,
+ *     last evolve info, last notification
+ * - Lines 148-210: Core logic — analyzeEvents (pattern detection + clamping),
+ *     applySmoothedAdjustments (EMA + neutral decay)
+ * - Lines 212-520: runEvolveCycle — main entry point:
+ *     event loading, pattern analysis, v2 Thompson Sampling or v1 EMA,
+ *     BKT/correlation/coupled deltas, profile save, transparency notifications
+ * - Lines 522-600: shouldAutoLearnRun, tryAutoLearn, hasVectorChanged, regenerateHarnessConfig
  */
 
 import * as path from 'node:path';

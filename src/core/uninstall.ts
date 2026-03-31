@@ -8,7 +8,26 @@ import {
   releaseLock,
   atomicWriteFileSync,
 } from './settings-lock.js';
-import { uninstallPlugin } from './plugin-installer.js';
+/** 플러그인 제거 (plugin-installer.ts 삭제 후 인라인) */
+function uninstallPlugin(): boolean {
+  const pluginDir = path.join(os.homedir(), '.claude', 'plugins', 'tenetx');
+  try {
+    if (fs.existsSync(pluginDir)) {
+      fs.rmSync(pluginDir, { recursive: true, force: true });
+    }
+    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      if (Array.isArray(settings.plugins)) {
+        settings.plugins = (settings.plugins as string[]).filter(p => !p.includes('tenetx'));
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** 플러그인 관련 아티팩트 정리 */
 function cleanPluginArtifacts(): void {

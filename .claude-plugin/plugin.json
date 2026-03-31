@@ -1,11 +1,17 @@
 {
+  "$schema": "https://claude.ai/schemas/claude-plugin.json",
   "name": "tenetx",
   "version": "2.5.1",
-  "description": "The AI coding tool that adapts to you — personalized harness for Claude Code",
-  "author": { "name": "jang-ujin" },
+  "description": "Claude Code plugin that learns your coding patterns",
+  "author": "jang-ujin",
   "repository": "https://github.com/wooo-jin/tenetx",
   "homepage": "https://github.com/wooo-jin/tenetx",
   "license": "MIT",
   "keywords": ["claude-code", "harness", "personalization", "forge"],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "agents": "agents/",
+  "statusLine": {
+    "type": "command",
+    "command": "tenetx me"
+  }
 }

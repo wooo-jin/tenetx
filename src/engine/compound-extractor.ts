@@ -1,3 +1,21 @@
+/**
+ * Tenetx — Compound Knowledge Extractor
+ *
+ * Extracts reusable patterns and decisions from git history and session context.
+ * Runs quality gates (structure, toxicity, trivial, dedup) before persisting solutions.
+ *
+ * Module Structure:
+ * - Lines 1-50: Imports, constants, SHA validation, LastExtraction/ExtractedSolution interfaces
+ * - Lines 50-115: Git helpers — getNewCommits, getCommitMessages, getGitDiff, getDiffStats
+ * - Lines 115-190: Quality Gates — gate0 (worth extracting), gate1 (structure), gate2 (toxicity),
+ *     gateTrivial (trivial rejection), gate3 (dedup)
+ * - Lines 190-275: extractFromDiff — pattern extraction from git diff (modules, errors, imports, commits)
+ * - Lines 275-395: extractFromSessionContext — prompt/write history analysis (actions, hotspots, tech)
+ * - Lines 396-475: saveExtractedSolution, updateReExtractedCounter — solution persistence
+ * - Lines 477-555: runExtraction — main entry point orchestrating gates + extraction + state
+ * - Lines 557-634: processExtractionResults, isExtractionPaused, pauseExtraction, resumeExtraction
+ */
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';

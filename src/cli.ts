@@ -123,24 +123,8 @@ const commands: Command[] = [
       await runDoctor();
     },
   },
-  {
-    name: 'install',
-    description: 'Install as plugin (--plugin)',
-    handler: async (args) => {
-      if (!args.includes('--plugin')) {
-        console.error('Usage: tenetx install --plugin');
-        return;
-      }
-      const { installAsPlugin } = await import('./core/plugin-installer.js');
-      const result = installAsPlugin();
-      if (result.success) {
-        console.log(`[tenetx] Plugin installed: ${result.pluginDir}`);
-      } else {
-        console.error(`[tenetx] Plugin installation failed: ${result.error}`);
-        process.exit(1);
-      }
-    },
-  },
+  // install --plugin 제거됨 — postinstall이 유일한 설치 경로
+  // 수동 재설치: node scripts/postinstall.js
   {
     name: 'uninstall',
     description: 'Remove tenetx from settings [--force]',
