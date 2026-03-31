@@ -17,11 +17,11 @@
  */
 
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { HOOK_REGISTRY } from './hook-registry.js';
+import { COMPOUND_HOME } from '../core/paths.js';
 
-const HOOK_CONFIG_PATH = path.join(os.homedir(), '.compound', 'hook-config.json');
+const HOOK_CONFIG_PATH = path.join(COMPOUND_HOME, 'hook-config.json');
 
 /**
  * 훅 → 티어 매핑 (hook-registry.ts에서 자동 파생).

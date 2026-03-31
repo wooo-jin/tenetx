@@ -10,7 +10,6 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { matchSolutions } from '../engine/solution-matcher.js';
@@ -27,14 +26,12 @@ import { track } from '../lab/tracker.js';
 import { calculateBudget } from './shared/context-budget.js';
 import { writeSignal } from './shared/plugin-signal.js';
 import { approve, failOpen } from './shared/hook-response.js';
+import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 
 interface HookInput {
   prompt: string;
   session_id?: string;
 }
-
-const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const STATE_DIR = path.join(COMPOUND_HOME, 'state');
 const MAX_SOLUTIONS_PER_SESSION = 10;
 
 /** 세션별 이미 주입된 솔루션 추적 (중복 방지) */

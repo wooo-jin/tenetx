@@ -25,7 +25,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('skill-injector');
@@ -39,7 +38,7 @@ function escapeXmlAttr(s: string): string {
 }
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadPackConfigs } from '../core/pack-config.js';
-import { PACKS_DIR } from '../core/paths.js';
+import { COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
 import { KEYWORD_PATTERNS } from './keyword-detector.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, failOpen } from './shared/hook-response.js';
@@ -63,9 +62,6 @@ interface HookInput {
   prompt: string;
   session_id?: string;
 }
-
-const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const STATE_DIR = path.join(COMPOUND_HOME, 'state');
 const MAX_SKILLS_PER_SESSION = 5;
 
 /** 파일 기반 세션 캐시 (훅은 매번 새 프로세스로 실행되므로 in-memory 불가) */

@@ -7,17 +7,15 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
 import { track } from '../lab/tracker.js';
 import { detectErrorPattern } from './post-tool-use.js';
+import { ME_SOLUTIONS, ME_RULES, STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('post-tool-handlers');
-
-const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const CONTEXT_SIGNALS_PATH = path.join(STATE_DIR, 'context-signals.json');
 
 /** 세션의 실패 카운터 증가 (컨텍스트 신호 수집) */
@@ -113,8 +111,8 @@ export function getCompoundSuccessHint(toolName: string, toolResponse: string, s
 export function updateNegativeEvidence(solutionName: string): void {
   try {
     const dirs = [
-      path.join(os.homedir(), '.compound', 'me', 'solutions'),
-      path.join(os.homedir(), '.compound', 'me', 'rules'),
+      ME_SOLUTIONS,
+      ME_RULES,
     ];
     for (const dir of dirs) {
       if (!fs.existsSync(dir)) continue;

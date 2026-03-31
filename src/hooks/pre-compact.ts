@@ -10,16 +10,14 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, failOpen } from './shared/hook-response.js';
+import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('pre-compact');
 
-const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const STATE_DIR = path.join(COMPOUND_HOME, 'state');
 const HANDOFFS_DIR = path.join(COMPOUND_HOME, 'handoffs');
 
 /** 활성 모드 상태 수집 */

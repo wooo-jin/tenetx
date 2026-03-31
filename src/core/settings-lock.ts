@@ -6,13 +6,12 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { createLogger } from './logger.js';
+import { CLAUDE_DIR, SETTINGS_PATH } from './paths.js';
 
 const log = createLogger('settings-lock');
 
-export const CLAUDE_DIR = path.join(os.homedir(), '.claude');
-export const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
+export { CLAUDE_DIR, SETTINGS_PATH };
 export const SETTINGS_BACKUP_PATH = path.join(CLAUDE_DIR, 'settings.json.tenetx-backup');
 const SETTINGS_LOCK_PATH = path.join(CLAUDE_DIR, 'settings.json.lock');
 

@@ -10,7 +10,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as os from 'node:os';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('pre-tool-use');
@@ -22,8 +21,7 @@ import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.
 import { track } from '../lab/tracker.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, deny, failOpen } from './shared/hook-response.js';
-
-const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
+import { COMPOUND_HOME, ME_SOLUTIONS, ME_RULES, STATE_DIR } from '../core/paths.js';
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'pre-tool-fail-counter.json');
 const FAIL_CLOSE_THRESHOLD = 3; // 연속 3회 파싱 실패 시에만 reject
 
@@ -91,7 +89,7 @@ function loadDangerousPatterns(): DangerousPatternEntry[] {
 
   // 2. 사용자 커스텀 패턴 (~/.compound/dangerous-patterns.json)
   try {
-    const customPath = path.join(os.homedir(), '.compound', 'dangerous-patterns.json');
+    const customPath = path.join(COMPOUND_HOME, 'dangerous-patterns.json');
     if (fs.existsSync(customPath)) {
       const custom: Array<{ pattern: string; description: string; severity: string; flags?: string }> =
         JSON.parse(fs.readFileSync(customPath, 'utf-8'));
@@ -261,8 +259,8 @@ export function updateSolutionEvidence(solutionName: string, field: 'reflected' 
   try {
     // parseSolutionV3, serializeSolutionV3 imported at top level
     const solutionDirs = [
-      path.join(os.homedir(), '.compound', 'me', 'solutions'),
-      path.join(os.homedir(), '.compound', 'me', 'rules'),
+      ME_SOLUTIONS,
+      ME_RULES,
     ];
 
     for (const dir of solutionDirs) {

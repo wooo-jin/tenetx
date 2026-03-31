@@ -11,10 +11,10 @@
  */
 
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
+import { CLAUDE_DIR } from '../../core/paths.js';
 
-const SIGNAL_DIR = path.join(os.homedir(), '.claude', 'plugin-signals');
+const SIGNAL_DIR = path.join(CLAUDE_DIR, 'plugin-signals');
 const SIGNAL_TTL_MS = 30 * 60 * 1000; // 30분
 
 export interface PluginSignal {
