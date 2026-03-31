@@ -49,13 +49,7 @@ export function classifyInsight(title: string, content: string): { classificatio
 }
 
 /**
- * Compound Loop — 작업 후 인사이트를 추출하고 축적
- *
- * 흐름:
- * 1. 세션 요약에서 패턴/솔루션/규칙 추출
- * 2. 스코프 분류 (개인 vs 팀)
- * 3. 적절한 위치에 저장
- * 4. 팩 버전 bump (팀 스코프인 경우)
+ * Compound Loop — 이미 추출된 인사이트를 저장
  */
 export async function runCompoundLoop(cwd: string, insights: CompoundInsight[]): Promise<{ saved: string[]; skipped: string[] }> {
   const saved: string[] = [];
@@ -224,7 +218,9 @@ export async function handleCompound(args: string[]): Promise<void> {
     console.log(`
   Usage: tenetx compound [options]
 
-  Running without options enters interactive mode to collect insights.
+  Default:
+    tenetx compound             Preview auto analysis from recent session/code changes
+    tenetx compound --save      Persist previewed insights
 
   Manual add:
     tenetx compound --solution "title" "content"
@@ -233,11 +229,11 @@ export async function handleCompound(args: string[]): Promise<void> {
     tenetx compound --to team        Save to team scope
 
   Inspect & manage:
-    tenetx compound list             List all solutions with status
-    tenetx compound inspect <name>   Show solution details
-    tenetx compound remove <name>    Remove a solution
+    tenetx compound list             List saved entries (solutions and rules)
+    tenetx compound inspect <name>   Show saved entry details
+    tenetx compound remove <name>    Remove a saved entry
     tenetx compound rollback --since 2026-03-20
-                                     Rollback unused solutions since date
+                                     Rollback unused auto-extracted solutions since date
 
   Lifecycle:
     tenetx compound --lifecycle      Run promotion/demotion/circuit-breaker check
@@ -246,6 +242,9 @@ export async function handleCompound(args: string[]): Promise<void> {
   Auto-extraction:
     tenetx compound --pause-auto     Pause auto-extraction
     tenetx compound --resume-auto    Resume auto-extraction
+
+  Interactive:
+    tenetx compound interactive
 `);
     return;
   }
@@ -356,17 +355,83 @@ export async function handleCompound(args: string[]): Promise<void> {
     return;
   }
 
-  // 인자가 없거나 알 수 없는 플래그만 있으면 대화형 모드
+  // --- explicit interactive command ---
+  if (args.includes('interactive') || args.includes('--interactive')) {
+    await interactiveCompound(cwd, scope);
+    return;
+  }
+
+  // --- preview-first default mode ---
+  if (args.length === 0) {
+    const { previewExtraction } = await import('./compound-extractor.js');
+    const result = await previewExtraction(cwd);
+
+    console.log('\n  Compound Preview\n');
+    console.log(`  Scope: ${scope.summary}`);
+    console.log();
+
+    if (result.preview.length === 0) {
+      console.log(`  No auto-analysis preview available${result.reason ? `: ${result.reason}` : '.'}`);
+      console.log('  Run `tenetx compound --save` after meaningful code changes, or `tenetx compound interactive` for manual capture.\n');
+      return;
+    }
+
+    console.log('  Preview only — nothing was saved.\n');
+    for (const [index, insight] of result.preview.entries()) {
+      console.log(`  ${index + 1}. [${insight.type}] ${insight.name}`);
+      console.log(`     ${insight.content.split('\n')[0]}`);
+    }
+
+    if (result.skipped.length > 0) {
+      console.log('\n  Skipped:');
+      for (const entry of result.skipped.slice(0, 5)) {
+        console.log(`    - ${entry}`);
+      }
+    }
+
+    console.log('\n  Run `tenetx compound --save` to persist this preview.\n');
+    return;
+  }
+
+  // --- auto save mode ---
+  if (args.includes('--save')) {
+    const { runExtraction } = await import('./compound-extractor.js');
+    const sessionId = `compound-cli-${Date.now()}`;
+    const result = await runExtraction(cwd, sessionId);
+
+    console.log('\n  Compound Save\n');
+    console.log(`  Scope: ${scope.summary}`);
+    console.log();
+
+    if (result.extracted.length === 0 && result.skipped.length === 0) {
+      console.log(`  No insights saved${result.reason ? `: ${result.reason}` : '.'}\n`);
+      return;
+    }
+
+    for (const saved of result.extracted) {
+      console.log(`  ✓ Saved: ${saved}`);
+    }
+    for (const skipped of result.skipped) {
+      console.log(`  ─ Skipped: ${skipped}`);
+    }
+    if (result.reason) {
+      console.log(`  Reason: ${result.reason}`);
+    }
+    console.log();
+    return;
+  }
+
+  // 인자가 없거나 알 수 없는 플래그만 있으면 수동 추가/interactive가 아닌 것으로 간주
   const knownFlags = [
     '--solution', '--rule', '--convention', '--pattern', '--to', '--pause-auto', '--resume-auto',
-    '--lifecycle', '--verify',
+    '--lifecycle', '--verify', '--save', '--interactive',
     'list', 'inspect', 'remove', 'rollback', 'lifecycle',
-    '--list', '--inspect', '--remove', '--rollback', '--since',
+    '--list', '--inspect', '--remove', '--rollback', '--since', 'interactive',
   ];
   const hasTypeFlag = knownFlags.some(f => args.includes(f));
 
-  if (args.length === 0 || !hasTypeFlag) {
-    await interactiveCompound(cwd, scope);
+  if (!hasTypeFlag) {
+    console.log('  Unknown compound arguments. Run `tenetx compound --help` for usage.\n');
     return;
   }
 
@@ -434,7 +499,7 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
     console.log('    tenetx compound --rule "title" "content"');
     console.log('    tenetx compound --convention "title" "content"');
     console.log('    tenetx compound --to team          Save to team scope\n');
-    console.log('  Interactive mode: run tenetx compound in a TTY environment\n');
+    console.log('  Interactive mode: run `tenetx compound interactive` in a TTY environment\n');
     return;
   }
 
@@ -519,4 +584,3 @@ async function interactiveCompound(cwd: string, scope: ReturnType<typeof resolve
 
   rl.close();
 }
-

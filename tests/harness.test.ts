@@ -240,10 +240,30 @@ describe('prepareHarness() integration', () => {
     expect(fs.existsSync(path.join(TEST_COMPOUND_HOME, 'state'))).toBe(true);
     expect(fs.existsSync(path.join(TEST_COMPOUND_HOME, 'me'))).toBe(true);
     expect(fs.existsSync(path.join(TEST_COMPOUND_HOME, 'me', 'solutions'))).toBe(true);
+    expect(fs.existsSync(path.join(TEST_COMPOUND_HOME, 'me', 'behavior'))).toBe(true);
     expect(fs.existsSync(path.join(TEST_COMPOUND_HOME, 'me', 'rules'))).toBe(true);
     expect(fs.existsSync(path.join(TEST_COMPOUND_HOME, 'sessions'))).toBe(true);
     expect(fs.existsSync(path.join(TEST_COMPOUND_HOME, 'handoffs'))).toBe(true);
     expect(fs.existsSync(path.join(TEST_COMPOUND_HOME, 'plans'))).toBe(true);
+  });
+
+  it('lastExtractedAt 기준으로 stale compound marker를 생성한다', async () => {
+    const stateDir = path.join(TEST_COMPOUND_HOME, 'state');
+    fs.mkdirSync(stateDir, { recursive: true });
+    fs.writeFileSync(path.join(stateDir, 'last-extraction.json'), JSON.stringify({
+      lastCommitSha: 'abc1234',
+      lastExtractedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      extractionsToday: 0,
+      todayDate: '2026-03-26',
+    }));
+
+    await prepareHarness(TEST_CWD);
+
+    const pendingPath = path.join(stateDir, 'pending-compound.json');
+    expect(fs.existsSync(pendingPath)).toBe(true);
+    const pending = JSON.parse(fs.readFileSync(pendingPath, 'utf-8'));
+    expect(pending.reason).toBe('staleness');
+    expect(pending.daysSinceLastRun).toBeGreaterThanOrEqual(4);
   });
 
   it('compound rules가 프로젝트 .claude/rules/compound.md에 생성된다', async () => {

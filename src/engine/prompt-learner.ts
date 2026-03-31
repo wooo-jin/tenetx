@@ -20,13 +20,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { serializeSolutionV3, DEFAULT_EVIDENCE } from './solution-format.js';
-import type { SolutionV3 } from './solution-format.js';
+import { type BehaviorKind, inferBehaviorKind } from './behavior-format.js';
+import { saveBehaviorPattern } from './behavior-store.js';
 import { track } from '../lab/tracker.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('prompt-learner');
-import { ME_SOLUTIONS } from '../core/paths.js';
+import { ME_BEHAVIOR } from '../core/paths.js';
 
 const STATE_DIR = path.join(os.homedir(), '.compound', 'state');
 const PROMPT_HISTORY_PATH = path.join(STATE_DIR, 'prompt-history.jsonl');
@@ -415,32 +415,24 @@ export function detectWorkflowPatterns(sessionId: string = 'system'): {
       if (count / total < pattern.minRatio) continue;
       detected.push(`${pattern.name} (${count}/${total})`);
 
-      const solutionPath = path.join(ME_SOLUTIONS, `${pattern.name}.md`);
-      if (fs.existsSync(solutionPath)) continue;
-
       const today = new Date().toISOString().split('T')[0];
-      const solution: SolutionV3 = {
+      const writeResult = saveBehaviorPattern({
         frontmatter: {
           name: pattern.name,
           version: 1,
-          status: 'candidate',
+          kind: 'workflow',
+          observedCount: count,
           confidence: 0.6,
-          type: 'decision',
-          scope: 'me',
           tags: pattern.tags,
-          identifiers: [],
-          evidence: { ...DEFAULT_EVIDENCE, reflected: count },
           created: today,
           updated: today,
-          supersedes: null,
-          extractedBy: 'auto',
+          source: 'mode-usage-pattern',
         },
         context: `Detected from ${count}/${total} mode activations`,
         content: pattern.description,
-      };
+      });
+      if (writeResult.status !== 'created') continue;
 
-      fs.mkdirSync(ME_SOLUTIONS, { recursive: true });
-      fs.writeFileSync(solutionPath, serializeSolutionV3(solution));
       created.push(pattern.name);
 
       track('compound-extracted', sessionId, {
@@ -491,34 +483,25 @@ export function detectPreferencePatterns(sessionId: string = 'system'): {
     if (matchCount >= MIN_PATTERN_COUNT) {
       detected.push(`${rule.name} (${matchCount}회)`);
 
-      // Check if solution already exists
-      const solutionPath = path.join(ME_SOLUTIONS, `${rule.name}.md`);
-      if (fs.existsSync(solutionPath)) continue;
-
-      // Create new preference solution
       const today = new Date().toISOString().split('T')[0];
-      const solution: SolutionV3 = {
+      const kind = inferBehaviorKind(rule.name, rule.tags) ?? 'preference';
+      const writeResult = saveBehaviorPattern({
         frontmatter: {
           name: rule.name,
           version: 1,
-          status: 'candidate',  // preferences start at candidate (user clearly wants this)
+          kind,
+          observedCount: matchCount,
           confidence: 0.6,
-          type: 'decision',
-          scope: 'me',
           tags: rule.tags,
-          identifiers: [],
-          evidence: { ...DEFAULT_EVIDENCE, reflected: matchCount },
           created: today,
           updated: today,
-          supersedes: null,
-          extractedBy: 'auto',
+          source: 'prompt-pattern',
         },
         context: `Detected from ${matchCount} prompts across sessions`,
         content: rule.description,
-      };
+      });
+      if (writeResult.status !== 'created') continue;
 
-      fs.mkdirSync(ME_SOLUTIONS, { recursive: true });
-      fs.writeFileSync(solutionPath, serializeSolutionV3(solution));
       created.push(rule.name);
 
       track('compound-extracted', sessionId, {
@@ -646,32 +629,25 @@ export function detectContentPatterns(sessionId: string = 'system'): {
       if (!pattern.condition) continue;
       detected.push(pattern.name);
 
-      const solutionPath = path.join(ME_SOLUTIONS, `${pattern.name}.md`);
-      if (fs.existsSync(solutionPath)) continue;
-
       const today = new Date().toISOString().split('T')[0];
-      const solution: SolutionV3 = {
+      const kind: BehaviorKind = inferBehaviorKind(pattern.name, pattern.tags) ?? 'preference';
+      const writeResult = saveBehaviorPattern({
         frontmatter: {
           name: pattern.name,
           version: 1,
-          status: 'candidate',
+          kind,
+          observedCount: entries.length,
           confidence: 0.6,
-          type: 'decision',
-          scope: 'me',
           tags: pattern.tags,
-          identifiers: [],
-          evidence: { ...DEFAULT_EVIDENCE, reflected: entries.length },
           created: today,
           updated: today,
-          supersedes: null,
-          extractedBy: 'auto',
+          source: 'write-content-pattern',
         },
         context: `Detected from ${entries.length} write operations`,
         content: pattern.description,
-      };
+      });
+      if (writeResult.status !== 'created') continue;
 
-      fs.mkdirSync(ME_SOLUTIONS, { recursive: true });
-      fs.writeFileSync(solutionPath, serializeSolutionV3(solution));
       created.push(pattern.name);
 
       track('compound-extracted', sessionId, {

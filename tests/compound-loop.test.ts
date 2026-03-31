@@ -231,11 +231,11 @@ describe('compound-loop', () => {
       logSpy.mockRestore();
     });
 
-    it('인자 없이 비대화형 환경에서 안내 출력', async () => {
+    it('interactive 서브커맨드는 비대화형 환경에서 안내 출력', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       const origIsTTY = process.stdin.isTTY;
       Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
-      await handleCompound([]);
+      await handleCompound(['interactive']);
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Interactive mode'));
       Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, configurable: true });
       logSpy.mockRestore();

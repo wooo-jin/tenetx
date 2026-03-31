@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   KEYWORD_PATTERNS,
   detectKeyword,
+  shouldTrackWorkflowActivation,
 } from '../src/hooks/keyword-detector.js';
 
 describe('keyword patterns', () => {
@@ -81,6 +82,23 @@ describe('keyword patterns', () => {
 
   it('"code review"는 매칭한다', () => {
     expect(detectKeyword('code review 해줘')?.keyword).toBe('code-review');
+  });
+
+  it('겹치는 스킬 이름은 skill 경로로 통일된다', () => {
+    expect(detectKeyword('tdd 해줘')?.type).toBe('skill');
+    expect(detectKeyword('code review 해줘')?.type).toBe('skill');
+    expect(detectKeyword('migrate 해줘')?.type).toBe('skill');
+    expect(detectKeyword('refactor 시작')?.type).toBe('skill');
+  });
+
+  it('reasoning/search inject keyword는 workflow tracking 대상이 아니다', () => {
+    expect(shouldTrackWorkflowActivation({ type: 'inject', keyword: 'ultrathink' })).toBe(false);
+    expect(shouldTrackWorkflowActivation({ type: 'inject', keyword: 'deepsearch' })).toBe(false);
+  });
+
+  it('workflow 성격의 inject와 skill keyword는 tracking 대상이다', () => {
+    expect(shouldTrackWorkflowActivation({ type: 'inject', keyword: 'benchmark' })).toBe(true);
+    expect(shouldTrackWorkflowActivation({ type: 'skill', keyword: 'tdd', skill: 'tdd' })).toBe(true);
   });
 
   // ── 오탐 방지 테스트 ──

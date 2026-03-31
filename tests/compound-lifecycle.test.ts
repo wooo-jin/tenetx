@@ -32,7 +32,7 @@ vi.mock('../src/core/paths.js', () => {
     LAB_DIR: p.join(COMPOUND_HOME, 'lab'),
     LAB_EVENTS: p.join(COMPOUND_HOME, 'lab', 'events.jsonl'),
     FORGE_PROFILE: p.join(ME_DIR, 'forge-profile.json'),
-    ALL_MODES: ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview'],
+    ALL_MODES: ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview', 'ecomode'],
     projectDir: (cwd: string) => p.join(cwd, '.compound'),
     packLinkPath: (cwd: string) => p.join(cwd, '.compound', 'pack.link'),
     projectPhilosophyPath: (cwd: string) => p.join(cwd, '.compound', 'philosophy.json'),

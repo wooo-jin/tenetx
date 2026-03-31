@@ -24,7 +24,7 @@ import { buildEnv, generateClaudeRuleFiles, registerTmuxBindings } from './confi
 import { loadGlobalConfig } from './global-config.js';
 import { createLogger } from './logger.js';
 import { autoSyncIfNeeded, loadPackConfigs } from './pack-config.js';
-import { COMPOUND_HOME, ME_DIR, ME_RULES, ME_SOLUTIONS, PACKS_DIR, SESSIONS_DIR } from './paths.js';
+import { COMPOUND_HOME, ME_BEHAVIOR, ME_DIR, ME_RULES, ME_SOLUTIONS, PACKS_DIR, SESSIONS_DIR, STATE_DIR } from './paths.js';
 import { RULE_FILE_CAPS } from '../hooks/shared/injection-caps.js';
 import { initDefaultPhilosophy, loadPhilosophyForProject } from './philosophy-loader.js';
 import { resolveScope } from './scope-resolver.js';
@@ -59,9 +59,10 @@ function ensureDirectories(): void {
     COMPOUND_HOME,
     ME_DIR,
     ME_SOLUTIONS,
+    ME_BEHAVIOR,
     ME_RULES,
     SESSIONS_DIR,
-    path.join(COMPOUND_HOME, 'state'),
+    STATE_DIR,
     path.join(COMPOUND_HOME, 'handoffs'),
     path.join(COMPOUND_HOME, 'plans'),
     path.join(COMPOUND_HOME, 'specs'),
@@ -592,6 +593,17 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     // 1. 디렉토리 구조 보장
     ensureDirectories();
 
+    // 1.5. behavioral 패턴을 기술 솔루션 저장소에서 분리
+    try {
+      const { migrateLegacyBehaviorSolutions } = await import('../engine/behavior-store.js');
+      const migrated = migrateLegacyBehaviorSolutions();
+      if (migrated.length > 0) {
+        log.debug(`legacy behavioral files migrated: ${migrated.join(', ')}`);
+      }
+    } catch (e) {
+      log.debug('legacy behavioral migration failed (non-fatal)', e);
+    }
+
     // 2. 기본 철학 초기화
     initDefaultPhilosophy();
 
@@ -776,15 +788,17 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
       const stalenessMs = stalenessDays * 24 * 60 * 60 * 1000;
 
       // 마지막 compound extraction 시점 확인
-      const lastExtractionPath = path.join(os.homedir(), '.compound', 'state', 'last-extraction.json');
+      const lastExtractionPath = path.join(STATE_DIR, 'last-extraction.json');
       if (fs.existsSync(lastExtractionPath)) {
         const lastExtraction = JSON.parse(fs.readFileSync(lastExtractionPath, 'utf-8'));
-        const lastRunMs = new Date(lastExtraction.lastRunAt).getTime();
+        const extractedAt = lastExtraction.lastExtractedAt ?? lastExtraction.lastRunAt;
+        const lastRunMs = extractedAt ? new Date(extractedAt).getTime() : Number.NaN;
+        if (!Number.isFinite(lastRunMs)) return context;
         const elapsed = Date.now() - lastRunMs;
 
         if (elapsed > stalenessMs) {
           // pending-compound 마커가 없을 때만 생성
-          const pendingPath = path.join(os.homedir(), '.compound', 'state', 'pending-compound.json');
+          const pendingPath = path.join(STATE_DIR, 'pending-compound.json');
           if (!fs.existsSync(pendingPath)) {
             fs.writeFileSync(pendingPath, JSON.stringify({
               reason: 'staleness',

@@ -4,26 +4,27 @@ import { parseFrontmatterOnly, parseSolutionV3 } from './solution-format.js';
 
 import { ME_SOLUTIONS, ME_RULES } from '../core/paths.js';
 
-interface SolutionSummary {
+interface CompoundEntrySummary {
   name: string;
   status: string;
   confidence: number;
   type: string;
+  category: 'solution' | 'rule';
   tags: string[];
   evidence: { injected: number; reflected: number; negative: number; sessions: number; reExtracted: number };
   created: string;
   filePath: string;
 }
 
-/** Scan all solution directories and return summaries */
-function scanSolutions(): SolutionSummary[] {
-  const summaries: SolutionSummary[] = [];
+/** Scan saved compound entries and return summaries */
+function scanEntries(): CompoundEntrySummary[] {
+  const summaries: CompoundEntrySummary[] = [];
   const dirs = [
-    { dir: ME_SOLUTIONS, label: 'solutions' },
-    { dir: ME_RULES, label: 'rules' },
+    { dir: ME_SOLUTIONS, category: 'solution' as const },
+    { dir: ME_RULES, category: 'rule' as const },
   ];
 
-  for (const { dir } of dirs) {
+  for (const { dir, category } of dirs) {
     if (!fs.existsSync(dir)) continue;
     try {
       const files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
@@ -37,6 +38,7 @@ function scanSolutions(): SolutionSummary[] {
           status: fm.status,
           confidence: fm.confidence,
           type: fm.type,
+          category,
           tags: fm.tags,
           evidence: fm.evidence,
           created: fm.created,
@@ -63,23 +65,23 @@ function statusIcon(status: string): string {
 
 /** List all solutions with status summary */
 export function listSolutions(): void {
-  const solutions = scanSolutions();
+  const entries = scanEntries();
 
-  if (solutions.length === 0) {
-    console.log('\n  No solutions found.\n');
+  if (entries.length === 0) {
+    console.log('\n  No compound entries found.\n');
     return;
   }
 
   // Group by status
-  const groups: Record<string, SolutionSummary[]> = {};
-  for (const sol of solutions) {
-    if (!groups[sol.status]) groups[sol.status] = [];
-    groups[sol.status].push(sol);
+  const groups: Record<string, CompoundEntrySummary[]> = {};
+  for (const entry of entries) {
+    if (!groups[entry.status]) groups[entry.status] = [];
+    groups[entry.status].push(entry);
   }
 
   const order = ['mature', 'verified', 'candidate', 'experiment', 'retired'];
 
-  console.log('\n  Compound Solutions\n');
+  console.log('\n  Compound Entries\n');
 
   let total = 0;
   for (const status of order) {
@@ -87,63 +89,64 @@ export function listSolutions(): void {
     if (!group || group.length === 0) continue;
     total += group.length;
     console.log(`  [${statusIcon(status)}] ${status} (${group.length})`);
-    for (const sol of group) {
-      const ev = sol.evidence;
+    for (const entry of group) {
+      const ev = entry.evidence;
       const evStr = `inj:${ev.injected} ref:${ev.reflected} neg:${ev.negative}`;
-      console.log(`      ${sol.name}  (${sol.confidence.toFixed(2)})  ${evStr}  [${sol.tags.slice(0, 3).join(', ')}]`);
+      console.log(`      ${entry.name} [${entry.category}]  (${entry.confidence.toFixed(2)})  ${evStr}  [${entry.tags.slice(0, 3).join(', ')}]`);
     }
   }
 
-  console.log(`\n  Total: ${total} solutions\n`);
+  console.log(`\n  Total: ${total} entries\n`);
 }
 
-/** Inspect a single solution in detail */
+/** Inspect a single saved entry in detail */
 export function inspectSolution(name: string): void {
-  const solutions = scanSolutions();
-  const sol = solutions.find(s => s.name === name);
+  const entries = scanEntries();
+  const entry = entries.find(s => s.name === name);
 
-  if (!sol) {
-    console.log(`\n  Solution "${name}" not found.\n`);
+  if (!entry) {
+    console.log(`\n  Entry "${name}" not found.\n`);
     return;
   }
 
   // Read full content
-  const content = fs.readFileSync(sol.filePath, 'utf-8');
+  const content = fs.readFileSync(entry.filePath, 'utf-8');
   const full = parseSolutionV3(content);
 
-  console.log(`\n  Solution: ${sol.name}`);
-  console.log(`  Status: ${sol.status} (confidence: ${sol.confidence.toFixed(2)})`);
-  console.log(`  Type: ${sol.type}`);
-  console.log(`  Tags: [${sol.tags.join(', ')}]`);
-  console.log(`  Created: ${sol.created}`);
+  console.log(`\n  Entry: ${entry.name}`);
+  console.log(`  Category: ${entry.category}`);
+  console.log(`  Status: ${entry.status} (confidence: ${entry.confidence.toFixed(2)})`);
+  console.log(`  Type: ${entry.type}`);
+  console.log(`  Tags: [${entry.tags.join(', ')}]`);
+  console.log(`  Created: ${entry.created}`);
   console.log(`  Evidence:`);
-  console.log(`    injected: ${sol.evidence.injected}`);
-  console.log(`    reflected: ${sol.evidence.reflected}`);
-  console.log(`    negative: ${sol.evidence.negative}`);
-  console.log(`    sessions: ${sol.evidence.sessions}`);
-  console.log(`    reExtracted: ${sol.evidence.reExtracted}`);
+  console.log(`    injected: ${entry.evidence.injected}`);
+  console.log(`    reflected: ${entry.evidence.reflected}`);
+  console.log(`    negative: ${entry.evidence.negative}`);
+  console.log(`    sessions: ${entry.evidence.sessions}`);
+  console.log(`    reExtracted: ${entry.evidence.reExtracted}`);
 
   if (full) {
     if (full.context) console.log(`\n  Context: ${full.context}`);
     if (full.content) console.log(`\n  Content:\n    ${full.content.split('\n').join('\n    ')}`);
   }
 
-  console.log(`\n  File: ${sol.filePath}\n`);
+  console.log(`\n  File: ${entry.filePath}\n`);
 }
 
-/** Remove a solution by name */
+/** Remove a saved entry by name */
 export function removeSolution(name: string): void {
-  const solutions = scanSolutions();
-  const sol = solutions.find(s => s.name === name);
+  const entries = scanEntries();
+  const entry = entries.find(s => s.name === name);
 
-  if (!sol) {
-    console.log(`\n  Solution "${name}" not found.\n`);
+  if (!entry) {
+    console.log(`\n  Entry "${name}" not found.\n`);
     return;
   }
 
   try {
-    fs.unlinkSync(sol.filePath);
-    console.log(`\n  Removed: ${name} (${sol.filePath})\n`);
+    fs.unlinkSync(entry.filePath);
+    console.log(`\n  Removed: ${name} [${entry.category}] (${entry.filePath})\n`);
   } catch (e) {
     console.log(`\n  Failed to remove: ${(e as Error).message}\n`);
   }
@@ -157,10 +160,10 @@ export function rollbackSolutions(sinceDate: string): void {
     return;
   }
 
-  const solutions = scanSolutions();
-  const toRemove = solutions.filter(sol => {
-    if (sol.evidence.reflected > 0 || sol.evidence.sessions > 0) return false; // keep used ones
-    const created = new Date(sol.created);
+  const solutions = scanEntries().filter((entry) => entry.category === 'solution');
+  const toRemove = solutions.filter((solution) => {
+    if (solution.evidence.reflected > 0 || solution.evidence.sessions > 0) return false; // keep used ones
+    const created = new Date(solution.created);
     return created >= since;
   });
 

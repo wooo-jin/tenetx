@@ -20,7 +20,7 @@ Tenetx supports two paths for extracting solutions from coding sessions.
 
 ## Manual Extraction (/compound skill)
 
-**How it works**: Run `/compound` or type "복리화" during a session. The skill prompts Claude to analyze the full conversation context — including reasoning, failed attempts, and decision tradeoffs — and produce solutions.
+**How it works**: Run `/compound` or type "복리화" during a session. The skill prompts Claude to analyze the full conversation context — including reasoning, failed attempts, and decision tradeoffs — and produce solutions. The CLI `tenetx compound` is separate: it previews automatic technical extraction results, and `tenetx compound --save` persists them.
 
 **Strengths**:
 - Captures "why" — conversation context includes reasoning that diff cannot
@@ -35,7 +35,7 @@ Tenetx supports two paths for extracting solutions from coding sessions.
 
 ## Recommendation
 
-Use both. Auto-extraction catches the routine patterns. Manual extraction preserves the important "why" context for significant work. Review `tenetx compound list` periodically to see what was auto-extracted and promote or retire as needed.
+Use both. Auto-extraction catches the routine patterns. Manual extraction preserves the important "why" context for significant work. Review `tenetx compound list` periodically to inspect saved entries, then promote or retire auto-extracted solutions as needed.
 
 ## Disabling Auto Extraction
 

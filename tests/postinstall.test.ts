@@ -208,6 +208,7 @@ describe('postinstall', () => {
         COMPOUND_HOME,
         path.join(COMPOUND_HOME, 'me'),
         path.join(COMPOUND_HOME, 'me', 'solutions'),
+        path.join(COMPOUND_HOME, 'me', 'behavior'),
         path.join(COMPOUND_HOME, 'me', 'rules'),
         path.join(COMPOUND_HOME, 'me', 'skills'),
         path.join(COMPOUND_HOME, 'state'),

@@ -21,6 +21,9 @@ export const ME_PHILOSOPHY = path.join(ME_DIR, 'philosophy.json');
 /** ~/.compound/me/solutions/ — 개인 솔루션 */
 export const ME_SOLUTIONS = path.join(ME_DIR, 'solutions');
 
+/** ~/.compound/me/behavior/ — 개인 행동 패턴 */
+export const ME_BEHAVIOR = path.join(ME_DIR, 'behavior');
+
 /** ~/.compound/me/rules/ — 개인 규칙 */
 export const ME_RULES = path.join(ME_DIR, 'rules');
 
@@ -48,7 +51,7 @@ export const FORGE_PROFILE = path.join(ME_DIR, 'forge-profile.json');
 /** 모든 실행 모드 이름 (cancel/recovery 시 사용) */
 export const ALL_MODES = [
   'ralph', 'autopilot', 'ultrawork', 'team', 'pipeline',
-  'ccg', 'ralplan', 'deep-interview',
+  'ccg', 'ralplan', 'deep-interview', 'ecomode',
 ] as const;
 
 /** {repo}/.compound/ — 프로젝트 로컬 디렉토리 */

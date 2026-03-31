@@ -6,6 +6,7 @@ import {
   ME_DIR,
   ME_PHILOSOPHY,
   ME_SOLUTIONS,
+  ME_BEHAVIOR,
   ME_RULES,
   PACKS_DIR,
   STATE_DIR,
@@ -36,6 +37,10 @@ describe('paths', () => {
     expect(ME_SOLUTIONS).toContain('solutions');
   });
 
+  it('ME_BEHAVIOR은 ~/.compound/me/behavior/', () => {
+    expect(ME_BEHAVIOR).toContain('behavior');
+  });
+
   it('ME_RULES은 ~/.compound/me/rules/', () => {
     expect(ME_RULES).toContain('rules');
   });
@@ -56,11 +61,12 @@ describe('paths', () => {
     expect(GLOBAL_CONFIG).toContain('config.json');
   });
 
-  it('ALL_MODES는 8개 모드를 포함', () => {
-    expect(ALL_MODES.length).toBe(8);
+  it('ALL_MODES는 9개 모드를 포함', () => {
+    expect(ALL_MODES.length).toBe(9);
     expect(ALL_MODES).toContain('ralph');
     expect(ALL_MODES).toContain('autopilot');
     expect(ALL_MODES).toContain('ultrawork');
+    expect(ALL_MODES).toContain('ecomode');
   });
 
   it('projectDir는 cwd/.compound/ 반환', () => {
@@ -72,7 +78,7 @@ describe('paths', () => {
   });
 
   it('모든 경로가 절대 경로', () => {
-    const paths = [COMPOUND_HOME, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR, STATE_DIR, SESSIONS_DIR, GLOBAL_CONFIG];
+    const paths = [COMPOUND_HOME, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_BEHAVIOR, ME_RULES, PACKS_DIR, STATE_DIR, SESSIONS_DIR, GLOBAL_CONFIG];
     for (const p of paths) {
       expect(path.isAbsolute(p)).toBe(true);
     }
