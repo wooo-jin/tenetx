@@ -155,10 +155,11 @@ describe('hooks-generator', () => {
       // PreToolUse 이벤트 존재 확인
       expect(result.hooks['PreToolUse']).toBeDefined();
 
-      // 모든 matcher는 '*'
+      // matcher는 '*' 또는 도구 필터 (best practice: 도구별 필터링)
       for (const matchers of Object.values(result.hooks)) {
         for (const m of matchers) {
-          expect(m.matcher).toBe('*');
+          expect(typeof m.matcher).toBe('string');
+          expect(m.matcher.length).toBeGreaterThan(0);
         }
       }
     });

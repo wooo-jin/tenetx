@@ -1,6 +1,6 @@
 ---
 name: debug-detective
-description: Systematic debugging with reproduce-isolate-fix-verify loop
+description: This skill should be used when the user asks to "debug-detective,디버그탐정,체계적디버깅". Systematic debugging with reproduce-isolate-fix-verify loop
 triggers:
   - "debug-detective"
   - "디버그탐정"

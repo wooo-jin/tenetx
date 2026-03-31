@@ -1,6 +1,6 @@
 ---
 name: git-master
-description: Atomic commits, smart rebasing, and history management
+description: This skill should be used when the user asks to "git-master,깃마스터,atomic commit". Atomic commits, smart rebasing, and history management
 triggers:
   - "git-master"
   - "깃마스터"

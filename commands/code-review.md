@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Systematic code review with severity-rated feedback
+description: This skill should be used when the user asks to "code review,코드 리뷰,리뷰해줘,review this". Systematic code review with severity-rated feedback
 triggers:
   - "code review"
   - "코드 리뷰"

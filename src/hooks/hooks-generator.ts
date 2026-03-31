@@ -83,12 +83,20 @@ export function generateHooksJson(options?: GenerateOptions): HooksJson {
     byEvent.set(hook.event, list);
   }
 
-  // hooks.json 구조 생성
+  // hooks.json 구조 생성 — matcher별로 그룹핑 (best practice: 도구 필터링)
   const hooks: Record<string, HookMatcher[]> = {};
   for (const [event, entries] of byEvent) {
-    hooks[event] = [{
-      matcher: '*',
-      hooks: entries.map(h => {
+    // 같은 matcher끼리 그룹핑
+    const byMatcher = new Map<string, typeof entries>();
+    for (const h of entries) {
+      const m = h.matcher ?? '*';
+      const group = byMatcher.get(m) ?? [];
+      group.push(h);
+      byMatcher.set(m, group);
+    }
+    hooks[event] = [...byMatcher.entries()].map(([matcher, matcherEntries]) => ({
+      matcher,
+      hooks: matcherEntries.map(h => {
         // script에 인자가 포함된 경우 (예: "hooks/subagent-tracker.js start")
         // 파일 경로와 인자를 분리해야 셸에서 ENOENT를 방지
         const spaceIdx = h.script.indexOf(' ');
@@ -97,7 +105,7 @@ export function generateHooksJson(options?: GenerateOptions): HooksJson {
           : `node "${pluginRoot}/${h.script.slice(0, spaceIdx)}" ${h.script.slice(spaceIdx + 1)}`;
         return { type: 'command' as const, command, timeout: h.timeout };
       }),
-    }];
+    }));
   }
 
   return {

@@ -1,6 +1,6 @@
 ---
 name: ecomode
-description: Token-saving eco mode with Haiku priority and minimal responses
+description: This skill should be used when the user asks to "eco,ecomode,절약,비용절약". Token-saving eco mode with Haiku priority and minimal responses
 triggers:
   - "eco"
   - "ecomode"

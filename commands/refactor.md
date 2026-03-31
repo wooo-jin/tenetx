@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: Safe refactoring with test-first approach and SOLID principles
+description: This skill should be used when the user asks to "refactor,리팩토링,리팩터,코드정리". Safe refactoring with test-first approach and SOLID principles
 triggers:
   - "refactor"
   - "리팩토링"
