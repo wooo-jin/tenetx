@@ -87,9 +87,9 @@ function timeRange(events: LabEvent[]): { firstSeen: string; lastSeen: string } 
 
 /** Detect: user frequently overrides AI decisions */
 function detectOverridePattern(events: LabEvent[]): BehavioralPattern | null {
-  const overrideEvents = events.filter(e => e.type === 'user-override');
+  const overrideEvents = events.filter(e => e.type === 'user-override' || e.type === 'user-rejection');
   const totalActionEvents = events.filter(
-    e => e.type === 'agent-call' || e.type === 'hook-trigger' || e.type === 'user-override',
+    e => e.type === 'agent-call' || e.type === 'hook-trigger' || e.type === 'user-override' || e.type === 'user-rejection',
   );
   if (totalActionEvents.length < MIN_EVENTS_FOR_PATTERN) return null;
 
@@ -129,7 +129,7 @@ function detectLowInterventionPattern(events: LabEvent[]): BehavioralPattern | n
     const actionEvents = sessionEvents.filter(
       e => e.type === 'agent-call' || e.type === 'hook-trigger',
     );
-    const overrides = sessionEvents.filter(e => e.type === 'user-override');
+    const overrides = sessionEvents.filter(e => e.type === 'user-override' || e.type === 'user-rejection');
     if (actionEvents.length < 3) continue;
 
     totalSessions++;
@@ -244,7 +244,7 @@ function detectEscalationPattern(events: LabEvent[]): BehavioralPattern | null {
 
 /** Detect: user overrides verbose explanations */
 function detectVerboseOverridePattern(events: LabEvent[]): BehavioralPattern | null {
-  const overrideEvents = events.filter(e => e.type === 'user-override');
+  const overrideEvents = events.filter(e => e.type === 'user-override' || e.type === 'user-rejection');
   const verboseOverrides = overrideEvents.filter(e => {
     const decision = String(e.payload.userDecision ?? '').toLowerCase();
     const original = String(e.payload.originalDecision ?? '').toLowerCase();
@@ -362,7 +362,7 @@ function detectRiskUpPattern(events: LabEvent[]): BehavioralPattern | null {
 
 /** Detect: user requests verbose/detailed explanations → lower communicationStyle */
 function detectVerbosePreferencePattern(events: LabEvent[]): BehavioralPattern | null {
-  const overrideEvents = events.filter(e => e.type === 'user-override');
+  const overrideEvents = events.filter(e => e.type === 'user-override' || e.type === 'user-rejection');
   if (overrideEvents.length < 5) return null;
 
   const verboseRequests = overrideEvents.filter(e => {
