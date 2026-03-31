@@ -15,7 +15,7 @@
   ],
   "statusLine": {
     "type": "command",
-    "command": "tenetx status"
+    "command": "tenetx me"
   },
   "agents": "agents/"
 }
