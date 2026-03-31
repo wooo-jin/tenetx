@@ -59,6 +59,13 @@ const commands: Command[] = [
     name: 'me',
     description: 'Personal dashboard: profile, evolution, patterns, cost',
     handler: async (args) => {
+      if (args.includes('--html')) {
+        const { generateDashboard, openInBrowser } = await import('./insight/html-generator.js');
+        const filePath = generateDashboard(process.cwd());
+        console.log(`  Dashboard generated: ${filePath}`);
+        if (!args.includes('--no-open')) openInBrowser(filePath);
+        return;
+      }
       const { runMeDashboard } = await import('./forge/me-dashboard.js');
       await runMeDashboard(args);
     },

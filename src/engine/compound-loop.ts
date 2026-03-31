@@ -249,6 +249,21 @@ export async function handleCompound(args: string[]): Promise<void> {
     return;
   }
 
+  // map — Knowledge Map 시각화
+  if (args[0] === 'map') {
+    if (args.includes('--mermaid')) {
+      const { buildKnowledgeMap, toMermaid } = await import('../insight/knowledge-map.js');
+      const graph = buildKnowledgeMap(cwd);
+      console.log(toMermaid(graph));
+    } else {
+      const { generateDashboard, openInBrowser } = await import('../insight/html-generator.js');
+      const filePath = generateDashboard(cwd);
+      console.log(`  Knowledge Map generated: ${filePath}`);
+      if (!args.includes('--no-open')) openInBrowser(filePath);
+    }
+    return;
+  }
+
   // --pause-auto / --resume-auto
   if (args.includes('--pause-auto') || args.includes('pause-auto')) {
     const { pauseExtraction } = await import('./compound-extractor.js');
