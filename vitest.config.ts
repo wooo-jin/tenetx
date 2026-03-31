@@ -9,11 +9,11 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts'],
       thresholds: {
-        // v3 현실 기준. 매 릴리즈마다 상향. 장기 목표 60%.
-        lines: 35,
-        branches: 33,
-        functions: 42,
-        statements: 35,
+        // v3.0.0 실측 기준 (2026-03-31). 매 릴리즈마다 상향. 장기 목표 70%.
+        lines: 47,
+        branches: 45,
+        functions: 54,
+        statements: 47,
       },
     },
   },

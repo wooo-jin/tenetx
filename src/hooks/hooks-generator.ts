@@ -54,6 +54,7 @@ interface GenerateOptions {
  */
 export function generateHooksJson(options?: GenerateOptions): HooksJson {
   const cwd = options?.cwd;
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: CLAUDE_PLUGIN_ROOT is a Claude Code Plugin SDK variable resolved at runtime
   const pluginRoot = options?.pluginRoot ?? '${CLAUDE_PLUGIN_ROOT}/dist';
 
   // 다른 플러그인의 충돌 훅 감지

@@ -26,7 +26,7 @@ import { track } from '../lab/tracker.js';
 import { calculateBudget } from './shared/context-budget.js';
 import { writeSignal } from './shared/plugin-signal.js';
 import { approve, failOpen } from './shared/hook-response.js';
-import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
+import { STATE_DIR } from '../core/paths.js';
 
 interface HookInput {
   prompt: string;

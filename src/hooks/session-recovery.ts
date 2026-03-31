@@ -172,7 +172,7 @@ async function main(): Promise<void> {
 
       const elapsedMinutes = Math.round(elapsed / 60000);
       // Security: 상태 파일의 사용자 입력을 XML에 삽입하기 전 이스케이프
-      const escXml = (s: string) => s.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]!);
+      const escXml = (s: string) => s.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] ?? c);
       recoveryMessages.push(
         `<compound-recovery mode="${mode}">` +
         `\n${mode} mode from previous session has been recovered.` +

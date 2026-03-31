@@ -42,7 +42,7 @@ No configuration needed. Use Claude Code normally — tenetx learns in the backg
 - **Harness mode** (`tenetx`): Full experience — profile update, rule generation, pattern extraction every session
 - **Plugin mode** (`claude` directly): Hooks + MCP still work. Learning continues between harness runs.
 
-Works alongside other plugins (OMC, superpowers, claude-mem) — automatically yields overlapping features.
+Designed to coexist with other plugins (OMC, superpowers, claude-mem) — detects them at install time and disables overlapping workflow hooks. Core learning hooks always remain active. See [docs/with-omc.md](docs/with-omc.md) for details and known limitations.
 
 ---
 
