@@ -211,8 +211,8 @@ describe('postinstall', () => {
         path.join(COMPOUND_HOME, 'me', 'rules'),
         path.join(COMPOUND_HOME, 'me', 'skills'),
         path.join(COMPOUND_HOME, 'state'),
-        path.join(COMPOUND_HOME, 'skills'),
-        path.join(COMPOUND_HOME, 'packs'),
+        path.join(COMPOUND_HOME, 'handoffs'),
+        path.join(COMPOUND_HOME, 'lab'),
       ];
       for (const dir of expectedDirs) {
         expect(fs.existsSync(dir), `missing dir: ${dir}`).toBe(true);
