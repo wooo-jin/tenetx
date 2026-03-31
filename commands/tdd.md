@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Test-Driven Development workflow with Red-Green-Refactor cycle
+description: This skill should be used when the user asks to "tdd,test first,테스트 먼저,테스트 주도". Test-Driven Development workflow with Red-Green-Refactor cycle
 triggers:
   - "tdd"
   - "test first"

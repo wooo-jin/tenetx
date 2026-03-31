@@ -1,6 +1,6 @@
 ---
 name: migrate
-description: Safe migration workflow for DB, API, and framework upgrades
+description: This skill should be used when the user asks to "migrate,마이그레이션,업그레이드,upgrade". Safe migration workflow for DB, API, and framework upgrades
 triggers:
   - "migrate"
   - "마이그레이션"

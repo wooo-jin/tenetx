@@ -35,6 +35,8 @@ export interface HookEntry {
   tier: HookTier;
   /** Claude Code 훅 이벤트 */
   event: HookEventType;
+  /** 도구명 매칭 패턴 (regex 또는 '*'). Best practice: 필요한 도구만 필터링. */
+  matcher: string;
   /** 실행 스크립트 (dist/ 기준 상대 경로) */
   script: string;
   /** 타임아웃 (초) */

@@ -1,6 +1,6 @@
 ---
 name: compound
-description: Compound Engineering — extract reusable patterns from this session's work
+description: This skill should be used when the user asks to "복리화,compound,패턴 추출,솔루션 축적,what did we learn". Compound Engineering — extract reusable patterns from this session's work
 triggers:
   - "복리화"
   - "compound"

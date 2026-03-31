@@ -1,6 +1,6 @@
 ---
 name: security-review
-description: Security-focused code audit with OWASP Top 10 and supply chain checks
+description: This skill should be used when the user asks to "security review,보안 리뷰,보안 검토,security audit,취약점 점검". Security-focused code audit with OWASP Top 10 and supply chain checks
 triggers:
   - "security review"
   - "보안 리뷰"
