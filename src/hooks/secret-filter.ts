@@ -9,7 +9,7 @@
 import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithWarning, failOpen } from './shared/hook-response.js';
 
 interface PostToolInput {
   tool_name?: string;
@@ -75,7 +75,7 @@ async function main(): Promise<void> {
   const secrets = detectSecrets(textToScan);
   if (secrets.length > 0) {
     const names = secrets.map(s => s.name).join(', ');
-    console.log(approve(`<compound-security-warning>\n[Tenetx] ⚠ Sensitive information exposure detected: ${names}\nThe output may contain secrets. Please review.\n</compound-security-warning>`));
+    console.log(approveWithWarning(`<compound-security-warning>\n[Tenetx] ⚠ Sensitive information exposure detected: ${names}\nThe output may contain secrets. Please review.\n</compound-security-warning>`));
     return;
   }
 

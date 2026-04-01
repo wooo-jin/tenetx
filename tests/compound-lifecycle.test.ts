@@ -228,14 +228,16 @@ describe('circuit breaker thresholds (runLifecycleCheck)', () => {
   });
 
   it('candidate는 negative >= 3 에서 circuit breaker가 발동한다', () => {
-    createSolution(SOLUTIONS_DIR, 'cb-candidate', 'candidate', { negative: 3 }, 0.6);
+    const recentDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    createSolution(SOLUTIONS_DIR, 'cb-candidate', 'candidate', { negative: 3 }, 0.6, recentDate);
     const result = runLifecycleCheck();
     expect(result.retired.some(r => r.includes('circuit-breaker'))).toBe(true);
     expect(result.retired.some(r => r.includes('cb-candidate'))).toBe(true);
   });
 
   it('candidate는 negative === 2 에서 circuit breaker가 발동하지 않는다', () => {
-    createSolution(SOLUTIONS_DIR, 'cb-candidate-safe', 'candidate', { negative: 2 }, 0.6);
+    const recentDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    createSolution(SOLUTIONS_DIR, 'cb-candidate-safe', 'candidate', { negative: 2 }, 0.6, recentDate);
     const result = runLifecycleCheck();
     expect(result.retired.some(r => r.includes('cb-candidate-safe'))).toBe(false);
   });

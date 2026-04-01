@@ -14,15 +14,11 @@ const log = createLogger('post-tool-use');
 import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { recordToolUsage, formatCost, formatTokenCount, cleanStaleUsageFiles, estimateTokens } from '../engine/token-tracker.js';
-import { recordTokenUsage as recordLabCost } from '../lab/cost-tracker.js';
 import { saveCheckpoint } from './session-recovery.js';
-import { trackSessionMetrics } from '../lab/tracker.js';
 import { recordWriteContent } from '../engine/prompt-learner.js';
-import { incrementWorkflowCounter, captureWorkflowPattern } from '../engine/workflow-compound.js';
 import { incrementFailureCounter, checkCompoundNegative, getCompoundSuccessHint } from './post-tool-handlers.js';
 import { isHookEnabled } from './hook-config.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithWarning, failOpen } from './shared/hook-response.js';
 import { STATE_DIR } from '../core/paths.js';
 
 // ── Types ──
@@ -135,36 +131,7 @@ async function main(): Promise<void> {
     } catch (e) { log.debug('체크포인트 저장 실패', e); }
   }
 
-  // 2. Token/cost tracking
-  try {
-    const inputStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput);
-    const usage = recordToolUsage(sessionId, inputStr, toolResponse, data.model_id);
-
-    try {
-      recordLabCost(sessionId, data.model_id ?? 'sonnet', estimateTokens(inputStr), estimateTokens(toolResponse));
-    } catch (e) { log.debug('lab cost tracker 기록 실패', e); }
-
-    if (usage.toolCalls % 100 === 0) cleanStaleUsageFiles();
-
-    if (usage.toolCalls % 50 === 0) {
-      messages.push(`<compound-cost-info>\n[Tenetx] Session token usage: ${formatTokenCount(usage.inputTokens + usage.outputTokens)} (${usage.toolCalls} calls), estimated cost: ${formatCost(usage.estimatedCost)}\n</compound-cost-info>`);
-      try {
-        const activeAgents = (() => {
-          try {
-            const agentsPath = path.join(STATE_DIR, `active-agents-${sessionId}.json`);
-            if (fs.existsSync(agentsPath)) {
-              const agents = JSON.parse(fs.readFileSync(agentsPath, 'utf-8'));
-              return Array.isArray(agents.agents) ? agents.agents.filter((a: { stoppedAt?: string }) => !a.stoppedAt).length : 0;
-            }
-          } catch { /* ignore */ }
-          return 0;
-        })();
-        trackSessionMetrics(sessionId, usage.inputTokens, usage.outputTokens, usage.estimatedCost, 0, activeAgents, data.model_id ?? 'unknown');
-      } catch { /* non-blocking */ }
-    }
-  } catch (e) { log.debug('토큰 추적 실패', e); }
-
-  // 3. File change tracking (Write, Edit)
+  // 2. File change tracking (Write, Edit)
   if (toolName === 'Write' || toolName === 'Edit') {
     const filePath = (toolInput.file_path as string) ?? (toolInput.filePath as string) ?? '';
     if (filePath) {
@@ -194,13 +161,7 @@ async function main(): Promise<void> {
   // 5. Compound negative signal (non-blocking)
   try { checkCompoundNegative(toolName, toolResponse, sessionId); } catch (e) { log.debug('compound negative check 실패', e); }
 
-  // 6. Workflow counter + pattern capture (non-blocking)
-  try {
-    incrementWorkflowCounter('toolCall');
-    captureWorkflowPattern(sessionId);
-  } catch (e) { log.debug('workflow counter increment 실패', e); }
-
-  // 7. Compound success hint (non-blocking)
+  // 6. Compound success hint (non-blocking)
   try {
     const successHint = getCompoundSuccessHint(toolName, toolResponse, sessionId);
     if (successHint) messages.push(successHint);
@@ -209,7 +170,7 @@ async function main(): Promise<void> {
   saveModifiedFiles(modState);
 
   if (messages.length > 0) {
-    console.log(approve(messages.join('\n')));
+    console.log(approveWithWarning(messages.join('\n')));
   } else {
     console.log(approve());
   }

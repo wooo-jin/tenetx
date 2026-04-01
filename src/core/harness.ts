@@ -16,10 +16,6 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadPackWorkflows, registerPackWorkflows } from '../engine/modes.js';
-import type { RoutingPreset } from '../engine/router.js';
-import { ModelRouter } from '../engine/router.js';
-import { resetCurrentSession } from '../lab/cost-tracker.js';
 import { buildEnv, generateClaudeRuleFiles, registerTmuxBindings } from './config-injector.js';
 import { loadGlobalConfig } from './global-config.js';
 import { createLogger } from './logger.js';
@@ -188,31 +184,6 @@ function saveAgentHashes(hashes: Record<string, string>): void {
   } catch (e) {
     log.debug('에이전트 해시 맵 저장 실패', e);
   }
-}
-
-/** 연결된 팩의 커스텀 워크플로우를 모드 시스템에 등록 */
-function loadAndRegisterPackWorkflows(cwd: string): string[] {
-  const warnings: string[] = [];
-  try {
-    const connectedPacks = loadPackConfigs(cwd);
-    for (const pack of connectedPacks) {
-      const nsDir = path.join(cwd, '.compound', 'packs', pack.name);
-      const globalDir = path.join(PACKS_DIR, pack.name);
-      const packDir = fs.existsSync(nsDir) ? nsDir : globalDir;
-      const workflows = loadPackWorkflows(packDir);
-      if (workflows.length > 0) {
-        const skipped = registerPackWorkflows(workflows);
-        log.debug(`팩 '${pack.name}'에서 워크플로우 ${workflows.length}개 등록`);
-        if (skipped.length > 0) {
-          const msg = `⚠ Pack '${pack.name}' workflow name collision: ${skipped.join(', ')} (built-in mode takes priority)`;
-          warnings.push(msg);
-        }
-      }
-    }
-  } catch (e) {
-    log.debug('팩 워크플로우 로드 실패', e);
-  }
-  return warnings;
 }
 
 /** forge 오버레이 맵 타입 (agentName -> 오버레이) */
@@ -593,17 +564,6 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     // 1. 디렉토리 구조 보장
     ensureDirectories();
 
-    // 1.5. behavioral 패턴을 기술 솔루션 저장소에서 분리
-    try {
-      const { migrateLegacyBehaviorSolutions } = await import('../engine/behavior-store.js');
-      const migrated = migrateLegacyBehaviorSolutions();
-      if (migrated.length > 0) {
-        log.debug(`legacy behavioral files migrated: ${migrated.join(', ')}`);
-      }
-    } catch (e) {
-      log.debug('legacy behavioral migration failed (non-fatal)', e);
-    }
-
     // 2. 기본 철학 초기화
     initDefaultPhilosophy();
 
@@ -614,11 +574,9 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     // 4. 스코프 해석
     const scope = resolveScope(cwd, philosophySource);
 
-    // 5. 모델 라우터 생성 (Philosophy + Preset + Signal 하이브리드)
+    // 5. 모델 라우팅 설정 로드 (정적 테이블 — .claude/rules/routing.md로 대체)
     const globalConfig = loadGlobalConfig();
-    const routingPreset = globalConfig.modelRouting as RoutingPreset | undefined;
-    const router = new ModelRouter(philosophy, routingPreset);
-    const modelRouting = router.getTable();
+    const routingPreset = (globalConfig.modelRouting as string | undefined);
 
     // 6. 컨텍스트 구성
     const inTmux = !!process.env.TMUX;
@@ -628,10 +586,8 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
       scope,
       cwd,
       inTmux,
-      modelRouting: Object.fromEntries(
-        Object.entries(modelRouting).map(([k, v]) => [k, v as string[]]),
-      ),
-      signalRoutingEnabled: true,
+      modelRouting: undefined,
+      signalRoutingEnabled: false,
       routingPreset: routingPreset ?? 'default',
     };
 
@@ -715,12 +671,8 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
       log.debug('Forge 프로필 로드 실패 (정상 동작에 영향 없음)', e);
     }
 
-    // 8.5. 에이전트 설치 (forge 오버레이 포함) + 팩 워크플로우 등록
+    // 8.5. 에이전트 설치 (forge 오버레이 포함)
     installAgents(cwd, forgeOverlayMap);
-    const workflowWarnings = loadAndRegisterPackWorkflows(cwd);
-    for (const w of workflowWarnings) {
-      console.error(`[tenetx] ${w}`);
-    }
 
     // 9. 규칙 파일 주입 (기본 5개 + forge 튜닝 규칙)
     const ruleFiles = generateClaudeRuleFiles(context);
@@ -756,52 +708,6 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
 
     // 13. 세션 로그 시작
     startSessionLog(context);
-
-    // 15. 비용 추적 세션 초기화 (lab/cost)
-    resetCurrentSession('default');
-
-    // 16. Auto-learn: evolve forge profile from lab data (at most once/day)
-    try {
-      const {
-        tryAutoLearn,
-        loadLastNotification,
-        saveLastNotification,
-      } = await import('../lab/auto-learn.js');
-      const evolveResult = await tryAutoLearn();
-      if (evolveResult?.changed && evolveResult.previousVector && evolveResult.newVector) {
-        const prev = evolveResult.previousVector;
-        const next = evolveResult.newVector;
-        const changedKeys = Object.keys(prev).filter(
-          k => Math.abs((prev[k] ?? 0) - (next[k] ?? 0)) > 0.001,
-        );
-        const sortedKeys = [...changedKeys].sort();
-
-        // Dedup: skip if the same set of dimension keys was already notified
-        const lastNotif = loadLastNotification();
-        const alreadyNotified =
-          lastNotif !== null &&
-          JSON.stringify(lastNotif.dimensionKeys) === JSON.stringify(sortedKeys);
-
-        if (!alreadyNotified && changedKeys.length > 0) {
-          const { DIMENSION_META } = await import('../forge/dimensions.js');
-          console.log('  [forge] Profile evolved:');
-          const maxLines = 5;
-          for (const key of changedKeys.slice(0, maxLines)) {
-            const meta = DIMENSION_META.find(d => d.key === key);
-            const label = meta?.label ?? key;
-            const fromVal = (prev[key] ?? 0).toFixed(2);
-            const toVal = (next[key] ?? 0).toFixed(2);
-            const adj = evolveResult.adjustments.find(a => a.dimension === key);
-            const evidence = adj?.evidence ?? '';
-            const evidencePart = evidence ? ` (${evidence})` : '';
-            console.log(`    ${label} ${fromVal} \u2192 ${toVal}${evidencePart}`);
-          }
-          saveLastNotification({ timestamp: new Date().toISOString(), dimensionKeys: sortedKeys });
-        }
-      }
-    } catch (e) {
-      log.debug('Auto-learn import/run failed (non-fatal)', e);
-    }
 
     // ── 17. Compound staleness guard ──
     try {

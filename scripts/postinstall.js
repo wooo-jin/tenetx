@@ -500,11 +500,20 @@ function isTenetxHook(entry) {
   return false;
 }
 
-/** settings 객체에 훅 설정을 적용합니다 (settings.json 쓰기는 main에서 일괄 수행). */
+/**
+ * settings.json에 tenetx 훅을 절대 경로로 직접 등록합니다.
+ *
+ * 설계 결정:
+ *   - 플러그인 hooks.json의 ${CLAUDE_PLUGIN_ROOT}는 Claude Code 버전에 따라
+ *     해석되지 않을 수 있으므로, settings.json에 절대 경로로 직접 등록.
+ *   - PKG_ROOT는 npm i -g 시 글로벌 node_modules 경로,
+ *     npm link 시 개발 디렉토리 경로로 자동 해석.
+ *   - 기존 non-tenetx 훅은 보존.
+ */
 function applyHookSettings(settings) {
   if (!existsSync(DIST_HOOKS)) return false;
 
-  // 기존 tenetx 훅 정리 (이전 버전에서 settings.json에 주입한 잔재 제거)
+  // 1) 기존 tenetx 훅 제거 (이전 버전 잔재 + 현재 버전 모두)
   const hooksConfig = settings.hooks ?? {};
   for (const [event, entries] of Object.entries(hooksConfig)) {
     if (Array.isArray(entries)) {
@@ -512,17 +521,75 @@ function applyHookSettings(settings) {
       if (hooksConfig[event].length === 0) delete hooksConfig[event];
     }
   }
-  settings.hooks = Object.keys(hooksConfig).length > 0 ? hooksConfig : undefined;
 
-  // env에 COMPOUND_HARNESS 마커만 설정
+  // 2) hook-registry.json 기반으로 활성 훅을 settings.json에 등록
+  // registry의 script 필드는 "hooks/xxx.js" 형식 → dist/ 기준으로 join
+  const distDir = join(PKG_ROOT, 'dist');
+
+  let hookConfig = null;
+  const hookConfigPath = join(COMPOUND_HOME, 'hook-config.json');
+  if (existsSync(hookConfigPath)) {
+    try { hookConfig = JSON.parse(readFileSync(hookConfigPath, 'utf-8')); } catch { /* ignore */ }
+  }
+
+  const skillConflicts = detectPluginConflicts();
+  const detectedPluginNames = new Set(skillConflicts.values());
+  const hookConflicts = new Map();
+  for (const [plugin, hooks] of Object.entries(PLUGIN_HOOK_CONFLICTS)) {
+    if (detectedPluginNames.has(plugin)) {
+      for (const h of hooks) hookConflicts.set(h, plugin);
+    }
+  }
+
+  const activeHooks = HOOK_REGISTRY.filter(hook => {
+    if (!isHookEnabledFromConfig(hook.name, hook.tier, hookConfig)) return false;
+    if (skillConflicts.size > 0 && hook.tier === 'workflow' && hookConflicts.has(hook.name) && !hook.compoundCritical) return false;
+    return true;
+  });
+
+  // 이벤트별 그룹핑
+  const byEvent = new Map();
+  for (const hook of activeHooks) {
+    if (!byEvent.has(hook.event)) byEvent.set(hook.event, []);
+    byEvent.get(hook.event).push(hook);
+  }
+
+  // settings.json hooks 구조 조립 (절대 경로 사용)
+  for (const [event, entries] of byEvent) {
+    const byMatcher = new Map();
+    for (const h of entries) {
+      const m = h.matcher || '';
+      if (!byMatcher.has(m)) byMatcher.set(m, []);
+      byMatcher.get(m).push(h);
+    }
+
+    if (!hooksConfig[event]) hooksConfig[event] = [];
+
+    for (const [matcher, matcherEntries] of byMatcher) {
+      hooksConfig[event].push({
+        matcher,
+        hooks: matcherEntries.map(h => {
+          const spaceIdx = h.script.indexOf(' ');
+          let command;
+          if (spaceIdx === -1) {
+            command = `node "${join(distDir, h.script)}"`;
+          } else {
+            const scriptPath = h.script.slice(0, spaceIdx);
+            const args = h.script.slice(spaceIdx + 1);
+            command = `node "${join(distDir, scriptPath)}" ${args}`;
+          }
+          return { type: 'command', command, timeout: h.timeout };
+        }),
+      });
+    }
+  }
+
+  settings.hooks = hooksConfig;
+
+  // env에 COMPOUND_HARNESS 마커 설정
   const env = settings.env ?? {};
   env.COMPOUND_HARNESS = '1';
   settings.env = env;
-
-  // 불필요한 키 정리
-  if (settings.hooks && Object.keys(settings.hooks).length === 0) {
-    delete settings.hooks;
-  }
 
   return true;
 }
@@ -530,22 +597,19 @@ function applyHookSettings(settings) {
 // ── MCP Server Registration ──
 
 /**
- * settings.json의 mcpServers에 tenetx-compound MCP 서버를 등록합니다.
- * 기존 mcpServers 설정은 보존하며, tenetx-compound만 추가/갱신합니다.
+ * ~/.claude.json의 mcpServers에 tenetx-compound MCP 서버를 등록합니다.
  *
- * 설계 결정:
- *   - dist/mcp/server.js가 없으면 건너뜀 (빌드 전 설치 시)
- *   - 기존에 등록된 다른 MCP 서버 설정은 절대 건드리지 않음
- *   - plugin.json이 아닌 settings.json 직접 등록 (플러그인 스키마 호환성 보장)
- *   - 절대 경로 대신 npm bin 경로를 사용하여 버전 업그레이드에도 동작
- *   - npm bin이 없으면 절대 경로 fallback (로컬 개발 환경)
+ * 설계 결정 (실증 검증 완료):
+ *   - Claude Code는 settings.json의 mcpServers를 읽지 않음
+ *   - MCP 서버는 반드시 ~/.claude.json에 등록해야 Claude Code가 인식
+ *   - context7 등 동작하는 MCP 서버와 동일한 등록 경로
+ *   - npm bin 경로(tenetx-mcp) 우선, 없으면 node + 절대 경로 fallback
  */
-/** settings 객체에 MCP 서버를 등록합니다 (settings.json 쓰기는 main에서 일괄 수행). */
-function applyMcpSettings(settings) {
+function applyMcpToClaudeJson() {
   const mcpServerPath = join(PKG_ROOT, 'dist', 'mcp', 'server.js');
   if (!existsSync(mcpServerPath)) return false;
 
-  // npm이 설치한 bin 링크 사용 (버전 업그레이드에도 안정적)
+  // npm이 설치한 bin 링크 사용
   let mcpCommand = 'tenetx-mcp';
   let mcpArgs = [];
   try {
@@ -556,13 +620,32 @@ function applyMcpSettings(settings) {
     mcpArgs = [mcpServerPath];
   }
 
-  const mcpServers = settings.mcpServers ?? {};
+  const claudeJsonPath = join(HOME, '.claude.json');
+  let claudeJson = {};
+  if (existsSync(claudeJsonPath)) {
+    try { claudeJson = JSON.parse(readFileSync(claudeJsonPath, 'utf-8')); } catch { /* ignore */ }
+  }
+
+  const mcpServers = claudeJson.mcpServers ?? {};
   mcpServers['tenetx-compound'] = {
     command: mcpCommand,
     args: mcpArgs,
   };
-  settings.mcpServers = mcpServers;
+  claudeJson.mcpServers = mcpServers;
+
+  writeFileSync(claudeJsonPath, JSON.stringify(claudeJson, null, 2));
+  fixOwnership(claudeJsonPath);
   return true;
+}
+
+/** settings.json에서 레거시 mcpServers 항목 정리 (더 이상 사용하지 않음) */
+function cleanLegacyMcpFromSettings(settings) {
+  if (settings.mcpServers?.['tenetx-compound']) {
+    delete settings.mcpServers['tenetx-compound'];
+    if (Object.keys(settings.mcpServers).length === 0) {
+      delete settings.mcpServers;
+    }
+  }
 }
 
 // ── Main ──
@@ -614,10 +697,11 @@ function main() {
     console.error(`[tenetx] hooks settings failed: ${err?.message ?? err}`);
   }
 
-  // ── 6. settings에 MCP 서버 등록 ──
+  // ── 6. MCP 서버를 ~/.claude.json에 등록 (settings.json이 아닌 올바른 경로) ──
   let mcp = false;
   try {
-    mcp = applyMcpSettings(settings);
+    mcp = applyMcpToClaudeJson();
+    cleanLegacyMcpFromSettings(settings);
   } catch (err) {
     console.error(`[tenetx] MCP server registration failed: ${err?.message ?? err}`);
   }

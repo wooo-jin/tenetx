@@ -10,7 +10,7 @@ import * as path from 'node:path';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { isHookEnabled } from './hook-config.js';
-import { approve, deny, failOpen } from './shared/hook-response.js';
+import { approve, approveWithWarning, deny, failOpen } from './shared/hook-response.js';
 import { STATE_DIR } from '../core/paths.js';
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'db-guard-fail-counter.json');
 const FAIL_CLOSE_THRESHOLD = 3;
@@ -110,7 +110,7 @@ async function main(): Promise<void> {
     return;
   }
   if (check.action === 'warn') {
-    console.log(approve(`<compound-sql-warning>\n[Tenetx] ⚠ Dangerous SQL detected: ${check.description}\nProceed with caution.\n</compound-sql-warning>`));
+    console.log(approveWithWarning(`<compound-sql-warning>\n[Tenetx] ⚠ Dangerous SQL detected: ${check.description}\nProceed with caution.\n</compound-sql-warning>`));
     return;
   }
 

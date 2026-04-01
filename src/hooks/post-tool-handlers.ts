@@ -11,7 +11,6 @@ import { createLogger } from '../core/logger.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
-import { track } from '../lab/tracker.js';
 import { detectErrorPattern } from './post-tool-use.js';
 import { ME_SOLUTIONS, ME_RULES, STATE_DIR } from '../core/paths.js';
 
@@ -64,12 +63,6 @@ export function checkCompoundNegative(toolName: string, toolResponse: string, se
       const allTerms = [...(sol.identifiers ?? []), ...(sol.tags ?? [])].filter((t: string) => t.length >= 4);
       const isRelated = allTerms.length === 0 || allTerms.some((term: string) => toolResponse.toLowerCase().includes(term.toLowerCase()));
       if (!isRelated) continue;
-
-      track('compound-negative', sessionId, {
-        solutionName: sol.name,
-        signal: 'build-or-test-failure',
-        toolResponse: toolResponse.slice(0, 200),
-      });
 
       updateNegativeEvidence(sol.name);
     }

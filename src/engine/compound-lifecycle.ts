@@ -3,7 +3,6 @@ import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseFrontmatterOnly, parseSolutionV3, serializeSolutionV3 } from './solution-format.js';
 import type { SolutionFrontmatter, SolutionStatus } from './solution-format.js';
-import { track } from '../lab/tracker.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('compound-lifecycle');
@@ -211,7 +210,6 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
         if (isStale(fm)) {
           if (updateSolutionFile(filePath, { status: 'retired', confidence: 0 })) {
             result.retired.push(fm.name);
-            track('compound-demoted', sessionId, { solutionName: fm.name, reason: 'stale-90d' });
           }
           continue;
         }
@@ -221,7 +219,6 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
         if (demoteTo) {
           if (updateSolutionFile(filePath, { status: demoteTo, confidence: statusConfidence(demoteTo) })) {
             result.demoted.push(`${fm.name}: ${fm.status} → ${demoteTo}`);
-            track('compound-demoted', sessionId, { solutionName: fm.name, from: fm.status, to: demoteTo, reason: 'confidence-mismatch' });
           }
           continue;
         }
@@ -231,12 +228,6 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
         if (cbThreshold !== undefined && fm.evidence.negative >= cbThreshold) {
           if (updateSolutionFile(filePath, { status: 'retired', confidence: 0 })) {
             result.retired.push(`${fm.name} (circuit-breaker:${fm.status})`);
-            track('compound-demoted', sessionId, {
-              solutionName: fm.name,
-              reason: 'circuit-breaker',
-              status: fm.status,
-              negativeCount: fm.evidence.negative,
-            });
           }
           continue;
         }
@@ -252,7 +243,6 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
             if (next) {
               if (updateSolutionFile(filePath, { status: next, confidence: statusConfidence(next) })) {
                 result.promoted.push(`${fm.name}: ${fm.status} → ${next}`);
-                track('compound-promoted', sessionId, { solutionName: fm.name, from: fm.status, to: next });
               }
             }
             continue;
@@ -266,7 +256,6 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
             const newConf = Math.max(0, fm.confidence - 0.20);
             if (updateSolutionFile(filePath, { confidence: newConf })) {
               result.demoted.push(`${fm.name}: identifier-stale (confidence → ${newConf})`);
-              track('compound-demoted', sessionId, { solutionName: fm.name, reason: 'identifier-stale' });
             }
           }
         }
@@ -278,17 +267,6 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
 
   // 5. Contradiction detection
   result.contradictions = detectContradictions(dirs);
-
-  // 6. Emit precision metrics
-  const total = result.promoted.length + result.demoted.length + result.retired.length;
-  if (total > 0) {
-    track('compound-precision', sessionId, {
-      promoted: result.promoted.length,
-      demoted: result.demoted.length,
-      retired: result.retired.length,
-      contradictions: result.contradictions.length,
-    });
-  }
 
   return result;
 }

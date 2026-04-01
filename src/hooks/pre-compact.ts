@@ -13,7 +13,7 @@ import * as path from 'node:path';
 import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithWarning, failOpen } from './shared/hook-response.js';
 import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('pre-compact');
@@ -160,14 +160,14 @@ Rules:
   try {
     const snapshotPath = saveCompactionSnapshot(sessionId);
     if (snapshotPath) {
-      console.log(approve(`<compound-compact-info>\n[Tenetx] Pre-compaction state snapshot saved: ${path.basename(snapshotPath)}\nActive modes are preserved after compaction.\n</compound-compact-info>\n${compoundHint}`));
+      console.log(approveWithWarning(`<compound-compact-info>\n[Tenetx] Pre-compaction state snapshot saved: ${path.basename(snapshotPath)}\nActive modes are preserved after compaction.\n</compound-compact-info>\n${compoundHint}`));
       return;
     }
   } catch (e) {
     log.debug('스냅샷 저장 실패', e);
   }
 
-  console.log(approve(compoundHint));
+  console.log(approveWithWarning(compoundHint));
 }
 
 main().catch((e) => {

@@ -20,18 +20,12 @@ import { isHookEnabled } from './hook-config.js';
 import { truncateContent, INJECTION_CAPS } from './shared/injection-caps.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
 import { recordModeUsage } from '../engine/prompt-learner.js';
-import { recordModeStart } from '../engine/workflow-compound.js';
-import { ModelRouter } from '../engine/router.js';
-import type { RoutingPreset } from '../engine/router.js';
-import { loadPhilosophyForProject } from '../core/philosophy-loader.js';
-import { loadGlobalConfig } from '../core/global-config.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { ALL_MODES, COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { trackModeActivation, trackHookTrigger, trackSkillInvocation } from '../lab/tracker.js';
 import { escapeAllXmlTags } from './prompt-injection-filter.js';
 import { getSkillConflicts } from '../core/plugin-detector.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
 
 /** Escape a string for safe use in XML attribute values */
 function escapeXmlAttr(s: string): string {
@@ -323,32 +317,10 @@ function cleanSkillCaches(): void {
 
 // ── 메인 ──
 
-/** 컨텍스트 신호 로드 (post-tool-use가 기록한 실패 카운터 등) */
-function loadContextSignals(): { previousFailures?: number; conversationTurns?: number } {
-  const signalsPath = path.join(STATE_DIR, 'context-signals.json');
-  try {
-    if (fs.existsSync(signalsPath)) {
-      return JSON.parse(fs.readFileSync(signalsPath, 'utf-8'));
-    }
-  } catch (e) { log.debug('context-signals.json read failed — model routing uses defaults', e); }
-  return {};
-}
-
-/** 프롬프트에 대한 모델 추천 생성 */
-export function getModelRecommendation(prompt: string, cwd?: string, sessionId?: string): string {
-  try {
-    const effectiveCwd = cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
-    const { philosophy } = loadPhilosophyForProject(effectiveCwd);
-    // 환경변수에서 프리셋 우선 확인 (파일 I/O 절감)
-    const envPreset = process.env.COMPOUND_ROUTING_PRESET as RoutingPreset | undefined;
-    const routingPreset = envPreset ?? (loadGlobalConfig().modelRouting as RoutingPreset | undefined);
-    const router = new ModelRouter(philosophy, routingPreset);
-    const contextSignals = loadContextSignals();
-    const result = router.route(prompt, contextSignals, sessionId);
-    return `\n[Tenetx] Recommended model: **${result.tier}** (source: ${result.source}, category: ${result.category}${result.score ? `, score: ${result.score.total}` : ''})`;
-  } catch {
-    return '';
-  }
+/** 프롬프트에 대한 모델 추천 생성 (라우팅은 .claude/rules/routing.md로 대체됨) */
+export function getModelRecommendation(_prompt: string, _cwd?: string, _sessionId?: string): string {
+  // ModelRouter가 제거되어 빈 문자열 반환 — 라우팅은 .claude/rules/routing.md가 담당
+  return '';
 }
 
 async function main(): Promise<void> {
@@ -364,9 +336,6 @@ async function main(): Promise<void> {
 
   const match = detectKeyword(input.prompt);
   const sessionId = input.session_id ?? 'unknown';
-
-  // Lab 이벤트 기록 — auto-learn 데이터 수집
-  trackHookTrigger(sessionId, 'keyword-detector', 'UserPromptSubmit', match ? 'modify' : 'approve');
 
   if (!match) {
     console.log(approve());
@@ -394,7 +363,7 @@ async function main(): Promise<void> {
     }
     // skill-cache 파일도 정리 (재주입 가능하도록)
     cleanSkillCaches();
-    console.log(approve(match.message ?? '[Tenetx] Mode cancelled.'));
+    console.log(approveWithContext(match.message ?? '[Tenetx] Mode cancelled.', 'UserPromptSubmit'));
     return;
   }
 
@@ -407,14 +376,10 @@ async function main(): Promise<void> {
       console.log(approve());
       return;
     }
-    const injectStart = Date.now();
     if (shouldTrackWorkflowActivation(match)) {
       try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode usage 기록 실패', e); }
-      try { recordModeStart(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode start 기록 실패', e); }
     }
-    trackModeActivation(input.session_id ?? 'unknown', match.keyword, 'keyword');
-    try { trackSkillInvocation(sessionId, match.keyword, Date.now() - injectStart, 'success'); } catch { /* non-blocking */ }
-    console.log(approve(match.message));
+    console.log(approveWithContext(match.message ?? `[Tenetx] ${match.keyword} mode activated.`, 'UserPromptSubmit'));
     return;
   }
 
@@ -427,12 +392,8 @@ async function main(): Promise<void> {
       console.log(approve());
       return;
     }
-    const skillStart = Date.now();
     // Compound: mode usage 기록
     try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode usage 기록 실패', e); }
-    try { recordModeStart(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode start 기록 실패', e); }
-    // Lab 이벤트 기록 — auto-learn 데이터 수집
-    trackModeActivation(input.session_id ?? 'unknown', match.skill, 'keyword');
     const skillContent = loadSkillContent(match.skill);
     const effectiveCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
     const modelRec = getModelRecommendation(match.prompt ?? input.prompt, effectiveCwd, sessionId);
@@ -467,11 +428,9 @@ async function main(): Promise<void> {
 
     if (skillContent) {
       const truncatedContent = truncateContent(skillContent, INJECTION_CAPS.skillContentMax);
-      try { trackSkillInvocation(sessionId, match.skill, Date.now() - skillStart, 'success'); } catch { /* non-blocking */ }
-      console.log(approve(`<compound-skill name="${escapeXmlAttr(match.skill)}">\n${escapeAllXmlTags(truncatedContent)}\n</compound-skill>${modelRec}\n\nUser request: ${match.prompt}`));
+      console.log(approveWithContext(`<compound-skill name="${escapeXmlAttr(match.skill)}">\n${escapeAllXmlTags(truncatedContent)}\n</compound-skill>${modelRec}\n\nUser request: ${match.prompt}`, 'UserPromptSubmit'));
     } else {
-      try { trackSkillInvocation(sessionId, match.skill, Date.now() - skillStart, 'success'); } catch { /* non-blocking */ }
-      console.log(approve(`[Tenetx] ${match.keyword} mode activated.${modelRec}\n\nUser request: ${match.prompt}`));
+      console.log(approveWithContext(`[Tenetx] ${match.keyword} mode activated.${modelRec}\n\nUser request: ${match.prompt}`, 'UserPromptSubmit'));
     }
     return;
   }

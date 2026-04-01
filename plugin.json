@@ -3,7 +3,7 @@
   "name": "tenetx",
   "version": "3.1.0",
   "description": "Claude Code plugin that learns your coding patterns",
-  "author": "jang-ujin",
+  "author": { "name": "jang-ujin" },
   "repository": "https://github.com/wooo-jin/tenetx",
   "homepage": "https://github.com/wooo-jin/tenetx",
   "license": "MIT",

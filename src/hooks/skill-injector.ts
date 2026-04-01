@@ -41,7 +41,7 @@ import { loadPackConfigs } from '../core/pack-config.js';
 import { COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
 import { KEYWORD_PATTERNS } from './keyword-detector.js';
 import { isHookEnabled } from './hook-config.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
 
 /** keyword-detector가 처리하는 키워드 이름 집합 (skill + inject 모두 포함, 이중 주입 방지) */
 const KEYWORD_DETECTOR_SKILL_NAMES: Set<string> = new Set(
@@ -317,7 +317,7 @@ async function main(): Promise<void> {
     return `<compound-learned-skill name="${escapeXmlAttr(skill.name)}" description="${escapeXmlAttr(skill.description)}">\n${escapeAllXmlTags(capped)}\n</compound-learned-skill>`;
   }).join('\n\n');
 
-  console.log(approve(injections));
+  console.log(approveWithContext(injections, 'UserPromptSubmit'));
 }
 
 main().catch((e) => {

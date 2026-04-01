@@ -35,7 +35,7 @@ export function registerTools(server: McpServer): void {
       description: 'Search accumulated compound knowledge (solutions, patterns) by query. Returns relevant matches ranked by tag-based similarity.',
       inputSchema: {
         query: z.string().describe('Search query — keywords, tech names, or problem description'),
-        type: z.enum(['pattern', 'decision', 'troubleshoot', 'anti-pattern']).optional()
+        type: z.enum(['pattern', 'solution', 'decision', 'troubleshoot', 'anti-pattern', 'convention']).optional()
           .describe('Filter by solution type'),
         status: z.enum(['experiment', 'candidate', 'verified', 'mature']).optional()
           .describe('Filter by lifecycle status'),
@@ -85,7 +85,7 @@ export function registerTools(server: McpServer): void {
       inputSchema: {
         status: z.enum(['experiment', 'candidate', 'verified', 'mature']).optional()
           .describe('Filter by lifecycle status'),
-        type: z.enum(['pattern', 'decision', 'troubleshoot', 'anti-pattern']).optional()
+        type: z.enum(['pattern', 'solution', 'decision', 'troubleshoot', 'anti-pattern', 'convention']).optional()
           .describe('Filter by solution type'),
         scope: z.enum(['me', 'team', 'project']).optional()
           .describe('Filter by scope'),

@@ -21,7 +21,7 @@ import { readNotepad } from '../core/notepad.js';
 import { isHookEnabled } from './hook-config.js';
 import { truncateContent } from './shared/injection-caps.js';
 import { calculateBudget } from './shared/context-budget.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
 
 interface HookInput {
   prompt: string;
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     .replace(/<\/tenetx-notepad>/g, '&lt;/tenetx-notepad&gt;');
   const injection = `<tenetx-notepad>\n${safeContent}\n</tenetx-notepad>`;
 
-  console.log(approve(injection));
+  console.log(approveWithContext(injection, 'UserPromptSubmit'));
 }
 
 main().catch((e) => {

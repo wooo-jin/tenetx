@@ -17,7 +17,7 @@ import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadHookConfig, isHookEnabled } from './hook-config.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
 import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('context-guard');
@@ -89,7 +89,7 @@ export async function main(): Promise<void> {
       const errorMsg = input.error;
       if (/context.*limit|token.*limit|conversation.*too.*long/i.test(errorMsg)) {
         saveHandoff(sessionId, 'context-limit', errorMsg);
-        console.log(approve(`[Tenetx] Context limit reached. Current state has been saved to ~/.compound/handoffs/.\nThe previous work will be automatically recovered in the next session.`));
+        console.log(approveWithContext(`[Tenetx] Context limit reached. Current state has been saved to ~/.compound/handoffs/.\nThe previous work will be automatically recovered in the next session.`, 'UserPromptSubmit'));
         return;
       }
     }
@@ -125,7 +125,7 @@ export async function main(): Promise<void> {
     if (shouldWarn(state, charsThreshold !== undefined ? { charsThreshold } : {})) {
       state.lastWarningAt = Date.now();
       saveContextState(state);
-      console.log(approve(buildContextWarningMessage(state.promptCount, state.totalChars)));
+      console.log(approveWithContext(buildContextWarningMessage(state.promptCount, state.totalChars), 'UserPromptSubmit'));
       return;
     }
 

@@ -4,7 +4,6 @@ import { ME_BEHAVIOR, ME_RULES, PACKS_DIR, projectDir } from './paths.js';
 import { loadPackConfigs } from './pack-config.js';
 import type { HarnessContext } from './types.js';
 import { createLogger } from './logger.js';
-import { parseBehaviorPattern } from '../engine/behavior-format.js';
 import { parseSolutionV3 } from '../engine/solution-format.js';
 
 const log = createLogger('config-injector');
@@ -323,20 +322,38 @@ function generateBehavioralRules(): string {
     for (const file of files) {
       const filePath = path.join(ME_BEHAVIOR, file);
       if (fs.lstatSync(filePath).isSymbolicLink()) continue;
-      const parsed = parseBehaviorPattern(fs.readFileSync(filePath, 'utf-8'));
-      if (!parsed) continue;
+      const raw = fs.readFileSync(filePath, 'utf-8');
 
-      const countStr = parsed.frontmatter.observedCount > 0
-        ? ` (${parsed.frontmatter.observedCount}회 관찰)`
+      // 간단한 frontmatter 파싱 (behavior-format.ts 제거 후 인라인 대체)
+      const trimmed = raw.trimStart();
+      if (!trimmed.startsWith('---')) continue;
+      const endIdx = trimmed.indexOf('---', 3);
+      if (endIdx === -1) continue;
+      const fm = trimmed.slice(3, endIdx);
+      const body = trimmed.slice(endIdx + 3).trim();
+
+      const kindMatch = fm.match(/^kind:\s*(.+)$/m);
+      const countMatch = fm.match(/^observedCount:\s*(\d+)/m);
+      const kind = kindMatch?.[1]?.trim().replace(/^["']|["']$/g, '') ?? '';
+      const observedCount = countMatch ? parseInt(countMatch[1], 10) : 0;
+
+      const countStr = observedCount > 0
+        ? ` (${observedCount}회 관찰)`
         : '';
-      const desc = parsed.content.trim().split('\n')[0];
-      if (!desc || desc.length < 5) continue;
+      // ## Content 섹션 이후의 첫 번째 의미 있는 줄을 설명으로 사용
+      const contentIdx = body.indexOf('## Content');
+      const contentBody = contentIdx >= 0 ? body.slice(contentIdx + '## Content'.length) : body;
+      const desc = contentBody.split('\n').find(l => {
+        const t = l.trim();
+        return t.length >= 5 && !t.startsWith('##');
+      })?.trim();
+      if (!desc) continue;
 
-      if (parsed.frontmatter.kind === 'thinking') {
+      if (kind === 'thinking') {
         categories['Thinking Style'].push(`- ${desc}${countStr}`);
-      } else if (parsed.frontmatter.kind === 'workflow') {
+      } else if (kind === 'workflow') {
         categories.Workflow.push(`- ${desc}${countStr}`);
-      } else if (parsed.frontmatter.kind === 'preference') {
+      } else if (kind === 'preference') {
         categories['Response Preferences'].push(`- ${desc}${countStr}`);
       }
     }

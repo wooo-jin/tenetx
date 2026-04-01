@@ -20,9 +20,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { type BehaviorKind, inferBehaviorKind } from './behavior-format.js';
-import { saveBehaviorPattern } from './behavior-store.js';
-import { track } from '../lab/tracker.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('prompt-learner');
@@ -414,33 +411,7 @@ export function detectWorkflowPatterns(sessionId: string = 'system'): {
       const count = modeCounts[pattern.mode] ?? 0;
       if (count / total < pattern.minRatio) continue;
       detected.push(`${pattern.name} (${count}/${total})`);
-
-      const today = new Date().toISOString().split('T')[0];
-      const writeResult = saveBehaviorPattern({
-        frontmatter: {
-          name: pattern.name,
-          version: 1,
-          kind: 'workflow',
-          observedCount: count,
-          confidence: 0.6,
-          tags: pattern.tags,
-          created: today,
-          updated: today,
-          source: 'mode-usage-pattern',
-        },
-        context: `Detected from ${count}/${total} mode activations`,
-        content: pattern.description,
-      });
-      if (writeResult.status !== 'created') continue;
-
       created.push(pattern.name);
-
-      track('compound-extracted', sessionId, {
-        solutionName: pattern.name,
-        type: 'decision',
-        source: 'mode-usage-pattern',
-        modeCount: count,
-      });
     }
   } catch (e) {
     log.debug('workflow pattern 감지 실패', e);
@@ -482,34 +453,7 @@ export function detectPreferencePatterns(sessionId: string = 'system'): {
 
     if (matchCount >= MIN_PATTERN_COUNT) {
       detected.push(`${rule.name} (${matchCount}회)`);
-
-      const today = new Date().toISOString().split('T')[0];
-      const kind = inferBehaviorKind(rule.name, rule.tags) ?? 'preference';
-      const writeResult = saveBehaviorPattern({
-        frontmatter: {
-          name: rule.name,
-          version: 1,
-          kind,
-          observedCount: matchCount,
-          confidence: 0.6,
-          tags: rule.tags,
-          created: today,
-          updated: today,
-          source: 'prompt-pattern',
-        },
-        context: `Detected from ${matchCount} prompts across sessions`,
-        content: rule.description,
-      });
-      if (writeResult.status !== 'created') continue;
-
       created.push(rule.name);
-
-      track('compound-extracted', sessionId, {
-        solutionName: rule.name,
-        type: 'decision',
-        source: 'prompt-pattern',
-        matchCount,
-      });
     }
   }
 
@@ -628,33 +572,7 @@ export function detectContentPatterns(sessionId: string = 'system'): {
     for (const pattern of contentPatterns) {
       if (!pattern.condition) continue;
       detected.push(pattern.name);
-
-      const today = new Date().toISOString().split('T')[0];
-      const kind: BehaviorKind = inferBehaviorKind(pattern.name, pattern.tags) ?? 'preference';
-      const writeResult = saveBehaviorPattern({
-        frontmatter: {
-          name: pattern.name,
-          version: 1,
-          kind,
-          observedCount: entries.length,
-          confidence: 0.6,
-          tags: pattern.tags,
-          created: today,
-          updated: today,
-          source: 'write-content-pattern',
-        },
-        context: `Detected from ${entries.length} write operations`,
-        content: pattern.description,
-      });
-      if (writeResult.status !== 'created') continue;
-
       created.push(pattern.name);
-
-      track('compound-extracted', sessionId, {
-        solutionName: pattern.name,
-        type: 'decision',
-        source: 'write-content-pattern',
-      });
     }
   } catch (e) {
     log.debug('content pattern 감지 실패', e);
