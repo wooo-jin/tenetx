@@ -21,11 +21,9 @@ import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 // filterSolutionContent는 MCP solution-reader에서 사용 (Tier 3)
 import { recordPrompt } from '../engine/prompt-learner.js';
-import { incrementWorkflowCounter } from '../engine/workflow-compound.js';
-import { track } from '../lab/tracker.js';
 import { calculateBudget } from './shared/context-budget.js';
 import { writeSignal } from './shared/plugin-signal.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
 import { STATE_DIR } from '../core/paths.js';
 
 interface HookInput {
@@ -89,7 +87,6 @@ async function main(): Promise<void> {
 
   // Record prompt for pattern learning (non-blocking)
   try { recordPrompt(input.prompt, sessionId); } catch (e) { log.debug('prompt 기록 실패 — pattern learning 누락', e); }
-  try { incrementWorkflowCounter('prompt'); } catch (e) { log.debug('workflow prompt counter 증가 실패', e); }
 
   // 어댑티브 버짓: 다른 플러그인 감지 시 주입��� ���동 축소
   const cwd = process.env.COMPOUND_CWD ?? process.cwd();
@@ -186,16 +183,6 @@ async function main(): Promise<void> {
     }
   } catch (e) { log.debug('evidence.injected counter 업데이트 실패', e); }
 
-  // Lab event tracking for injected solutions
-  for (const sol of toInject) {
-    track('compound-injected', sessionId, {
-      solutionName: sol.name,
-      status: sol.status,
-      confidence: sol.confidence,
-      relevance: sol.relevance,
-    });
-  }
-
   // Progressive Disclosure: Tier 1(인덱스) + Tier 2(매칭 요약) push
   // Tier 3(전문)은 compound-read MCP tool로 pull
   const injections = toInject.map(sol => {
@@ -209,7 +196,7 @@ async function main(): Promise<void> {
   // 플러그인 시그널 기록 (다른 플러그인이 참고할 수 있도록)
   try { writeSignal(sessionId, 'UserPromptSubmit', fullInjection.length); } catch (e) { log.debug('plugin signal 기록 실패', e); }
 
-  console.log(approve(fullInjection));
+  console.log(approveWithContext(fullInjection, 'UserPromptSubmit'));
 }
 
 main().catch((e) => {

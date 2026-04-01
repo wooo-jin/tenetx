@@ -10,7 +10,7 @@
 import { readStdinJSON } from './shared/read-stdin.js';
 import { createLogger } from '../core/logger.js';
 import { isHookEnabled, loadHookConfig } from './hook-config.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithWarning, failOpen } from './shared/hook-response.js';
 
 const log = createLogger('slop-detector');
 
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
         const icon = d.severity === 'warn' ? '⚠' : 'ℹ';
         return `- ${icon} ${d.message}`;
       });
-      console.log(approve(`<compound-slop-warning>\n[Tenetx] AI slop detected:\n${lines.join('\n')}\nCleanup recommended.\n</compound-slop-warning>`));
+      console.log(approveWithWarning(`<compound-slop-warning>\n[Tenetx] AI slop detected:\n${lines.join('\n')}\nCleanup recommended.\n</compound-slop-warning>`));
     } else {
       console.log(approve());
     }

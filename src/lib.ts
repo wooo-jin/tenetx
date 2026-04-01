@@ -18,13 +18,6 @@ export type {
 export { DIMENSION_META, CORE_DIMENSIONS, defaultDimensionVector, clampDimension, applyDeltas, dimensionDistance, dimensionLabel } from './forge/dimensions.js';
 export type { CoreDimension, DimensionVector, DimensionMeta, ForgeProfile, DerivedConfig, AgentOverlay, SkillOverlay, HookTuning } from './forge/types.js';
 
-// ── Engine ──
-export { extractSignals, extractLexicalSignals, extractStructuralSignals, type SignalBundle, type LexicalSignals, type StructuralSignals } from './engine/signals.js';
-export { ModelRouter, type ModelTier, type TaskCategory, type RoutingPreset, type RoutingResult } from './engine/router.js';
-
-// ── Lab ──
-export type { LabEvent, LabEventType } from './lab/types.js';
-
 // ── Hooks (utilities) ──
 export {
   PROMPT_INJECTION_PATTERNS,

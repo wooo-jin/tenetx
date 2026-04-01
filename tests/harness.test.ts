@@ -289,8 +289,9 @@ describe('prepareHarness() integration', () => {
     expect(['project', 'global', 'default']).toContain(ctx.philosophySource);
     expect(ctx.scope).toBeDefined();
     expect(ctx.inTmux).toBe(false);
-    expect(ctx.modelRouting).toBeDefined();
-    expect(ctx.signalRoutingEnabled).toBe(true);
+    // modelRouting은 engine/router.ts 제거 후 undefined
+    expect(ctx.modelRouting).toBeUndefined();
+    expect(ctx.signalRoutingEnabled).toBe(false);
   });
 
   it('lockfile이 작업 후 정리된다', async () => {

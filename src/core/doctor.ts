@@ -90,17 +90,6 @@ export async function runDoctor(): Promise<void> {
   console.log(`  Claude Code sessions: ${CLAUDE_PROJECTS_DIR}`);
   console.log();
 
-  console.log('  [Providers]');
-  try {
-    const { getProviderSummary } = await import('../engine/provider.js');
-    const providers = getProviderSummary();
-    for (const p of providers) {
-      const detail = p.available ? p.model : (p.reason ?? 'unknown');
-      check(`${p.name} (${detail})`, p.available);
-    }
-  } catch {
-    console.log('  (Failed to load provider module)');
-  }
   console.log();
 
   console.log('  [Pack Connections]');

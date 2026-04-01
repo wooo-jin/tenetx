@@ -12,11 +12,7 @@
  */
 
 import type { Philosophy } from '../core/types.js';
-import { generateAgentOverlays } from './agent-tuner.js';
-import { generateHookTuning } from './hook-tuner.js';
-import { generateTunedPrinciples } from './philosophy-tuner.js';
 import { generateTunedRules } from './rule-tuner.js';
-import { generateSkillOverlays } from './skill-tuner.js';
 import type { AgentConfig, DerivedConfig, DimensionVector } from './types.js';
 
 // ── Agent Config ────────────────────────────────────
@@ -150,31 +146,42 @@ function resolveVerbosity(dims: DimensionVector): DerivedConfig['verbosity'] {
   return 'balanced';
 }
 
-// ── Philosophy Principles (레거시 호환) ─────────────
+// ── Philosophy Principles ─────────────
 
 function generatePrinciples(
   dims: DimensionVector,
 ): Record<string, { belief: string; generates: string[] }> {
-  // philosophy-tuner의 TunedPrinciple을 레거시 형식으로 변환
-  const tuned = generateTunedPrinciples(dims);
-  const legacy: Record<string, { belief: string; generates: string[] }> = {};
+  const principles: Record<string, { belief: string; generates: string[] }> = {};
 
-  for (const [key, principle] of Object.entries(tuned)) {
-    legacy[key] = {
-      belief: principle.belief,
-      generates: principle.generates.map((g) => {
-        if (typeof g === 'string') return g;
-        // 객체 형식을 문자열로 변환 (레거시 호환)
-        if (g.hook) return `[hook] ${g.hook} (severity: ${g.severity ?? 'default'})`;
-        if (g.routing) return `[routing] ${g.routing}`;
-        if (g.alert) return `[alert] ${g.alert}`;
-        if (g.step) return `[step] ${g.step}`;
-        return JSON.stringify(g);
-      }),
+  if ((dims.qualityFocus ?? 0.5) >= 0.6) {
+    principles['thorough-quality'] = {
+      belief: 'Invest in quality where it matters most',
+      generates: ['Write tests before implementation', 'Review edge cases for business-critical functions'],
     };
   }
 
-  return legacy;
+  if ((dims.autonomyPreference ?? 0.5) >= 0.6) {
+    principles['autonomous-execution'] = {
+      belief: 'Execute efficiently, ask only when genuinely ambiguous',
+      generates: ['Execute without confirmation for well-defined tasks', 'Make judgment calls on implementation details'],
+    };
+  }
+
+  if ((dims.abstractionLevel ?? 0.5) >= 0.6) {
+    principles['design-first'] = {
+      belief: 'Good architecture prevents future problems',
+      generates: ['Define interfaces before implementation', 'Apply SOLID principles'],
+    };
+  }
+
+  if (Object.keys(principles).length === 0) {
+    principles['incremental-shipping'] = {
+      belief: 'Ship small, ship often',
+      generates: ['Commit after every meaningful chunk', 'Prefer working increments over large batches'],
+    };
+  }
+
+  return principles;
 }
 
 // ── Public API ──────────────────────────────────────
@@ -187,10 +194,10 @@ export function generateConfig(dims: DimensionVector): DerivedConfig {
     routingPreset: resolveRoutingPreset(dims),
     principles: generatePrinciples(dims),
     verbosity: resolveVerbosity(dims),
-    agentOverlays: generateAgentOverlays(dims),
-    skillOverlays: generateSkillOverlays(dims),
+    agentOverlays: [],
+    skillOverlays: [],
     tunedRules: generateTunedRules(dims),
-    hookTuning: generateHookTuning(dims),
+    hookTuning: [],
   };
 }
 

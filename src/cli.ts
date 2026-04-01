@@ -40,14 +40,6 @@ const commands: Command[] = [
     },
   },
   {
-    name: 'lab',
-    description: 'Adaptive optimization (metrics|suggest|history|experiment|cost|evolve|patterns)',
-    handler: async (args) => {
-      const { handleLab } = await import('./lab/cli.js');
-      await handleLab(args);
-    },
-  },
-  {
     name: 'compound',
     description: 'Preview/save compound insights and manage accumulated knowledge',
     handler: async (args) => {
@@ -57,25 +49,10 @@ const commands: Command[] = [
   },
   {
     name: 'me',
-    description: 'Personal dashboard: profile, evolution, patterns, cost',
+    description: 'Personal dashboard: profile, evolution, patterns',
     handler: async (args) => {
-      if (args.includes('--html')) {
-        const { generateDashboard, openInBrowser } = await import('./insight/html-generator.js');
-        const filePath = generateDashboard(process.cwd());
-        console.log(`  Dashboard generated: ${filePath}`);
-        if (!args.includes('--no-open')) openInBrowser(filePath);
-        return;
-      }
       const { runMeDashboard } = await import('./forge/me-dashboard.js');
       await runMeDashboard(args);
-    },
-  },
-  {
-    name: 'cost',
-    description: 'Session cost tracking',
-    handler: async (args) => {
-      const { printCostSummary } = await import('./lab/cost-tracker.js');
-      printCostSummary(args);
     },
   },
   {
@@ -96,25 +73,6 @@ const commands: Command[] = [
       } else {
         console.log('Usage: tenetx config hooks [--regenerate]');
       }
-    },
-  },
-  {
-    name: 'pipeline',
-    description: 'Pipeline suggestions based on your forge profile',
-    handler: async () => {
-      const { loadForgeProfile } = await import('./forge/profile.js');
-      const { formatPipelineSuggestions } = await import('./orchestration/pipeline-recommender.js');
-      const profile = loadForgeProfile(process.cwd());
-      if (!profile) {
-        console.log('  Forge profile not found. Run a session first to auto-initialize.');
-        return;
-      }
-      const dims = profile.dimensions;
-      console.log(`\n${formatPipelineSuggestions({
-        qualityFocus: dims.qualityFocus,
-        riskTolerance: dims.riskTolerance,
-        autonomyPreference: dims.autonomyPreference,
-      })}\n`);
     },
   },
   {

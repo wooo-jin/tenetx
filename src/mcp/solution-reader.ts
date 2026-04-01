@@ -265,7 +265,7 @@ export function getSolutionStats(options?: { dirs?: SolutionDirConfig[] }): Solu
     total: index.entries.length,
     // retired는 인덱스에서 제외되므로 항상 0 (solution-index.ts:73)
     byStatus: { experiment: 0, candidate: 0, verified: 0, mature: 0, retired: 0 },
-    byType: { pattern: 0, decision: 0, troubleshoot: 0, 'anti-pattern': 0 },
+    byType: { pattern: 0, solution: 0, decision: 0, troubleshoot: 0, 'anti-pattern': 0, convention: 0 },
     byScope: { me: 0, team: 0, project: 0 },
   };
 

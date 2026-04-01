@@ -21,7 +21,6 @@ import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { serializeSolutionV3, DEFAULT_EVIDENCE, extractTags } from './solution-format.js';
 import type { SolutionV3, SolutionType } from './solution-format.js';
-import { track } from '../lab/tracker.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('compound-extractor');
@@ -294,11 +293,19 @@ function extractFromDiff(gitLog: string, gitDiff: string): ExtractedSolution[] {
     const matches = [...gitLog.matchAll(re)];
     if (matches.length >= 2) {
       const descriptions = matches.map(m => m[1].trim()).slice(0, 3);
+      // commit 메시지에서 identifier 후보 추출 (camelCase, PascalCase, snake_case, 6자 이상)
+      const commitIdentifiers = descriptions
+        .join(' ')
+        .match(/\b[a-zA-Z][a-zA-Z0-9]*(?:[A-Z][a-z]+)+\b|\b[a-z]+(?:_[a-z]+)+\b/g)
+        ?.filter(id => id.length >= 6)
+        ?.filter((v, i, a) => a.indexOf(v) === i)
+        ?.slice(0, 5) ?? [];
+
       solutions.push({
         name: `${keyword}-pattern`,
         type: meta.type,
         tags: [...meta.tags, keyword],
-        identifiers: [],
+        identifiers: commitIdentifiers,
         context: `Recurring ${keyword} pattern from commit history`,
         content: descriptions.join('. ').slice(0, 500),
       });
@@ -645,12 +652,6 @@ function saveExtractedSolution(sol: ExtractedSolution, sessionId: string): strin
 
   fs.mkdirSync(ME_SOLUTIONS, { recursive: true });
   fs.writeFileSync(filePath, serializeSolutionV3(solution));
-
-  track('compound-extracted', sessionId, {
-    solutionName: slugName,
-    type: sol.type,
-    tags: sol.tags,
-  });
 
   return slugName;
 }

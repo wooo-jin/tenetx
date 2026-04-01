@@ -18,10 +18,9 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
-import { track } from '../lab/tracker.js';
 import { isReflectionCandidate } from './compound-reflection.js';
 import { isHookEnabled } from './hook-config.js';
-import { approve, deny, failOpen } from './shared/hook-response.js';
+import { approve, approveWithWarning, deny, failOpen } from './shared/hook-response.js';
 import { COMPOUND_HOME, ME_SOLUTIONS, ME_RULES, STATE_DIR } from '../core/paths.js';
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'pre-tool-fail-counter.json');
 const FAIL_CLOSE_THRESHOLD = 3; // 연속 3회 파싱 실패 시에만 reject
@@ -238,13 +237,6 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
       });
 
       if (result.reflected) {
-        track('compound-reflected', sessionId, {
-          solutionName: sol.name,
-          matchedIdentifiers: result.matchedCount,
-          eligibleIdentifiers: result.eligibleCount,
-          totalIdentifiers: sol.identifiers.length,
-        });
-
         updateSolutionEvidence(sol.name, 'reflected');
 
         if (!sol._sessionCounted) {
@@ -305,7 +297,7 @@ async function main(): Promise<void> {
       console.log(deny(`[Tenetx] PreToolUse: stdin parse failed ${failCount} consecutive times — blocking for safety.`));
     } else {
       process.stderr.write(`[ch-hook] stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD}), approving\n`);
-      console.log(approve(`[Tenetx] ⚠ PreToolUse stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})`));
+      console.log(approveWithWarning(`[Tenetx] ⚠ PreToolUse stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})`));
     }
     return;
   }
@@ -328,42 +320,17 @@ async function main(): Promise<void> {
     return;
   }
   if (check.action === 'warn') {
-    console.log(approve(`<compound-tool-warning>\n[Tenetx] ⚠ Dangerous command detected: ${check.description}\nProceed with caution.\n</compound-tool-warning>`));
+    console.log(approveWithWarning(`<compound-tool-warning>\n[Tenetx] ⚠ Dangerous command detected: ${check.description}\nProceed with caution.\n</compound-tool-warning>`));
     return;
   }
 
   // Compound v3: Code Reflection check (non-blocking)
   try { checkCompoundReflection(toolName, toolInput, sessionId); } catch (e) { log.debug('compound reflection check 실패', e); }
 
-  // Phase 2: Agent tool 감지 → forge overlay 주입
-  // 의도: overlay와 reminder는 배타적. Agent 호출 시 overlay가 더 유용하므로 우선.
-  if (toolName === 'Agent' || toolName === 'Task') {
-    try {
-      const prompt = String(toolInput.prompt ?? toolInput.description ?? '');
-      if (prompt) {
-        const { loadForgeProfile } = await import('../forge/profile.js');
-        const { generateAgentOverlays } = await import('../forge/agent-tuner.js');
-        const { buildOverlayInjection } = await import('../orchestration/agent-overlay-injector.js');
-        const cwd = data.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
-        const profile = loadForgeProfile(cwd);
-        if (profile) {
-          const overlays = generateAgentOverlays(profile.dimensions);
-          const injection = buildOverlayInjection(prompt, overlays);
-          if (injection) {
-            console.log(approve(injection.message));
-            return;
-          }
-        }
-      }
-    } catch (e) {
-      log.debug('agent overlay injection 실패 (정상 동작에 영향 없음)', e);
-    }
-  }
-
   // 활성 모드 리마인더 (10회 호출당 1회 — 결정적 카운터 기반)
   const reminders = getActiveReminders();
   if (reminders.length > 0 && shouldShowReminderIO()) {
-    console.log(approve(`<compound-reminder>\n${reminders.join('\n')}\n</compound-reminder>`));
+    console.log(approveWithWarning(`<compound-reminder>\n${reminders.join('\n')}\n</compound-reminder>`));
     return;
   }
 

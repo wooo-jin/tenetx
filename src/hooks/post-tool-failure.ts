@@ -16,9 +16,8 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithWarning, failOpen } from './shared/hook-response.js';
 import { STATE_DIR } from '../core/paths.js';
-import { track } from '../lab/tracker.js';
 
 interface FailureInput {
   tool_name?: string;
@@ -123,22 +122,17 @@ async function main(): Promise<void> {
   // 컨텍스트 신호 업데이트
   incrementFailureSignal(sessionId);
 
-  // Lab 이벤트 기록 (Phase 0: 이벤트 수집 파이프라인 활성화)
-  try {
-    track('user-rejection', sessionId, { tool: toolName, error: error.slice(0, 200), failCount: state.failures[toolName].count });
-  } catch { /* lab event append failure — non-critical, session continues normally */ }
-
   const failCount = state.failures[toolName].count;
   const suggestion = getRecoverySuggestion(error, toolName);
 
   // 3회 이상 반복 실패 시 강화된 경고
   if (failCount >= 3) {
-    console.log(approve(`<compound-failure-warning>\n[Tenetx] ⚠ ${toolName} tool has failed ${failCount} times in this session.\nRecovery suggestion: ${suggestion}\nTry a different approach or analyze the issue before retrying.\n</compound-failure-warning>`));
+    console.log(approveWithWarning(`<compound-failure-warning>\n[Tenetx] ⚠ ${toolName} tool has failed ${failCount} times in this session.\nRecovery suggestion: ${suggestion}\nTry a different approach or analyze the issue before retrying.\n</compound-failure-warning>`));
     return;
   }
 
   // 일반 실패 안내
-  console.log(approve(`<compound-failure-info>\n[Tenetx] ${toolName} failed (${failCount} time(s)). ${suggestion}\n</compound-failure-info>`));
+  console.log(approveWithWarning(`<compound-failure-info>\n[Tenetx] ${toolName} failed (${failCount} time(s)). ${suggestion}\n</compound-failure-info>`));
 }
 
 main().catch((e) => {

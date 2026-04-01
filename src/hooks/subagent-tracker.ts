@@ -14,8 +14,7 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { trackAgentCall } from '../lab/tracker.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithWarning, failOpen } from './shared/hook-response.js';
 import { STATE_DIR } from '../core/paths.js';
 
 const MAX_CONCURRENT_AGENTS = 10;
@@ -92,7 +91,7 @@ async function main(): Promise<void> {
     // 활성 에이전트 수 체크
     const activeCount = state.agents.filter(a => !a.stoppedAt).length;
     if (activeCount > MAX_CONCURRENT_AGENTS) {
-      console.log(approve(`<compound-tool-warning>\n[Tenetx] ⚠ ${activeCount} active agents — too many concurrent executions. Watch resource usage.\n</compound-tool-warning>`));
+      console.log(approveWithWarning(`<compound-tool-warning>\n[Tenetx] ⚠ ${activeCount} active agents — too many concurrent executions. Watch resource usage.\n</compound-tool-warning>`));
       return;
     }
   } else if (action === 'stop') {
@@ -100,11 +99,6 @@ async function main(): Promise<void> {
     const agent = state.agents.find(a => a.agentId === agentId && !a.stoppedAt);
     if (agent) {
       agent.stoppedAt = new Date().toISOString();
-      // Lab 이벤트 기록 — auto-learn 데이터 수집
-      const durationMs = new Date(agent.stoppedAt).getTime() - new Date(agent.startedAt).getTime();
-      const model = agent.model ?? 'unknown';
-      const result = (data.result as string as 'success' | 'error' | 'cancelled') ?? 'unknown';
-      trackAgentCall(sessionId, agent.agentType || 'unknown', model, durationMs, result as 'success' | 'error' | 'cancelled');
     }
     saveAgentsState(state);
   }

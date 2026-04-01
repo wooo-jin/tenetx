@@ -16,7 +16,7 @@ const log = createLogger('session-recovery');
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { isHookEnabled } from './hook-config.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
 import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 
 export interface Checkpoint {
@@ -319,14 +319,13 @@ async function main(): Promise<void> {
     } catch (e) { log.debug('handoff 파일 읽기 실패', e); }
   }
 
-  // Compound v3: Trigger lazy extraction — fire-and-forget (성능: 3초→0초)
-  // SessionStart 훅은 3초 타임아웃이므로 git diff 분석을 동기 실행하면 초과함
   const sessionId = sessionContext.sessionId;
+
+  // Compound: 세션 시작 시 이전 세션의 git diff에서 패턴 자동 추출 (fire-and-forget)
   try {
     const { runExtraction, isExtractionPaused } = await import('../engine/compound-extractor.js');
     if (!isExtractionPaused()) {
       const cwd = sessionContext.cwd;
-      // 결과를 기다리지 않음 — 백그라운드에서 추출
       runExtraction(cwd, sessionId).catch(e => log.debug('lazy extraction 실패', e));
     }
   } catch (e) { log.debug('lazy extraction import 실패', e); }
@@ -386,7 +385,7 @@ async function main(): Promise<void> {
   } catch (e) { log.debug('lifecycle check 실패', e); }
 
   if (recoveryMessages.length > 0) {
-    console.log(approve(recoveryMessages.join('\n\n')));
+    console.log(approveWithContext(recoveryMessages.join('\n\n'), 'SessionStart'));
   } else {
     console.log(approve());
   }

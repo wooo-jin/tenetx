@@ -3,7 +3,7 @@ import yaml from 'js-yaml';
 // ── Types ──
 
 export type SolutionStatus = 'experiment' | 'candidate' | 'verified' | 'mature' | 'retired';
-export type SolutionType = 'pattern' | 'decision' | 'troubleshoot' | 'anti-pattern';
+export type SolutionType = 'pattern' | 'solution' | 'decision' | 'troubleshoot' | 'anti-pattern' | 'convention';
 
 export interface SolutionEvidence {
   injected: number;
@@ -52,7 +52,7 @@ export const DEFAULT_EVIDENCE: SolutionEvidence = {
 };
 
 const VALID_STATUSES: SolutionStatus[] = ['experiment', 'candidate', 'verified', 'mature', 'retired'];
-const VALID_TYPES: SolutionType[] = ['pattern', 'decision', 'troubleshoot', 'anti-pattern'];
+const VALID_TYPES: SolutionType[] = ['pattern', 'solution', 'decision', 'troubleshoot', 'anti-pattern', 'convention'];
 
 // ── Helpers ──
 

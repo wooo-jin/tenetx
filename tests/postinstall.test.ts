@@ -83,21 +83,27 @@ describe('postinstall', () => {
   // ── Hooks cleanup (settings.json에서 기존 tenetx 훅 정리) ──
 
   describe('hooks cleanup', () => {
-    it('should not inject hooks into settings.json (plugin system handles hooks)', () => {
+    it('should inject hooks into settings.json with absolute paths', () => {
       runPostinstall();
 
       expect(fs.existsSync(SETTINGS_PATH)).toBe(true);
       const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      // hooks 키가 없어야 함 (정리 후 빈 객체는 제거됨)
-      expect(settings.hooks).toBeUndefined();
+      // hooks 키가 있어야 함 (settings.json에 직접 등록)
+      expect(settings.hooks).toBeDefined();
+      // UserPromptSubmit에 tenetx 훅이 등록되어야 함
+      expect(settings.hooks.UserPromptSubmit).toBeDefined();
+      const hasTenetxHook = settings.hooks.UserPromptSubmit.some(
+        (h: { hooks?: Array<{ command?: string }> }) =>
+          h.hooks?.some((cmd: { command?: string }) => cmd.command?.includes('dist/hooks/') && cmd.command?.includes('tenetx')),
+      );
+      expect(hasTenetxHook).toBe(true);
     });
 
-    it('should clean up legacy tenetx hooks from settings.json', () => {
+    it('should preserve custom hooks when adding tenetx hooks', () => {
       fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
       const existing = {
         hooks: {
           UserPromptSubmit: [
-            { matcher: '', hooks: [{ type: 'command', command: 'node "/path/to/tenetx/dist/hooks/intent-classifier.js"', timeout: 3000 }] },
             { matcher: '', hooks: [{ type: 'command', command: 'my-custom-hook.sh', timeout: 1000 }] },
           ],
         },
@@ -108,14 +114,6 @@ describe('postinstall', () => {
       runPostinstall();
 
       const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      // tenetx 훅은 제거되어야 함
-      if (settings.hooks?.UserPromptSubmit) {
-        const tenetxHook = settings.hooks.UserPromptSubmit.find(
-          (h: { hooks?: Array<{ command?: string }> }) =>
-            h.hooks?.[0]?.command?.includes('dist/hooks/') && h.hooks?.[0]?.command?.includes('tenetx'),
-        );
-        expect(tenetxHook).toBeUndefined();
-      }
       // 사용자 커스텀 훅은 보존되어야 함
       const customHook = settings.hooks?.UserPromptSubmit?.find(
         (h: { hooks?: Array<{ command?: string }> }) => h.hooks?.[0]?.command === 'my-custom-hook.sh',
@@ -265,16 +263,17 @@ describe('postinstall', () => {
       expect(customHook).toBeDefined();
     });
 
-    it('should not accumulate hooks on reinstall (no hooks injected)', () => {
+    it('should not accumulate duplicate hooks on reinstall', () => {
       runPostinstall();
       const settings1 = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      const count1 = JSON.stringify(settings1.hooks).length;
 
       runPostinstall();
       const settings2 = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+      const count2 = JSON.stringify(settings2.hooks).length;
 
-      // hooks가 없어야 함 (둘 다)
-      expect(settings1.hooks).toBeUndefined();
-      expect(settings2.hooks).toBeUndefined();
+      // 재설치 시 훅이 중복되면 안 됨 (길이 동일해야 함)
+      expect(count2).toBe(count1);
     });
   });
 });

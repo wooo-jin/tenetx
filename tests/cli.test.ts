@@ -31,12 +31,9 @@ describe('cli - command structure', () => {
   it('현재 CLI 명령어 레지스트리가 실제 구현과 일치한다', () => {
     expect(extractCommandNames(loadCliSource())).toEqual([
       'forge',
-      'lab',
       'compound',
       'me',
-      'cost',
       'config',
-      'pipeline',
       'mcp',
       'init',
       'notepad',

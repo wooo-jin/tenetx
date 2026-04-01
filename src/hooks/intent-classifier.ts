@@ -10,9 +10,8 @@
  */
 
 import { readStdinJSON } from './shared/read-stdin.js';
-import { trackHookTrigger } from '../lab/tracker.js';
 import { isHookEnabled } from './hook-config.js';
-import { approve, failOpen } from './shared/hook-response.js';
+import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
 
 type Intent = 'implement' | 'debug' | 'refactor' | 'explain' | 'review' | 'explore' | 'design' | 'general';
 
@@ -71,16 +70,13 @@ async function main(): Promise<void> {
   const intent = classifyIntent(input.prompt);
   const sessionId = input.session_id ?? 'default';
 
-  // Lab 이벤트 기록 — auto-learn 데이터 수집
-  trackHookTrigger(sessionId, 'intent-classifier', 'UserPromptSubmit', 'approve');
-
   if (intent === 'general') {
     console.log(approve());
     return;
   }
 
   const hint = INTENT_HINTS[intent];
-  console.log(approve(`[intent: ${intent}] ${hint}`));
+  console.log(approveWithContext(`[intent: ${intent}] ${hint}`, 'UserPromptSubmit'));
 }
 
 main().catch((e) => {
