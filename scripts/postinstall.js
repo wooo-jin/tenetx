@@ -117,6 +117,36 @@ function ensureDirectories() {
   }
 }
 
+// ── 1.5. Starter Knowledge Pack ──
+// 새 사용자(솔루션 < 5개)에게 범용 개발 패턴 솔루션을 기본 제공
+function installStarterPack() {
+  const solutionsDir = join(COMPOUND_HOME, 'me', 'solutions');
+  const starterDir = join(PKG_ROOT, 'starter-pack', 'solutions');
+
+  if (!existsSync(starterDir)) return 0;
+
+  // 기존 솔루션이 5개 이상이면 설치하지 않음 (이미 사용 중인 유저)
+  let existing = 0;
+  if (existsSync(solutionsDir)) {
+    existing = readdirSync(solutionsDir).filter(f => f.endsWith('.md')).length;
+  }
+  if (existing >= 5) return 0;
+
+  mkdirSync(solutionsDir, { recursive: true });
+  const starterFiles = readdirSync(starterDir).filter(f => f.endsWith('.md'));
+  let installed = 0;
+
+  for (const file of starterFiles) {
+    const dest = join(solutionsDir, file);
+    if (!existsSync(dest)) {
+      cpSync(join(starterDir, file), dest);
+      installed++;
+    }
+  }
+
+  return installed;
+}
+
 // ── 2. Register as Claude Code plugin ──
 // omc, claude-hud 등 동작하는 플러그인의 실제 구조를 그대로 따름:
 //   .claude-plugin/plugin.json  — 메타데이터 + skills 경로
@@ -714,6 +744,14 @@ function main() {
     console.error(`[tenetx] settings.json write failed: ${err?.message ?? err}`);
   }
 
+  // ── 8. Starter Knowledge Pack 설치 (솔루션 < 5개일 때만) ──
+  let starterInstalled = 0;
+  try {
+    starterInstalled = installStarterPack();
+  } catch (err) {
+    console.error(`[tenetx] starter pack failed: ${err?.message ?? err}`);
+  }
+
   // sudo 실행 시 파일 소유권을 실제 유저로 변경
   fixOwnership(join(HOME, '.claude'), join(HOME, '.compound'));
 
@@ -723,6 +761,7 @@ function main() {
   if (commands > 0) parts.push(`${commands} slash commands`);
   if (hooks) parts.push('hooks');
   if (mcp) parts.push('MCP compound');
+  if (starterInstalled > 0) parts.push(`${starterInstalled} starter solutions`);
   if (parts.length > 0) {
     console.log(`[tenetx] Installed: ${parts.join(', ')} → ${HOME}`);
   }

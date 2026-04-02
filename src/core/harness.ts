@@ -18,6 +18,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildEnv, generateClaudeRuleFiles, registerTmuxBindings } from './config-injector.js';
 import { loadGlobalConfig } from './global-config.js';
+import { buildRoutingTable, toModelTaskMap } from './routing-engine.js';
 import { createLogger } from './logger.js';
 import { autoSyncIfNeeded, loadPackConfigs } from './pack-config.js';
 import { COMPOUND_HOME, ME_BEHAVIOR, ME_DIR, ME_RULES, ME_SOLUTIONS, PACKS_DIR, SESSIONS_DIR, STATE_DIR } from './paths.js';
@@ -695,15 +696,17 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
 
     // 6. 컨텍스트 구성
     const inTmux = !!process.env.TMUX;
+    const effectivePreset = routingPreset ?? 'default';
+    const routingTable = buildRoutingTable(effectivePreset);
     const context: HarnessContext = {
       philosophy,
       philosophySource,
       scope,
       cwd,
       inTmux,
-      modelRouting: undefined,
-      signalRoutingEnabled: false,
-      routingPreset: routingPreset ?? 'default',
+      modelRouting: toModelTaskMap(routingTable),
+      signalRoutingEnabled: false, // advisory-only until runtime escalation logic is implemented
+      routingPreset: effectivePreset,
     };
 
     // 7. Claude Code 설정 주입 (환경변수 + 훅)

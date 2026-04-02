@@ -63,7 +63,7 @@ tenetx
 
 ### Prerequisites
 
-- **Node.js** >= 22 (for built-in SQLite session search)
+- **Node.js** >= 20 (>= 22 recommended for session-search feature)
 - **Claude Code** installed and authenticated (`npm i -g @anthropic-ai/claude-code`)
 
 ---

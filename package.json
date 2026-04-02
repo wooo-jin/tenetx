@@ -60,6 +60,7 @@
     "agents/",
     "commands/",
     "skills/",
+    "starter-pack/",
     "scripts/postinstall.js",
     ".claude-plugin/",
     "hooks/",
