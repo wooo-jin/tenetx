@@ -48,6 +48,39 @@ const commands: Command[] = [
     },
   },
   {
+    name: 'skill',
+    description: 'Skill management (promote|list)',
+    handler: async (args) => {
+      const sub = args[0];
+      if (sub === 'promote' && args[1]) {
+        const { promoteSolution } = await import('./engine/skill-promoter.js');
+        const triggers = args.includes('--trigger')
+          ? args.slice(args.indexOf('--trigger') + 1).filter(a => !a.startsWith('-'))
+          : undefined;
+        const result = promoteSolution(args[1], triggers);
+        if (result.success) {
+          console.log(`\n  ✓ Promoted: ${args[1]} → ${result.skillPath}\n`);
+        } else {
+          console.log(`\n  ✗ ${result.reason}\n`);
+        }
+      } else if (sub === 'list') {
+        const { listSkills } = await import('./engine/skill-promoter.js');
+        const skills = listSkills();
+        if (skills.length === 0) {
+          console.log('\n  No promoted skills yet. Use `tenetx skill promote <solution-name>`\n');
+        } else {
+          console.log(`\n  Promoted Skills (${skills.length}):\n`);
+          for (const s of skills) {
+            console.log(`    ${s.name} [${s.status}] triggers: ${s.triggers.join(', ')}`);
+          }
+          console.log('');
+        }
+      } else {
+        console.log('  Usage:\n    tenetx skill promote <solution-name> [--trigger "keyword"]\n    tenetx skill list');
+      }
+    },
+  },
+  {
     name: 'me',
     description: 'Personal dashboard: profile, evolution, patterns',
     handler: async (args) => {
@@ -226,25 +259,21 @@ function printHelp() {
   The more you use Claude, the better it knows you.
 
   Usage:
-    tenetx                          Start Claude Code with harness
+    tenetx                          Start Claude Code (harness mode)
     tenetx "prompt"                 Start with a prompt
     tenetx --resume                 Resume previous session
-    tenetx --eco (-e)               Token-saving eco mode
 
   Commands:
     tenetx forge                    Personalize your coding profile
-    tenetx lab                      Adaptive optimization engine
-    tenetx compound                 Preview auto compound analysis
-    tenetx compound --save          Save previewed technical insights
+    tenetx compound                 Manage accumulated knowledge
     tenetx me                       Personal dashboard
-    tenetx cost                     Session cost tracking
     tenetx config hooks             Hook management
-    tenetx pipeline                 Pipeline suggestions
-    tenetx mcp                      MCP server management
-    tenetx init                     Initialize project
-    tenetx notepad                  Session notepad
     tenetx doctor                   System diagnostics
     tenetx uninstall                Remove tenetx
+
+  Harness mode (default):
+    Wraps Claude Code with auto-compound, session recording, and safety hooks.
+    Sessions are recorded and searchable via compound session-search MCP tool.
 `);
 }
 

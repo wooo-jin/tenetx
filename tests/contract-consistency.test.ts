@@ -72,10 +72,9 @@ describe('contract consistency', () => {
     }
   });
 
-  it('CLI help text reflects preview-first compound behavior', () => {
+  it('CLI help text reflects compound management', () => {
     const cliSource = read('src/cli.ts');
-    expect(cliSource).toContain('Preview auto compound analysis');
-    expect(cliSource).toContain('tenetx compound --save');
+    expect(cliSource).toContain('Manage accumulated knowledge');
   });
 
   it('compound command help keeps entry-management wording aligned with rules support', () => {

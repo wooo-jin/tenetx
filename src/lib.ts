@@ -20,10 +20,15 @@ export type { CoreDimension, DimensionVector, DimensionMeta, ForgeProfile, Deriv
 
 // ── Hooks (utilities) ──
 export {
+  SECURITY_PATTERNS,
   PROMPT_INJECTION_PATTERNS,
   normalizeForInjectionCheck,
   containsPromptInjection,
   filterSolutionContent,
+} from './hooks/prompt-injection-filter.js';
+export type {
+  ScanFinding,
+  ScanResult,
 } from './hooks/prompt-injection-filter.js';
 
 // ── Core utilities ──

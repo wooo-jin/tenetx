@@ -8,6 +8,7 @@
  */
 
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger } from '../core/logger.js';
@@ -320,6 +321,49 @@ async function main(): Promise<void> {
   }
 
   const sessionId = sessionContext.sessionId;
+
+  // 이전 세션 자동 compound (fire-and-forget)
+  // /new로 세션 리셋 시 SessionStart가 다시 호출됨 — 이때 이전 transcript를 compound
+  try {
+    const cwd = sessionContext.cwd;
+    const sanitized = cwd.replace(/\//g, '-');
+    const projectDir = path.join(os.homedir(), '.claude', 'projects', sanitized);
+    if (fs.existsSync(projectDir)) {
+      const transcripts = fs.readdirSync(projectDir)
+        .filter(f => f.endsWith('.jsonl') && f !== `${sessionId}.jsonl`) // 현재 세션 제외
+        .map(f => ({ name: f, mtime: fs.statSync(path.join(projectDir, f)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime);
+
+      if (transcripts.length > 0) {
+        const prevTranscript = path.join(projectDir, transcripts[0].name);
+        const lastCompoundPath = path.join(os.homedir(), '.compound', 'state', 'last-auto-compound.json');
+        let lastCompoundedSession = '';
+        try {
+          lastCompoundedSession = JSON.parse(fs.readFileSync(lastCompoundPath, 'utf-8')).sessionId ?? '';
+        } catch { /* first time */ }
+
+        const prevSessionId = transcripts[0].name.replace('.jsonl', '');
+        if (prevSessionId !== lastCompoundedSession) {
+          // 이전 세션이 compound 안 된 상태 — 메시지 수 확인
+          const content = fs.readFileSync(prevTranscript, 'utf-8');
+          const userMsgCount = content.split('\n')
+            .filter(l => { try { const t = JSON.parse(l).type; return t === 'user' || t === 'queue-operation'; } catch { return false; } })
+            .length;
+
+          if (userMsgCount >= 10) {
+            // background로 auto-compound 실행 (hook timeout과 무관)
+            const { spawn: spawnProcess } = await import('node:child_process');
+            const autoCompound = spawnProcess('node', [
+              path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'core', 'auto-compound-runner.js'),
+              cwd, prevTranscript, prevSessionId,
+            ], { detached: true, stdio: 'ignore' });
+            autoCompound.unref();
+            log.debug(`이전 세션 auto-compound 시작: ${prevSessionId} (${userMsgCount} messages)`);
+          }
+        }
+      }
+    }
+  } catch (e) { log.debug('이전 세션 auto-compound 체크 실패', e); }
 
   // Compound v3: Detect preference patterns → 사용자에게 피드백
   try {
