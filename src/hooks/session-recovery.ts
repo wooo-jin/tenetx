@@ -321,15 +321,6 @@ async function main(): Promise<void> {
 
   const sessionId = sessionContext.sessionId;
 
-  // Compound: 세션 시작 시 이전 세션의 git diff에서 패턴 자동 추출 (fire-and-forget)
-  try {
-    const { runExtraction, isExtractionPaused } = await import('../engine/compound-extractor.js');
-    if (!isExtractionPaused()) {
-      const cwd = sessionContext.cwd;
-      runExtraction(cwd, sessionId).catch(e => log.debug('lazy extraction 실패', e));
-    }
-  } catch (e) { log.debug('lazy extraction import 실패', e); }
-
   // Compound v3: Detect preference patterns → 사용자에게 피드백
   try {
     const { detectPreferencePatterns } = await import('../engine/prompt-learner.js');

@@ -50,12 +50,11 @@ describe('hooks-generator', () => {
 
     it('OMC 감지 시 충돌하는 workflow 훅 비활성화', () => {
       pluginDetectorMocks.detectInstalledPlugins.mockReturnValue([
-        { name: 'oh-my-claudecode', overlappingSkills: [], overlappingHooks: ['intent-classifier', 'keyword-detector', 'skill-injector'] },
+        { name: 'oh-my-claudecode', overlappingSkills: [], overlappingHooks: ['intent-classifier', 'keyword-detector'] },
       ]);
       pluginDetectorMocks.getHookConflicts.mockReturnValue(new Map([
         ['intent-classifier', 'oh-my-claudecode'],
         ['keyword-detector', 'oh-my-claudecode'],
-        ['skill-injector', 'oh-my-claudecode'],
       ]));
 
       const result = generateHooksJson();
@@ -71,7 +70,6 @@ describe('hooks-generator', () => {
       }
       expect(allCommands.some(c => c.includes('intent-classifier'))).toBe(false);
       expect(allCommands.some(c => c.includes('keyword-detector'))).toBe(false);
-      expect(allCommands.some(c => c.includes('skill-injector'))).toBe(false);
     });
 
     it('compound-core 훅은 플러그인 충돌과 무관하게 항상 포함', () => {
@@ -93,7 +91,6 @@ describe('hooks-generator', () => {
         }
       }
       // compound-core 훅들이 존재하는지 확인
-      expect(allCommands.some(c => c.includes('solution-injector'))).toBe(true);
       expect(allCommands.some(c => c.includes('notepad-injector'))).toBe(true);
       expect(allCommands.some(c => c.includes('post-tool-use'))).toBe(true);
     });

@@ -24,11 +24,11 @@ describe('handleForge --scan-only', () => {
     expect(output).toContain('Scan');
   });
 
-  it('outputs initial profile estimate', async () => {
+  it('outputs project facts without dimension estimate', async () => {
     await handleForge(['--scan-only']);
     const output = consoleLogs.join('\n');
-    // formatDimensionBars outputs dimension bars
-    expect(output).toContain('estimate');
+    expect(output).toContain('팩트만 수집');
+    expect(output).not.toContain('estimate');
   });
 });
 

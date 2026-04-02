@@ -145,6 +145,47 @@ function injectSettings(env: Record<string, string>): void {
     delete settings.hooks;
   }
 
+  // Forge 프로필 기반 보안 정책 생성
+  try {
+    const profilePath = path.join(os.homedir(), '.compound', 'me', 'forge-profile.json');
+    const profile = fs.existsSync(profilePath) ? JSON.parse(fs.readFileSync(profilePath, 'utf-8')) : null;
+    if (profile) {
+      const risk = profile.dimensions.riskTolerance ?? 0.5;
+      const permissions = (settings.permissions as Record<string, string[]>) ?? {};
+      // 기존 non-tenetx deny 규칙 보존
+      const existingDeny = (permissions.deny ?? []).filter((r: string) => !r.startsWith('# tenetx'));
+
+      if (risk <= 0.3) {
+        // Conservative: 위험 명령 차단
+        permissions.deny = [
+          ...existingDeny,
+          '# tenetx-managed',
+          'Bash(rm -rf *)',
+          'Bash(git push --force*)',
+          'Bash(git reset --hard*)',
+        ];
+      } else if (risk <= 0.5) {
+        // Cautious: 위험 명령 확인 요청
+        const existingAsk = (permissions.ask ?? []).filter((r: string) => !r.startsWith('# tenetx'));
+        permissions.ask = [
+          ...existingAsk,
+          '# tenetx-managed',
+          'Bash(rm -rf *)',
+          'Bash(git push --force*)',
+        ];
+        permissions.deny = existingDeny.length > 0 ? existingDeny : undefined as unknown as string[];
+      }
+      // risk > 0.5: 추가 제한 없음
+
+      // undefined 키 정리
+      if (!permissions.deny?.length) delete permissions.deny;
+      if (!permissions.ask?.length) delete permissions.ask;
+      if (Object.keys(permissions).length > 0) {
+        settings.permissions = permissions;
+      }
+    }
+  } catch { /* forge profile 미존재 시 무시 */ }
+
   try {
     atomicWriteFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
   } catch (err) {
@@ -358,14 +399,20 @@ function installAgents(cwd: string, overlayMap?: OverlayMap): void {
 }
 
 /** 프로젝트 .claude/rules/ 에 다중 하네스 규칙 파일 작성 (Claude Code 자동 로드) */
+/**
+ * 규칙 파일을 적절한 위치에 작성.
+ * - forge-* (사용자 성향 규칙) → ~/.claude/rules/ (글로벌, 모든 프로젝트에 적용)
+ * - 나머지 (compound, security 등) → {cwd}/.claude/rules/ (프로젝트별)
+ */
 function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): void {
   const PER_RULE_CAP = RULE_FILE_CAPS.perRuleFile;
   const TOTAL_CAP = RULE_FILE_CAPS.totalRuleFiles;
 
-  const rulesDir = path.join(cwd, '.claude', 'rules');
-  fs.mkdirSync(rulesDir, { recursive: true });
+  const globalRulesDir = path.join(os.homedir(), '.claude', 'rules');
+  const projectRulesDir = path.join(cwd, '.claude', 'rules');
+  fs.mkdirSync(globalRulesDir, { recursive: true });
+  fs.mkdirSync(projectRulesDir, { recursive: true });
 
-  // 각 규칙 파일 작성 (사이즈 캡 적용)
   let totalWritten = 0;
   for (const [filename, content] of Object.entries(ruleFiles)) {
     const capped = content.length > PER_RULE_CAP
@@ -375,7 +422,10 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
       log.debug(`rules/ 총량 캡 도달, ${filename} 생략`);
       break;
     }
-    fs.writeFileSync(path.join(rulesDir, filename), capped);
+    // forge-* = 사용자 성향 → 글로벌, 나머지 → 프로젝트
+    const isUserPreference = filename.startsWith('forge-');
+    const targetDir = isUserPreference ? globalRulesDir : projectRulesDir;
+    fs.writeFileSync(path.join(targetDir, filename), capped);
     totalWritten += capped.length;
   }
 
@@ -404,6 +454,56 @@ function injectClaudeRuleFiles(cwd: string, ruleFiles: Record<string, string>): 
         .trim();
       fs.writeFileSync(claudeMdPath, cleaned ? `${cleaned}\n` : '');
     }
+  }
+}
+
+/**
+ * Auto memory에 compound knowledge 포인터를 추가.
+ * Claude Code가 세션 시작 시 MEMORY.md를 자동 로딩하므로,
+ * compound 솔루션 존재를 인지하고 compound-search를 자발적으로 호출할 수 있게 됨.
+ */
+function ensureCompoundMemory(cwd: string): void {
+  try {
+    // Claude Code auto memory 경로: ~/.claude/projects/{sanitized-cwd}/memory/
+    const sanitized = cwd.replace(/\//g, '-').replace(/^-/, '');
+    const memoryDir = path.join(os.homedir(), '.claude', 'projects', sanitized, 'memory');
+
+    if (!fs.existsSync(memoryDir)) return; // auto memory가 없으면 건너뜀
+
+    const memoryMdPath = path.join(memoryDir, 'MEMORY.md');
+    const compoundPointer = '- [Compound Knowledge](compound-index.md) — accumulated patterns/solutions from past sessions';
+
+    // MEMORY.md에 이미 compound 포인터가 있는지 확인
+    if (fs.existsSync(memoryMdPath)) {
+      const content = fs.readFileSync(memoryMdPath, 'utf-8');
+      if (content.includes('compound-index.md')) return; // 이미 있음
+      // 포인터 추가 (기존 내용 보존)
+      fs.writeFileSync(memoryMdPath, content.trimEnd() + '\n' + compoundPointer + '\n');
+    }
+
+    // compound-index.md 생성/업데이트
+    const indexPath = path.join(memoryDir, 'compound-index.md');
+    const solutionsDir = path.join(os.homedir(), '.compound', 'me', 'solutions');
+    let solutionCount = 0;
+    try {
+      solutionCount = fs.readdirSync(solutionsDir).filter(f => f.endsWith('.md')).length;
+    } catch { /* solutions dir may not exist */ }
+
+    const indexContent = [
+      '---',
+      'name: compound-knowledge-index',
+      'description: Tenetx compound knowledge — use compound-search MCP tool to find relevant patterns',
+      'type: reference',
+      '---',
+      '',
+      `${solutionCount} accumulated solutions available via tenetx-compound MCP tools.`,
+      '',
+      'Use compound-search to find relevant patterns before starting tasks.',
+      'Use compound-read to get full solution content.',
+    ].join('\n');
+    fs.writeFileSync(indexPath, indexContent);
+  } catch {
+    // auto memory 접근 실패는 무시 (경로 없음, 권한 등)
   }
 }
 
@@ -595,25 +695,36 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
     const env = buildEnv(context);
     injectSettings(env);
 
-    // 7.5. Forge 프로필 자동 초기화 (미존재 시 스캔 기반 생성)
+    // 7.5. 프로젝트 팩트 스캔 → .claude/rules/project-context.md 생성
+    // 사용자 성향은 인터뷰(forge)로만 결정 — 프로젝트 스캔은 팩트 수집만
     try {
-      const {
-        loadForgeProfile: loadExistingProfile,
-        GLOBAL_FORGE_PROFILE,
-        signalsToDimensions,
-        createEmptyProfile,
-        saveForgeProfile,
-      } = await import('../forge/profile.js');
-      if (!loadExistingProfile(cwd)) {
-        const { scanProject } = await import('../forge/scanner.js');
-        const signals = scanProject(cwd);
-        const dimensions = signalsToDimensions(signals);
-        const profile = { ...createEmptyProfile(), dimensions, lastScan: signals };
-        saveForgeProfile(profile, GLOBAL_FORGE_PROFILE);
-        log.debug('Forge 프로필 자동 생성 (스캔 기반)');
-      }
+      const { scanProject } = await import('../forge/scanner.js');
+      const signals = scanProject(cwd);
+      const contextLines: string[] = [
+        '# Project Context (auto-detected by tenetx)',
+        '<!-- tenetx-managed -->',
+        '',
+      ];
+      // Language & Framework
+      const stack: string[] = [];
+      if (signals.dependencies.hasTypeChecker) stack.push('TypeScript');
+      if (signals.codeStyle.testFramework.length > 0) stack.push(signals.codeStyle.testFramework.join(', '));
+      if (signals.dependencies.hasLinter) stack.push('Linter');
+      if (signals.dependencies.hasFormatter) stack.push('Formatter');
+      if (stack.length > 0) contextLines.push(`- Stack: ${stack.join(', ')}`);
+      // Git
+      contextLines.push(`- Git: ${signals.git.totalCommits} commits, ${signals.git.branchStrategy} strategy`);
+      if (signals.codeStyle.hasCI) contextLines.push('- CI: configured');
+      if (signals.codeStyle.hasPreCommitHook) contextLines.push('- Pre-commit hooks: configured');
+      if (signals.architecture.isMonorepo) contextLines.push('- Structure: monorepo');
+      if (signals.dependencies.manager) contextLines.push(`- Package manager: ${signals.dependencies.manager}`);
+
+      const contextPath = path.join(cwd, '.claude', 'rules', 'project-context.md');
+      fs.mkdirSync(path.dirname(contextPath), { recursive: true });
+      fs.writeFileSync(contextPath, contextLines.join('\n') + '\n');
+      log.debug('프로젝트 팩트 생성: project-context.md');
     } catch (e) {
-      log.debug('Forge 프로필 자동 초기화 실패 (정상 동작에 영향 없음)', e);
+      log.debug('프로젝트 팩트 생성 실패', e);
     }
 
     // 8. Forge 프로필 로드 → 에이전트 오버레이 + 스킬 오버레이 + 튜닝된 규칙 생성
@@ -694,6 +805,9 @@ export async function prepareHarness(cwd: string): Promise<HarnessContext> {
 
     // 11. .gitignore에 tenetx 생성 파일 등록 (팀 충돌 방지)
     ensureGitignore(cwd);
+
+    // 12. Auto memory에 compound 포인터 추가
+    ensureCompoundMemory(cwd);
 
     // 12. 팩 auto-sync (github 연결 시) + 업데이트 알림
     const syncMessage = await autoSyncIfNeeded(cwd);

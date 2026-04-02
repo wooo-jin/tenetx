@@ -13,16 +13,14 @@ import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { scanProject } from './scanner.js';
 import {
-  signalsToDimensions,
   loadForgeProfile,
   saveForgeProfile,
-  mergeProfiles,
   GLOBAL_FORGE_PROFILE,
   projectForgeProfile,
 } from './profile.js';
 import { getActiveQuestions, answersToDeltas } from './interviewer.js';
 import { generateConfig, configToPhilosophy, formatConfig } from './generator.js';
-import { DIMENSION_META, clampDimension, applyDeltas, dimensionLabel } from './dimensions.js';
+import { defaultDimensionVector, DIMENSION_META, clampDimension, applyDeltas, dimensionLabel } from './dimensions.js';
 import { projectPhilosophyPath } from '../core/paths.js';
 import type { ForgeProfile, DimensionVector, ProjectSignals } from './types.js';
 
@@ -61,11 +59,8 @@ async function handleScanOnly(cwd: string): Promise<void> {
   console.log('\n  Forge — Project Scan\n');
   const signals = scanProject(cwd);
   console.log(formatRichScanResult(signals));
-
-  const dims = signalsToDimensions(signals);
-  console.log('\n  Initial profile estimate:');
-  console.log(formatDimensionBars(dims));
-  console.log('');
+  console.log('\n  Note: 프로젝트 스캔은 팩트만 수집합니다.');
+  console.log('  사용자 성향은 `tenetx forge` 인터뷰로 설정하세요.\n');
 }
 
 function handleShowProfile(cwd: string): void {
@@ -174,26 +169,22 @@ async function handleInteractiveForge(cwd: string, args: string[]): Promise<void
   and tenetx will tune its agents to your work style.
 `);
 
-  // ── Phase 1: Scan with real-time feedback ──────────
-  console.log('  [forge] Scanning project signals...\n');
+  // ── Phase 1: 프로젝트 팩트 표시 (참고용, 성향에 영향 없음) ──
+  console.log('  [forge] Scanning project...\n');
   const signals = scanProject(cwd);
-
   console.log('  Detected:');
   console.log(formatRichScanResult(signals));
-
-  const scanDims = signalsToDimensions(signals);
-  console.log('\n  Initial profile estimate:');
-  console.log(formatDimensionBars(scanDims));
   console.log('');
 
-  // ── Phase 2: Interview with live dimension updates ──
+  // ── Phase 2: 인터뷰 — 사용자 성향 결정 (프로젝트 독립) ──
   console.log('  ─────────────────────────────────────────────');
-  console.log('  Phase 2: Work style interview\n');
+  console.log('  Your work style interview\n');
 
-  const { answers, dimensions: interviewDims } = await runRichInterview(signals, scanDims);
+  const baseDims = defaultDimensionVector();
+  const { answers, dimensions: interviewDims } = await runRichInterview(signals, baseDims);
 
-  // ── Phase 3: Merge (scan 30% + interview 70%) ──────
-  const mergedDims = mergeProfiles(scanDims, interviewDims, 0.7);
+  // 인터뷰 결과가 곧 최종 차원 (스캔 병합 없음)
+  const mergedDims = interviewDims;
 
   // ── Phase 4: Generate config ───────────────────────
   const config = generateConfig(mergedDims);

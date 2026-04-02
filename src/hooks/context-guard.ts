@@ -17,7 +17,7 @@ import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadHookConfig, isHookEnabled } from './hook-config.js';
-import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
+import { approve, approveWithContext, approveWithWarning, failOpen } from './shared/hook-response.js';
 import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('context-guard');
@@ -94,10 +94,15 @@ export async function main(): Promise<void> {
       }
     }
 
-    // 정상 종료 시 compound loop 마커 생성 (옵트인)
+    // 정상 종료 시: 의미 있는 세션이었으면 compound 안내
     if (input.stop_hook_type === 'user' || input.stop_hook_type === 'end_turn') {
-      if (process.env.COMPOUND_AUTO_COMPOUND === '1') {
-        markPendingCompound(sessionId);
+      const state = loadContextState(sessionId);
+      if (state.promptCount >= 10) {
+        // 10 프롬프트 이상이면 의미 있는 세션 — compound 안내
+        console.log(approveWithWarning(
+          `[Tenetx] 이 세션에서 ${state.promptCount}개의 프롬프트를 처리했습니다. /compound 를 실행하면 이 세션의 학습 내용을 축적할 수 있습니다.`
+        ));
+        return;
       }
     }
 

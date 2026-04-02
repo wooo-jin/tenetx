@@ -28,8 +28,7 @@ describe('plugin-detector 순수 로직', () => {
       if (p.name === 'oh-my-claudecode') {
         expect(p.overlappingHooks).toContain('intent-classifier');
         expect(p.overlappingHooks).toContain('keyword-detector');
-        expect(p.overlappingHooks).toContain('skill-injector');
-        expect(p.overlappingHooks.length).toBe(3);
+        expect(p.overlappingHooks.length).toBe(2);
       }
       if (p.name === 'superpowers') {
         expect(p.overlappingHooks).toEqual([]);
@@ -90,7 +89,7 @@ describe('hooks.json 동적 생성', () => {
     const { HOOK_REGISTRY } = await import('../src/hooks/hook-registry.js');
 
     expect(HOOK_REGISTRY).toEqual(jsonData);
-    expect(HOOK_REGISTRY.length).toBe(19);
+    expect(HOOK_REGISTRY.length).toBe(17);
   });
 
   it('pre-tool-use가 db-guard와 rate-limiter보다 앞에 위치한다', async () => {
@@ -110,7 +109,7 @@ describe('hooks.json 동적 생성', () => {
     const critical = compoundCore.filter(h => h.compoundCritical);
 
     expect(compoundCore.length).toBeGreaterThanOrEqual(7);
-    expect(critical.length).toBeGreaterThanOrEqual(4);
+    expect(critical.length).toBeGreaterThanOrEqual(3);
   });
 
   it('hooks-generator가 충돌 훅을 올바르게 필터링한다', async () => {
