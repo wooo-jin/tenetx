@@ -289,9 +289,10 @@ describe('prepareHarness() integration', () => {
     expect(['project', 'global', 'default']).toContain(ctx.philosophySource);
     expect(ctx.scope).toBeDefined();
     expect(ctx.inTmux).toBe(false);
-    // modelRouting은 engine/router.ts 제거 후 undefined
-    expect(ctx.modelRouting).toBeUndefined();
-    expect(ctx.signalRoutingEnabled).toBe(false);
+    // modelRouting은 routing-engine에서 프리셋 기반으로 생성
+    expect(ctx.modelRouting).toBeDefined();
+    expect(typeof ctx.modelRouting).toBe('object');
+    expect(ctx.signalRoutingEnabled).toBe(false); // advisory-only until escalation logic implemented
   });
 
   it('lockfile이 작업 후 정리된다', async () => {
