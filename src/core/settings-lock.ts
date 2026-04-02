@@ -108,6 +108,11 @@ export function rollbackSettings(): boolean {
   if (!fs.existsSync(SETTINGS_BACKUP_PATH)) return false;
   acquireLock();
   try {
+    // 현재 설정을 rollback 전 백업 (.pre-rollback) — 데이터 손실 방지
+    if (fs.existsSync(SETTINGS_PATH)) {
+      const preRollbackPath = `${SETTINGS_PATH}.pre-rollback`;
+      fs.copyFileSync(SETTINGS_PATH, preRollbackPath);
+    }
     const backup = fs.readFileSync(SETTINGS_BACKUP_PATH, 'utf-8');
     atomicWriteFileSync(SETTINGS_PATH, backup);
     fs.rmSync(SETTINGS_BACKUP_PATH);

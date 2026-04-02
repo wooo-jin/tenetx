@@ -89,7 +89,7 @@ describe('hooks.json 동적 생성', () => {
     const { HOOK_REGISTRY } = await import('../src/hooks/hook-registry.js');
 
     expect(HOOK_REGISTRY).toEqual(jsonData);
-    expect(HOOK_REGISTRY.length).toBe(17);
+    expect(HOOK_REGISTRY.length).toBe(19);
   });
 
   it('pre-tool-use가 db-guard와 rate-limiter보다 앞에 위치한다', async () => {
