@@ -63,7 +63,7 @@ tenetx
 
 ### Prerequisites
 
-- **Node.js** >= 20
+- **Node.js** >= 22 (for built-in SQLite session search)
 - **Claude Code** installed and authenticated (`npm i -g @anthropic-ai/claude-code`)
 
 ---
@@ -77,7 +77,7 @@ tenetx (harness mode)
 ├── Session ends (exit, /new, /compact)
 │   ├── Transcript analyzed by Claude (auto-compound)
 │   ├── Reusable patterns saved to ~/.compound/me/solutions/
-│   └── User patterns observed → USER.md updated
+│   └── User patterns observed → ~/.compound/me/behavior/
 └── Next session
     ├── MCP instructions tell Claude about compound knowledge
     ├── Claude proactively searches past patterns
@@ -89,8 +89,8 @@ tenetx (harness mode)
 Knowledge accumulates across sessions:
 
 - **Solutions** — reusable patterns with "why" context
-- **Skills** — promoted from verified solutions, procedural knowledge
-- **USER.md** — observed user habits and preferences
+- **Skills** — promoted from verified solutions via `tenetx skill promote`
+- **Behavioral patterns** — observed user habits auto-accumulated in `~/.compound/me/behavior/`, converted to `.claude/rules/forge-behavioral.md`
 
 Claude searches this knowledge via MCP tools (`compound-search` → `compound-read`).
 No regex matching — **Claude decides what's relevant**.
@@ -158,6 +158,8 @@ tenetx uninstall          # Remove tenetx cleanly
 ├── settings.json          ← hooks registered here (absolute paths)
 ├── rules/
 │   └── forge-*.md         ← global user preferences (from interview)
+├── skills/
+│   └── {promoted}/SKILL.md ← promoted skills (Claude Code auto-recognizes)
 └── .claude.json           ← MCP server registered here
 
 {project}/
@@ -170,10 +172,10 @@ tenetx uninstall          # Remove tenetx cleanly
 ~/.compound/
 ├── me/
 │   ├── solutions/         ← accumulated compound knowledge
-│   ├── skills/            ← promoted skills
-│   ├── USER.md            ← observed user patterns
+│   ├── skills/            ← promoted skills (tenetx managed copy)
+│   ├── behavior/          ← observed user patterns → forge-behavioral.md
 │   └── forge-profile.json ← personality dimensions
-├── sessions.db            ← SQLite session history (searchable)
+├── sessions.db            ← SQLite session history (Node.js 22+ built-in)
 └── state/                 ← auto-compound state
 ```
 

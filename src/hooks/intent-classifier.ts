@@ -68,7 +68,6 @@ async function main(): Promise<void> {
   }
 
   const intent = classifyIntent(input.prompt);
-  const sessionId = input.session_id ?? 'default';
 
   if (intent === 'general') {
     console.log(approve());

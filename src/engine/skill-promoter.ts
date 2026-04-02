@@ -16,6 +16,8 @@ const log = createLogger('skill-promoter');
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
 const ME_SOLUTIONS = path.join(COMPOUND_HOME, 'me', 'solutions');
 const ME_SKILLS = path.join(COMPOUND_HOME, 'me', 'skills');
+// Claude Code가 자동 인식하는 글로벌 스킬 경로
+const CLAUDE_SKILLS = path.join(os.homedir(), '.claude', 'skills');
 
 // 일반적인 태그 제외 (트리거로 부적합)
 const GENERIC_TAGS = new Set([
@@ -95,7 +97,12 @@ export function promoteSolution(
   fs.mkdirSync(ME_SKILLS, { recursive: true });
   fs.writeFileSync(skillPath, skillContent);
 
-  log.debug(`스킬 승격 완료: ${solutionName} → ${skillPath}`);
+  // Claude Code 네이티브 스킬로도 등록 (~/.claude/skills/{name}/SKILL.md)
+  const claudeSkillDir = path.join(CLAUDE_SKILLS, solutionName);
+  fs.mkdirSync(claudeSkillDir, { recursive: true });
+  fs.writeFileSync(path.join(claudeSkillDir, 'SKILL.md'), skillContent);
+
+  log.debug(`스킬 승격 완료: ${solutionName} → ${skillPath} + ${claudeSkillDir}`);
   return { success: true, skillPath };
 }
 

@@ -6,16 +6,37 @@
  * 외부 의존성 없음 — Node.js 22+ 내장 node:sqlite 사용.
  */
 
+import { createRequire } from 'node:module';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { createLogger } from './logger.js';
 
+const require = createRequire(import.meta.url);
+
 const log = createLogger('session-store');
 
 const DB_PATH = path.join(os.homedir(), '.compound', 'sessions.db');
 
-function openDb(): any | null {
+interface SqliteDb {
+  exec(sql: string): void;
+  prepare(sql: string): {
+    run(...args: unknown[]): { lastInsertRowid: number };
+    get(...args: unknown[]): unknown;
+    all(...args: unknown[]): unknown[];
+  };
+  close(): void;
+}
+
+interface SessionRow {
+  session_id: string;
+  role: string;
+  content: string;
+  timestamp: string;
+  cwd: string;
+}
+
+function openDb(): SqliteDb | null {
   try {
     // Node.js 22+ experimental node:sqlite
     const { DatabaseSync } = require('node:sqlite');
@@ -71,7 +92,7 @@ export async function indexSession(cwd: string, transcriptPath: string, sessionI
         let role = '';
         let text = '';
 
-        if (entry.type === 'user' && typeof entry.content === 'string') {
+        if ((entry.type === 'user' || entry.type === 'queue-operation') && typeof entry.content === 'string') {
           role = 'user';
           text = entry.content;
         } else if (entry.type === 'assistant') {
@@ -121,8 +142,9 @@ export function searchSessions(query: string, limit = 10): Array<{
   if (tokens.length === 0) return [];
 
   try {
-    const conditions = tokens.map(() => 'LOWER(m.content) LIKE ?').join(' AND ');
-    const params: string[] = tokens.map(t => `%${t}%`);
+    const conditions = tokens.map(() => "LOWER(m.content) LIKE ? ESCAPE '\\'").join(' AND ');
+    const escapedTokens = tokens.map(t => t.replace(/%/g, '\\%').replace(/_/g, '\\_'));
+    const params: string[] = escapedTokens.map(t => `%${t}%`);
     params.push(String(limit));
 
     const results = db.prepare(`
@@ -132,15 +154,9 @@ export function searchSessions(query: string, limit = 10): Array<{
       WHERE ${conditions}
       ORDER BY m.id DESC
       LIMIT ?
-    `).all(...params) as Array<{
-      session_id: string;
-      role: string;
-      content: string;
-      timestamp: string;
-      cwd: string;
-    }>;
+    `).all(...params) as SessionRow[];
 
-    return results.map((r: any) => ({
+    return results.map((r: SessionRow) => ({
       sessionId: r.session_id,
       role: r.role,
       content: r.content,

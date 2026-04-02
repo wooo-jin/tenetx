@@ -14,6 +14,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { execFileSync } from 'node:child_process';
+import { containsPromptInjection } from '../hooks/prompt-injection-filter.js';
 
 const [,, cwd, transcriptPath, sessionId] = process.argv;
 
@@ -22,7 +23,7 @@ if (!cwd || !transcriptPath || !sessionId) {
 }
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const USER_MD_PATH = path.join(COMPOUND_HOME, 'me', 'USER.md');
+const BEHAVIOR_DIR = path.join(COMPOUND_HOME, 'me', 'behavior');
 
 function extractText(c: unknown): string {
   if (typeof c === 'string') return c;
@@ -57,6 +58,11 @@ try {
   const summary = extractSummary(transcriptPath);
   if (summary.length < 200) process.exit(0);
 
+  // 보안: 프롬프트 인젝션이 포함된 transcript는 분석하지 않음
+  if (containsPromptInjection(summary)) {
+    process.exit(0);
+  }
+
   // 기존 솔루션 목록 (중복 방지)
   let existingList = '';
   const solDir = path.join(COMPOUND_HOME, 'me', 'solutions');
@@ -65,10 +71,16 @@ try {
     if (names.length > 0) existingList = `\n\n이미 축적된 솔루션 (중복 추출 금지):\n${names.join(', ')}`;
   }
 
-  // 기존 USER.md 내용 (중복 패턴 방지)
-  let existingUserPatterns = '';
-  if (fs.existsSync(USER_MD_PATH)) {
-    existingUserPatterns = `\n\n현재 USER.md 내용 (중복 패턴 추가 금지):\n${fs.readFileSync(USER_MD_PATH, 'utf-8').slice(0, 1000)}`;
+  // 기존 behavior 파일 목록 (중복 패턴 방지)
+  let existingBehaviorPatterns = '';
+  if (fs.existsSync(BEHAVIOR_DIR)) {
+    const behaviorFiles = fs.readdirSync(BEHAVIOR_DIR).filter(f => f.endsWith('.md')).slice(-10);
+    if (behaviorFiles.length > 0) {
+      const snippets = behaviorFiles.map(f => {
+        try { return fs.readFileSync(path.join(BEHAVIOR_DIR, f), 'utf-8').slice(0, 200); } catch { return ''; }
+      }).filter(Boolean);
+      existingBehaviorPatterns = `\n\n기존 behavior 패턴 (중복 추가 금지):\n${snippets.join('\n---\n')}`;
+    }
   }
 
   // 1단계: 솔루션 추출
@@ -84,9 +96,11 @@ ${summary.slice(0, 6000)}
 
   try {
     execFileSync('claude', ['-p', solutionPrompt, '--allowedTools', 'Bash'], {
-      cwd, timeout: 60_000, stdio: 'ignore',
+      cwd, timeout: 60_000, stdio: ['pipe', 'ignore', 'pipe'],
     });
-  } catch { /* compound 실패는 무시 */ }
+  } catch (e) {
+    process.stderr.write(`[tenetx-auto-compound] solution extraction: ${e instanceof Error ? e.message : String(e)}\n`);
+  }
 
   // 2단계: 사용자 패턴 추출 → USER.md 업데이트
   const userPrompt = `다음 대화에서 사용자의 작업 습관, 커뮤니케이션 스타일, 기술 선호도를 분석해주세요.
@@ -96,7 +110,7 @@ ${summary.slice(0, 6000)}
 
 카테고리: 커뮤니케이션/작업습관/기술선호/의사결정
 
-기존 패턴과 중복이면 건너뛰세요.${existingUserPatterns}
+기존 패턴과 중복이면 건너뛰세요.${existingBehaviorPatterns}
 
 ---
 ${summary.slice(0, 4000)}
@@ -107,28 +121,25 @@ ${summary.slice(0, 4000)}
       cwd, timeout: 30_000, encoding: 'utf-8',
     });
 
-    // 결과가 의미 있으면 USER.md에 append
+    // 결과가 의미 있으면 behavior/ 파일로 저장
     if (userResult && !userResult.includes('관찰된 패턴 없음') && userResult.trim().length > 10) {
-      const timestamp = new Date().toISOString().split('T')[0];
-      const entry = `\n## ${timestamp} 세션 관찰\n${userResult.trim()}\n`;
-
-      fs.mkdirSync(path.dirname(USER_MD_PATH), { recursive: true });
-      if (fs.existsSync(USER_MD_PATH)) {
-        // 200줄 상한 유지 (Claude Code auto memory 호환)
-        const existing = fs.readFileSync(USER_MD_PATH, 'utf-8');
-        const lines = (existing + entry).split('\n');
-        const capped = lines.slice(-180).join('\n'); // 여유를 두고 180줄
-        fs.writeFileSync(USER_MD_PATH, capped);
-      } else {
-        fs.writeFileSync(USER_MD_PATH, `# User Patterns\n> 자동 관찰된 사용자 패턴 (tenetx auto-compound)\n${entry}`);
+      const slug = `auto-${new Date().toISOString().split('T')[0]}`;
+      const behaviorPath = path.join(BEHAVIOR_DIR, `${slug}.md`);
+      fs.mkdirSync(BEHAVIOR_DIR, { recursive: true });
+      if (!fs.existsSync(behaviorPath)) {
+        const today = new Date().toISOString().split('T')[0];
+        const content = `---\nname: "${slug}"\nversion: 1\nkind: "preference"\nobservedCount: 1\nconfidence: 0.6\ntags: ["auto-observed"]\ncreated: "${today}"\nupdated: "${today}"\nsource: "auto-compound"\n---\n\n${userResult.trim()}\n`;
+        fs.writeFileSync(behaviorPath, content);
       }
     }
-  } catch { /* USER.md 업데이트 실패는 무시 */ }
+  } catch (e) {
+    process.stderr.write(`[tenetx-auto-compound] behavior update: ${e instanceof Error ? e.message : String(e)}\n`);
+  }
 
   // 완료 기록
   const statePath = path.join(COMPOUND_HOME, 'state', 'last-auto-compound.json');
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
   fs.writeFileSync(statePath, JSON.stringify({ sessionId, completedAt: new Date().toISOString() }));
-} catch {
-  // 실패해도 무시 — background process
+} catch (e) {
+  process.stderr.write(`[tenetx-auto-compound] ${e instanceof Error ? e.message : String(e)}\n`);
 }

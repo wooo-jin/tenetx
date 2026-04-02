@@ -10,6 +10,7 @@
  */
 
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger } from '../core/logger.js';
@@ -234,6 +235,9 @@ function loadSkillContent(skillName: string): string | null {
     // 팩 설정 로드 실패 시 무시
   }
 
+  // 사용자 개인 스킬 경로
+  searchPaths.push(path.join(os.homedir(), '.compound', 'me', 'skills', `${skillName}.md`));
+
   // 글로벌 스킬 경로
   searchPaths.push(path.join(COMPOUND_HOME, 'skills', `${skillName}.md`));
 
@@ -317,12 +321,6 @@ function cleanSkillCaches(): void {
 
 // ── 메인 ──
 
-/** 프롬프트에 대한 모델 추천 생성 (라우팅은 .claude/rules/routing.md로 대체됨) */
-export function getModelRecommendation(_prompt: string, _cwd?: string, _sessionId?: string): string {
-  // ModelRouter가 제거되어 빈 문자열 반환 — 라우팅은 .claude/rules/routing.md가 담당
-  return '';
-}
-
 async function main(): Promise<void> {
   const input = await readStdinJSON<HookInput>();
   if (!isHookEnabled('keyword-detector')) {
@@ -396,7 +394,6 @@ async function main(): Promise<void> {
     try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode usage 기록 실패', e); }
     const skillContent = loadSkillContent(match.skill);
     const effectiveCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
-    const modelRec = getModelRecommendation(match.prompt ?? input.prompt, effectiveCwd, sessionId);
 
     // 상태 저장
     saveState(`${match.skill}-state`, {
@@ -428,9 +425,9 @@ async function main(): Promise<void> {
 
     if (skillContent) {
       const truncatedContent = truncateContent(skillContent, INJECTION_CAPS.skillContentMax);
-      console.log(approveWithContext(`<compound-skill name="${escapeXmlAttr(match.skill)}">\n${escapeAllXmlTags(truncatedContent)}\n</compound-skill>${modelRec}\n\nUser request: ${match.prompt}`, 'UserPromptSubmit'));
+      console.log(approveWithContext(`<compound-skill name="${escapeXmlAttr(match.skill)}">\n${escapeAllXmlTags(truncatedContent)}\n</compound-skill>\n\nUser request: ${match.prompt}`, 'UserPromptSubmit'));
     } else {
-      console.log(approveWithContext(`[Tenetx] ${match.keyword} mode activated.${modelRec}\n\nUser request: ${match.prompt}`, 'UserPromptSubmit'));
+      console.log(approveWithContext(`[Tenetx] ${match.keyword} mode activated.\n\nUser request: ${match.prompt}`, 'UserPromptSubmit'));
     }
     return;
   }
