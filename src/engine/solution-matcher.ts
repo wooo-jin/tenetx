@@ -33,11 +33,6 @@ interface LoadedSolution {
   scope: 'me' | 'team' | 'project';
 }
 
-/** @deprecated Use extractTags instead */
-export function extractKeywords(text: string): string[] {
-  return extractTags(text);
-}
-
 export function calculateRelevance(promptTags: string[], solutionTags: string[], confidence: number): { relevance: number; matchedTags: string[] };
 /** @deprecated */
 export function calculateRelevance(prompt: string, keywords: string[]): number;

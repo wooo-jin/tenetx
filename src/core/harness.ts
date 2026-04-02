@@ -73,6 +73,21 @@ function ensureDirectories(): void {
 
 export { rollbackSettings };
 
+/**
+ * # tenetx-managed 마커 이후의 모든 항목을 제거하여
+ * permissions.deny/ask의 무한 누적을 방지.
+ */
+const TENETX_PERMISSION_RULES = new Set([
+  '# tenetx-managed',
+  'Bash(rm -rf *)',
+  'Bash(git push --force*)',
+  'Bash(git reset --hard*)',
+]);
+
+function stripTenetxManagedRules(rules: string[]): string[] {
+  return rules.filter(r => !TENETX_PERMISSION_RULES.has(r));
+}
+
 /** Claude Code settings.json에 하네스 환경변수 + 훅 주입 */
 function injectSettings(env: Record<string, string>): void {
   fs.mkdirSync(CLAUDE_DIR, { recursive: true });
@@ -152,8 +167,8 @@ function injectSettings(env: Record<string, string>): void {
     if (profile) {
       const risk = profile.dimensions.riskTolerance ?? 0.5;
       const permissions = (settings.permissions as Record<string, string[]>) ?? {};
-      // 기존 non-tenetx deny 규칙 보존
-      const existingDeny = (permissions.deny ?? []).filter((r: string) => !r.startsWith('# tenetx'));
+      // 기존 non-tenetx deny 규칙 보존: # tenetx-managed 마커 이후의 모든 항목도 제거
+      const existingDeny = stripTenetxManagedRules(permissions.deny ?? []);
 
       if (risk <= 0.3) {
         // Conservative: 위험 명령 차단
@@ -166,7 +181,7 @@ function injectSettings(env: Record<string, string>): void {
         ];
       } else if (risk <= 0.5) {
         // Cautious: 위험 명령 확인 요청
-        const existingAsk = (permissions.ask ?? []).filter((r: string) => !r.startsWith('# tenetx'));
+        const existingAsk = stripTenetxManagedRules(permissions.ask ?? []);
         permissions.ask = [
           ...existingAsk,
           '# tenetx-managed',

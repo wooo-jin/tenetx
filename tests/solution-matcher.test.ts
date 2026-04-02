@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateRelevance,
-  extractKeywords,
 } from '../src/engine/solution-matcher.js';
+import { extractTags as extractKeywords } from '../src/engine/solution-format.js';
 
 describe('calculateRelevance', () => {
   it('완전 매칭은 높은 관련성', () => {

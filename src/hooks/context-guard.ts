@@ -140,24 +140,6 @@ export async function main(): Promise<void> {
   console.log(approve());
 }
 
-/** 세션 종료 후 compound loop 실행이 필요함을 마킹 */
-function markPendingCompound(sessionId: string): void {
-  try {
-    // 세션이 5분 이상이었는지 확인 (context state의 promptCount로 추정)
-    const state = loadContextState(sessionId);
-    if (state.promptCount < 5) return; // 너무 짧은 세션은 건너뛰기
-
-    const markerPath = path.join(STATE_DIR, 'pending-compound.json');
-    atomicWriteJSON(markerPath, {
-      sessionId,
-      promptCount: state.promptCount,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (e) {
-    log.debug('pending-compound 마커 생성 실패', e);
-  }
-}
-
 function saveHandoff(sessionId: string, reason: string, detail: string): void {
   const handoffDir = path.join(COMPOUND_HOME, 'handoffs');
   fs.mkdirSync(handoffDir, { recursive: true });
