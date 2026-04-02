@@ -32,6 +32,7 @@ describe('cli - command structure', () => {
     expect(extractCommandNames(loadCliSource())).toEqual([
       'forge',
       'compound',
+      'skill',
       'me',
       'config',
       'mcp',

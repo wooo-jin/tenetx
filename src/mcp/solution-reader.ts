@@ -224,10 +224,10 @@ export function readSolution(name: string, options?: { dirs?: SolutionDirConfig[
 
   // 보안: prompt injection 필터
   const contentFilter = filterSolutionContent(parsed.content);
-  if (!contentFilter.safe) return null;
+  if (contentFilter.verdict === 'block') return null;
 
   const contextFilter = filterSolutionContent(parsed.context);
-  if (!contextFilter.safe) return null;
+  if (contextFilter.verdict === 'block') return null;
 
   // Pull(MCP) 경로도 evidence에 기여 — sessions 카운트 증가
   try {

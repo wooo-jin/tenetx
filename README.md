@@ -3,14 +3,12 @@
 </p>
 
 <p align="center">
-  <strong>Claude Code plugin that learns your coding patterns.</strong>
+  <strong>The Claude Code harness that learns from you.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://www.npmjs.com/package/tenetx"><img src="https://img.shields.io/npm/v/tenetx.svg" alt="npm version"/></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
-  <a href="https://github.com/wooo-jin/tenetx/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-passing-brightgreen.svg" alt="Tests"/></a>
 </p>
 
 <p align="center">
@@ -24,68 +22,29 @@
 
 ## What is Tenetx?
 
-Tenetx watches how you use Claude Code and **automatically writes rules that make Claude work better for you**.
+Tenetx wraps Claude Code as a **harness** — it spawns `claude`, watches your sessions, and **automatically accumulates reusable knowledge** that makes Claude better for you over time.
 
 ```bash
 npm install -g tenetx
-tenetx                    # Start Claude Code with learning enabled
+tenetx                    # Use this instead of `claude`
 ```
 
-No configuration needed. Use Claude Code normally — tenetx learns in the background.
+### What happens when you use `tenetx`:
 
-- **Day 1**: Hooks begin observing silently. Forge profile auto-created from project scan.
-- **Week 1** (~5 sessions): First patterns detected → personalized `.claude/rules/` generated
-- **Week 2+** (~15 sessions): Compound solutions accumulate, agent tuning kicks in
-- **Ongoing**: Patterns earn trust through evidence. Good ones get promoted, bad ones retire.
+1. **Project facts** auto-detected (TypeScript? Vitest? CI?) → `.claude/rules/project-context.md`
+2. **Safety hooks** active — dangerous commands blocked, secrets filtered
+3. **Compound knowledge** searchable — Claude proactively searches past patterns via MCP
+4. **Session ends** → auto-compound extracts reusable patterns from the conversation
+5. **Next session** → Claude uses accumulated knowledge to give better answers
 
-### Harness + Plugin
-
-- **Harness mode** (`tenetx`): Full experience — profile update, rule generation, pattern extraction every session
-- **Plugin mode** (`claude` directly): Hooks + MCP still work. Learning continues between harness runs.
-
-Designed to coexist with other plugins (OMC, superpowers, claude-mem) — detects them at install time and disables overlapping workflow hooks. Core learning hooks always remain active. See [docs/with-omc.md](docs/with-omc.md) for details and known limitations.
-
----
-
-## How It Works
+### User journey
 
 ```
-You code normally
-    ↓
-Up to 19 hooks observe silently (prompt patterns, tool usage, code reflection)
-    ↓
-Patterns detected → Solutions stored → Evidence tracked
-    ↓
-Context compaction → Claude analyzes your thinking patterns (0 API cost)
-    ↓
-Next session: personalized rules auto-generated + feedback shown
+npm i -g tenetx          → Install: hooks, MCP, skills registered
+tenetx forge             → One-time interview: set your preferences (global)
+tenetx                   → Daily use: Claude + safety + compound + auto-learning
+/compound                → Optional: manually extract patterns mid-session
 ```
-
-### The Compound Loop
-
-Technical solutions earn trust through real usage:
-
-| Status | Confidence | How to reach |
-|--------|-----------|--------------|
-| experiment | 0.3 | Auto-extracted from git diff or Claude analysis |
-| candidate | 0.55 | reflected >= 3 and sessions >= 3, or reExtracted >= 2 and reflected >= 1 |
-| verified | 0.75 | reflected >= 4 and sessions >= 3, or reExtracted >= 2 |
-| mature | 0.90 | reflected >= 8, sessions >= 5, negative <= 1, sustained 7+ days |
-
-**Code Reflection** detects when Claude actually uses your pattern. Build/test failures automatically demote bad patterns. Circuit breaker auto-retires patterns with 2+ failures.
-
-Behavioral learning is stored separately under `~/.compound/me/behavior/` and only feeds generated `.claude/rules/`. Technical compound knowledge remains under `~/.compound/me/solutions/`.
-
-### What Gets Learned
-
-Not just surface preferences ("use Korean") — **thinking patterns**:
-
-- "This user always verifies before trusting" → skeptical review mode
-- "This user prefers quality over speed" → thorough testing rules
-- "This user plans before implementing" → design-first workflow
-- "This user wants evidence, not intuition" → data-driven decisions
-
-50+ built-in pattern detectors (preference/workflow/thinking) + Claude semantic analysis at compaction. Patterns are detected per-user based on actual usage — not all 50 will activate for every user.
 
 ---
 
@@ -95,40 +54,88 @@ Not just surface preferences ("use Korean") — **thinking patterns**:
 # Install
 npm install -g tenetx
 
-# Option A: Harness mode (recommended)
-tenetx                    # Wraps Claude Code with full learning
-tenetx forge              # Profile your working style (optional, enhances learning)
+# Personalize (one-time, optional)
+tenetx forge
 
-# Option B: Plugin mode (if you prefer running claude directly)
-# Hooks and MCP server are auto-registered at install. Just use claude as usual.
+# Use daily (instead of `claude`)
+tenetx
 ```
 
 ### Prerequisites
 
 - **Node.js** >= 20
-- **Claude Code** installed and authenticated
+- **Claude Code** installed and authenticated (`npm i -g @anthropic-ai/claude-code`)
+
+---
+
+## How It Works
+
+```
+tenetx (harness mode)
+├── Spawns claude with safety hooks + project facts
+├── Session runs normally — you work as usual
+├── Session ends (exit, /new, /compact)
+│   ├── Transcript analyzed by Claude (auto-compound)
+│   ├── Reusable patterns saved to ~/.compound/me/solutions/
+│   └── User patterns observed → USER.md updated
+└── Next session
+    ├── MCP instructions tell Claude about compound knowledge
+    ├── Claude proactively searches past patterns
+    └── Accumulated knowledge improves answers
+```
+
+### Compound Knowledge
+
+Knowledge accumulates across sessions:
+
+- **Solutions** — reusable patterns with "why" context
+- **Skills** — promoted from verified solutions, procedural knowledge
+- **USER.md** — observed user habits and preferences
+
+Claude searches this knowledge via MCP tools (`compound-search` → `compound-read`).
+No regex matching — **Claude decides what's relevant**.
+
+### Forge (Personalization)
+
+One-time interview sets your preferences:
+
+```bash
+tenetx forge
+```
+
+- Generates **global rules** (`~/.claude/rules/forge-*.md`) based on your work style
+- Quality focus, risk tolerance, communication style, etc.
+- **Project scan is facts only** — "TypeScript, Vitest, ESLint" (not preference inference)
+
+### Safety
+
+Active hooks (settings.json registered):
+
+| Hook | What it does |
+|------|-------------|
+| `pre-tool-use` | Blocks dangerous commands (rm -rf, curl\|sh, force-push) |
+| `db-guard` | Blocks dangerous SQL (DROP TABLE, WHERE-less DELETE) |
+| `secret-filter` | Warns on API key exposure |
+| `slop-detector` | Detects AI slop (TODO remnants, eslint-disable, as any) |
+| `context-guard` | Warns on context limit approach |
+| `rate-limiter` | MCP tool rate limiting |
+
+Security scan uses **severity classification** (block/warn) with exfiltration and obfuscation detection.
 
 ---
 
 ## Commands
 
 ```bash
-tenetx                    # Start Claude Code with harness
-tenetx forge              # Profile your working style (scan + interview)
-tenetx me                 # Personal dashboard (profile, patterns, cost)
-tenetx me --html          # Open HTML dashboard in browser
-tenetx pipeline           # Pipeline suggestions based on your profile
-tenetx compound           # Preview auto compound analysis
-tenetx compound --save    # Save previewed technical insights
-tenetx compound map       # Knowledge map visualization
-tenetx compound interactive # Manually capture insights in a TTY session
-tenetx lab                # Adaptive optimization metrics
-tenetx cost               # Session cost tracking
+tenetx                    # Start Claude Code (harness mode)
+tenetx forge              # Personalize your profile
+tenetx compound           # Manage accumulated knowledge
+tenetx compound --save    # Save auto-analyzed patterns
+tenetx skill promote <n>  # Promote verified solution to skill
+tenetx skill list         # List promoted skills
+tenetx me                 # Personal dashboard
 tenetx config hooks       # Hook management
-tenetx mcp                # MCP server management
-tenetx notepad            # Session notepad
 tenetx doctor             # System diagnostics
-tenetx init               # Initialize a project
 tenetx uninstall          # Remove tenetx cleanly
 ```
 
@@ -136,93 +143,53 @@ tenetx uninstall          # Remove tenetx cleanly
 
 | Tool | Purpose |
 |------|---------|
-| `compound-search` | Search accumulated knowledge by query |
+| `compound-search` | Search accumulated knowledge by query (with content preview) |
+| `compound-read` | Read full solution content |
 | `compound-list` | List solutions with filters |
-| `compound-read` | Read full solution content (no truncation) |
 | `compound-stats` | Overview statistics |
-
-Claude can pull knowledge on-demand via MCP. Hook injection pushes summaries automatically (Progressive Disclosure).
+| `session-search` | Search past session conversations (tokenized, with context window) |
 
 ---
 
 ## Architecture
 
-| Layer | Purpose | Components |
-|-------|---------|------------|
-| **Observe** | Watch how you work | Up to 19 hooks (compound-core 8, safety 4, workflow 7) |
-| **Extract** | Find patterns | prompt-learner (50+ behavioral detectors) + compound-extractor (technical solutions) + Claude analysis (pre-compact) |
-| **Profile** | Model your style | Forge (5 dimensions) + Lab (adaptive optimization) |
-| **Inject** | Apply knowledge | .claude/rules/ + solution-injector (push) + MCP (pull) |
-| **Measure** | Track evidence | Code Reflection, lifecycle promotion, session tracking |
-
-### Forge — 5-Dimension Profile
-
 ```
-Quality Focus    [########--] 0.80    Autonomy       [####------] 0.45
-Risk Tolerance   [######----] 0.62    Abstraction    [#######---] 0.70
-Communication    [#########-] 0.88
+~/.claude/
+├── settings.json          ← hooks registered here (absolute paths)
+├── rules/
+│   └── forge-*.md         ← global user preferences (from interview)
+└── .claude.json           ← MCP server registered here
+
+{project}/
+└── .claude/
+    ├── rules/
+    │   └── project-context.md  ← project facts (auto-scanned)
+    └── agents/
+        └── ch-*.md             ← custom agents with memory + MCP access
+
+~/.compound/
+├── me/
+│   ├── solutions/         ← accumulated compound knowledge
+│   ├── skills/            ← promoted skills
+│   ├── USER.md            ← observed user patterns
+│   └── forge-profile.json ← personality dimensions
+├── sessions.db            ← SQLite session history (searchable)
+└── state/                 ← auto-compound state
 ```
 
-Lab auto-adjusts daily based on observed behavior (EMA α=0.15, max ±0.1/day).
+### Key Design Decisions
 
-### Plugin Coexistence
-
-| Other Plugin | tenetx behavior |
-|---|---|
-| oh-my-claudecode | Yields 11 overlapping skills, 3 hooks. Compound-core stays active. |
-| superpowers | Yields 4 overlapping skills. No hook conflict. |
-| claude-mem | No conflict. Context budget reduced 50% for cooperation. |
-| Unknown plugin | Detected via ~/.claude/plugins/. Conservative budget applied. |
-
-### Token Efficiency
-
-- **Progressive Disclosure**: Push 1-line summaries (~200 tokens), pull full content via MCP (0 ambient cost)
-- **Conditional rules**: `.claude/rules/` files use `paths` frontmatter — loaded only when relevant files are touched
-- **Prompt caching**: Rules are cached by Claude Code (10% cost after first turn)
+- **Harness, not just plugin** — `tenetx` spawns `claude` and controls session lifecycle
+- **Claude is the extractor** — no regex pattern matching; Claude analyzes conversations
+- **Pull, not push** — MCP instructions guide Claude to search knowledge; no forced injection
+- **Facts, not inference** — project scan collects facts; preferences come from interview only
+- **Security by severity** — block vs warn classification prevents false-positive knowledge loss
 
 ---
 
-## Safety
+## Coexistence
 
-Hook system provides security by default:
-
-- **secret-filter**: Masks API keys, tokens in tool output
-- **db-guard**: Blocks DROP TABLE, TRUNCATE, dangerous SQL
-- **pre-tool-use**: Blocks dangerous shell commands (rm -rf /, git push --force main)
-- **rate-limiter**: Prevents excessive tool calls
-- **slop-detector**: Warns on formulaic/low-quality responses
-- **symlink protection**: Prevents arbitrary file reads via symlinks (8 locations)
-
-All hooks fail-open on error (never breaks Claude Code). Timeout: 2-5 seconds per hook.
-
----
-
-## Statistics
-
-| Metric | Count |
-|--------|-------|
-| Source code | ~26K lines |
-| Tests | 1,561 across 100 files |
-| Hook registry | 19 (workflow hooks auto-disable when overlapping plugins are present) |
-| Detection patterns | 50+ |
-| MCP tools | 4 |
-| Dependencies | 3 (js-yaml, @modelcontextprotocol/sdk, zod) |
-
----
-
-## Acknowledgements
-
-Tenetx draws inspiration from [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) by Yeachan Heo. The multi-agent orchestration, magic keyword system, and the vision of enhancing Claude Code through a harness were deeply influenced by OMC's pioneering work.
-
-**Where Tenetx diverges:** OMC gives powerful, general-purpose tools. Tenetx makes those tools **personal** — it watches how you work and adapts automatically.
-
----
-
-## Contact
-
-- **Author:** Woojin Jang
-- **LinkedIn:** [linkedin.com/in/우진-장-1567aa294](https://www.linkedin.com/in/%EC%9A%B0%EC%A7%84-%EC%9E%A5-1567aa294/)
-- **GitHub:** [@wooo-jin](https://github.com/wooo-jin)
+Tenetx detects other plugins (oh-my-claudecode, superpowers, claude-mem) at install time and disables overlapping workflow hooks. Core safety and compound hooks always remain active.
 
 ---
 

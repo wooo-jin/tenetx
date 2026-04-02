@@ -32,7 +32,7 @@ export function registerTools(server: McpServer): void {
   server.registerTool(
     'compound-search',
     {
-      description: 'Search accumulated compound knowledge (solutions, patterns) by query. Returns relevant matches ranked by tag-based similarity.',
+      description: 'Search accumulated compound knowledge (solutions, patterns) by query. Returns relevant matches ranked by tag-based similarity. When multiple results are returned, provide a brief summary of findings.',
       inputSchema: {
         query: z.string().describe('Search query — keywords, tech names, or problem description'),
         type: z.enum(['pattern', 'solution', 'decision', 'troubleshoot', 'anti-pattern', 'convention']).optional()
@@ -61,12 +61,30 @@ export function registerTools(server: McpServer): void {
         };
       }
 
-      const text = results.map((r, i) =>
-        `${i + 1}. **${r.name}** (${r.status}, confidence: ${r.confidence.toFixed(2)})\n` +
-        `   Type: ${r.type} | Scope: ${r.scope} | Relevance: ${r.relevance.toFixed(3)}\n` +
-        `   Tags: ${r.tags.join(', ')}\n` +
-        `   Matched: ${r.matchedTags.join(', ')}`,
-      ).join('\n\n');
+      const text = results.map((r, i) => {
+        let snippet = '';
+        if (i < 5) {
+          try {
+            const full = readSolution(r.name, { dirs: defaultSolutionDirs(getCwd()) });
+            if (full?.content) {
+              const firstLines = full.content
+                .split('\n')
+                .filter(l => l.trim().length > 0)
+                .slice(0, 2)
+                .join(' ')
+                .slice(0, 150);
+              snippet = `\n   Preview: ${firstLines}`;
+            }
+          } catch { /* skip snippet on error */ }
+        }
+        return (
+          `${i + 1}. **${r.name}** (${r.status}, confidence: ${r.confidence.toFixed(2)})\n` +
+          `   Type: ${r.type} | Scope: ${r.scope} | Relevance: ${r.relevance.toFixed(3)}\n` +
+          `   Tags: ${r.tags.join(', ')}\n` +
+          `   Matched: ${r.matchedTags.join(', ')}` +
+          snippet
+        );
+      }).join('\n\n');
 
       return {
         content: [{
@@ -205,6 +223,77 @@ export function registerTools(server: McpServer): void {
           text: lines.join('\n'),
         }],
       };
+    },
+  );
+
+  // ── session-search ──
+  server.registerTool(
+    'session-search',
+    {
+      description: 'Search past session conversations by keyword. Returns matching messages from previous Claude Code sessions. When presenting results, summarize key findings for the user.',
+      inputSchema: {
+        query: z.string().describe('Search query — keywords to find in past conversations'),
+        limit: z.number().min(1).max(20).optional()
+          .describe('Max results to return (default: 10)'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ query, limit }) => {
+      try {
+        const { searchSessions, extractContextWindow } = await import('../core/session-store.js');
+        const results = searchSessions(query, limit ?? 10);
+
+        if (results.length === 0) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: 'No matching messages found in past sessions.',
+            }],
+          };
+        }
+
+        // 세션별 그루핑 (세션당 최대 3메시지)
+        const grouped = new Map<string, typeof results>();
+        for (const r of results) {
+          const group = grouped.get(r.sessionId) ?? [];
+          if (group.length < 3) {
+            group.push(r);
+            grouped.set(r.sessionId, group);
+          }
+        }
+
+        const sessionBlocks: string[] = [];
+        let msgIndex = 1;
+        for (const [sessionId, msgs] of grouped) {
+          const first = msgs[0];
+          const date = first.timestamp ? first.timestamp.slice(0, 10) : 'unknown date';
+          const project = first.cwd ? first.cwd.split('/').pop() ?? first.cwd : 'unknown project';
+
+          const msgLines = msgs.map(r => {
+            const snippet = extractContextWindow(r.content, r.tokens);
+            return `  ${msgIndex++}. [${r.role}] ${snippet}`;
+          });
+
+          sessionBlocks.push(
+            `Session: ${sessionId.slice(0, 8)} | Date: ${date} | Project: ${project}\n` +
+            msgLines.join('\n'),
+          );
+        }
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Found ${results.length} matching message(s) across ${grouped.size} session(s):\n\n${sessionBlocks.join('\n\n')}`,
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: 'Session search unavailable (requires Node.js 22+ with SQLite support).',
+          }],
+        };
+      }
     },
   );
 }

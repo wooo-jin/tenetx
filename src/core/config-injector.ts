@@ -5,6 +5,7 @@ import { loadPackConfigs } from './pack-config.js';
 import type { HarnessContext } from './types.js';
 import { createLogger } from './logger.js';
 import { parseSolutionV3 } from '../engine/solution-format.js';
+import { containsPromptInjection } from '../hooks/prompt-injection-filter.js';
 
 const log = createLogger('config-injector');
 /** 프로젝트 맵 타입 (engine/knowledge/types.ts 삭제 후 인라인) */
@@ -21,8 +22,11 @@ interface ProjectMap {
   directories: Array<{ path: string; purpose?: string }>;
 }
 
-/** 디렉토리의 .md 파일에서 규칙 첫 줄(요약)을 추출 */
-function loadRulesFromDir(dir: string): string[] {
+/**
+ * 디렉토리의 .md 파일에서 규칙 첫 줄(요약)을 추출.
+ * trusted=false일 때 프롬프트 인젝션 스캔 적용 (팩 등 외부 소스).
+ */
+function loadRulesFromDir(dir: string, trusted = true): string[] {
   if (!fs.existsSync(dir)) return [];
   try {
     return fs.readdirSync(dir)
@@ -34,6 +38,15 @@ function loadRulesFromDir(dir: string): string[] {
         const content = fs.readFileSync(filePath, 'utf-8');
         const parsed = parseSolutionV3(content);
         const body = parsed ? parsed.content : stripFrontmatter(content);
+
+        // 비신뢰 소스(팩)의 규칙 파일은 인젝션 스캔
+        if (!trusted) {
+          if (containsPromptInjection(body)) {
+            log.debug(`규칙 파일 인젝션 감지 — 차단: ${filePath}`);
+            return null;
+          }
+        }
+
         const firstLine = firstMeaningfulLine(body);
         return firstLine ?? f.replace('.md', '');
       })
@@ -262,7 +275,7 @@ export function generateCompoundRules(context: HarnessContext): string {
       const nsRulesDir = path.join(context.cwd, '.compound', 'packs', pack.name, 'rules');
       const legacyRulesDir = path.join(PACKS_DIR, pack.name, 'rules');
       const rulesDir = fs.existsSync(nsRulesDir) ? nsRulesDir : legacyRulesDir;
-      const packRules = loadRulesFromDir(rulesDir);
+      const packRules = loadRulesFromDir(rulesDir, false); // 팩 = 외부 소스, 스캔 필요
 
       lines.push(`## Pack: ${pack.name}`);
       if (packRules.length > 0) {
@@ -277,7 +290,7 @@ export function generateCompoundRules(context: HarnessContext): string {
   } else if (context.scope.team) {
     // 하위 호환: 구 방식 scope.team 사용
     const packRulesDir = path.join(PACKS_DIR, context.scope.team.name, 'rules');
-    const packRules = loadRulesFromDir(packRulesDir);
+    const packRules = loadRulesFromDir(packRulesDir, false); // 팩 = 외부 소스
     lines.push(`## Pack: ${context.scope.team.name}`);
     lines.push(`- ${context.scope.team.solutionCount} solutions, ${context.scope.team.ruleCount} rules`);
     if (packRules.length > 0) {
