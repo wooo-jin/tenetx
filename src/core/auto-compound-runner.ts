@@ -14,7 +14,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { containsPromptInjection } from '../hooks/prompt-injection-filter.js';
+import { containsPromptInjection, filterSolutionContent } from '../hooks/prompt-injection-filter.js';
 
 const [,, cwd, transcriptPath, sessionId] = process.argv;
 
@@ -23,7 +23,44 @@ if (!cwd || !transcriptPath || !sessionId) {
 }
 
 const COMPOUND_HOME = path.join(os.homedir(), '.compound');
+const SOLUTIONS_DIR = path.join(COMPOUND_HOME, 'me', 'solutions');
 const BEHAVIOR_DIR = path.join(COMPOUND_HOME, 'me', 'behavior');
+
+/** Lightweight quality gate for auto-extracted solution files */
+/** Toxicity patterns — code-context only to avoid false positives on prose */
+const SOLUTION_TOXICITY_PATTERNS = [/@ts-ignore/i, /:\s*any\b/, /\/\/\s*TODO\b/];
+
+function validateSolutionFiles(dirBefore: Set<string>): number {
+  let removed = 0;
+  if (!fs.existsSync(SOLUTIONS_DIR)) return removed;
+  try {
+    const currentFiles = fs.readdirSync(SOLUTIONS_DIR).filter(f => f.endsWith('.md'));
+    for (const file of currentFiles) {
+      if (dirBefore.has(file)) continue; // existed before extraction — skip
+      const filePath = path.join(SOLUTIONS_DIR, file);
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        // Gate 1: file must be > 100 chars (not too short)
+        if (content.length <= 100) {
+          fs.unlinkSync(filePath);
+          removed++;
+          continue;
+        }
+        // Gate 2: first 500 chars must not contain toxicity patterns
+        const head = content.slice(0, 500);
+        if (SOLUTION_TOXICITY_PATTERNS.some(p => p.test(head))) {
+          fs.unlinkSync(filePath);
+          removed++;
+        }
+      } catch (e) {
+        process.stderr.write(`[tenetx-auto-compound] file validation failed: ${(e as Error).message}\n`);
+      }
+    }
+  } catch (e) {
+    process.stderr.write(`[tenetx-auto-compound] solution dir scan failed: ${(e as Error).message}\n`);
+  }
+  return removed;
+}
 
 function extractText(c: unknown): string {
   if (typeof c === 'string') return c;
@@ -84,14 +121,40 @@ try {
   }
 
   // 1단계: 솔루션 추출
-  const solutionPrompt = `다음은 이전 Claude Code 세션의 대화 요약입니다. 재사용 가능한 패턴을 추출해주세요.
+  // 보안: transcript 요약에 filterSolutionContent 적용하여 프롬프트 인젝션 방어
+  const scanResult = filterSolutionContent(summary);
+  if (scanResult.verdict === 'block') {
+    process.stderr.write('[tenetx-auto-compound] transcript blocked by injection filter\n');
+    process.exit(0);
+  }
+  if (scanResult.verdict === 'warn') {
+    process.stderr.write(`[tenetx-auto-compound] injection warning: ${scanResult.findings.map(f => f.patternId).join(', ')}\n`);
+  }
+  const sanitizedSummary = scanResult.sanitized;
 
-각 항목: tenetx compound --solution "제목" "설명"
+  // Snapshot solution files before extraction (for post-extraction validation)
+  const solutionsBefore = new Set<string>();
+  try {
+    if (fs.existsSync(SOLUTIONS_DIR)) {
+      for (const f of fs.readdirSync(SOLUTIONS_DIR)) {
+        if (f.endsWith('.md')) solutionsBefore.add(f);
+      }
+    }
+  } catch { /* ignore */ }
+
+  const solutionPrompt = `다음은 이전 Claude Code 세션의 대화 요약입니다.
+미래 세션에서 재사용할 수 있는 패턴, 해결책, 의사결정을 추출해주세요.
+
+각 항목은 반드시 다음을 포함해야 합니다:
+- **제목**: 구체적이고 검색 가능한 이름 (예: "vitest-mock-esm-pattern", "react-state-lifting-decision")
+- **설명**: (1) 무엇을 했는지 (2) 왜 그렇게 했는지 (3) 어떻게 적용하는지
+
+형식: tenetx compound --solution "제목" "설명 (why + how to apply)"
 추출할 것이 없으면 "추출할 패턴 없음"이라고만 답하세요.
-최대 3개. 기존 솔루션과 중복 금지.${existingList}
+최대 3개. 피상적인 관찰(예: "TypeScript를 사용함")은 제외. 기존 솔루션과 중복 금지.${existingList}
 
 ---
-${summary.slice(0, 6000)}
+${sanitizedSummary.slice(0, 6000)}
 ---`;
 
   try {
@@ -100,6 +163,12 @@ ${summary.slice(0, 6000)}
     });
   } catch (e) {
     process.stderr.write(`[tenetx-auto-compound] solution extraction: ${e instanceof Error ? e.message : String(e)}\n`);
+  }
+
+  // Post-extraction quality validation: remove files that fail lightweight gates
+  const removedCount = validateSolutionFiles(solutionsBefore);
+  if (removedCount > 0) {
+    process.stderr.write(`[tenetx-auto-compound] quality gate removed ${removedCount} low-quality solution(s)\n`);
   }
 
   // 2단계: 사용자 패턴 추출 → USER.md 업데이트
@@ -113,7 +182,7 @@ ${summary.slice(0, 6000)}
 기존 패턴과 중복이면 건너뛰세요.${existingBehaviorPatterns}
 
 ---
-${summary.slice(0, 4000)}
+${sanitizedSummary.slice(0, 4000)}
 ---`;
 
   try {

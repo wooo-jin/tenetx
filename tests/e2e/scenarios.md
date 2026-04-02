@@ -163,15 +163,15 @@ npm i -g tenetx
 
 ---
 
-## 현재 알려진 끊어진 체인
+## 이전에 알려졌던 끊어진 체인 — 전부 수리 완료 (2026-04-02)
 
-| 체인 | 끊어진 지점 | 원인 |
-|------|-----------|------|
-| prompt-learner → behavioral → forge-behavioral.md | recordPrompt() 미호출 | solution-injector 비활성 |
-| USER.md → Claude | USER.md → ??? | Claude가 읽는 경로 없음 |
-| auto-compound → quality gate | gate3 미적용 | auto-compound가 별도 경로 |
-| auto-compound → injection 방어 | transcript 원문 그대로 프롬프트에 | filterSolutionContent 미적용 |
-| skill promote → 자동 주입 | skill-injector 비활성 | hook-registry에 없음 |
+| 체인 | 수리 내용 | 검증 |
+|------|----------|------|
+| prompt-learner → behavioral → forge-behavioral.md | keyword-detector에서 recordPrompt() 호출 추가 | `chain-verification.test.ts` Chain 1 |
+| USER.md → Claude | config-injector에서 USER.md → .claude/rules/user-profile.md 주입 | `chain-verification.test.ts` Chain 2 |
+| auto-compound → quality gate | validateSolutionFiles() 후처리 게이트 추가 (길이 + toxicity) | `chain-verification.test.ts` Chain 3 |
+| auto-compound → injection 방어 | filterSolutionContent() 적용 + warn 로깅 + sanitizedSummary 사용 | `chain-verification.test.ts` Chain 4 |
+| skill promote → 자동 주입 | skill-injector + solution-injector를 hook-registry에 등록 | `chain-verification.test.ts` Chain 5 |
 
 ---
 
