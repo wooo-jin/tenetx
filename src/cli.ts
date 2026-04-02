@@ -234,7 +234,17 @@ async function main() {
 `);
     }
 
-    console.log(`[tenetx] Scope: ${context.scope.summary}`);
+    const bold = '\x1b[1m';
+    const cyan = '\x1b[36m';
+    const dim = '\x1b[2m';
+    const reset = '\x1b[0m';
+    console.log(`
+  ${bold}${cyan}▀█▀ █▀▀ █▄░█ █▀▀ ▀█▀ ▀▄▀${reset}
+  ${bold}${cyan}░█░ ██▄ █░▀█ ██▄ ░█░ █░█${reset}  ${dim}v${PKG_VERSION}${reset}
+
+  ${dim}The Claude Code harness that learns from you.${reset}
+  ${dim}Scope: ${context.scope.summary}${reset}
+`);
     console.log('[tenetx] Starting Claude Code...\n');
 
     await spawnClaude(args, context);
