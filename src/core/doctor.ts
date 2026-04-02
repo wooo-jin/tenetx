@@ -43,6 +43,37 @@ export async function runDoctor(): Promise<void> {
   );
   check('ralph-loop plugin', ralphLoopInstalled,
     'Required for ralph mode auto-iteration. Install: claude plugins install ralph-loop');
+
+  // tenetx 플러그인 캐시 디렉토리 확인 — 훅 실행의 필수 전제
+  const pluginCacheBase = path.join(os.homedir(), '.claude', 'plugins', 'cache', 'tenetx-local', 'tenetx');
+  let tenetxPluginCacheOk = false;
+  if (exists(pluginCacheBase)) {
+    const versions = fs.readdirSync(pluginCacheBase).filter(f => {
+      try {
+        const lstat = fs.lstatSync(path.join(pluginCacheBase, f));
+        return lstat.isDirectory() || lstat.isSymbolicLink();
+      } catch { return false; }
+    });
+    tenetxPluginCacheOk = versions.length > 0;
+  }
+  check('tenetx plugin cache', tenetxPluginCacheOk,
+    'Hook execution requires plugin cache. Fix: npm run build && node scripts/postinstall.js');
+
+  // installed_plugins.json 정합성 확인
+  const installedPluginsPath = path.join(os.homedir(), '.claude', 'plugins', 'installed_plugins.json');
+  let pluginRegistered = false;
+  if (exists(installedPluginsPath)) {
+    try {
+      const installed = JSON.parse(fs.readFileSync(installedPluginsPath, 'utf-8'));
+      const entry = installed?.plugins?.['tenetx@tenetx-local'];
+      if (Array.isArray(entry) && entry.length > 0) {
+        const installPath = entry[0]?.installPath;
+        pluginRegistered = !!installPath && exists(installPath);
+      }
+    } catch { /* ignore */ }
+  }
+  check('tenetx plugin registered & installPath exists', pluginRegistered,
+    'Plugin registered but installPath missing on disk. Fix: npm run build && node scripts/postinstall.js');
   console.log();
 
   console.log('  [Directories]');

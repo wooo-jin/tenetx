@@ -1,11 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { ME_BEHAVIOR, ME_RULES, PACKS_DIR, projectDir } from './paths.js';
+import { ME_BEHAVIOR, ME_DIR, ME_RULES, PACKS_DIR, projectDir } from './paths.js';
 import { loadPackConfigs } from './pack-config.js';
 import type { HarnessContext } from './types.js';
 import { createLogger } from './logger.js';
 import { parseSolutionV3 } from '../engine/solution-format.js';
 import { containsPromptInjection } from '../hooks/prompt-injection-filter.js';
+import { RULE_FILE_CAPS, truncateContent } from '../hooks/shared/injection-caps.js';
 
 const log = createLogger('config-injector');
 /** 프로젝트 맵 타입 (engine/knowledge/types.ts 삭제 후 인라인) */
@@ -408,6 +409,26 @@ export function generateClaudeRuleFiles(context: HarnessContext): Record<string,
   const behavioral = generateBehavioralRules();
   if (behavioral) {
     rules['forge-behavioral.md'] = behavioral;
+  }
+
+  // USER.md → 사용자 프로필 주입 (항상 로드 — 개인화 컨텍스트)
+  const userMdPath = path.join(ME_DIR, 'USER.md');
+  try {
+    if (fs.existsSync(userMdPath) && !fs.lstatSync(userMdPath).isSymbolicLink()) {
+      const raw = fs.readFileSync(userMdPath, 'utf-8').trim();
+      if (raw.length > 0) {
+        const truncated = truncateContent(raw, RULE_FILE_CAPS.perRuleFile);
+        rules['user-profile.md'] = [
+          '# Tenetx — User Profile',
+          '# auto-injected from ~/.compound/me/USER.md',
+          '',
+          truncated,
+          '',
+        ].join('\n');
+      }
+    }
+  } catch (e) {
+    log.debug('USER.md 로드 실패', e);
   }
 
   return rules;

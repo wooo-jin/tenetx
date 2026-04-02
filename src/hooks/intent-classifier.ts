@@ -13,7 +13,7 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
 
-type Intent = 'implement' | 'debug' | 'refactor' | 'explain' | 'review' | 'explore' | 'design' | 'general';
+export type Intent = 'implement' | 'debug' | 'refactor' | 'explain' | 'review' | 'explore' | 'design' | 'general';
 
 interface HookInput {
   prompt: string;
@@ -47,7 +47,7 @@ const INTENT_HINTS: Record<Intent, string> = {
   general: 'General request.',
 };
 
-function classifyIntent(prompt: string): Intent {
+export function classifyIntent(prompt: string): Intent {
   for (const rule of INTENT_RULES) {
     if (rule.pattern.test(prompt)) {
       return rule.intent;

@@ -87,6 +87,12 @@ export interface ScopeInfo {
   summary: string;
 }
 
+/** 태스크 → 추천 모델 라우팅 테이블 */
+export interface ModelRoutingTable {
+  /** Task type → recommended model */
+  routes: Record<string, 'opus' | 'sonnet' | 'haiku'>;
+}
+
 export interface HarnessContext {
   philosophy: Philosophy;
   /** 철학 로드 소스: project(프로젝트별), global(글로벌), default(기본값) */

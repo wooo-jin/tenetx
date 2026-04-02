@@ -20,7 +20,7 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { truncateContent, INJECTION_CAPS } from './shared/injection-caps.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
-import { recordModeUsage } from '../engine/prompt-learner.js';
+import { recordModeUsage, recordPrompt } from '../engine/prompt-learner.js';
 import { loadPackConfigs } from '../core/pack-config.js';
 import { ALL_MODES, COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
@@ -334,6 +334,9 @@ async function main(): Promise<void> {
 
   const match = detectKeyword(input.prompt);
   const sessionId = input.session_id ?? 'unknown';
+
+  // Record prompt for pattern learning (keyword-detector always runs on UserPromptSubmit)
+  try { recordPrompt(input.prompt, sessionId); } catch (e) { log.debug('prompt 기록 실패', e); }
 
   if (!match) {
     console.log(approve());

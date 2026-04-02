@@ -15,5 +15,7 @@
   { "name": "permission-handler",     "tier": "workflow",      "event": "PermissionRequest",  "matcher": "*",          "script": "hooks/permission-handler.js",     "timeout": 2, "compoundCritical": false },
   { "name": "subagent-tracker-start", "tier": "workflow",      "event": "SubagentStart",      "matcher": "*",          "script": "hooks/subagent-tracker.js start", "timeout": 2, "compoundCritical": false },
   { "name": "subagent-tracker-stop",  "tier": "workflow",      "event": "SubagentStop",       "matcher": "*",          "script": "hooks/subagent-tracker.js stop",  "timeout": 2, "compoundCritical": false },
-  { "name": "post-tool-failure",      "tier": "workflow",      "event": "PostToolUseFailure", "matcher": "*",          "script": "hooks/post-tool-failure.js",      "timeout": 3, "compoundCritical": false }
+  { "name": "post-tool-failure",      "tier": "workflow",      "event": "PostToolUseFailure", "matcher": "*",          "script": "hooks/post-tool-failure.js",      "timeout": 3, "compoundCritical": false },
+  { "name": "solution-injector",     "tier": "compound-core", "event": "UserPromptSubmit",   "matcher": "*",          "script": "hooks/solution-injector.js",      "timeout": 5, "compoundCritical": true  },
+  { "name": "skill-injector",        "tier": "compound-core", "event": "UserPromptSubmit",   "matcher": "*",          "script": "hooks/skill-injector.js",         "timeout": 5, "compoundCritical": true  }
 ]
