@@ -61,7 +61,7 @@ const KNOWN_PLUGINS: Record<string, KnownPluginEntry> = {
       'refactor', 'security-review', 'git-master', 'migrate',
       'pipeline', 'ultrawork',
     ],
-    overlappingHooks: ['intent-classifier', 'keyword-detector', 'skill-injector'],
+    overlappingHooks: ['intent-classifier', 'keyword-detector'],
   },
   'claude-mem': {
     signatures: ['.claude-mem'],

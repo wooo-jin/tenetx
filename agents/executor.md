@@ -12,6 +12,9 @@ tools:
   - Bash
   - Glob
   - Grep
+memory: project
+mcpServers:
+  - tenetx-compound
 ---
 
 <Agent_Prompt>

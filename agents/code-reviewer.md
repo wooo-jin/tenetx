@@ -8,6 +8,9 @@ lane: review
 disallowedTools:
   - Write
   - Edit
+memory: project
+mcpServers:
+  - tenetx-compound
 ---
 
 <Agent_Prompt>

@@ -213,7 +213,6 @@ describe('plugin-detector', () => {
       const conflicts = getHookConflicts();
       expect(conflicts.get('intent-classifier')).toBe('oh-my-claudecode');
       expect(conflicts.get('keyword-detector')).toBe('oh-my-claudecode');
-      expect(conflicts.get('skill-injector')).toBe('oh-my-claudecode');
     });
   });
 });

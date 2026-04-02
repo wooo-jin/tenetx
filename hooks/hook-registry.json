@@ -1,5 +1,4 @@
 [
-  { "name": "solution-injector",      "tier": "compound-core", "event": "UserPromptSubmit",   "matcher": "*",          "script": "hooks/solution-injector.js",      "timeout": 3, "compoundCritical": true  },
   { "name": "notepad-injector",       "tier": "compound-core", "event": "UserPromptSubmit",   "matcher": "*",          "script": "hooks/notepad-injector.js",       "timeout": 3, "compoundCritical": false },
   { "name": "context-guard",          "tier": "compound-core", "event": "UserPromptSubmit",   "matcher": "*",          "script": "hooks/context-guard.js",          "timeout": 2, "compoundCritical": false },
   { "name": "session-recovery",       "tier": "compound-core", "event": "SessionStart",       "matcher": "*",          "script": "hooks/session-recovery.js",       "timeout": 3, "compoundCritical": true  },
@@ -13,7 +12,6 @@
   { "name": "rate-limiter",           "tier": "safety",        "event": "PreToolUse",         "matcher": "*",          "script": "hooks/rate-limiter.js",           "timeout": 2, "compoundCritical": false },
   { "name": "intent-classifier",      "tier": "workflow",      "event": "UserPromptSubmit",   "matcher": "*",          "script": "hooks/intent-classifier.js",      "timeout": 3, "compoundCritical": false },
   { "name": "keyword-detector",       "tier": "workflow",      "event": "UserPromptSubmit",   "matcher": "*",          "script": "hooks/keyword-detector.js",       "timeout": 5, "compoundCritical": false },
-  { "name": "skill-injector",         "tier": "workflow",      "event": "UserPromptSubmit",   "matcher": "*",          "script": "hooks/skill-injector.js",         "timeout": 3, "compoundCritical": false },
   { "name": "permission-handler",     "tier": "workflow",      "event": "PermissionRequest",  "matcher": "*",          "script": "hooks/permission-handler.js",     "timeout": 2, "compoundCritical": false },
   { "name": "subagent-tracker-start", "tier": "workflow",      "event": "SubagentStart",      "matcher": "*",          "script": "hooks/subagent-tracker.js start", "timeout": 2, "compoundCritical": false },
   { "name": "subagent-tracker-stop",  "tier": "workflow",      "event": "SubagentStop",       "matcher": "*",          "script": "hooks/subagent-tracker.js stop",  "timeout": 2, "compoundCritical": false },
