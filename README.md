@@ -111,6 +111,7 @@ tenetx inspect rules            # View active/suppressed rules
 tenetx inspect evidence         # View correction history
 tenetx inspect session          # View current session state
 tenetx compound                 # Manage accumulated knowledge
+tenetx compound --save          # Save auto-analyzed patterns
 tenetx skill promote <name>     # Promote solution to skill
 tenetx init                     # Initialize project
 tenetx doctor                   # System diagnostics

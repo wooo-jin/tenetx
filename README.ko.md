@@ -98,6 +98,7 @@ tenetx inspect rules            # 활성/비활성 규칙 확인
 tenetx inspect evidence         # 교정 기록 확인
 tenetx inspect session          # 현재 세션 상태 확인
 tenetx compound                 # 축적된 지식 관리
+tenetx compound --save          # 자동 분석된 패턴 저장
 tenetx skill promote <name>     # 솔루션을 스킬로 승격
 tenetx init                     # 프로젝트 초기화
 tenetx doctor                   # 시스템 진단
