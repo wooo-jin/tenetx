@@ -17,11 +17,11 @@ Hooks are organized into 3 tiers:
 
 ### solution-injector
 - **Event:** UserPromptSubmit | **Timeout:** 3s | **compoundCritical:** yes
-- Matches user prompt against accumulated solutions in `~/.compound/me/solutions/`. Injects matching solution summaries (Progressive Disclosure Tier 2). Full content available via `compound-read` MCP tool.
+- Matches user prompt against accumulated solutions in `~/.tenetx/me/solutions/`. Injects matching solution summaries (Progressive Disclosure Tier 2). Full content available via `compound-read` MCP tool. v5.1: compound-read 호출 시 `reflected += 1` 자동 기록.
 
 ### notepad-injector
 - **Event:** UserPromptSubmit | **Timeout:** 3s
-- Injects `~/.compound/notepad.md` content into every prompt if present.
+- Injects `~/.tenetx/notepad.md` content into every prompt if present.
 
 ### context-guard
 - **Event:** UserPromptSubmit | **Timeout:** 2s

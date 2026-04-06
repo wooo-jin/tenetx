@@ -4,7 +4,7 @@ Tenetx supports two paths for extracting solutions from coding sessions.
 
 ## Auto Extraction (SessionStart hook)
 
-**How it works**: When a new session starts, the `session-recovery.ts` hook checks for new git commits since last extraction. If found, `compound-extractor.ts` analyzes the diff through 4 quality gates and saves solutions as `experiment` status.
+**How it works**: When a new session starts, the `session-recovery.ts` hook detects the previous session (10+ messages). A detached `auto-compound-runner.ts` process sends the transcript summary to Claude (haiku model) for 3-stage extraction: solutions, behavioral patterns, and session learning. Solutions pass 3 quality gates (length, toxicity, tag overlap) before saving as `experiment` status.
 
 **Strengths**:
 - Zero effort — patterns are captured without manual action
