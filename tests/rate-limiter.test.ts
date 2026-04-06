@@ -17,7 +17,7 @@ import {
   saveRateLimitState,
 } from '../src/hooks/rate-limiter.js';
 
-const STATE_DIR = path.join(TEST_HOME, '.compound', 'state');
+const STATE_DIR = path.join(TEST_HOME, '.tenetx', 'state');
 
 describe('rate-limiter', () => {
   beforeEach(() => {

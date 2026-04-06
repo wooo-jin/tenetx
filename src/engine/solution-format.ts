@@ -225,10 +225,27 @@ const EN_STOPWORDS = new Set([
   'will', 'use', 'used', 'using', 'when', 'each', 'which', 'their',
   'also', 'into', 'more', 'some', 'than', 'other', 'should', 'would',
   'could', 'about', 'after', 'before', 'between', 'does', 'only',
+  'across', 'just', 'detected', 'based', 'sessions', 'prompts',
 ]);
 
+/** 한국어 일반 조사/어미 — strip 대상 (긴 것부터 매칭) */
+const KO_SUFFIXES = [
+  '했습니다', '있습니다', '합니다', '입니다', '됩니다',
+  '에서', '까지', '으로', '하는', '하고', '했다', '된다', '한다',
+  '을', '를', '이', '가', '은', '는', '의', '에', '와', '과', '도', '만', '로',
+];
+
+function stripKoSuffix(word: string): string {
+  for (const suffix of KO_SUFFIXES) {
+    if (word.endsWith(suffix) && word.length > suffix.length) {
+      return word.slice(0, -suffix.length);
+    }
+  }
+  return word;
+}
+
 /** 최대 태그 수 — Jaccard 분모 희석 방지 */
-const MAX_TAGS = 10;
+const MAX_TAGS = 8;
 
 /**
  * Extract tags from text.
@@ -246,8 +263,11 @@ export function extractTags(text: string): string[] {
 
   for (const w of words) {
     const isKorean = /[가-힣]/.test(w);
-    if (isKorean && w.length >= 2 && !KO_STOPWORDS.has(w)) {
-      freq.set(w, (freq.get(w) ?? 0) + 1);
+    if (isKorean && w.length >= 2) {
+      const stem = stripKoSuffix(w);
+      if (stem.length >= 2 && !KO_STOPWORDS.has(stem)) {
+        freq.set(stem, (freq.get(stem) ?? 0) + 1);
+      }
     } else if (!isKorean && w.length > 2 && !EN_STOPWORDS.has(w)) {
       freq.set(w, (freq.get(w) ?? 0) + 1);
     }

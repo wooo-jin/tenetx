@@ -44,9 +44,9 @@ if (!cwd || !transcriptPath || !sessionId) {
   process.exit(1);
 }
 
-const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const SOLUTIONS_DIR = path.join(COMPOUND_HOME, 'me', 'solutions');
-const BEHAVIOR_DIR = path.join(COMPOUND_HOME, 'me', 'behavior');
+const TENETX_HOME = path.join(os.homedir(), '.tenetx');
+const SOLUTIONS_DIR = path.join(TENETX_HOME, 'me', 'solutions');
+const BEHAVIOR_DIR = path.join(TENETX_HOME, 'me', 'behavior');
 
 /** Lightweight quality gate for auto-extracted solution files */
 /** Toxicity patterns — code-context only to avoid false positives on prose */
@@ -205,7 +205,7 @@ try {
 
   // 기존 솔루션 목록 (중복 방지)
   let existingList = '';
-  const solDir = path.join(COMPOUND_HOME, 'me', 'solutions');
+  const solDir = path.join(TENETX_HOME, 'me', 'solutions');
   if (fs.existsSync(solDir)) {
     const names = fs.readdirSync(solDir).filter(f => f.endsWith('.md')).map(f => f.replace('.md', '')).slice(-30);
     if (names.length > 0) existingList = `\n\n이미 축적된 솔루션 (중복 추출 금지):\n${names.join(', ')}`;
@@ -431,7 +431,7 @@ ${sanitizedSummary.slice(0, 4000)}
   }
 
   // 완료 기록
-  const statePath = path.join(COMPOUND_HOME, 'state', 'last-auto-compound.json');
+  const statePath = path.join(TENETX_HOME, 'state', 'last-auto-compound.json');
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
   fs.writeFileSync(statePath, JSON.stringify({ sessionId, completedAt: new Date().toISOString() }));
 } catch (e) {

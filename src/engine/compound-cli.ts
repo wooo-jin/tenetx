@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { parseFrontmatterOnly, parseSolutionV3 } from './solution-format.js';
+import { extractTags, parseFrontmatterOnly, parseSolutionV3, serializeSolutionV3 } from './solution-format.js';
 
 import { ME_SOLUTIONS, ME_RULES } from '../core/paths.js';
 
@@ -150,6 +150,38 @@ export function removeSolution(name: string): void {
   } catch (e) {
     console.log(`\n  Failed to remove: ${(e as Error).message}\n`);
   }
+}
+
+/** Retag all solutions using improved extractTags */
+export function retagSolutions(): void {
+  const entries = scanEntries().filter(e => e.category === 'solution');
+
+  if (entries.length === 0) {
+    console.log('\n  No solutions to retag.\n');
+    return;
+  }
+
+  let retagged = 0;
+  for (const entry of entries) {
+    try {
+      const content = fs.readFileSync(entry.filePath, 'utf-8');
+      const parsed = parseSolutionV3(content);
+      if (!parsed) continue;
+
+      const source = [parsed.context, parsed.content].filter(Boolean).join(' ');
+      const newTags = extractTags(source);
+      parsed.frontmatter.tags = newTags;
+
+      const tmpPath = entry.filePath + '.tmp';
+      fs.writeFileSync(tmpPath, serializeSolutionV3(parsed));
+      fs.renameSync(tmpPath, entry.filePath);
+      retagged++;
+    } catch {
+      console.log(`    Failed: ${entry.name}`);
+    }
+  }
+
+  console.log(`\n  Retagged ${retagged}/${entries.length} solutions.\n`);
 }
 
 /** Rollback auto-extracted solutions since a given date */

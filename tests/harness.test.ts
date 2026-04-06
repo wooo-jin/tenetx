@@ -21,7 +21,7 @@ const TEST_SETTINGS_PATH = path.join(TEST_CLAUDE_DIR, 'settings.json');
 const TEST_BACKUP_PATH = path.join(TEST_CLAUDE_DIR, 'settings.json.tenetx-backup');
 const TEST_LOCK_PATH = path.join(TEST_CLAUDE_DIR, 'settings.json.lock');
 const TEST_TENETX_HOME = path.join(TEST_HOME, '.tenetx');
-const TEST_COMPOUND_HOME = path.join(TEST_HOME, '.compound');
+const TEST_COMPOUND_HOME = path.join(TEST_HOME, '.tenetx');
 const TEST_CWD = path.join(TEST_HOME, 'test-project');
 
 describe('isFirstRun()', () => {

@@ -199,7 +199,7 @@ export function listSolutions(options?: ListOptions): SolutionSummary[] {
  * 이것이 hook injection(1500자 캡)과의 핵심 차이입니다.
  * Prompt injection 필터만 적용합니다.
  */
-export function readSolution(name: string, options?: { dirs?: SolutionDirConfig[] }): SolutionDetail | null {
+export function readSolution(name: string, options?: { dirs?: SolutionDirConfig[]; skipEvidence?: boolean }): SolutionDetail | null {
   const dirs = options?.dirs ?? defaultSolutionDirs();
 
   const index = getOrBuildIndex(dirs);
@@ -229,15 +229,18 @@ export function readSolution(name: string, options?: { dirs?: SolutionDirConfig[
   const contextFilter = filterSolutionContent(parsed.context);
   if (contextFilter.verdict === 'block') return null;
 
-  // Pull(MCP) 경로도 evidence에 기여 — sessions 카운트 증가
-  try {
-    parsed.frontmatter.evidence.sessions += 1;
-    parsed.frontmatter.updated = new Date().toISOString().split('T')[0];
-    const tmpPath = entry.filePath + '.tmp';
-    fs.writeFileSync(tmpPath, serializeSolutionV3(parsed));
-    fs.renameSync(tmpPath, entry.filePath);
-  } catch {
-    // evidence 업데이트 실패는 무시 — 읽기 결과는 정상 반환
+  // Pull(MCP) 경로: evidence에 기여 — sessions + reflected 카운트 증가
+  if (!options?.skipEvidence) {
+    try {
+      parsed.frontmatter.evidence.sessions += 1;
+      parsed.frontmatter.evidence.reflected += 1;
+      parsed.frontmatter.updated = new Date().toISOString().split('T')[0];
+      const tmpPath = entry.filePath + '.tmp';
+      fs.writeFileSync(tmpPath, serializeSolutionV3(parsed));
+      fs.renameSync(tmpPath, entry.filePath);
+    } catch {
+      // evidence 업데이트 실패는 무시 — 읽기 결과는 정상 반환
+    }
   }
 
   return {

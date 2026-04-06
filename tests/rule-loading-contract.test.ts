@@ -23,7 +23,7 @@ describe('rule loading contract', () => {
   });
 
   it('loads manual rule files from the content section instead of YAML frontmatter keys', async () => {
-    const rulesDir = path.join(TEST_HOME, '.compound', 'me', 'rules');
+    const rulesDir = path.join(TEST_HOME, '.tenetx', 'me', 'rules');
     fs.mkdirSync(rulesDir, { recursive: true });
     fs.writeFileSync(path.join(rulesDir, 'test-rule.md'), `---
 name: "test-rule"
@@ -62,7 +62,7 @@ Always run focused tests before editing shared code.
 
   it('loads team pack rule files with the same content-first contract', async () => {
     // v1: team scope 제거됨. me/rules만 로드되는 것을 확인.
-    const meRulesDir = path.join(TEST_HOME, '.compound', 'me', 'rules');
+    const meRulesDir = path.join(TEST_HOME, '.tenetx', 'me', 'rules');
     fs.mkdirSync(meRulesDir, { recursive: true });
     fs.writeFileSync(path.join(meRulesDir, 'review-rule.md'), `---
 name: "review-rule"

@@ -13,7 +13,7 @@ vi.mock('node:os', async (importOriginal) => {
 
 const COMMANDS_DIR = path.join(TEST_HOME, '.claude', 'commands', 'tenetx');
 const SETTINGS_PATH = path.join(TEST_HOME, '.claude', 'settings.json');
-const COMPOUND_HOME = path.join(TEST_HOME, '.compound');
+const COMPOUND_HOME = path.join(TEST_HOME, '.tenetx');
 const SKILLS_DIR = path.resolve(__dirname, '..', 'commands');
 
 function runPostinstall() {
@@ -199,7 +199,7 @@ describe('postinstall', () => {
   // ── Directory structure ──
 
   describe('directories', () => {
-    it('should create ~/.compound directory structure', () => {
+    it('should create ~/.tenetx directory structure', () => {
       runPostinstall();
 
       const expectedDirs = [

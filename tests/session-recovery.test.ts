@@ -18,7 +18,7 @@ import {
 } from '../src/hooks/session-recovery.js';
 import type { Checkpoint } from '../src/hooks/session-recovery.js';
 
-const STATE_DIR = path.join(TEST_HOME, '.compound', 'state');
+const STATE_DIR = path.join(TEST_HOME, '.tenetx', 'state');
 
 function makeCheckpoint(overrides?: Partial<Checkpoint>): Checkpoint {
   return {

@@ -109,7 +109,7 @@ describe('Level 1: Hook Protocol — hookEventName + additionalContext', () => {
 
   it('시나리오 3: solution-injector → additionalContext 경로 사용', async () => {
     // 테스트용 솔루션 준비
-    const solutionsDir = path.join(os.homedir(), '.compound', 'me', 'solutions');
+    const solutionsDir = path.join(os.homedir(), '.tenetx', 'me', 'solutions');
     const testSolution = path.join(solutionsDir, 'e2e-test-solution.md');
     const solutionExists = fs.existsSync(testSolution);
 
@@ -178,7 +178,7 @@ describe('Level 1: Hook Protocol — hookEventName + additionalContext', () => {
 
   it('시나리오 8: session-recovery → additionalContext + "SessionStart"', { timeout: 15_000 }, async () => {
     // 테스트용 모드 상태 파일 생성
-    const stateDir = path.join(os.homedir(), '.compound', 'state');
+    const stateDir = path.join(os.homedir(), '.tenetx', 'state');
     const testState = path.join(stateDir, 'ralph-state.json');
     const stateExists = fs.existsSync(testState);
 

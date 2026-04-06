@@ -87,7 +87,7 @@ describe('Chain 1: keyword-detector → recordPrompt', () => {
 
 describe('Chain 2: USER.md → .claude/rules/user-profile.md', () => {
   const testDir = path.join(os.tmpdir(), `tenetx-chain2-test-${process.pid}`);
-  const compoundMeDir = path.join(testDir, '.compound', 'me');
+  const compoundMeDir = path.join(testDir, '.tenetx', 'me');
   const userMdPath = path.join(compoundMeDir, 'USER.md');
 
   beforeAll(() => {
@@ -106,11 +106,11 @@ describe('Chain 2: USER.md → .claude/rules/user-profile.md', () => {
   });
 
   it('generateClaudeRuleFiles에 user-profile.md가 포함된다', async () => {
-    // ME_DIR이 실제 ~/.compound/me를 가리키므로 USER.md가 있어야 동작
+    // ME_DIR이 실제 ~/.tenetx/me를 가리키므로 USER.md가 있어야 동작
     // 여기서는 코드 경로가 존재하는지만 확인 (실제 주입은 prepareHarness에서)
     const { generateClaudeRuleFiles } = await import('../../src/core/config-injector.js');
     const files = generateClaudeRuleFiles(testDir);
-    // user-profile.md는 USER.md가 ~/.compound/me에 있을 때만 생성
+    // user-profile.md는 USER.md가 ~/.tenetx/me에 있을 때만 생성
     // 이 테스트에서는 실제 homedir의 USER.md 존재 여부에 따라 결과가 달라짐
     const keys = Object.keys(files);
     expect(keys).toContain('project-context.md'); // 통합 파일은 항상 존재

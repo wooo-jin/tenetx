@@ -14,7 +14,7 @@ vi.mock('node:os', async (importOriginal) => {
 import { startSessionLog } from '../src/core/session-logger.js';
 import type { HarnessContext } from '../src/core/types.js';
 
-const SESSIONS_DIR = path.join(TEST_HOME, '.compound', 'sessions');
+const SESSIONS_DIR = path.join(TEST_HOME, '.tenetx', 'sessions');
 
 function makeContext(overrides?: Partial<HarnessContext>): HarnessContext {
   return {

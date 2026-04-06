@@ -11,8 +11,8 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => TEST_HOME };
 });
 
-// legacy-detector uses FORGE_PROFILE = ~/.compound/me/forge-profile.json
-const ME_DIR = path.join(TEST_HOME, '.compound', 'me');
+// legacy-detector uses FORGE_PROFILE = ~/.tenetx/me/forge-profile.json
+const ME_DIR = path.join(TEST_HOME, '.tenetx', 'me');
 
 import { checkLegacyProfile, backupLegacyProfile, runLegacyCutover } from '../../src/core/legacy-detector.js';
 

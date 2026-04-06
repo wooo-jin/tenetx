@@ -17,20 +17,22 @@ vi.mock('node:os', async (importOriginal) => {
 vi.mock('../src/core/paths.js', () => {
   const p = require('node:path');
   const BASE = '/tmp/tenetx-test-lifecycle';
+  const TENETX_HOME = p.join(BASE, '.tenetx');
   const COMPOUND_HOME = p.join(BASE, '.compound');
-  const ME_DIR = p.join(COMPOUND_HOME, 'me');
+  const ME_DIR = p.join(TENETX_HOME, 'me');
   return {
     COMPOUND_HOME,
+    TENETX_HOME,
     ME_DIR,
     ME_SOLUTIONS: p.join(ME_DIR, 'solutions'),
     ME_RULES: p.join(ME_DIR, 'rules'),
     ME_PHILOSOPHY: p.join(ME_DIR, 'philosophy.json'),
-    PACKS_DIR: p.join(COMPOUND_HOME, 'packs'),
-    STATE_DIR: p.join(COMPOUND_HOME, 'state'),
-    SESSIONS_DIR: p.join(COMPOUND_HOME, 'sessions'),
-    GLOBAL_CONFIG: p.join(COMPOUND_HOME, 'config.json'),
-    LAB_DIR: p.join(COMPOUND_HOME, 'lab'),
-    LAB_EVENTS: p.join(COMPOUND_HOME, 'lab', 'events.jsonl'),
+    PACKS_DIR: p.join(TENETX_HOME, 'packs'),
+    STATE_DIR: p.join(TENETX_HOME, 'state'),
+    SESSIONS_DIR: p.join(TENETX_HOME, 'sessions'),
+    GLOBAL_CONFIG: p.join(TENETX_HOME, 'config.json'),
+    LAB_DIR: p.join(TENETX_HOME, 'lab'),
+    LAB_EVENTS: p.join(TENETX_HOME, 'lab', 'events.jsonl'),
     FORGE_PROFILE: p.join(ME_DIR, 'forge-profile.json'),
     ALL_MODES: ['ralph', 'autopilot', 'ultrawork', 'team', 'pipeline', 'ccg', 'ralplan', 'deep-interview', 'ecomode'],
     projectDir: (cwd: string) => p.join(cwd, '.compound'),
@@ -86,7 +88,7 @@ function makeFrontmatter(overrides: Partial<SolutionFrontmatter> = {}): Solution
   };
 }
 
-const SOLUTIONS_DIR = path.join(TEST_HOME, '.compound', 'me', 'solutions');
+const SOLUTIONS_DIR = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
 
 describe('compound-lifecycle', () => {
   beforeEach(() => {

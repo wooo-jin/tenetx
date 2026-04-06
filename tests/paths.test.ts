@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   COMPOUND_HOME,
+  TENETX_HOME,
   ME_DIR,
   ME_PHILOSOPHY,
   ME_SOLUTIONS,
@@ -20,45 +21,53 @@ import {
 const HOME = os.homedir();
 
 describe('paths', () => {
-  it('COMPOUND_HOME은 ~/.compound/', () => {
+  it('COMPOUND_HOME은 ~/.compound/ (레거시 호환)', () => {
     expect(COMPOUND_HOME).toBe(path.join(HOME, '.compound'));
   });
 
-  it('ME_DIR은 ~/.compound/me/', () => {
-    expect(ME_DIR).toBe(path.join(HOME, '.compound', 'me'));
+  it('TENETX_HOME은 ~/.tenetx/', () => {
+    expect(TENETX_HOME).toBe(path.join(HOME, '.tenetx'));
   });
 
-  it('ME_PHILOSOPHY은 ~/.compound/me/philosophy.json', () => {
+  it('ME_DIR은 ~/.tenetx/me/', () => {
+    expect(ME_DIR).toBe(path.join(HOME, '.tenetx', 'me'));
+  });
+
+  it('ME_PHILOSOPHY은 ~/.tenetx/me/philosophy.json', () => {
     expect(ME_PHILOSOPHY).toContain('philosophy.json');
-    expect(ME_PHILOSOPHY).toContain('.compound');
+    expect(ME_PHILOSOPHY).toContain('.tenetx');
   });
 
-  it('ME_SOLUTIONS은 ~/.compound/me/solutions/', () => {
+  it('ME_SOLUTIONS은 ~/.tenetx/me/solutions/', () => {
     expect(ME_SOLUTIONS).toContain('solutions');
+    expect(ME_SOLUTIONS).toContain('.tenetx');
   });
 
-  it('ME_BEHAVIOR은 ~/.compound/me/behavior/', () => {
+  it('ME_BEHAVIOR은 ~/.tenetx/me/behavior/', () => {
     expect(ME_BEHAVIOR).toContain('behavior');
+    expect(ME_BEHAVIOR).toContain('.tenetx');
   });
 
-  it('ME_RULES은 ~/.compound/me/rules/', () => {
+  it('ME_RULES은 ~/.tenetx/me/rules/', () => {
     expect(ME_RULES).toContain('rules');
+    expect(ME_RULES).toContain('.tenetx');
   });
 
-  it('PACKS_DIR은 ~/.compound/packs/', () => {
-    expect(PACKS_DIR).toBe(path.join(HOME, '.compound', 'packs'));
+  it('PACKS_DIR은 ~/.tenetx/packs/', () => {
+    expect(PACKS_DIR).toBe(path.join(HOME, '.tenetx', 'packs'));
   });
 
-  it('STATE_DIR은 ~/.compound/state/', () => {
-    expect(STATE_DIR).toBe(path.join(HOME, '.compound', 'state'));
+  it('STATE_DIR은 ~/.tenetx/state/', () => {
+    expect(STATE_DIR).toBe(path.join(HOME, '.tenetx', 'state'));
   });
 
-  it('SESSIONS_DIR은 ~/.compound/sessions/', () => {
-    expect(SESSIONS_DIR).toBe(path.join(HOME, '.compound', 'sessions'));
+  it('SESSIONS_DIR은 ~/.tenetx/sessions/', () => {
+    expect(SESSIONS_DIR).toBe(path.join(HOME, '.tenetx', 'sessions'));
   });
 
-  it('GLOBAL_CONFIG은 ~/.compound/config.json', () => {
+  it('GLOBAL_CONFIG은 ~/.tenetx/config.json', () => {
     expect(GLOBAL_CONFIG).toContain('config.json');
+    expect(GLOBAL_CONFIG).toContain('.tenetx');
   });
 
   it('ALL_MODES는 9개 모드를 포함', () => {
@@ -78,7 +87,7 @@ describe('paths', () => {
   });
 
   it('모든 경로가 절대 경로', () => {
-    const paths = [COMPOUND_HOME, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_BEHAVIOR, ME_RULES, PACKS_DIR, STATE_DIR, SESSIONS_DIR, GLOBAL_CONFIG];
+    const paths = [COMPOUND_HOME, TENETX_HOME, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_BEHAVIOR, ME_RULES, PACKS_DIR, STATE_DIR, SESSIONS_DIR, GLOBAL_CONFIG];
     for (const p of paths) {
       expect(path.isAbsolute(p)).toBe(true);
     }

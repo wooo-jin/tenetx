@@ -15,73 +15,73 @@ export const COMPOUND_HOME = path.join(HOME, '.compound');
 /** ~/.tenetx/ — v1 하네스 홈 디렉토리 */
 export const TENETX_HOME = path.join(HOME, '.tenetx');
 
-/** ~/.compound/me/ — 개인 공간 */
-export const ME_DIR = path.join(COMPOUND_HOME, 'me');
+/** ~/.tenetx/me/ — 개인 공간 (v5.1: ~/.compound/ → ~/.tenetx/ 통합) */
+export const ME_DIR = path.join(TENETX_HOME, 'me');
 
-/** ~/.compound/me/philosophy.json — 개인 철학 */
+/** ~/.tenetx/me/philosophy.json — 개인 철학 */
 export const ME_PHILOSOPHY = path.join(ME_DIR, 'philosophy.json');
 
-/** ~/.compound/me/solutions/ — 개인 솔루션 */
+/** ~/.tenetx/me/solutions/ — 개인 솔루션 */
 export const ME_SOLUTIONS = path.join(ME_DIR, 'solutions');
 
-/** ~/.compound/me/behavior/ — 개인 행동 패턴 */
+/** ~/.tenetx/me/behavior/ — 개인 행동 패턴 */
 export const ME_BEHAVIOR = path.join(ME_DIR, 'behavior');
 
-/** ~/.compound/me/rules/ — 개인 규칙 */
+/** ~/.tenetx/me/rules/ — 개인 규칙 */
 export const ME_RULES = path.join(ME_DIR, 'rules');
 
-/** ~/.compound/packs/ — 팀 팩 저장소 */
-export const PACKS_DIR = path.join(COMPOUND_HOME, 'packs');
+/** ~/.tenetx/packs/ — 팀 팩 저장소 */
+export const PACKS_DIR = path.join(TENETX_HOME, 'packs');
 
-/** ~/.compound/state/ — 상태 파일 디렉토리 */
-export const STATE_DIR = path.join(COMPOUND_HOME, 'state');
+/** ~/.tenetx/state/ — 상태 파일 디렉토리 */
+export const STATE_DIR = path.join(TENETX_HOME, 'state');
 
-/** ~/.compound/sessions/ — 세션 로그 */
-export const SESSIONS_DIR = path.join(COMPOUND_HOME, 'sessions');
+/** ~/.tenetx/sessions/ — 세션 로그 */
+export const SESSIONS_DIR = path.join(TENETX_HOME, 'sessions');
 
-/** ~/.compound/config.json — 글로벌 설정 */
-export const GLOBAL_CONFIG = path.join(COMPOUND_HOME, 'config.json');
+/** ~/.tenetx/config.json — 글로벌 설정 */
+export const GLOBAL_CONFIG = path.join(TENETX_HOME, 'config.json');
 
-/** ~/.compound/lab/ — Lab 적응형 최적화 엔진 데이터 */
-export const LAB_DIR = path.join(COMPOUND_HOME, 'lab');
+/** ~/.tenetx/lab/ — Lab 적응형 최적화 엔진 데이터 */
+export const LAB_DIR = path.join(TENETX_HOME, 'lab');
 
-/** ~/.compound/lab/events.jsonl — Lab 이벤트 로그 (JSONL) */
+/** ~/.tenetx/lab/events.jsonl — Lab 이벤트 로그 (JSONL) */
 export const LAB_EVENTS = path.join(LAB_DIR, 'events.jsonl');
 
-/** ~/.compound/me/forge-profile.json — 글로벌 Forge 프로필 */
+/** ~/.tenetx/me/forge-profile.json — 글로벌 Forge 프로필 */
 export const FORGE_PROFILE = path.join(ME_DIR, 'forge-profile.json');
 
-// ── v1 경로 ──
+// ── v1 호환 경로 (ME_*와 동일 — 점진 제거 예정) ──
 
-/** ~/.tenetx/me/ — v1 개인 공간 */
-export const V1_ME_DIR = path.join(TENETX_HOME, 'me');
+/** @deprecated use ME_DIR */
+export const V1_ME_DIR = ME_DIR;
 
-/** ~/.tenetx/me/forge-profile.json — v1 Profile */
-export const V1_PROFILE = path.join(V1_ME_DIR, 'forge-profile.json');
+/** @deprecated use FORGE_PROFILE */
+export const V1_PROFILE = FORGE_PROFILE;
 
-/** ~/.tenetx/me/rules/ — v1 Rule Store */
-export const V1_RULES_DIR = path.join(V1_ME_DIR, 'rules');
+/** @deprecated use ME_RULES */
+export const V1_RULES_DIR = ME_RULES;
 
-/** ~/.tenetx/me/behavior/ — v1 Evidence Store */
-export const V1_EVIDENCE_DIR = path.join(V1_ME_DIR, 'behavior');
+/** @deprecated use ME_BEHAVIOR */
+export const V1_EVIDENCE_DIR = ME_BEHAVIOR;
 
-/** ~/.tenetx/me/recommendations/ — v1 Pack Recommendation */
-export const V1_RECOMMENDATIONS_DIR = path.join(V1_ME_DIR, 'recommendations');
+/** ~/.tenetx/me/recommendations/ — Pack Recommendation */
+export const V1_RECOMMENDATIONS_DIR = path.join(ME_DIR, 'recommendations');
 
-/** ~/.tenetx/me/solutions/ — v1 Compound Knowledge */
-export const V1_SOLUTIONS_DIR = path.join(V1_ME_DIR, 'solutions');
+/** @deprecated use ME_SOLUTIONS */
+export const V1_SOLUTIONS_DIR = ME_SOLUTIONS;
 
-/** ~/.tenetx/state/ — v1 상태 디렉토리 */
-export const V1_STATE_DIR = path.join(TENETX_HOME, 'state');
+/** @deprecated use STATE_DIR */
+export const V1_STATE_DIR = STATE_DIR;
 
-/** ~/.tenetx/state/sessions/ — v1 Session Effective State */
-export const V1_SESSIONS_DIR = path.join(V1_STATE_DIR, 'sessions');
+/** ~/.tenetx/state/sessions/ — Session Effective State */
+export const V1_SESSIONS_DIR = path.join(STATE_DIR, 'sessions');
 
-/** ~/.tenetx/state/raw-logs/ — v1 Raw Log */
-export const V1_RAW_LOGS_DIR = path.join(V1_STATE_DIR, 'raw-logs');
+/** ~/.tenetx/state/raw-logs/ — Raw Log */
+export const V1_RAW_LOGS_DIR = path.join(STATE_DIR, 'raw-logs');
 
-/** ~/.tenetx/config.json — v1 글로벌 설정 */
-export const V1_GLOBAL_CONFIG = path.join(TENETX_HOME, 'config.json');
+/** @deprecated use GLOBAL_CONFIG */
+export const V1_GLOBAL_CONFIG = GLOBAL_CONFIG;
 
 // ── 레거시 ──
 

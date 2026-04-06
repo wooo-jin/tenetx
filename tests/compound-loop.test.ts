@@ -21,7 +21,7 @@ import {
 } from '../src/engine/compound-loop.js';
 import type { CompoundInsight } from '../src/engine/compound-loop.js';
 
-const COMPOUND_DIR = path.join(TEST_HOME, '.compound');
+const COMPOUND_DIR = path.join(TEST_HOME, '.tenetx');
 
 function makeInsight(overrides?: Partial<CompoundInsight>): CompoundInsight {
   return {

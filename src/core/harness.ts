@@ -126,7 +126,7 @@ function injectSettings(env: Record<string, string>, v1Result: V1BootstrapResult
     };
   }
 
-  // 기존 tenetx 훅 정리 (hooks.json 플러그인 시스템이 담당)
+  // tenetx 훅 주입: hooks.json → settings.json (CLAUDE_PLUGIN_ROOT 치환)
   const pkgRoot = getPackageRoot();
   const hooksConfig = (settings.hooks as Record<string, unknown[]>) ?? {};
 
@@ -143,6 +143,7 @@ function injectSettings(env: Record<string, string>, v1Result: V1BootstrapResult
     return false;
   }
 
+  // 기존 tenetx 훅 제거 (재주입 전 정리)
   for (const [event, entries] of Object.entries(hooksConfig)) {
     if (Array.isArray(entries)) {
       const filtered = entries.filter((h) => !isCHHook(h as Record<string, unknown>));
@@ -153,6 +154,28 @@ function injectSettings(env: Record<string, string>, v1Result: V1BootstrapResult
       }
     }
   }
+
+  // hooks.json에서 훅을 읽어 settings.json에 직접 주입
+  const hooksJsonPath = path.join(pkgRoot, 'hooks', 'hooks.json');
+  try {
+    if (fs.existsSync(hooksJsonPath)) {
+      const hooksJson = JSON.parse(fs.readFileSync(hooksJsonPath, 'utf-8'));
+      const hooksData = hooksJson.hooks as Record<string, unknown[]> | undefined;
+      if (hooksData) {
+        // ${CLAUDE_PLUGIN_ROOT} → 실제 패키지 루트 경로로 치환
+        const resolved = JSON.parse(
+          JSON.stringify(hooksData).replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, pkgRoot),
+        );
+        for (const [event, handlers] of Object.entries(resolved as Record<string, unknown[]>)) {
+          if (!hooksConfig[event]) hooksConfig[event] = [];
+          (hooksConfig[event] as unknown[]).push(...handlers);
+        }
+      }
+    }
+  } catch (e) {
+    log.debug('hooks.json 로드 실패', e);
+  }
+
   settings.hooks = Object.keys(hooksConfig).length > 0 ? hooksConfig : undefined;
   if (settings.hooks && Object.keys(settings.hooks as Record<string, unknown>).length === 0) {
     delete settings.hooks;
@@ -476,9 +499,65 @@ function ensureGitignore(cwd: string): void {
 
 // ── Main Harness ──
 
+/** ~/.compound/ → ~/.tenetx/ 스토리지 마이그레이션 (v5.1) */
+function migrateCompoundToTenetx(): void {
+  const home = os.homedir();
+  // 테스트 환경 감지: 실제 홈 디렉토리가 아닌 /tmp/ 등에서는 마이그레이션 스킵
+  if (home.startsWith('/tmp/') || home.includes('tenetx-test')) return;
+
+  const compoundHome = path.join(home, '.compound');
+  const tenetxHome = path.join(home, '.tenetx');
+
+  // 이미 symlink면 마이그레이션 완료 상태
+  try {
+    if (fs.lstatSync(compoundHome).isSymbolicLink()) return;
+  } catch { /* ~/.compound 없음 — 아래에서 symlink 생성 */ }
+
+  // ~/.compound/가 실제 디렉토리면 내용을 ~/.tenetx/로 복사
+  if (fs.existsSync(compoundHome) && fs.statSync(compoundHome).isDirectory()) {
+    fs.mkdirSync(tenetxHome, { recursive: true });
+
+    try {
+      const entries = fs.readdirSync(compoundHome, { withFileTypes: true });
+      for (const entry of entries) {
+        const src = path.join(compoundHome, entry.name);
+        const dest = path.join(tenetxHome, entry.name);
+        if (fs.existsSync(dest)) continue; // 이미 있으면 skip
+        if (entry.isDirectory()) {
+          fs.cpSync(src, dest, { recursive: true });
+        } else if (entry.isFile()) {
+          fs.copyFileSync(src, dest);
+        }
+      }
+    } catch (e) {
+      log.debug('migrateCompoundToTenetx: 파일 복사 중 오류', e);
+    }
+
+    // 원본 디렉토리를 백업 후 symlink로 교체
+    const backupPath = compoundHome + '.bak';
+    try {
+      if (!fs.existsSync(backupPath)) {
+        fs.renameSync(compoundHome, backupPath);
+        fs.symlinkSync(tenetxHome, compoundHome, 'dir');
+        log.debug('migrateCompoundToTenetx: ~/.compound → ~/.tenetx symlink 생성 완료');
+      }
+    } catch (e) {
+      log.debug('migrateCompoundToTenetx: symlink 생성 실패 — 기존 디렉토리 유지', e);
+    }
+  }
+
+  // ~/.compound가 없으면 바로 symlink 생성
+  if (!fs.existsSync(compoundHome)) {
+    try { fs.symlinkSync(tenetxHome, compoundHome, 'dir'); } catch { /* ignore */ }
+  }
+}
+
 /** 메인 하네스 준비 함수 (v1) */
 export async function prepareHarness(cwd: string): Promise<V1HarnessContext> {
   try {
+    // 0. 스토리지 마이그레이션 (v5.1: ~/.compound/ → ~/.tenetx/)
+    migrateCompoundToTenetx();
+
     // 1. 디렉토리 구조 보장
     ensureDirectories();
 

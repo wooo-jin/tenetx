@@ -110,28 +110,15 @@ describe('Claude Code compatibility', () => {
     }
   });
 
-  it('settings.json에 tenetx 훅이 주입되지 않는다 (플러그인 시스템 전환 후)', async () => {
+  it('settings.json에 tenetx 훅이 직접 주입된다 (v5.1: harness 직접 주입)', async () => {
     await prepareHarness(TEST_CWD);
 
     const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
-    // hooks 키가 없거나 비어 있어야 함 (이전 잔재 정리 후)
-    if (settings.hooks) {
-      // hooks가 있다면 tenetx 관련 훅은 없어야 함
-      for (const [, entries] of Object.entries(settings.hooks as Record<string, unknown[]>)) {
-        for (const entry of entries as Record<string, unknown>[]) {
-          const hooksList = entry.hooks as Array<Record<string, unknown>> | undefined;
-          if (Array.isArray(hooksList)) {
-            for (const hook of hooksList) {
-              const command = hook.command as string;
-              expect(
-                command.includes('dist/hooks/') && command.includes('tenetx'),
-                `tenetx hook should not be in settings.json: ${command}`,
-              ).toBe(false);
-            }
-          }
-        }
-      }
-    }
+    // hooks.json이 존재하면 hooks가 settings.json에 주입되어야 함
+    expect(settings.hooks).toBeDefined();
+    const allHooks = settings.hooks as Record<string, unknown[]>;
+    const eventCount = Object.keys(allHooks).length;
+    expect(eventCount).toBeGreaterThan(0);
   });
 
   // ── env vars 검증 ────────────────────────────────────────────────────────

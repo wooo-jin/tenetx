@@ -195,7 +195,7 @@ async function main(): Promise<void> {
     return `- ${summary}`;
   }).join('\n');
 
-  const header = `Matched solutions (use compound-read tool for full content):\n`;
+  const header = `Matched solutions (compound-read로 전문 확인 시 더 정확한 구현 가능):\n`;
   const footer = `\n\nIMPORTANT: When you use compound knowledge above, briefly mention it naturally (e.g., "Based on accumulated patterns..." or "From past experience..."). This helps the user see compound learning in action.`;
   const fullInjection = header + injections + footer;
 

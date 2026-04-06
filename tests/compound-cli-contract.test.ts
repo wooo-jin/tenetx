@@ -58,8 +58,8 @@ describe('compound CLI contract', () => {
   });
 
   it('lists saved entries with their category labels', async () => {
-    const solutionsDir = path.join(TEST_HOME, '.compound', 'me', 'solutions');
-    const rulesDir = path.join(TEST_HOME, '.compound', 'me', 'rules');
+    const solutionsDir = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
+    const rulesDir = path.join(TEST_HOME, '.tenetx', 'me', 'rules');
     fs.mkdirSync(solutionsDir, { recursive: true });
     fs.mkdirSync(rulesDir, { recursive: true });
     fs.writeFileSync(path.join(solutionsDir, 'solution.md'), makeEntry({
@@ -85,8 +85,8 @@ describe('compound CLI contract', () => {
   });
 
   it('rollback only removes solution entries and leaves rule entries intact', async () => {
-    const solutionsDir = path.join(TEST_HOME, '.compound', 'me', 'solutions');
-    const rulesDir = path.join(TEST_HOME, '.compound', 'me', 'rules');
+    const solutionsDir = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
+    const rulesDir = path.join(TEST_HOME, '.tenetx', 'me', 'rules');
     fs.mkdirSync(solutionsDir, { recursive: true });
     fs.mkdirSync(rulesDir, { recursive: true });
 

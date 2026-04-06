@@ -19,7 +19,7 @@ import type { SolutionV3 } from '../src/engine/solution-format.js';
 import { resetIndexCache } from '../src/engine/solution-index.js';
 import type { ScopeInfo } from '../src/core/types.js';
 
-const ME_SOLUTIONS = path.join(TEST_HOME, '.compound', 'me', 'solutions');
+const ME_SOLUTIONS = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
 
 /** Helper to create a v3 solution file */
 function writeSolution(dir: string, name: string, tags: string[], content = 'test content') {
@@ -80,7 +80,7 @@ describe('matchSolutions', () => {
   });
 
   it('팀 솔루션도 매칭한다', () => {
-    const teamPackDir = path.join(TEST_HOME, '.compound', 'packs', 'my-team', 'solutions');
+    const teamPackDir = path.join(TEST_HOME, '.tenetx', 'packs', 'my-team', 'solutions');
     writeSolution(teamPackDir, 'deploy-checklist', ['배포', '체크리스트', '확인', '사항']);
 
     const teamScope: ScopeInfo = {

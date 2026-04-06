@@ -95,7 +95,7 @@ const COMMANDS_DIR = join(HOME, '.claude', 'commands', 'tenetx');
 const CLAUDE_DIR = join(HOME, '.claude');
 const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
 const SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
-const COMPOUND_HOME = join(HOME, '.compound');
+const COMPOUND_HOME = join(HOME, '.tenetx');
 
 // ── 1. Ensure directories ──
 function ensureDirectories() {

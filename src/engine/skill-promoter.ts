@@ -1,7 +1,7 @@
 /**
  * Tenetx — Skill Promoter
  *
- * verified/mature 솔루션을 .compound/me/skills/ 스킬로 승격.
+ * verified/mature 솔루션을 .tenetx/me/skills/ 스킬로 승격.
  * 솔루션(선언적 지식) → 스킬(절차적 지식) 변환.
  */
 
@@ -13,9 +13,9 @@ import { createLogger } from '../core/logger.js';
 
 const log = createLogger('skill-promoter');
 
-const COMPOUND_HOME = path.join(os.homedir(), '.compound');
-const ME_SOLUTIONS = path.join(COMPOUND_HOME, 'me', 'solutions');
-const ME_SKILLS = path.join(COMPOUND_HOME, 'me', 'skills');
+const TENETX_HOME = path.join(os.homedir(), '.tenetx');
+const ME_SOLUTIONS = path.join(TENETX_HOME, 'me', 'solutions');
+const ME_SKILLS = path.join(TENETX_HOME, 'me', 'skills');
 // Claude Code가 자동 인식하는 글로벌 스킬 경로
 const CLAUDE_SKILLS = path.join(os.homedir(), '.claude', 'skills');
 

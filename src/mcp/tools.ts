@@ -67,7 +67,7 @@ export function registerTools(server: McpServer): void {
         let snippet = '';
         if (i < 5) {
           try {
-            const full = readSolution(r.name, { dirs: defaultSolutionDirs(getCwd()) });
+            const full = readSolution(r.name, { dirs: defaultSolutionDirs(getCwd()), skipEvidence: true });
             if (full?.content) {
               const firstLines = full.content
                 .split('\n')

@@ -12,8 +12,8 @@ vi.mock('node:os', async (importOriginal) => {
 });
 
 describe('generateClaudeRuleFiles behavioral loading', () => {
-  const behaviorDir = path.join(TEST_HOME, '.compound', 'me', 'behavior');
-  const solutionDir = path.join(TEST_HOME, '.compound', 'me', 'solutions');
+  const behaviorDir = path.join(TEST_HOME, '.tenetx', 'me', 'behavior');
+  const solutionDir = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
 
   beforeEach(() => {
     fs.rmSync(TEST_HOME, { recursive: true, force: true });

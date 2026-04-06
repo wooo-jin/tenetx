@@ -334,6 +334,13 @@ export async function handleCompound(args: string[]): Promise<void> {
     return;
   }
 
+  // --- retag command ---
+  if (args.includes('retag') || args.includes('--retag')) {
+    const { retagSolutions } = await import('./compound-cli.js');
+    retagSolutions();
+    return;
+  }
+
   // --- rollback command ---
   if (args.includes('rollback') || args.includes('--rollback')) {
     const sinceIdx = args.indexOf('--since');
@@ -417,8 +424,8 @@ export async function handleCompound(args: string[]): Promise<void> {
   const knownFlags = [
     '--solution', '--rule', '--convention', '--pattern', '--to', '--pause-auto', '--resume-auto',
     '--lifecycle', '--verify', '--save', '--interactive',
-    'list', 'inspect', 'remove', 'rollback', 'lifecycle',
-    '--list', '--inspect', '--remove', '--rollback', '--since', 'interactive',
+    'list', 'inspect', 'remove', 'rollback', 'retag', 'lifecycle',
+    '--list', '--inspect', '--remove', '--rollback', '--retag', '--since', 'interactive',
   ];
   const hasTypeFlag = knownFlags.some(f => args.includes(f));
 
