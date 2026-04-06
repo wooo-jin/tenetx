@@ -5,6 +5,35 @@ All notable changes to tenetx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-04-06
+
+### Fixed
+- **Reflection 메커니즘 수리**: compound-read MCP 호출 시 `reflected += 1` 기록 — lifecycle 프로모션 루프 해제 (injected 30회인데 reflected 0이던 문제 해결)
+- **훅 주입 누락 (W0)**: harness가 hooks.json을 settings.json에 직접 주입 — 플러그인 캐시 없이도 17개 훅 런타임 작동
+- **태그 노이즈**: 한국어 조사 strip (`stripKoSuffix`), 영어 스톱워드 6개 추가, MAX_TAGS 10→8
+
+### Added
+- `tenetx compound retag` CLI 서브커맨드 — 기존 솔루션 태그 일괄 재생성
+- `readSolution()` `skipEvidence` 옵션 — compound-search snippet에서 evidence 오염 방지
+- `migrateCompoundToTenetx()` — `~/.compound/` → `~/.tenetx/` 자동 마이그레이션 + symlink
+
+### Changed
+- 모든 `ME_*` 경로를 `~/.tenetx/` 기반으로 통합 (스토리지 이원화 해소)
+- `V1_*` 상수 deprecated 처리 (ME_*와 동일 경로)
+- 완료/폐기된 계획 21개를 `docs/history/`로 이관
+
+## [5.0.0] - 2026-04-03
+
+### Breaking Changes
+- v1 personalization engine: 4-axis profile (quality_safety, autonomy, judgment_philosophy, communication_style)
+- 60% 코드 제거 (pack, remix, dashboard, loops, constraints, knowledge 등)
+
+### Added
+- Evidence-based learning: correction-record MCP → facet delta → profile auto-update
+- Mismatch detection: rolling 3-session behavioral divergence alert
+- Starter solutions: 15개 Day 0 value pack + postinstall seed
+- Session store: SQLite FTS5 full-text session search
+
 ## [3.1.0] - 2026-04-01
 
 ### Added
