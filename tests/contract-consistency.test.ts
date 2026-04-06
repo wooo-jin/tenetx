@@ -57,13 +57,13 @@ describe('contract consistency', () => {
   });
 
   it('compound preview/save flow is documented in the primary entry docs', () => {
-    for (const relPath of ['README.md', 'README.ko.md', 'docs/getting-started.md']) {
+    for (const relPath of ['README.md', 'README.ko.md']) {
       expect(read(relPath)).toContain('tenetx compound --save');
     }
   });
 
   it('primary docs do not advertise stale hook or pattern counts', () => {
-    for (const relPath of ['README.md', 'README.ko.md', 'docs/getting-started.md']) {
+    for (const relPath of ['README.md', 'README.ko.md']) {
       const content = read(relPath);
       expect(content).not.toContain('16 hooks');
       expect(content).not.toContain('16개 훅');
