@@ -388,11 +388,13 @@ tenetx uninstall                # Remove tenetx cleanly
 |-- commands/tenetx/                 Slash commands (promoted skills)
 +-- .claude.json                     MCP server registration
 
-~/.compound/                         Legacy compound home (hooks/MCP still reference)
+~/.tenetx/                           Tenetx home (v5.1 unified storage)
 |-- me/
 |   |-- solutions/                   Accumulated compound knowledge
 |   |-- behavior/                    Behavioral patterns
-|   +-- skills/                      Promoted skills
+|   |-- rules/                       Personal correction rules
+|   +-- forge-profile.json           4-axis personalization profile
+|-- state/                           Session state, checkpoints
 +-- sessions.db                      SQLite session history (Node.js 22+)
 ```
 
@@ -461,6 +463,18 @@ Safety rules are **hard constraints** -- they cannot be overridden by pack selec
 ## Coexistence
 
 Tenetx detects other Claude Code plugins (oh-my-claudecode, superpowers, claude-mem) at install time and disables overlapping hooks. Core safety and compound hooks always remain active.
+
+See [Coexistence Guide](docs/guides/with-omc.md) for details.
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Hooks Reference](docs/reference/hooks-reference.md) | 19 hooks across 3 tiers — events, timeouts, behavior |
+| [Coexistence Guide](docs/guides/with-omc.md) | Using tenetx alongside oh-my-claudecode |
+| [CHANGELOG](CHANGELOG.md) | Version history and release notes |
 
 ---
 

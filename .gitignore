@@ -5,11 +5,12 @@ dist/
 # Career docs (private)
 .career-edit/
 
-# Internal docs
+# Internal docs (private — 경쟁 분석, 보안 상세, 내부 로드맵 포함)
 BENCHMARK.md
 CHECKLIST.md
 PLANS.md
 HARNESS.md
+docs/history/
 
 # Claude Code local config
 .claude/
