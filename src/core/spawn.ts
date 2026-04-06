@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { buildEnv } from './config-injector.js';
-import type { HarnessContext } from './types.js';
+import type { V1HarnessContext } from './harness.js';
 import { loadGlobalConfig } from './global-config.js';
 import { createLogger } from './logger.js';
 
@@ -66,9 +66,9 @@ async function indexTranscriptToFTS(cwd: string, transcriptPath: string, session
 }
 
 /** Claude Code를 하네스 환경으로 실행 */
-export async function spawnClaude(args: string[], context: HarnessContext): Promise<void> {
+export async function spawnClaude(args: string[], context: V1HarnessContext): Promise<void> {
   const claudePath = findClaude();
-  const env = buildEnv(context);
+  const env = buildEnv(context.cwd);
   const cleanArgs = [...args];
 
   // config.json에서 dangerouslySkipPermissions 기본값 적용

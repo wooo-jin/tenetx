@@ -9,8 +9,11 @@ export const CLAUDE_DIR = path.join(HOME, '.claude');
 /** ~/.claude/settings.json — Claude Code 설정 파일 */
 export const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
 
-/** ~/.compound/ — 하네스 홈 디렉토리 */
+/** ~/.compound/ — 레거시 하네스 홈 (v1 이전) */
 export const COMPOUND_HOME = path.join(HOME, '.compound');
+
+/** ~/.tenetx/ — v1 하네스 홈 디렉토리 */
+export const TENETX_HOME = path.join(HOME, '.tenetx');
 
 /** ~/.compound/me/ — 개인 공간 */
 export const ME_DIR = path.join(COMPOUND_HOME, 'me');
@@ -47,6 +50,40 @@ export const LAB_EVENTS = path.join(LAB_DIR, 'events.jsonl');
 
 /** ~/.compound/me/forge-profile.json — 글로벌 Forge 프로필 */
 export const FORGE_PROFILE = path.join(ME_DIR, 'forge-profile.json');
+
+// ── v1 경로 ──
+
+/** ~/.tenetx/me/ — v1 개인 공간 */
+export const V1_ME_DIR = path.join(TENETX_HOME, 'me');
+
+/** ~/.tenetx/me/forge-profile.json — v1 Profile */
+export const V1_PROFILE = path.join(V1_ME_DIR, 'forge-profile.json');
+
+/** ~/.tenetx/me/rules/ — v1 Rule Store */
+export const V1_RULES_DIR = path.join(V1_ME_DIR, 'rules');
+
+/** ~/.tenetx/me/behavior/ — v1 Evidence Store */
+export const V1_EVIDENCE_DIR = path.join(V1_ME_DIR, 'behavior');
+
+/** ~/.tenetx/me/recommendations/ — v1 Pack Recommendation */
+export const V1_RECOMMENDATIONS_DIR = path.join(V1_ME_DIR, 'recommendations');
+
+/** ~/.tenetx/me/solutions/ — v1 Compound Knowledge */
+export const V1_SOLUTIONS_DIR = path.join(V1_ME_DIR, 'solutions');
+
+/** ~/.tenetx/state/ — v1 상태 디렉토리 */
+export const V1_STATE_DIR = path.join(TENETX_HOME, 'state');
+
+/** ~/.tenetx/state/sessions/ — v1 Session Effective State */
+export const V1_SESSIONS_DIR = path.join(V1_STATE_DIR, 'sessions');
+
+/** ~/.tenetx/state/raw-logs/ — v1 Raw Log */
+export const V1_RAW_LOGS_DIR = path.join(V1_STATE_DIR, 'raw-logs');
+
+/** ~/.tenetx/config.json — v1 글로벌 설정 */
+export const V1_GLOBAL_CONFIG = path.join(TENETX_HOME, 'config.json');
+
+// ── 레거시 ──
 
 /** 모든 실행 모드 이름 (cancel/recovery 시 사용) */
 export const ALL_MODES = [

@@ -365,40 +365,7 @@ async function main(): Promise<void> {
     }
   } catch (e) { log.debug('이전 세션 auto-compound 체크 실패', e); }
 
-  // Compound v3: Detect preference patterns → 사용자에게 피드백
-  try {
-    const { detectPreferencePatterns } = await import('../engine/prompt-learner.js');
-    const patterns = detectPreferencePatterns(sessionId);
-    if (patterns.created.length > 0) {
-      recoveryMessages.push(
-        `[tenetx] 새로 학습됨: ${patterns.created.join(', ')}`,
-      );
-    }
-    if (patterns.detected.length > 0 && patterns.created.length === 0) {
-      // 새로 생성된 건 없지만 감지된 패턴이 있으면 간략히 표시
-      recoveryMessages.push(
-        `[tenetx] 학습된 패턴 ${patterns.detected.length}개 활성 중`,
-      );
-    }
-  } catch (e) { log.debug('preference pattern detection 실패', e); }
-
-  // Compound v3: Detect content patterns from write history
-  try {
-    const { detectContentPatterns } = await import('../engine/prompt-learner.js');
-    const contentPatterns = detectContentPatterns(sessionId);
-    if (contentPatterns.created.length > 0) {
-      recoveryMessages.push(`[tenetx] 콘텐츠 패턴 학습: ${contentPatterns.created.join(', ')}`);
-    }
-  } catch (e) { log.debug('content pattern detection 실패', e); }
-
-  // Compound v3: Detect workflow patterns from mode usage
-  try {
-    const { detectWorkflowPatterns } = await import('../engine/prompt-learner.js');
-    const workflowPatterns = detectWorkflowPatterns(sessionId);
-    if (workflowPatterns.created.length > 0) {
-      recoveryMessages.push(`[tenetx] 워크플로우 패턴 학습: ${workflowPatterns.created.join(', ')}`);
-    }
-  } catch (e) { log.debug('workflow pattern detection 실패', e); }
+  // v1: regex 기반 패턴 학습(prompt-learner) 제거. Evidence 기반으로 전환됨.
 
   // Compound v3: Run lifecycle check once per day
   try {

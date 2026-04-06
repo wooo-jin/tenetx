@@ -136,13 +136,12 @@ describe('Claude Code compatibility', () => {
 
   // ── env vars 검증 ────────────────────────────────────────────────────────
 
-  it('COMPOUND_PHILOSOPHY_SOURCE env var가 settings.json에 존재한다', async () => {
+  it('TENETX_V1 env var가 settings.json에 존재한다', async () => {
     await prepareHarness(TEST_CWD);
 
     const settings = JSON.parse(fs.readFileSync(TEST_SETTINGS_PATH, 'utf-8'));
     expect(settings.env).toBeDefined();
-    expect(settings.env.COMPOUND_PHILOSOPHY_SOURCE).toBeDefined();
-    expect(['project', 'global', 'default']).toContain(settings.env.COMPOUND_PHILOSOPHY_SOURCE);
+    expect(settings.env.TENETX_V1).toBe('1');
   });
 
   // ── statusLine 검증 ──────────────────────────────────────────────────────

@@ -123,39 +123,9 @@ export async function runDoctor(): Promise<void> {
 
   console.log();
 
+  // v1: 팀 팩 시스템 제거. 개인 모드만 지원.
   console.log('  [Pack Connections]');
-  try {
-    const { loadPackConfigs, packConfigPath } = await import('./pack-config.js');
-    const packPath = packConfigPath(process.cwd());
-    if (exists(packPath)) {
-      // 구 형식 감지: packs 배열이 아닌 단일 객체
-      const raw = JSON.parse(fs.readFileSync(packPath, 'utf-8'));
-      const isLegacy = !Array.isArray(raw.packs) && raw.type && raw.name;
-      if (isLegacy) {
-        check('pack.json format', false, 'Legacy format detected. Auto-migrate: tenetx doctor --migrate-packs');
-        // --migrate-packs 플래그 처리
-        if (process.argv.includes('--migrate-packs')) {
-          const packs = loadPackConfigs(process.cwd()); // 내부에서 자동 래핑
-          const { savePackConfigs } = await import('./pack-config.js');
-          savePackConfigs(process.cwd(), packs);
-          console.log(`    → Migration complete: ${packs.length} packs converted to new format`);
-        }
-      } else {
-        check('pack.json format', true);
-      }
-      const packs = loadPackConfigs(process.cwd());
-      console.log(`  Connected packs: ${packs.length}`);
-      for (const p of packs) {
-        const detail = p.type === 'github' ? p.repo : p.type;
-        console.log(`    • ${p.name} (${detail})`);
-      }
-
-    } else {
-      console.log('  No packs connected (personal mode)');
-    }
-  } catch {
-    console.log('  (Failed to check pack config)');
-  }
+  console.log('  v1: Personal mode only (team packs removed)');
   console.log();
 
   // Lab 데이터 정리

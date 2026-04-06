@@ -6,146 +6,62 @@ import {
   generateClaudeRules,
   generateClaudeRuleFiles,
   generateSecurityRules,
-  generateGoldenPrinciples,
   generateAntiPatternRules,
-  generateRoutingRules,
   generateCompoundRules,
   buildEnv,
 } from '../src/core/config-injector.js';
-import type { HarnessContext } from '../src/core/types.js';
 
-const baseContext: HarnessContext = {
-  philosophy: {
-    name: 'test-philosophy',
-    version: '1.2.3',
-    author: 'tester',
-    principles: {
-      'be-precise': {
-        belief: 'precision prevents mistakes',
-        generates: ['always verify before acting'],
-      },
-    },
-  },
-  scope: {
-    me: { philosophyPath: '/tmp/test', solutionCount: 2, ruleCount: 1 },
-    project: { path: '/tmp/project', solutionCount: 0 },
-    summary: 'me:2s/1r, project:0s',
-  },
-  cwd: '/tmp/project',
-  inTmux: false,
-  philosophySource: 'global',
-};
-
-const contextWithTeam: HarnessContext = {
-  ...baseContext,
-  scope: {
-    ...baseContext.scope,
-    team: {
-      name: 'alpha-pack',
-      version: '0.9.0',
-      packPath: '/tmp/packs/alpha-pack',
-      solutionCount: 5,
-      ruleCount: 3,
-      syncStatus: 'synced',
-    },
-    summary: 'me:2s/1r, team:alpha-pack, project:0s',
-  },
-};
-
-const contextWithRouting: HarnessContext = {
-  ...baseContext,
-  modelRouting: {
-    'claude-opus-4-6': ['핵심 구현', '아키텍처 설계'],
-    'claude-sonnet-4-6': ['탐색', '분석'],
-  },
-};
-
-describe('generateClaudeRules', () => {
-  it('철학 이름과 버전을 포함한다', () => {
-    const result = generateClaudeRules(baseContext);
-    expect(result).toContain('test-philosophy');
-    expect(result).toContain('1.2.3');
-  });
-
-  it('원칙의 belief를 포함한다', () => {
-    const result = generateClaudeRules(baseContext);
-    expect(result).toContain('precision prevents mistakes');
-  });
-
-  it('modelRouting이 있으면 모델 라우팅 섹션을 포함한다', () => {
-    const result = generateClaudeRules(contextWithRouting);
-    expect(result).toContain('Agent Model Routing');
-    expect(result).toContain('claude-opus-4-6');
-    expect(result).toContain('핵심 구현');
-  });
-
-  it('modelRouting이 없으면 라우팅 섹션이 없다', () => {
-    const result = generateClaudeRules(baseContext);
-    expect(result).not.toContain('Agent Model Routing');
-  });
-
-  it('team이 있으면 팩 섹션을 포함한다', () => {
-    const result = generateClaudeRules(contextWithTeam);
-    expect(result).toContain('Pack: alpha-pack');
-    expect(result).toContain('5 solutions');
-    expect(result).toContain('3 rules');
+describe('generateSecurityRules', () => {
+  it('보안 관련 키워드를 포함한다', () => {
+    const result = generateSecurityRules();
+    expect(result).toContain('Security Rules');
+    expect(result).toContain('Dangerous Command');
+    expect(result).toContain('Secret Key Protection');
   });
 });
 
-describe('buildEnv', () => {
-  it('COMPOUND_HARNESS가 1이다', () => {
-    const env = buildEnv(baseContext);
-    expect(env['COMPOUND_HARNESS']).toBe('1');
+describe('generateAntiPatternRules', () => {
+  it('안티패턴 관련 규칙을 포함한다', () => {
+    const result = generateAntiPatternRules();
+    expect(result).toContain('Anti-Pattern Detection');
+    expect(result).toContain('Repeated Edit Warning');
+    expect(result).toContain('Error Suppression Warning');
+  });
+});
+
+describe('generateCompoundRules', () => {
+  it('Compound Loop 헤더를 포함한다', () => {
+    const result = generateCompoundRules('/tmp/nonexistent');
+    expect(result).toContain('Compound Loop');
+  });
+});
+
+describe('generateClaudeRuleFiles', () => {
+  it('project-context.md를 포함한다', () => {
+    const files = generateClaudeRuleFiles('/tmp/nonexistent');
+    expect(Object.keys(files)).toContain('project-context.md');
   });
 
-  it('COMPOUND_PHILOSOPHY에 철학 이름이 설정된다', () => {
-    const env = buildEnv(baseContext);
-    expect(env['COMPOUND_PHILOSOPHY']).toBe('test-philosophy');
+  it('project-context.md에 Security와 Anti-Pattern이 포함된다', () => {
+    const files = generateClaudeRuleFiles('/tmp/nonexistent');
+    const content = files['project-context.md'];
+    expect(content).toContain('Security');
+    expect(content).toContain('Anti-Pattern');
   });
 
-  it('COMPOUND_SCOPE에 scope 요약이 설정된다', () => {
-    const env = buildEnv(baseContext);
-    expect(env['COMPOUND_SCOPE']).toBe('me:2s/1r, project:0s');
-  });
-
-  it('team이 있으면 COMPOUND_PACK에 팀 이름이 설정된다', () => {
-    const env = buildEnv(contextWithTeam);
-    expect(env['COMPOUND_PACK']).toBe('alpha-pack');
-  });
-
-  it('team이 없으면 COMPOUND_PACK이 없다', () => {
-    const env = buildEnv(baseContext);
-    expect(env['COMPOUND_PACK']).toBeUndefined();
-  });
-
-  it('modelRouting이 있으면 COMPOUND_MODEL_ROUTING에 JSON 직렬화된다', () => {
-    const env = buildEnv(contextWithRouting);
-    expect(env['COMPOUND_MODEL_ROUTING']).toBeDefined();
-    const parsed = JSON.parse(env['COMPOUND_MODEL_ROUTING']!);
-    expect(parsed['claude-opus-4-6']).toContain('핵심 구현');
-  });
-
-  it('프로젝트 맵이 있으면 COMPOUND_PROJECT_MAP 환경변수 설정', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tenetx-env-'));
-    try {
-      const compoundDir = path.join(tmpDir, '.compound');
-      fs.mkdirSync(compoundDir, { recursive: true });
-      fs.writeFileSync(path.join(compoundDir, 'project-map.json'), JSON.stringify({
-        generatedAt: new Date().toISOString(),
-        summary: { name: 'test', totalFiles: 1, totalLines: 10, languages: {} },
-      }));
-
-      const ctx: HarnessContext = { ...baseContext, cwd: tmpDir };
-      const env = buildEnv(ctx);
-      expect(env['COMPOUND_PROJECT_MAP']).toContain('project-map.json');
-    } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+  it('모든 파일이 비어있지 않다', () => {
+    const files = generateClaudeRuleFiles('/tmp/nonexistent');
+    for (const [name, content] of Object.entries(files)) {
+      expect(content.length, `${name} should not be empty`).toBeGreaterThan(0);
     }
   });
+});
 
-  it('프로젝트 맵이 없으면 COMPOUND_PROJECT_MAP 미설정', () => {
-    const env = buildEnv(baseContext);
-    expect(env['COMPOUND_PROJECT_MAP']).toBeUndefined();
+describe('generateClaudeRules', () => {
+  it('Security와 Anti-Pattern을 포함한다', () => {
+    const result = generateClaudeRules('/tmp/nonexistent');
+    expect(result).toContain('Security');
+    expect(result).toContain('Anti-Pattern');
   });
 });
 
@@ -169,135 +85,35 @@ describe('generateClaudeRules — 프로젝트 맵 주입', () => {
         },
         directories: [
           { path: 'src', type: 'directory', purpose: '소스 코드', fileCount: 30, children: [] },
-          { path: 'tests', type: 'directory', purpose: '테스트', fileCount: 10, children: [] },
         ],
         files: [],
         entryPoints: ['src/index.ts'],
         dependencies: [],
       }));
 
-      const ctx: HarnessContext = { ...baseContext, cwd: tmpDir };
-      const rules = generateClaudeRules(ctx);
+      const rules = generateClaudeRules(tmpDir);
       expect(rules).toContain('Project Structure');
       expect(rules).toContain('my-app');
       expect(rules).toContain('React');
-      expect(rules).toContain('src/index.ts');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 });
 
-describe('generateClaudeRuleFiles — 분할 + 조건부 로딩', () => {
-  it('규칙 파일을 생성한다 (핵심 2개 + 조건부 3개 + 학습 패턴)', () => {
-    const files = generateClaudeRuleFiles(baseContext);
-    const keys = Object.keys(files);
-    expect(keys.length).toBeGreaterThanOrEqual(5);
-    // 항상 로드
-    expect(keys).toContain('golden-principles.md');
-    expect(keys).toContain('compound.md');
-    // 조건부 로드 (paths frontmatter 포함)
-    expect(keys).toContain('security.md');
-    expect(keys).toContain('anti-pattern.md');
-    expect(keys).toContain('routing.md');
+describe('buildEnv', () => {
+  it('COMPOUND_HARNESS가 1이다', () => {
+    const env = buildEnv('/tmp/test');
+    expect(env['COMPOUND_HARNESS']).toBe('1');
   });
 
-  it('조건부 파일에 paths frontmatter가 포함된다', () => {
-    const files = generateClaudeRuleFiles(baseContext);
-    expect(files['security.md']).toContain('paths:');
-    expect(files['anti-pattern.md']).toContain('paths:');
-    expect(files['routing.md']).toContain('paths:');
-    // 항상 로드 파일에는 paths 없음
-    expect(files['golden-principles.md']).not.toContain('paths:');
-    expect(files['compound.md']).not.toContain('paths:');
+  it('TENETX_V1이 1이다', () => {
+    const env = buildEnv('/tmp/test');
+    expect(env['TENETX_V1']).toBe('1');
   });
 
-  it('모든 파일이 비어있지 않다', () => {
-    const files = generateClaudeRuleFiles(baseContext);
-    for (const [name, content] of Object.entries(files)) {
-      expect(content.length, `${name} should not be empty`).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe('generateSecurityRules', () => {
-  it('보안 관련 키워드를 포함한다', () => {
-    const result = generateSecurityRules(baseContext);
-    expect(result).toContain('Security Rules');
-    expect(result).toContain('Dangerous Command');
-    expect(result).toContain('Secret Key Protection');
-  });
-
-  it('철학에 alert가 있으면 보안 알림 섹션을 포함한다', () => {
-    const ctx: HarnessContext = {
-      ...baseContext,
-      philosophy: {
-        ...baseContext.philosophy,
-        principles: {
-          'safety-first': {
-            belief: 'safety is paramount',
-            generates: [
-              { alert: '위험한 명령어 감지됨' },
-              'normal rule',
-            ],
-          },
-        },
-      },
-    };
-    const result = generateSecurityRules(ctx);
-    expect(result).toContain('위험한 명령어 감지됨');
-  });
-});
-
-describe('generateGoldenPrinciples', () => {
-  it('철학 원칙의 belief를 포함한다', () => {
-    const result = generateGoldenPrinciples(baseContext);
-    expect(result).toContain('Core Principles');
-    expect(result).toContain('precision prevents mistakes');
-    expect(result).toContain('always verify before acting');
-  });
-});
-
-describe('generateAntiPatternRules', () => {
-  it('안티패턴 관련 규칙을 포함한다', () => {
-    const result = generateAntiPatternRules();
-    expect(result).toContain('Anti-Pattern Detection');
-    expect(result).toContain('Repeated Edit Warning');
-    expect(result).toContain('Error Suppression Warning');
-  });
-});
-
-describe('generateRoutingRules', () => {
-  it('라우팅이 있으면 모델 라우팅 테이블을 포함한다', () => {
-    const result = generateRoutingRules(contextWithRouting);
-    expect(result).toContain('Agent Model Routing');
-    expect(result).toContain('claude-opus-4-6');
-  });
-
-  it('라우팅이 없으면 미설정 메시지를 표시한다', () => {
-    const result = generateRoutingRules(baseContext);
-    expect(result).toContain('Model routing not configured');
-  });
-
-  it('signalRoutingEnabled가 true이면 에스컬레이션 섹션을 포함한다', () => {
-    const ctx: HarnessContext = {
-      ...contextWithRouting,
-      signalRoutingEnabled: true,
-    };
-    const result = generateRoutingRules(ctx);
-    expect(result).toContain('Dynamic Model Escalation');
-  });
-});
-
-describe('generateCompoundRules', () => {
-  it('Compound Loop 헤더를 포함한다', () => {
-    const result = generateCompoundRules(baseContext);
-    expect(result).toContain('Compound Loop');
-  });
-
-  it('team이 있으면 팩 정보를 포함한다', () => {
-    const result = generateCompoundRules(contextWithTeam);
-    expect(result).toContain('Pack: alpha-pack');
-    expect(result).toContain('5 solutions');
+  it('COMPOUND_CWD에 경로가 설정된다', () => {
+    const env = buildEnv('/tmp/test');
+    expect(env['COMPOUND_CWD']).toBe('/tmp/test');
   });
 });

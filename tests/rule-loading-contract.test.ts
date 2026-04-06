@@ -11,22 +11,6 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => TEST_HOME };
 });
 
-const baseContext = {
-  philosophy: {
-    name: 'test-philosophy',
-    version: '1.0.0',
-    author: 'tester',
-    principles: {},
-  },
-  scope: {
-    me: { philosophyPath: '/tmp/test', solutionCount: 0, ruleCount: 0 },
-    project: { path: '/tmp/project', solutionCount: 0 },
-    summary: 'me:0s/0r, project:0s',
-  },
-  cwd: '/tmp/project',
-  inTmux: false,
-  philosophySource: 'global' as const,
-};
 
 describe('rule loading contract', () => {
   beforeEach(() => {
@@ -70,22 +54,23 @@ Always run focused tests before editing shared code.
 `);
 
     const { generateCompoundRules } = await import('../src/core/config-injector.js');
-    const rules = generateCompoundRules(baseContext);
+    const rules = generateCompoundRules('/tmp/project');
 
     expect(rules).toContain('Always run focused tests before editing shared code.');
     expect(rules).not.toContain('name: "test-rule"');
   });
 
   it('loads team pack rule files with the same content-first contract', async () => {
-    const packRulesDir = path.join(TEST_HOME, '.compound', 'packs', 'alpha-pack', 'rules');
-    fs.mkdirSync(packRulesDir, { recursive: true });
-    fs.writeFileSync(path.join(packRulesDir, 'review-rule.md'), `---
+    // v1: team scope 제거됨. me/rules만 로드되는 것을 확인.
+    const meRulesDir = path.join(TEST_HOME, '.compound', 'me', 'rules');
+    fs.mkdirSync(meRulesDir, { recursive: true });
+    fs.writeFileSync(path.join(meRulesDir, 'review-rule.md'), `---
 name: "review-rule"
 version: 1
 status: "candidate"
 confidence: 0.5
 type: "decision"
-scope: "team"
+scope: "me"
 tags: ["review"]
 identifiers: []
 evidence:
@@ -101,28 +86,14 @@ extractedBy: "manual"
 ---
 
 ## Context
-Team review convention
+Review convention
 
 ## Content
 Require one reviewer who did not author the touched module.
 `);
 
     const { generateCompoundRules } = await import('../src/core/config-injector.js');
-    const rules = generateCompoundRules({
-      ...baseContext,
-      scope: {
-        ...baseContext.scope,
-        team: {
-          name: 'alpha-pack',
-          version: '1.0.0',
-          packPath: '/tmp/packs/alpha-pack',
-          solutionCount: 0,
-          ruleCount: 1,
-          syncStatus: 'synced' as const,
-        },
-        summary: 'me:0s/0r, team:alpha-pack, project:0s',
-      },
-    });
+    const rules = generateCompoundRules('/tmp/project');
 
     expect(rules).toContain('Require one reviewer who did not author the touched module.');
     expect(rules).not.toContain('name: "review-rule"');

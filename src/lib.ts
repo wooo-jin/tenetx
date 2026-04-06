@@ -14,9 +14,12 @@ export type {
   ScopeInfo,
 } from './core/types.js';
 
-// ── Forge (profiling) ──
-export { DIMENSION_META, CORE_DIMENSIONS, defaultDimensionVector, clampDimension, applyDeltas, dimensionDistance, dimensionLabel } from './forge/dimensions.js';
-export type { CoreDimension, DimensionVector, DimensionMeta, ForgeProfile, DerivedConfig, AgentOverlay, SkillOverlay, HookTuning } from './forge/types.js';
+// ── v1 Store types ──
+export type {
+  Profile, Rule, Evidence, PackRecommendation, SessionEffectiveState,
+  QualityPack, AutonomyPack, JudgmentPack, CommunicationPack, TrustPolicy,
+  QualityFacets, AutonomyFacets, JudgmentFacets, CommunicationFacets,
+} from './store/types.js';
 
 // ── Hooks (utilities) ──
 export {
@@ -31,8 +34,9 @@ export type {
   ScanResult,
 } from './hooks/prompt-injection-filter.js';
 
-// ── Core utilities ──
-export { loadPhilosophy } from './core/philosophy-loader.js';
+// ── v1 stores ──
+export { loadProfile, saveProfile, createProfile } from './store/profile-store.js';
+export { loadActiveRules } from './store/rule-store.js';
 
 // ── Errors ──
 export { TenetxError, HookError, ConfigError, ForgeError, NonRetryableError } from './core/errors.js';

@@ -36,17 +36,10 @@ async function main() {
     console.log('  [Done] Initial setup complete.\n');
   }
 
-  console.log(`[tenetx] Philosophy: ${context.philosophy.name}`);
-  console.log(`[tenetx] Scope: ${context.scope.summary}`);
-  if (context.scope.team) {
-    console.log(`[tenetx] Pack: ${context.scope.team.name} v${context.scope.team.version}`);
-  }
-  if (context.modelRouting) {
-    const rt = context.modelRouting;
-    const parts = Object.entries(rt)
-      .filter(([, v]) => (v as string[]).length > 0)
-      .map(([k, v]) => `${k}:${(v as string[]).length}`);
-    console.log(`[tenetx] Routing: ${parts.join(' | ')}`);
+  const v1 = context.v1;
+  console.log(`[tenetx] Profile: ${v1.session ? `${v1.session.quality_pack}/${v1.session.autonomy_pack}` : 'onboarding needed'}`);
+  if (v1.session) {
+    console.log(`[tenetx] Trust: ${v1.session.effective_trust_policy}`);
   }
   console.log('[tenetx] Mode: dangerously-skip-permissions');
   console.log('[tenetx] Starting Claude Code...\n');

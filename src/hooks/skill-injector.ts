@@ -37,8 +37,7 @@ function escapeXmlAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { loadPackConfigs } from '../core/pack-config.js';
-import { COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
+import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
 import { KEYWORD_PATTERNS } from './keyword-detector.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
@@ -175,24 +174,9 @@ function collectSkills(): SkillMeta[] {
   // 패키지 내장 스킬 경로 (dist/../skills/)
   const pkgSkillsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'commands');
 
-  // 연결된 팩의 스킬 경로 수집
-  const packSkillDirs: string[] = [];
-  try {
-    const connectedPacks = loadPackConfigs(process.cwd());
-    for (const pack of connectedPacks) {
-      // 프로젝트 네임스페이스 우선, 글로벌 팩 폴백
-      const nsDir = path.join(process.cwd(), '.compound', 'packs', pack.name, 'skills');
-      const globalDir = path.join(PACKS_DIR, pack.name, 'skills');
-      packSkillDirs.push(fs.existsSync(nsDir) ? nsDir : globalDir);
-    }
-  } catch (e) {
-    log.debug('팩 스킬 경로 수집 실패', e);
-  }
-
-  // 우선순위: 프로젝트 > 연결된 팩 > 개인 > 글로벌 > 패키지 내장
+  // v1: 팀 팩 스킬 제거. 프로젝트 > 개인 > 글로벌 > 패키지 내장
   const dirs = [
     path.join(process.cwd(), '.compound', 'skills'),
-    ...packSkillDirs,
     path.join(COMPOUND_HOME, 'me', 'skills'),
     path.join(COMPOUND_HOME, 'skills'),
     pkgSkillsDir,

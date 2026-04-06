@@ -15,7 +15,7 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { saveCheckpoint } from './session-recovery.js';
-import { recordWriteContent } from '../engine/prompt-learner.js';
+// v1: recordWriteContent (regex 선호 감지) 제거
 import { incrementFailureCounter, checkCompoundNegative, getCompoundSuccessHint } from './post-tool-handlers.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, approveWithWarning, failOpen } from './shared/hook-response.js';
@@ -142,11 +142,7 @@ async function main(): Promise<void> {
         }
       } catch (e) { log.debug('파일 변경 추적 실패', e); }
     }
-    try {
-      const fp = String(toolInput.file_path ?? toolInput.filePath ?? '');
-      const content = String(toolInput.content ?? toolInput.new_string ?? '');
-      if (fp && content) recordWriteContent(fp, content, sessionId);
-    } catch (e) { log.debug('write content 기록 실패', e); }
+    // v1: regex 기반 write content 학습 제거. Evidence 기반으로 전환됨.
   }
 
   // 4. Bash error detection

@@ -72,14 +72,11 @@ describe('Chain 1: keyword-detector → recordPrompt', () => {
     expect(result.continue).toBe(true);
   });
 
-  it('recordPrompt가 import되어 있다', async () => {
-    // keyword-detector.ts 소스에 recordPrompt 호출이 존재하는지 확인
+  it('v1: regex 기반 prompt 학습이 제거되었다', async () => {
+    // v1에서 recordPrompt는 Evidence 기반으로 대체됨
     const src = fs.readFileSync(path.join(PROJECT_ROOT, 'src', 'hooks', 'keyword-detector.ts'), 'utf-8');
-    expect(src).toContain('recordPrompt');
-    // import에 포함
-    expect(src).toMatch(/import\s*\{[^}]*recordPrompt[^}]*\}/);
-    // main() 내에서 호출
-    expect(src).toMatch(/recordPrompt\s*\(/);
+    expect(src).not.toMatch(/import\s*\{[^}]*recordPrompt[^}]*\}/);
+    expect(src).toContain('Evidence 기반으로 전환');
   });
 });
 
@@ -112,17 +109,11 @@ describe('Chain 2: USER.md → .claude/rules/user-profile.md', () => {
     // ME_DIR이 실제 ~/.compound/me를 가리키므로 USER.md가 있어야 동작
     // 여기서는 코드 경로가 존재하는지만 확인 (실제 주입은 prepareHarness에서)
     const { generateClaudeRuleFiles } = await import('../../src/core/config-injector.js');
-    const files = generateClaudeRuleFiles({
-      philosophy: { name: 'test', version: '1.0', author: 'test', principles: {} },
-      scope: { me: { philosophyPath: '', solutionCount: 0, ruleCount: 0 }, project: { path: testDir, solutionCount: 0 }, summary: '' },
-      cwd: testDir,
-      inTmux: false,
-      philosophySource: 'global',
-    });
+    const files = generateClaudeRuleFiles(testDir);
     // user-profile.md는 USER.md가 ~/.compound/me에 있을 때만 생성
     // 이 테스트에서는 실제 homedir의 USER.md 존재 여부에 따라 결과가 달라짐
     const keys = Object.keys(files);
-    expect(keys).toContain('golden-principles.md'); // 기본 파일은 항상 존재
+    expect(keys).toContain('project-context.md'); // 통합 파일은 항상 존재
   });
 });
 
@@ -296,21 +287,20 @@ describe('Doctor — plugin cache verification', () => {
 // ────────────────────────────────────────────────────
 
 describe('Model routing activation', () => {
-  it('harness.ts에서 modelRouting이 undefined가 아니다', () => {
+  it('v1: harness.ts에서 v1-bootstrap 기반으로 전환됨', () => {
     const src = fs.readFileSync(path.join(PROJECT_ROOT, 'src', 'core', 'harness.ts'), 'utf-8');
-    // 기존: `modelRouting: undefined`
-    expect(src).not.toMatch(/modelRouting:\s*undefined/);
-    expect(src).toContain('buildRoutingTable');
-    expect(src).toContain('toModelTaskMap');
+    // v1: routing-engine 제거, v1-bootstrap 기반 세션 오케스트레이션으로 전환
+    expect(src).toContain('bootstrapV1Session');
+    expect(src).not.toContain("from './routing-engine.js'");
   });
 
-  it('routing-engine이 3가지 preset을 지원한다', async () => {
-    const { buildRoutingTable } = await import('../../src/core/routing-engine.js');
-    for (const preset of ['default', 'max-quality', 'cost-saving']) {
-      const table = buildRoutingTable(preset);
-      expect(table.routes).toBeDefined();
-      expect(Object.keys(table.routes).length).toBeGreaterThan(0);
-    }
+  it('v1: preset-manager가 trust policy를 합성한다', async () => {
+    const { computeEffectiveTrust } = await import('../../src/preset/preset-manager.js');
+    const result = computeEffectiveTrust('승인 완화', {
+      permission_mode: 'relaxed', dangerous_skip_permissions: false,
+      auto_accept_scope: [], detected_from: 'test',
+    });
+    expect(result.effective).toBe('승인 완화');
   });
 });
 

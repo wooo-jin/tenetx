@@ -77,22 +77,7 @@ This old solution file should not be used as a behavioral rule source.
 `);
 
     const { generateClaudeRuleFiles } = await import('../src/core/config-injector.js');
-    const files = generateClaudeRuleFiles({
-      philosophy: {
-        name: 'test-philosophy',
-        version: '1.0.0',
-        author: 'tester',
-        principles: {},
-      },
-      scope: {
-        me: { philosophyPath: '/tmp/test', solutionCount: 0, ruleCount: 0 },
-        project: { path: '/tmp/project', solutionCount: 0 },
-        summary: 'me:0s/0r, project:0s',
-      },
-      cwd: '/tmp/project',
-      inTmux: false,
-      philosophySource: 'global',
-    });
+    const files = generateClaudeRuleFiles('/tmp/project');
 
     expect(files['forge-behavioral.md']).toContain('항상 한글로 응답합니다');
     expect(files['forge-behavioral.md']).toContain('4회 관찰');

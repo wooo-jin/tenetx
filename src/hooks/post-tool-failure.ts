@@ -69,7 +69,7 @@ function incrementFailureSignal(sessionId: string): void {
 }
 
 /** 에러 메시지 기반 복구 제안 */
-function getRecoverySuggestion(error: string, toolName: string): string {
+export function getRecoverySuggestion(error: string, toolName: string): string {
   const lower = error.toLowerCase();
 
   if (/timeout|timed out/.test(lower)) {

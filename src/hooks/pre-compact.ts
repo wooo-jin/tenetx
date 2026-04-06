@@ -122,10 +122,11 @@ async function main(): Promise<void> {
 <tenetx-compound-extract>
 Context is about to be compacted. Before it's lost, analyze this conversation and extract the USER's behavioral patterns.
 
-DO NOT extract code patterns or technical solutions. Extract HOW THE USER THINKS:
+DO NOT extract code patterns or technical solutions. Extract HOW THE USER WORKS:
 - Decision-making style (e.g., "always verifies before trusting", "prefers data over intuition")
 - Communication preferences (e.g., "wants Korean responses", "hates long explanations")
-- Workflow habits (e.g., "always reviews 3+ times", "plans before implementing")
+- Workflow sequences — repeated action ORDER patterns (e.g., "always runs tests → checks coverage → then commits", "bug fix: reproduce first → write test → fix → verify")
+- Conditional approaches (e.g., "for refactoring: ensures tests pass first, then restructures", "for PRs: security check → test review → code quality")
 - Values/philosophy (e.g., "quality over speed", "pragmatic over theoretical")
 
 For each pattern found, write a file to ~/.compound/me/behavior/{slug}.md in this EXACT format:

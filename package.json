@@ -1,6 +1,6 @@
 {
   "name": "tenetx",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "main": "dist/lib.js",
   "types": "./dist/lib.d.ts",
   "exports": {
@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc && node scripts/copy-assets.js",
+    "build": "rm -rf dist && tsc && node scripts/copy-assets.js && chmod +x dist/cli.js dist/txd.js dist/mcp/server.js",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",

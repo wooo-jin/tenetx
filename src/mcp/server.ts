@@ -25,6 +25,10 @@ const INSTRUCTIONS = [
   '',
   'Usage flow: compound-search (find relevant) → compound-read (get full content)',
   'compound-stats gives an overview of accumulated knowledge.',
+  '',
+  'Evidence collection:',
+  '- When the user corrects your behavior, use correction-record to record it as evidence',
+  '- This enables tenetx to learn from corrections and adapt personalization over time',
 ].join('\n');
 
 const server = new McpServer(

@@ -20,8 +20,8 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { truncateContent, INJECTION_CAPS } from './shared/injection-caps.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
-import { recordModeUsage, recordPrompt } from '../engine/prompt-learner.js';
-import { loadPackConfigs } from '../core/pack-config.js';
+// v1: prompt-learner (regex 선호 감지) 제거 — Evidence 기반으로 전환
+// v1: pack-config (레거시 팩) 제거 — quality/autonomy pack으로 전환
 import { ALL_MODES, COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { escapeAllXmlTags } from './prompt-injection-filter.js';
@@ -222,17 +222,16 @@ function loadSkillContent(skillName: string): string | null {
     path.join(process.cwd(), 'skills', `${skillName}.md`),
   ];
 
-  // 연결된 팩의 스킬 경로 수집 (skill-injector의 collectSkills와 동일한 방식)
+  // v1: 레거시 팩 스킬 검색은 제거. PACKS_DIR 하위 스킬은 직접 탐색.
   try {
-    const connectedPacks = loadPackConfigs(process.cwd());
-    for (const pack of connectedPacks) {
-      // 프로젝트 네임스페이스 우선, 글로벌 팩 폴백
-      const nsPath = path.join(process.cwd(), '.compound', 'packs', pack.name, 'skills', `${skillName}.md`);
-      const globalPath = path.join(PACKS_DIR, pack.name, 'skills', `${skillName}.md`);
-      searchPaths.push(nsPath, globalPath);
+    if (fs.existsSync(PACKS_DIR)) {
+      for (const entry of fs.readdirSync(PACKS_DIR)) {
+        const packSkillPath = path.join(PACKS_DIR, entry, 'skills', `${skillName}.md`);
+        searchPaths.push(packSkillPath);
+      }
     }
   } catch {
-    // 팩 설정 로드 실패 시 무시
+    // 팩 디렉토리 접근 실패 시 무시
   }
 
   // 사용자 개인 스킬 경로
@@ -335,8 +334,7 @@ async function main(): Promise<void> {
   const match = detectKeyword(input.prompt);
   const sessionId = input.session_id ?? 'unknown';
 
-  // Record prompt for pattern learning (keyword-detector always runs on UserPromptSubmit)
-  try { recordPrompt(input.prompt, sessionId); } catch (e) { log.debug('prompt 기록 실패', e); }
+  // v1: regex 기반 prompt 학습 제거. Evidence 기반으로 전환됨.
 
   if (!match) {
     console.log(approve());
@@ -378,7 +376,7 @@ async function main(): Promise<void> {
       return;
     }
     if (shouldTrackWorkflowActivation(match)) {
-      try { recordModeUsage(match.keyword, input.session_id ?? 'unknown'); } catch (e) { log.debug('inject mode usage 기록 실패', e); }
+      try { /* v1: recordModeUsage 제거 */ } catch { /* noop */ }
     }
     console.log(approveWithContext(match.message ?? `[Tenetx] ${match.keyword} mode activated.`, 'UserPromptSubmit'));
     return;
@@ -394,7 +392,7 @@ async function main(): Promise<void> {
       return;
     }
     // Compound: mode usage 기록
-    try { recordModeUsage(match.skill, input.session_id ?? 'unknown'); } catch (e) { log.debug('skill mode usage 기록 실패', e); }
+    // v1: recordModeUsage 제거
     const skillContent = loadSkillContent(match.skill);
     const effectiveCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
 

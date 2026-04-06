@@ -82,10 +82,10 @@ const commands: Command[] = [
   },
   {
     name: 'me',
-    description: 'Personal dashboard: profile, evolution, patterns',
-    handler: async (args) => {
-      const { runMeDashboard } = await import('./forge/me-dashboard.js');
-      await runMeDashboard(args);
+    description: 'Personal dashboard (→ inspect profile)',
+    handler: async (_args) => {
+      const { handleInspect } = await import('./core/inspect-cli.js');
+      await handleInspect(['profile']);
     },
   },
   {
@@ -130,6 +130,22 @@ const commands: Command[] = [
     handler: async (args) => {
       const { handleNotepad } = await import('./core/notepad.js');
       await handleNotepad(args);
+    },
+  },
+  {
+    name: 'inspect',
+    description: 'v1 state inspector (profile|rules|evidence|session)',
+    handler: async (args) => {
+      const { handleInspect } = await import('./core/inspect-cli.js');
+      await handleInspect(args);
+    },
+  },
+  {
+    name: 'onboarding',
+    description: 'v1 2-question onboarding flow',
+    handler: async (_args) => {
+      const { runOnboarding } = await import('./forge/onboarding-cli.js');
+      await runOnboarding();
     },
   },
   {
@@ -222,15 +238,20 @@ async function main() {
   Setting up...`);
     }
 
-    const context = await prepareHarness(process.cwd());
+    let context = await prepareHarness(process.cwd());
 
-    if (firstRun) {
+    // 첫 실행 또는 프로필 없음 → 자동 온보딩 (interactive 환경)
+    if (context.v1.needsOnboarding && process.stdin.isTTY) {
+      console.log('\n  프로필이 없습니다. 온보딩을 시작합니다.\n');
+      const { runOnboarding } = await import('./forge/onboarding-cli.js');
+      await runOnboarding();
+      // 온보딩 후 harness 재실행 (프로필 반영)
+      context = await prepareHarness(process.cwd());
+    }
+
+    if (firstRun && !context.v1.needsOnboarding) {
       console.log(`
   Setup complete!
-
-  Next steps:
-    tenetx forge          Personalize your profile
-    tenetx doctor         Check system health
 `);
     }
 
@@ -243,7 +264,7 @@ async function main() {
   ${bold}${cyan}░█░ ██▄ █░▀█ ██▄ ░█░ █░█${reset}  ${dim}v${PKG_VERSION}${reset}
 
   ${dim}The Claude Code harness that learns from you.${reset}
-  ${dim}Scope: ${context.scope.summary}${reset}
+  ${dim}Scope: v1(${context.v1.session?.quality_pack ?? 'onboarding needed'})${reset}
 `);
     console.log('[tenetx] Starting Claude Code...\n');
 
@@ -275,15 +296,21 @@ function printHelp() {
 
   Commands:
     tenetx forge                    Personalize your coding profile
+    tenetx onboarding               Run 2-question onboarding
+    tenetx inspect [profile|rules|evidence|session]
+                                    Inspect v1 state
     tenetx compound                 Manage accumulated knowledge
     tenetx me                       Personal dashboard
+    tenetx init                     Initialize project
     tenetx config hooks             Hook management
+    tenetx mcp                      MCP server management
+    tenetx skill promote|list       Skill management
+    tenetx notepad show|add|clear   Session notepad
     tenetx doctor                   System diagnostics
     tenetx uninstall                Remove tenetx
 
   Harness mode (default):
-    Wraps Claude Code with auto-compound, session recording, and safety hooks.
-    Sessions are recorded and searchable via compound session-search MCP tool.
+    Wraps Claude Code with personalization, auto-compound, and safety hooks.
 `);
 }
 

@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { ME_SOLUTIONS, ME_RULES, PACKS_DIR } from '../core/paths.js';
+import { ME_SOLUTIONS, ME_RULES } from '../core/paths.js';
 import { resolveScope } from '../core/scope-resolver.js';
 import { serializeSolutionV3, extractTags, DEFAULT_EVIDENCE, slugify } from './solution-format.js';
 import type { SolutionV3, SolutionType } from './solution-format.js';
@@ -85,7 +85,7 @@ export async function runCompoundLoop(cwd: string, insights: CompoundInsight[]):
   return { saved, skipped };
 }
 
-function getDestPath(insight: CompoundInsight, teamPackName?: string): string | null {
+function getDestPath(insight: CompoundInsight, _teamPackName?: string): string | null {
   const fileName = `${slugify(insight.title)}.md`;
 
   if (insight.scope === 'me') {
@@ -95,15 +95,7 @@ function getDestPath(insight: CompoundInsight, teamPackName?: string): string | 
     return path.join(dir, fileName);
   }
 
-  if (insight.scope === 'team' && teamPackName) {
-    const packDir = path.join(PACKS_DIR, teamPackName);
-    const dir = insight.type === 'rule' || insight.type === 'convention'
-      ? path.join(packDir, 'rules')
-      : path.join(packDir, 'solutions');
-    return path.join(dir, fileName);
-  }
-
-  // 팀 팩이 없으면 개인으로 폴백
+  // v1: 팀 scope 제거 — 모든 인사이트를 개인으로 저장
   const dir = insight.type === 'rule' || insight.type === 'convention'
     ? ME_RULES
     : ME_SOLUTIONS;

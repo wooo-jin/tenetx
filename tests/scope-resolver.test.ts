@@ -81,24 +81,10 @@ describe('resolveScope', () => {
     expect(result.project.solutionCount).toBe(3);
   });
 
-  it('pack.link가 있고 팩 디렉토리가 있으면 team 정보가 채워진다', async () => {
-    const packName = 'emr';
-    const packDir = path.join(PACKS_DIR, packName);
-    fs.mkdirSync(path.join(packDir, 'solutions'), { recursive: true });
-    fs.mkdirSync(path.join(packDir, 'rules'), { recursive: true });
-    fs.writeFileSync(path.join(packDir, 'pack.json'), JSON.stringify({ version: '1.2.3' }));
-    fs.writeFileSync(path.join(packDir, 'solutions', 'team-sol.md'), '# team');
-
-    const packLinkFile = path.join(CWD, '.compound', 'pack.link');
-    fs.writeFileSync(packLinkFile, `pack: ${packName}`);
-
+  it('v1: team scope가 제거되어 항상 undefined이다', async () => {
     const { resolveScope } = await import('../src/core/scope-resolver.js');
     const result = resolveScope(CWD);
-    expect(result.team).toBeDefined();
-    expect(result.team!.name).toBe(packName);
-    expect(result.team!.version).toBe('1.2.3');
-    expect(result.team!.solutionCount).toBe(1);
-    expect(result.summary).toContain(`Team/${packName}(1)`);
+    expect(result.team).toBeUndefined();
   });
 
   it('project solutions가 0이면 summary에 Project가 포함되지 않는다', async () => {

@@ -1,15 +1,23 @@
+/**
+ * Tenetx v1 — Config Injector
+ *
+ * v1 설계: Rule Renderer + Profile 기반 규칙 생성.
+ * philosophy/scope/pack ��반 직접 규칙 생성은 제거됨.
+ *
+ * Authoritative: docs/plans/2026-04-03-tenetx-rule-renderer-spec.md
+ */
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { ME_BEHAVIOR, ME_DIR, ME_RULES, PACKS_DIR, projectDir } from './paths.js';
-import { loadPackConfigs } from './pack-config.js';
-import type { HarnessContext } from './types.js';
+import { ME_BEHAVIOR, ME_DIR, ME_RULES } from './paths.js';
 import { createLogger } from './logger.js';
 import { parseSolutionV3 } from '../engine/solution-format.js';
 import { containsPromptInjection } from '../hooks/prompt-injection-filter.js';
 import { RULE_FILE_CAPS, truncateContent } from '../hooks/shared/injection-caps.js';
 
 const log = createLogger('config-injector');
-/** 프로젝트 맵 타입 (engine/knowledge/types.ts 삭제 후 인라인) */
+
+/** 프로젝트 맵 타입 */
 interface ProjectMap {
   summary: {
     name: string;
@@ -25,7 +33,7 @@ interface ProjectMap {
 
 /**
  * 디렉토리의 .md 파일에서 규칙 첫 줄(요약)을 추출.
- * trusted=false일 때 프롬프트 인젝션 스캔 적용 (팩 등 외부 소스).
+ * trusted=false일 때 프롬프트 인젝션 스캔 적용.
  */
 function loadRulesFromDir(dir: string, trusted = true): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -40,7 +48,6 @@ function loadRulesFromDir(dir: string, trusted = true): string[] {
         const parsed = parseSolutionV3(content);
         const body = parsed ? parsed.content : stripFrontmatter(content);
 
-        // 비신뢰 소스(팩)의 규칙 파일은 인젝션 스캔
         if (!trusted) {
           if (containsPromptInjection(body)) {
             log.debug(`규칙 파일 인젝션 감지 — 차단: ${filePath}`);
@@ -61,7 +68,6 @@ function loadRulesFromDir(dir: string, trusted = true): string[] {
 function stripFrontmatter(content: string): string {
   const trimmed = content.trimStart();
   if (!trimmed.startsWith('---')) return content;
-
   const endIdx = trimmed.indexOf('---', 3);
   if (endIdx === -1) return content;
   return trimmed.slice(endIdx + 3);
@@ -79,7 +85,7 @@ function firstMeaningfulLine(content: string): string | null {
 
 /** 프로젝트 맵에서 에이전트용 요약 생성 */
 function loadProjectMapSummary(cwd: string): string | null {
-  const mapPath = path.join(projectDir(cwd), 'project-map.json');
+  const mapPath = path.join(cwd, '.compound', 'project-map.json');
   if (!fs.existsSync(mapPath)) return null;
 
   try {
@@ -91,7 +97,6 @@ function loadProjectMapSummary(cwd: string): string | null {
     if (summary.framework) lines.push(`- Framework: ${summary.framework}`);
     if (summary.packageManager) lines.push(`- Package manager: ${summary.packageManager}`);
 
-    // 언어 분포 상위 3개
     const topLangs = Object.entries(summary.languages)
       .sort((a, b) => b[1] - a[1])
       .filter(([l]) => l !== 'other')
@@ -100,12 +105,10 @@ function loadProjectMapSummary(cwd: string): string | null {
       lines.push(`- Languages: ${topLangs.map(([l, n]) => `${l}(${n} lines)`).join(', ')}`);
     }
 
-    // 진입점
     if (map.entryPoints.length > 0) {
       lines.push(`- Entry points: ${map.entryPoints.slice(0, 5).join(', ')}`);
     }
 
-    // 주요 디렉토리
     const topDirs = map.directories
       .filter(d => d.purpose && !d.path.includes('/'))
       .slice(0, 8);
@@ -122,11 +125,12 @@ function loadProjectMapSummary(cwd: string): string | null {
   }
 }
 
-/** 보안 관련 규칙 생성 */
-export function generateSecurityRules(context: HarnessContext): string {
-  const lines: string[] = [
+// ── v1 Static Rules ──
+
+/** 보안 규칙 (정적 — v1 GLOBAL_SAFETY_RULES와 동일 맥락) */
+export function generateSecurityRules(): string {
+  return [
     '# Tenetx — Security Rules',
-    `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
     '',
     '## Dangerous Command Warning',
     '- Always confirm before executing destructive commands like `rm -rf`, `git push --force`, `DROP TABLE`',
@@ -137,57 +141,12 @@ export function generateSecurityRules(context: HarnessContext): string {
     '- Manage through environment variables or a secrets manager',
     '- Detect hardcoded secrets during code review',
     '',
-  ];
-
-  // 철학에서 보안 관련 alert 추출
-  for (const [name, principle] of Object.entries(context.philosophy.principles)) {
-    const alerts = principle.generates.filter(
-      g => typeof g !== 'string' && g.alert
-    );
-    if (alerts.length > 0) {
-      lines.push(`## ${name} — Security Alert`);
-      for (const gen of alerts) {
-        if (typeof gen !== 'string' && gen.alert) {
-          lines.push(`- ⚠ ${gen.alert}`);
-        }
-      }
-      lines.push('');
-    }
-  }
-
-  return lines.join('\n');
+  ].join('\n');
 }
 
-/** 핵심 원칙 규칙 생성 (philosophy.generates에서 추출) */
-export function generateGoldenPrinciples(context: HarnessContext): string {
-  const lines: string[] = [
-    '# Tenetx — Core Principles',
-    `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
-    `# Scope: ${context.scope.summary}`,
-    '',
-  ];
-
-  for (const [name, principle] of Object.entries(context.philosophy.principles)) {
-    lines.push(`## ${name}`);
-    lines.push(`> ${principle.belief}`);
-    lines.push('');
-
-    for (const gen of principle.generates) {
-      if (typeof gen === 'string') {
-        lines.push(`- ${gen}`);
-      } else if (gen.step) {
-        lines.push(`- 📋 ${gen.step}`);
-      }
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-/** 안티패턴 감지 규칙 생성 */
+/** 안티패턴 감지 규칙 (정적) */
 export function generateAntiPatternRules(): string {
-  const lines: string[] = [
+  return [
     '# Tenetx — Anti-Pattern Detection',
     '',
     '## Repeated Edit Warning',
@@ -203,55 +162,18 @@ export function generateAntiPatternRules(): string {
     '- Apply early return pattern when nesting depth exceeds 4',
     '- No unnecessary abstraction — implement only what is currently needed',
     '',
-  ];
-
-  return lines.join('\n');
+  ].join('\n');
 }
 
-/** 모델 라우팅 테이블 규칙 생성 */
-export function generateRoutingRules(context: HarnessContext): string {
-  const lines: string[] = [
-    '# Tenetx — Model Routing',
-    '',
-  ];
-
-  if (context.modelRouting) {
-    lines.push('## Agent Model Routing');
-    lines.push('Recommended model by task type (focus-resources-on-judgment principle):');
-    for (const [model, tasks] of Object.entries(context.modelRouting)) {
-      if ((tasks as string[]).length > 0) {
-        lines.push(`- **${model}**: ${(tasks as string[]).join(', ')}`);
-      }
-    }
-    lines.push('');
-
-    if (context.signalRoutingEnabled) {
-      lines.push('### Dynamic Model Escalation');
-      lines.push('The above table is the default routing and escalates automatically based on prompt complexity:');
-      lines.push('- Architecture/security/cross-file keywords → escalate to Opus');
-      lines.push('- Repeated previous failures → escalate to a higher tier');
-      lines.push('- Simple questions/exploration → de-escalate to Haiku');
-      lines.push('When calling agents (Agent tool), specify the `model` parameter according to this routing.');
-      lines.push('');
-    }
-  } else {
-    lines.push('Model routing not configured. Using default routing.');
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-/** compound loop 규칙 생성 (축소) */
-export function generateCompoundRules(context: HarnessContext): string {
+/** compound loop + 개인 규칙 (me/rules) 로드 */
+export function generateCompoundRules(cwd: string): string {
   const lines: string[] = [
     '# Tenetx — Compound Loop',
-    `# Philosophy: ${context.philosophy.name} v${context.philosophy.version}`,
     '',
   ];
 
   // 프로젝트 맵 요약 주입
-  const mapSummary = loadProjectMapSummary(context.cwd);
+  const mapSummary = loadProjectMapSummary(cwd);
   if (mapSummary) {
     lines.push('## Project Structure (auto-generated)');
     lines.push(mapSummary);
@@ -268,57 +190,11 @@ export function generateCompoundRules(context: HarnessContext): string {
     lines.push('');
   }
 
-  // 팩 규칙 로드 (복수 팩 지원)
-  const connectedPacks = loadPackConfigs(context.cwd);
-  if (connectedPacks.length > 0) {
-    for (const pack of connectedPacks) {
-      // 팩별 네임스페이스 디렉토리 → 레거시 디렉토리 폴백
-      const nsRulesDir = path.join(context.cwd, '.compound', 'packs', pack.name, 'rules');
-      const legacyRulesDir = path.join(PACKS_DIR, pack.name, 'rules');
-      const rulesDir = fs.existsSync(nsRulesDir) ? nsRulesDir : legacyRulesDir;
-      const packRules = loadRulesFromDir(rulesDir, false); // 팩 = 외부 소스, 스캔 필요
-
-      lines.push(`## Pack: ${pack.name}`);
-      if (packRules.length > 0) {
-        for (const rule of packRules) {
-          lines.push(`- ${rule}`);
-        }
-      } else {
-        lines.push('- (no rules)');
-      }
-      lines.push('');
-    }
-  } else if (context.scope.team) {
-    // 하위 호환: 구 방식 scope.team 사용
-    const packRulesDir = path.join(PACKS_DIR, context.scope.team.name, 'rules');
-    const packRules = loadRulesFromDir(packRulesDir, false); // 팩 = 외부 소스
-    lines.push(`## Pack: ${context.scope.team.name}`);
-    lines.push(`- ${context.scope.team.solutionCount} solutions, ${context.scope.team.ruleCount} rules`);
-    if (packRules.length > 0) {
-      lines.push('');
-      for (const rule of packRules) {
-        lines.push(`- ${rule}`);
-      }
-    }
-    lines.push('');
-  }
-
   return lines.join('\n');
 }
 
 /**
- * paths frontmatter 래퍼 — 조건부 로딩용.
- * paths가 있으면 해당 파일 패턴을 작업할 때만 로드됨.
- * Claude Code 공식 기능 (https://code.claude.com/docs/en/memory)
- */
-function withPaths(content: string, paths: string[]): string {
-  return `---\npaths:\n${paths.map(p => `  - "${p}"`).join('\n')}\n---\n\n${content}`;
-}
-
-/**
- * 학습된 선호/사고 패턴을 .claude/rules/ 규칙으로 변환.
- * prompt-learner가 생성한 behavioral 파일을 읽어
- * 사람이 읽을 수 있는 규칙 파일로 포맷합니다.
+ * 학습된 선호/사고 패턴을 규칙으로 변환.
  */
 function generateBehavioralRules(): string {
   const lines: string[] = ['# Tenetx — Learned Patterns', '# auto-generated from observed interactions', ''];
@@ -338,7 +214,6 @@ function generateBehavioralRules(): string {
       if (fs.lstatSync(filePath).isSymbolicLink()) continue;
       const raw = fs.readFileSync(filePath, 'utf-8');
 
-      // 간단한 frontmatter 파싱 (behavior-format.ts 제거 후 인라인 대체)
       const trimmed = raw.trimStart();
       if (!trimmed.startsWith('---')) continue;
       const endIdx = trimmed.indexOf('---', 3);
@@ -354,7 +229,6 @@ function generateBehavioralRules(): string {
       const countStr = observedCount > 0
         ? ` (${observedCount}회 관찰)`
         : '';
-      // ## Content 섹션 이후의 첫 번째 의미 있는 줄을 설명으로 사용
       const contentIdx = body.indexOf('## Content');
       const contentBody = contentIdx >= 0 ? body.slice(contentIdx + '## Content'.length) : body;
       const desc = contentBody.split('\n').find(l => {
@@ -366,7 +240,12 @@ function generateBehavioralRules(): string {
       if (kind === 'thinking') {
         categories['Thinking Style'].push(`- ${desc}${countStr}`);
       } else if (kind === 'workflow') {
-        categories.Workflow.push(`- ${desc}${countStr}`);
+        // observedCount >= 3인 워크플로우는 directive 형태로 렌더링
+        if (observedCount >= 3) {
+          categories.Workflow.push(`- **[적용]** ${desc}${countStr}`);
+        } else {
+          categories.Workflow.push(`- ${desc}${countStr}`);
+        }
       } else if (kind === 'preference') {
         categories['Response Preferences'].push(`- ${desc}${countStr}`);
       }
@@ -375,43 +254,48 @@ function generateBehavioralRules(): string {
     for (const [cat, items] of Object.entries(categories)) {
       if (items.length === 0) continue;
       lines.push(`## ${cat}`);
+      if (cat === 'Workflow') {
+        lines.push('> Items marked **[적용]** are confirmed patterns (3+ observations). Follow these as default workflow unless the user overrides.');
+      }
       lines.push(...items);
       lines.push('');
     }
   } catch {
-    // 솔루션 디렉토리 접근 실패 시 빈 규칙
+    // 행동 디렉토리 접근 실패 시 빈 규칙
   }
 
   return lines.length <= 3 ? '' : lines.join('\n');
 }
 
-/** 모든 규칙 파일을 생성하여 반환 */
-export function generateClaudeRuleFiles(context: HarnessContext): Record<string, string> {
-  const rules: Record<string, string> = {
-    // 항상 로드 (핵심 원칙 — 짧으므로 캐시 효율적)
-    'golden-principles.md': generateGoldenPrinciples(context),
-    'compound.md': generateCompoundRules(context),
+/** 모든 규칙 파일을 생성하여 반환. v1RenderedRules가 있으면 포함. */
+export function generateClaudeRuleFiles(cwd: string, v1RenderedRules?: string | null): Record<string, string> {
+  const v1Rules = v1RenderedRules
+    ? `# Tenetx v1 — Rendered Rules\n# auto-generated from profile + rule store\n\n${v1RenderedRules}`
+    : null;
 
-    // 조건부 로딩 — 관련 파일 작업 시에만 활성화
-    'security.md': withPaths(generateSecurityRules(context), [
-      '*.config.*', 'package.json', 'Dockerfile', 'docker-compose*',
-      '*.env*', '.github/**', 'scripts/**',
-    ]),
-    'anti-pattern.md': withPaths(generateAntiPatternRules(), [
-      'src/**/*.ts', 'src/**/*.tsx', 'src/**/*.js',
-    ]),
-    'routing.md': withPaths(generateRoutingRules(context), [
-      'src/**/*.ts', 'agents/**',
-    ]),
+  // 정적 규칙 + compound
+  const coreSections = [
+    generateSecurityRules(),
+    generateAntiPatternRules(),
+    generateCompoundRules(cwd),
+  ].filter(s => s.trim().length > 0);
+
+  const rules: Record<string, string> = {
+    'project-context.md': coreSections.join('\n\n---\n\n'),
   };
 
-  // 학습된 행동 패턴 → 규칙 파일 (항상 로드 — 사고 패턴은 모든 작업에 적용)
+  // v1 rendered rules (profile 기반 개인화 규칙)
+  if (v1Rules) {
+    rules['v1-rules.md'] = v1Rules;
+  }
+
+  // 학습된 행동 패턴
   const behavioral = generateBehavioralRules();
   if (behavioral) {
     rules['forge-behavioral.md'] = behavioral;
   }
 
-  // USER.md → 사용자 프로필 주입 (항상 로드 — 개인화 컨텍스트)
+  // USER.md → 사용자 프로필 주입
   const userMdPath = path.join(ME_DIR, 'USER.md');
   try {
     if (fs.existsSync(userMdPath) && !fs.lstatSync(userMdPath).isSymbolicLink()) {
@@ -428,15 +312,15 @@ export function generateClaudeRuleFiles(context: HarnessContext): Record<string,
       }
     }
   } catch (e) {
-    log.debug('USER.md 로드 실패', e);
+    log.debug('USER.md 로드 실���', e);
   }
 
   return rules;
 }
 
-/** 하위 호환: 단일 규칙 문자열 생성 (기존 테스트 호환) */
-export function generateClaudeRules(context: HarnessContext): string {
-  const files = generateClaudeRuleFiles(context);
+/** 하위 호환: 단일 규칙 문자열 생성 */
+export function generateClaudeRules(cwd: string, v1RenderedRules?: string | null): string {
+  const files = generateClaudeRuleFiles(cwd, v1RenderedRules);
   return Object.values(files).join('\n');
 }
 
@@ -444,26 +328,21 @@ export function generateClaudeRules(context: HarnessContext): string {
 export async function registerTmuxBindings(): Promise<void> {
   const { execFileSync } = await import('node:child_process');
   try {
-    // prefix + T = 대시보드 토글 (Ctrl+B → Shift+T)
-    // D는 detach와 혼동될 수 있으므로 T(enet) 사용
     execFileSync('tmux', ['bind-key', 'T', 'run-shell', 'tenetx me'], { stdio: 'ignore' });
   } catch (e) {
-    log.debug('tmux 키바인딩 등록 실패', e);
+    log.debug('tmux 키바인딩 등��� 실패', e);
   }
 }
 
-/** 환경변수로 하네스 컨텍스트 전달 */
-export function buildEnv(context: HarnessContext): Record<string, string> {
-  return {
+/** 환경변수로 하네스 컨텍스트 전달 (v1) */
+export function buildEnv(cwd: string, v1SessionId?: string): Record<string, string> {
+  const env: Record<string, string> = {
     COMPOUND_HARNESS: '1',
-    COMPOUND_CWD: context.cwd,
-    COMPOUND_PHILOSOPHY: context.philosophy.name,
-    COMPOUND_PHILOSOPHY_SOURCE: context.philosophySource,
-    COMPOUND_SCOPE: context.scope.summary,
-    ...(context.scope.team ? { COMPOUND_PACK: context.scope.team.name } : {}),
-    ...(context.modelRouting ? { COMPOUND_MODEL_ROUTING: JSON.stringify(context.modelRouting) } : {}),
-    ...(context.routingPreset ? { COMPOUND_ROUTING_PRESET: context.routingPreset } : {}),
-    ...(fs.existsSync(path.join(projectDir(context.cwd), 'project-map.json'))
-      ? { COMPOUND_PROJECT_MAP: path.join(projectDir(context.cwd), 'project-map.json') } : {}),
+    COMPOUND_CWD: cwd,
+    TENETX_V1: '1',
   };
+  if (v1SessionId) {
+    env.TENETX_SESSION_ID = v1SessionId;
+  }
+  return env;
 }

@@ -22,6 +22,8 @@ import {
   getSolutionStats,
   defaultSolutionDirs,
 } from './solution-reader.js';
+import { processCorrection } from '../forge/evidence-processor.js';
+import type { CorrectionKind } from '../store/types.js';
 
 function getCwd(): string | undefined {
   return process.env.COMPOUND_CWD || undefined;
@@ -291,6 +293,75 @@ export function registerTools(server: McpServer): void {
           content: [{
             type: 'text' as const,
             text: 'Session search unavailable (requires Node.js 22+ with SQLite support).',
+          }],
+        };
+      }
+    },
+  );
+
+  // ── correction-record ──
+  server.registerTool(
+    'correction-record',
+    {
+      description: [
+        'Record a user correction as structured evidence.',
+        'Call this when the user explicitly corrects your behavior (e.g., "don\'t do X", "always do Y", "fix this now").',
+        'This creates an Evidence record and optionally a temporary session Rule.',
+        '',
+        'kind values:',
+        '  fix-now — immediate fix needed, creates a session-scoped temporary rule',
+        '  prefer-from-now — long-term preference, records evidence for future promotion',
+        '  avoid-this — strong avoidance, creates a strong temporary rule',
+      ].join('\n'),
+      inputSchema: {
+        session_id: z.string().describe('Current session ID'),
+        kind: z.enum(['fix-now', 'prefer-from-now', 'avoid-this'])
+          .describe('Correction type: fix-now (immediate), prefer-from-now (long-term), avoid-this (strong avoidance)'),
+        message: z.string().describe('What the user wants changed — the correction in natural language'),
+        target: z.string().describe('What is being corrected — the specific behavior, pattern, or output'),
+        axis_hint: z.enum(['quality_safety', 'autonomy', 'judgment_philosophy', 'communication_style']).nullable()
+          .describe('Which personalization axis this correction relates to (null if unclear)'),
+      },
+    },
+    async ({ session_id, kind, message, target, axis_hint }) => {
+      try {
+        // v1 session_id를 환경변수에서 가져옴 (하네스가 설정)
+        const effectiveSessionId = session_id || process.env.TENETX_SESSION_ID || 'unknown';
+        const result = processCorrection({
+          session_id: effectiveSessionId,
+          kind: kind as CorrectionKind,
+          message,
+          target,
+          axis_hint: axis_hint as 'quality_safety' | 'autonomy' | 'judgment_philosophy' | 'communication_style' | null,
+        });
+
+        const lines = [
+          `Evidence recorded: ${result.evidence_event_id}`,
+        ];
+
+        if (result.temporary_rule) {
+          lines.push(`Temporary rule created: "${result.temporary_rule.policy}" (${result.temporary_rule.strength}, scope: ${result.temporary_rule.scope})`);
+        }
+
+        if (result.recompose_required) {
+          lines.push('Session recomposition recommended — the temporary rule should be applied to current session behavior.');
+        }
+
+        if (result.promotion_candidate) {
+          lines.push('This correction is a candidate for long-term rule promotion at session end.');
+        }
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: lines.join('\n'),
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Failed to record correction: ${e instanceof Error ? e.message : String(e)}`,
           }],
         };
       }

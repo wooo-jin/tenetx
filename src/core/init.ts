@@ -1,314 +1,47 @@
 /**
- * tenetx init — 원커맨드 프로젝트 초기화
+ * tenetx init — v1 프로젝트 초기화
  *
- * 프로젝트 타입을 자동 감지하여 적절한 철학 팩을 추천하고,
- * 철학 파일 생성 + .gitignore 업데이트까지 한 번에 처리합니다.
+ * 온보딩 기반 프로필 생성 + v1 디렉토리 구조 초기화.
+ * philosophy/pack 시스템은 v1에서 제거됨.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { projectPhilosophyPath } from './paths.js';
-import { DEFAULT_PHILOSOPHY } from './philosophy-loader.js';
-import { savePackConfig, type PackConnection } from './pack-config.js';
-
-// ── 프로젝트 타입 감지 ──
-
-export type ProjectType = 'frontend' | 'backend' | 'devops' | 'data' | 'security' | 'fullstack' | 'unknown';
-
-interface DetectionResult {
-  type: ProjectType;
-  pack: string;
-  confidence: number;  // 0-100
-  signals: string[];
-}
-
-/** package.json 의존성에서 프레임워크 감지 */
-function detectFromPackageJson(cwd: string): { deps: string[]; devDeps: string[] } {
-  const pkgPath = path.join(cwd, 'package.json');
-  if (!fs.existsSync(pkgPath)) return { deps: [], devDeps: [] };
-  try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-    return {
-      deps: Object.keys(pkg.dependencies ?? {}),
-      devDeps: Object.keys(pkg.devDependencies ?? {}),
-    };
-  } catch { return { deps: [], devDeps: [] }; }
-}
-
-/** 프로젝트 타입 자동 감지 */
-export function detectProjectType(cwd: string): DetectionResult {
-  const signals: string[] = [];
-  let frontendScore = 0;
-  let backendScore = 0;
-  let devopsScore = 0;
-  let dataScore = 0;
-
-  const { deps, devDeps } = detectFromPackageJson(cwd);
-  const allDeps = [...deps, ...devDeps];
-
-  // CLI/Tool detection — ink+react는 터미널 UI이므로 frontend가 아님
-  const cliLibs = ['ink', 'commander', 'yargs', 'meow', 'oclif', 'clipanion', 'cac', 'citty'];
-  const isCli = cliLibs.some(lib => allDeps.includes(lib));
-  if (isCli) {
-    backendScore += 15;
-    signals.push('cli: terminal tool detected');
-  }
-
-  // Frontend signals (ink+react 조합은 제외)
-  const frontendLibs = ['react', 'vue', 'svelte', 'angular', 'next', 'nuxt', 'vite', '@angular/core', 'solid-js', 'preact'];
-  for (const lib of frontendLibs) {
-    if (allDeps.some(d => d === lib || d.startsWith(`@${lib}/`))) {
-      // react가 있어도 ink(터미널 UI)와 함께면 frontend 점수를 주지 않음
-      if (lib === 'react' && isCli) {
-        signals.push(`cli: react+ink (terminal UI, not frontend)`);
-        continue;
-      }
-      frontendScore += 20;
-      signals.push(`frontend: ${lib}`);
-    }
-  }
-  if (fs.existsSync(path.join(cwd, 'src', 'App.tsx')) || fs.existsSync(path.join(cwd, 'src', 'App.vue'))) {
-    frontendScore += 15;
-    signals.push('frontend: App component');
-  }
-  if (allDeps.includes('tailwindcss') || allDeps.includes('styled-components')) {
-    frontendScore += 10;
-    signals.push('frontend: CSS-in-JS/utility');
-  }
-
-  // Backend signals
-  const backendLibs = ['express', 'fastify', 'nestjs', '@nestjs/core', 'koa', 'hapi', 'django', 'flask', 'spring', 'gin'];
-  for (const lib of backendLibs) {
-    if (allDeps.some(d => d === lib || d.startsWith(`@${lib}/`))) {
-      backendScore += 20;
-      signals.push(`backend: ${lib}`);
-    }
-  }
-  const dbLibs = ['prisma', '@prisma/client', 'typeorm', 'sequelize', 'mongoose', 'knex', 'drizzle-orm'];
-  for (const lib of dbLibs) {
-    if (allDeps.includes(lib)) {
-      backendScore += 15;
-      signals.push(`backend: ${lib} (DB)`);
-    }
-  }
-  if (fs.existsSync(path.join(cwd, 'Dockerfile'))) {
-    backendScore += 5;
-    signals.push('backend: Dockerfile');
-  }
-
-  // DevOps signals
-  if (fs.existsSync(path.join(cwd, 'terraform')) || fs.existsSync(path.join(cwd, 'main.tf'))) {
-    devopsScore += 30;
-    signals.push('devops: terraform');
-  }
-  if (fs.existsSync(path.join(cwd, 'docker-compose.yml')) || fs.existsSync(path.join(cwd, 'docker-compose.yaml'))) {
-    devopsScore += 15;
-    signals.push('devops: docker-compose');
-  }
-  if (fs.existsSync(path.join(cwd, '.github', 'workflows'))) {
-    devopsScore += 10;
-    signals.push('devops: GitHub Actions');
-  }
-  if (fs.existsSync(path.join(cwd, 'Jenkinsfile')) || fs.existsSync(path.join(cwd, '.gitlab-ci.yml'))) {
-    devopsScore += 15;
-    signals.push('devops: CI pipeline');
-  }
-  if (fs.existsSync(path.join(cwd, 'k8s')) || fs.existsSync(path.join(cwd, 'helm'))) {
-    devopsScore += 20;
-    signals.push('devops: kubernetes');
-  }
-
-  // Data signals
-  const dataLibs = ['pandas', 'numpy', 'tensorflow', 'torch', 'scikit-learn', 'jupyter'];
-  if (fs.existsSync(path.join(cwd, 'requirements.txt'))) {
-    try {
-      const reqs = fs.readFileSync(path.join(cwd, 'requirements.txt'), 'utf-8').toLowerCase();
-      for (const lib of dataLibs) {
-        if (reqs.includes(lib)) {
-          dataScore += 20;
-          signals.push(`data: ${lib}`);
-        }
-      }
-    } catch { /* requirements.txt read failure — data library detection skipped, score stays 0 */ }
-  }
-  if (fs.existsSync(path.join(cwd, 'notebooks')) || fs.readdirSync(cwd).some(f => f.endsWith('.ipynb'))) {
-    dataScore += 25;
-    signals.push('data: Jupyter notebooks');
-  }
-
-  // Python-only projects
-  if (fs.existsSync(path.join(cwd, 'pyproject.toml')) || fs.existsSync(path.join(cwd, 'setup.py'))) {
-    if (backendScore === 0 && frontendScore === 0 && dataScore === 0) {
-      backendScore += 10;
-      signals.push('backend: Python project');
-    }
-  }
-
-  // Go projects
-  if (fs.existsSync(path.join(cwd, 'go.mod'))) {
-    backendScore += 20;
-    signals.push('backend: Go module');
-  }
-
-  // Rust projects
-  if (fs.existsSync(path.join(cwd, 'Cargo.toml'))) {
-    backendScore += 15;
-    signals.push('backend: Rust/Cargo');
-  }
-
-  // Determine winner
-  const scores = { frontend: frontendScore, backend: backendScore, devops: devopsScore, data: dataScore };
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  const [topType, topScore] = sorted[0];
-  // sorted[1] = second place (unused but available for fullstack detection above)
-
-  // Fullstack: frontend + backend both strong
-  if (frontendScore >= 20 && backendScore >= 20) {
-    return {
-      type: 'fullstack',
-      pack: 'backend',  // fullstack은 backend 팩 추천 (보안/데이터 중심)
-      confidence: Math.min(100, frontendScore + backendScore),
-      signals,
-    };
-  }
-
-  if (topScore === 0) {
-    return { type: 'unknown', pack: 'backend', confidence: 0, signals: ['No signals detected — using default backend pack'] };
-  }
-
-  return {
-    type: topType as ProjectType,
-    pack: topType === 'frontend' ? 'frontend' : topType === 'devops' ? 'devops' : topType === 'data' ? 'data' : 'backend',
-    confidence: Math.min(100, topScore),
-    signals,
-  };
-}
+import { profileExists } from '../store/profile-store.js';
+import { ensureV1Directories } from './v1-bootstrap.js';
 
 // ── CLI 핸들러 ──
 
-export async function handleInit(args: string[]): Promise<void> {
+export async function handleInit(_args: string[]): Promise<void> {
   const cwd = process.cwd();
-  const isYes = args.includes('--yes') || args.includes('-y');
-  const extendsMode = args.includes('--extends');
-  const isTeam = args.includes('--team');
-  const packRepoIdx = args.indexOf('--pack-repo');
-  const packRepo = packRepoIdx !== -1 ? args[packRepoIdx + 1] : undefined;
-
-  // 기존 철학 확인
-  const existingPath = projectPhilosophyPath(cwd);
-  if (fs.existsSync(existingPath)) {
-    const existing = JSON.parse(fs.readFileSync(existingPath, 'utf-8'));
-    console.log(`\n  Project philosophy already exists: "${existing.name}"`);
-    console.log(`  Path: ${existingPath}`);
-    console.log(`  To reset, delete and run again: rm ${existingPath}\n`);
-    return;
-  }
-
-  // 프로젝트 감지
-  const detection = detectProjectType(cwd);
   const projectName = path.basename(cwd);
 
   console.log(`\n  Tenetx Init — ${projectName}\n`);
-  console.log(`  Project type: ${detection.type} (confidence ${detection.confidence}%)`);
-  console.log(`  Detection signals:`);
-  for (const sig of detection.signals.slice(0, 5)) {
-    console.log(`    • ${sig}`);
-  }
-  console.log(`  Recommended pack: ${detection.pack}`);
 
-  // 신뢰도 낮을 때 경고
-  if (detection.confidence < 30) {
-    console.log(`\n  ⚠ Low confidence (${detection.confidence}%). Using default philosophy.`);
-    console.log(`  To manually select a pack: tenetx setup --project --pack <pack-name>`);
-    console.log(`  Available packs: frontend, backend, devops, security, data`);
-  }
-  console.log();
+  // v1 디렉토리 생성
+  ensureV1Directories();
 
-  if (!isYes && process.stdin.isTTY) {
-    // interactive: 확인
-    const readline = await import('node:readline');
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const answer = await new Promise<string>(resolve => {
-      rl.question(`  Proceed? (Y/n): `, resolve);
-    });
-    rl.close();
-    if (answer.trim().toLowerCase() === 'n') {
-      console.log('  Cancelled. Manual setup: tenetx setup --project\n');
-      return;
-    }
+  // 프로젝트 .claude/rules 디렉토리 생성
+  const rulesDir = path.join(cwd, '.claude', 'rules');
+  fs.mkdirSync(rulesDir, { recursive: true });
+
+  // 프로필 존재 확인
+  if (profileExists()) {
+    console.log('  Profile already exists. Your personalization is active.');
+    console.log('  Run `tenetx inspect profile` to view your current settings.');
+    console.log('  Run `tenetx forge --reset` to re-onboard.\n');
+    return;
   }
 
-  // 철학 생성
-  const projDir = path.join(cwd, '.compound');
-  fs.mkdirSync(projDir, { recursive: true });
+  console.log('  No profile found. Starting onboarding...\n');
 
-  const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-  const packPath = path.join(pkgRoot, 'packs', `${detection.pack}.json`);
+  // 온보딩 실행
+  const { runOnboarding } = await import('../forge/onboarding-cli.js');
+  await runOnboarding();
 
-  if (extendsMode) {
-    // 중앙 관리 모드
-    const philosophy = {
-      name: projectName,
-      version: '1.0.0',
-      author: 'project',
-      extends: `pack:${detection.pack}`,
-      principles: {},
-    };
-    fs.writeFileSync(existingPath, JSON.stringify(philosophy, null, 2));
-    console.log(`  ✓ Centrally managed philosophy created (extends: pack:${detection.pack})`);
-  } else if (detection.confidence >= 30 && fs.existsSync(packPath)) {
-    const packContent = JSON.parse(fs.readFileSync(packPath, 'utf-8'));
-    packContent.name = projectName;
-    fs.writeFileSync(existingPath, JSON.stringify(packContent, null, 2));
-    console.log(`  ✓ Philosophy created from "${detection.pack}" pack`);
-  } else {
-    const philosophy = JSON.parse(JSON.stringify(DEFAULT_PHILOSOPHY));
-    philosophy.name = projectName;
-    fs.writeFileSync(existingPath, JSON.stringify(philosophy, null, 2));
-    console.log(`  ✓ Default philosophy created`);
-  }
-
-  console.log(`  Path: ${existingPath}`);
-  console.log(`  Principles: ${Object.keys(JSON.parse(fs.readFileSync(existingPath, 'utf-8')).principles).length}`);
-
-  // 팀 팩 설정
-  if (isTeam) {
-    const projDir = path.join(cwd, '.compound');
-    fs.mkdirSync(path.join(projDir, 'rules'), { recursive: true });
-    fs.mkdirSync(path.join(projDir, 'solutions'), { recursive: true });
-
-    const projectName = path.basename(cwd);
-
-    if (packRepo) {
-      // GitHub 연결 모드
-      const config: PackConnection = {
-        type: 'github',
-        name: projectName,
-        repo: packRepo,
-      };
-      savePackConfig(cwd, config);
-      console.log(`  ✓ Pack config: github (${packRepo})`);
-      console.log('  Pack sync: auto-synced on tenetx harness run.');
-    } else {
-      const config: PackConnection = {
-        type: 'inline',
-        name: projectName,
-      };
-      savePackConfig(cwd, config);
-      console.log('  ✓ Pack config: inline (this repo is the pack)');
-      console.log('  Share with team: git add .compound/ && git commit');
-    }
-  }
-
-  console.log('');
+  console.log('  Init complete!');
   console.log('  Next steps:');
-  if (isTeam) {
-    console.log('    git add .compound/ && git commit -m "chore: add tenetx team config"');
-  } else {
-    console.log('    git add .compound/philosophy.json && git commit -m "chore: add tenetx philosophy"');
-  }
-  console.log('    tenetx philosophy show     # View philosophy');
-  console.log('    tenetx philosophy edit     # Customize');
-  console.log('');
+  console.log('    tenetx                     Start Claude Code with personalization');
+  console.log('    tenetx inspect profile     View your profile');
+  console.log('    tenetx doctor              Check system health\n');
 }

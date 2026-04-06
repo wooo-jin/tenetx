@@ -257,6 +257,98 @@ fi
 echo ""
 
 # ──────────────────────────────────────────────
+# Phase 2.5: 신규 기능 검증 (v4.1 변경분)
+# ──────────────────────────────────────────────
+echo "  [Phase 2.5: v4.1 New Features]"
+
+# 2.5-1. 보안 패턴 강화: rm -rf / 직접 패턴 (prompt-injection-filter)
+FILTER_JS="$HOOKS_DIR/../hooks/prompt-injection-filter.js"
+if [ ! -f "$FILTER_JS" ]; then
+  # dist 구조에서 직접 찾기
+  FILTER_JS=$(find "$VERSION_DIR" -name "prompt-injection-filter.js" -path "*/hooks/*" 2>/dev/null | head -1)
+fi
+if [ -n "$FILTER_JS" ] && [ -f "$FILTER_JS" ]; then
+  # Node.js로 직접 import하여 새 패턴 검증
+  SECURITY_CHECK=$(node -e "
+    const m = require('$FILTER_JS');
+    const tests = [
+      ['rm -rf /', true, 'destruct-rm-rf'],
+      ['DROP DATABASE prod;', true, 'destruct-drop-db'],
+      ['cat ~/.ssh/id_rsa', true, 'exfil-ssh-key'],
+      ['eval(atob(\"abc\"))', true, 'obfusc-eval'],
+      ['cat /app/.env', true, 'exfil-env'],
+      ['ls -la', false, 'safe-command'],
+    ];
+    let pass = 0, fail = 0;
+    for (const [input, shouldBlock, label] of tests) {
+      const result = m.containsPromptInjection(input);
+      if (result === shouldBlock) pass++;
+      else { console.error('FAIL: ' + label + ' expected=' + shouldBlock + ' got=' + result); fail++; }
+    }
+    console.log(JSON.stringify({pass, fail}));
+  " 2>/dev/null)
+  if echo "$SECURITY_CHECK" | grep -q '"fail":0'; then
+    SECURITY_PASS=$(echo "$SECURITY_CHECK" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf-8')).pass))")
+    pass "prompt-injection-filter: $SECURITY_PASS/6 new patterns verified"
+  else
+    fail "prompt-injection-filter: some patterns failed — $SECURITY_CHECK"
+  fi
+else
+  warn "prompt-injection-filter.js not found, skipping pattern check"
+fi
+
+# 2.5-2. post-tool-failure: getRecoverySuggestion export 검증
+PTF_JS=$(find "$VERSION_DIR" -name "post-tool-failure.js" -path "*/hooks/*" 2>/dev/null | head -1)
+if [ -n "$PTF_JS" ] && [ -f "$PTF_JS" ]; then
+  RECOVERY_CHECK=$(node -e "
+    const m = require('$PTF_JS');
+    if (typeof m.getRecoverySuggestion === 'function') {
+      const r = m.getRecoverySuggestion('ENOENT: file not found', 'Read');
+      console.log(r.includes('not exist') ? 'ok' : 'wrong');
+    } else { console.log('no-export'); }
+  " 2>/dev/null)
+  if [ "$RECOVERY_CHECK" = "ok" ]; then
+    pass "post-tool-failure: getRecoverySuggestion works"
+  else
+    warn "post-tool-failure: getRecoverySuggestion check=$RECOVERY_CHECK"
+  fi
+else
+  warn "post-tool-failure.js not found"
+fi
+
+# 2.5-3. auto-tuner 모듈 존재 확인
+TUNER_JS=$(find "$VERSION_DIR" -name "auto-tuner.js" -path "*/forge/*" 2>/dev/null | head -1)
+if [ -n "$TUNER_JS" ] && [ -f "$TUNER_JS" ]; then
+  TUNER_CHECK=$(node -e "
+    const m = require('$TUNER_JS');
+    if (typeof m.computeDeltas === 'function' && typeof m.tuneFromBehavior === 'function' && typeof m.parseBehaviorFile === 'function') {
+      console.log('ok');
+    } else { console.log('missing-exports'); }
+  " 2>/dev/null)
+  if [ "$TUNER_CHECK" = "ok" ]; then
+    pass "forge/auto-tuner: all exports present (computeDeltas, tuneFromBehavior, parseBehaviorFile)"
+  else
+    fail "forge/auto-tuner: missing exports — $TUNER_CHECK"
+  fi
+else
+  fail "forge/auto-tuner.js not found in dist"
+fi
+
+# 2.5-4. session-store FTS5 코드 존재 확인
+SESSION_JS=$(find "$VERSION_DIR" -name "session-store.js" -path "*/core/*" 2>/dev/null | head -1)
+if [ -n "$SESSION_JS" ] && [ -f "$SESSION_JS" ]; then
+  if grep -q "messages_fts" "$SESSION_JS" && grep -q "fts5" "$SESSION_JS"; then
+    pass "session-store: FTS5 code present"
+  else
+    fail "session-store: FTS5 code missing"
+  fi
+else
+  warn "session-store.js not found"
+fi
+
+echo ""
+
+# ──────────────────────────────────────────────
 # Phase 3: tenetx doctor
 # ──────────────────────────────────────────────
 echo "  [Phase 3: tenetx doctor]"

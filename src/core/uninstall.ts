@@ -240,10 +240,13 @@ function cleanAgents(cwd: string): void {
 /** .claude/rules/ 의 tenetx 규칙 파일 및 레거시 compound-rules.md 제거 */
 function cleanCompoundRules(cwd: string): void {
   const ruleFiles = [
+    // v4.1+ consolidated
+    'project-context.md',
+    'routing.md',
+    // legacy (v4.0 and earlier)
     'security.md',
     'golden-principles.md',
     'anti-pattern.md',
-    'routing.md',
     'compound.md',
   ];
   const rulesDir = path.join(cwd, '.claude', 'rules');
@@ -297,7 +300,7 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
   console.log('The following items will be cleaned up:');
   console.log('  1. Remove CH env vars/hooks/statusLine/enabledPlugins from ~/.claude/settings.json');
   console.log('  2. Delete .claude/agents/ch-*.md agent files');
-  console.log('  3. Delete .claude/rules/ rule files (security, golden-principles, anti-pattern, routing, compound)');
+  console.log('  3. Delete .claude/rules/ rule files (project-context, routing, forge-*)');
   console.log('  4. Remove tenetx block from CLAUDE.md');
   console.log('  5. Remove slash commands (~/.claude/commands/tenetx/)');
   console.log('  6. Remove plugin artifacts (cache, installed_plugins.json, plugin directory)');

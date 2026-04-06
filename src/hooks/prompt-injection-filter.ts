@@ -186,6 +186,43 @@ export const SECURITY_PATTERNS: SecurityPattern[] = [
     severity: 'block',
     category: 'exfiltration',
   },
+  {
+    id: 'exfil-wget-post',
+    pattern: /wget\s+--post-data[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD)/i,
+    severity: 'block',
+    category: 'exfiltration',
+  },
+  {
+    id: 'exfil-nc-pipe',
+    pattern: /\|\s*nc\s+\S+\s+\d+/,
+    severity: 'block',
+    category: 'exfiltration',
+  },
+  {
+    id: 'exfil-ssh-key-read',
+    pattern: /cat\s+[^\n]*\.ssh\/(id_rsa|id_ed25519|authorized_keys)/i,
+    severity: 'block',
+    category: 'exfiltration',
+  },
+  // --- destructive / block: 파괴적 명령 패턴 ---
+  {
+    id: 'destruct-rm-rf-root',
+    pattern: /rm\s+-[^\n]*rf\s+\//,
+    severity: 'block',
+    category: 'exfiltration',
+  },
+  {
+    id: 'destruct-chmod-777',
+    pattern: /chmod\s+(-R\s+)?777\s+\//,
+    severity: 'block',
+    category: 'exfiltration',
+  },
+  {
+    id: 'destruct-drop-database',
+    pattern: /DROP\s+(DATABASE|TABLE)\s+/i,
+    severity: 'block',
+    category: 'exfiltration',
+  },
   // --- obfuscation / warn: base64 디코드 파이프 ---
   {
     id: 'obfusc-base64-decode',
@@ -197,6 +234,12 @@ export const SECURITY_PATTERNS: SecurityPattern[] = [
   {
     id: 'obfusc-echo-exec',
     pattern: /echo\s+[^\n]*\|\s*(bash|sh|python|node)/i,
+    severity: 'block',
+    category: 'obfuscation',
+  },
+  {
+    id: 'obfusc-eval-dynamic',
+    pattern: /eval\s*\(\s*(atob|Buffer\.from|decodeURI)/i,
     severity: 'block',
     category: 'obfuscation',
   },

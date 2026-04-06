@@ -36,6 +36,8 @@ interface SessionRow {
   cwd: string;
 }
 
+let fts5Available = false;
+
 function openDb(): SqliteDb | null {
   try {
     // Node.js 22+ experimental node:sqlite
@@ -56,6 +58,23 @@ function openDb(): SqliteDb | null {
         timestamp TEXT NOT NULL
       );
     `);
+
+    // FTS5 가상 테이블 생성 (미지원 시 LIKE 폴백)
+    try {
+      db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+          content,
+          content=messages,
+          content_rowid=id,
+          tokenize='unicode61 remove_diacritics 2'
+        );
+      `);
+      fts5Available = true;
+    } catch (e) {
+      log.debug('FTS5 미지원 — LIKE 폴백 사용', e);
+      fts5Available = false;
+    }
+
     return db;
   } catch (e) {
     log.debug('SQLite 초기화 실패 (Node.js 22+ 필요)', e);
@@ -105,7 +124,14 @@ export async function indexSession(cwd: string, transcriptPath: string, sessionI
         }
 
         if (role && text) {
-          insertMsg.run(sessionId, role, text.slice(0, 10000), entry.timestamp ?? '');
+          const truncated = text.slice(0, 10000);
+          const result = insertMsg.run(sessionId, role, truncated, entry.timestamp ?? '');
+          // FTS5 인덱스 동기화
+          if (fts5Available) {
+            try {
+              db.prepare('INSERT INTO messages_fts(rowid, content) VALUES (?, ?)').run(result.lastInsertRowid, truncated);
+            } catch { /* FTS sync failure — search may miss this message */ }
+          }
           messageCount++;
         }
       } catch { /* skip malformed lines */ }
@@ -121,7 +147,9 @@ export async function indexSession(cwd: string, transcriptPath: string, sessionI
 }
 
 /**
- * 과거 세션 검색 (토큰화 LIKE 기반 AND 결합 — FTS5는 node:sqlite에서 미지원 시 폴백).
+ * 과거 세션 검색.
+ * FTS5 MATCH 우선 사용 (전문 검색, 순위 정렬).
+ * FTS5 미지원 시 LIKE 기반 폴백.
  */
 export function searchSessions(query: string, limit = 10): Array<{
   sessionId: string;
@@ -142,19 +170,36 @@ export function searchSessions(query: string, limit = 10): Array<{
   if (tokens.length === 0) return [];
 
   try {
-    const conditions = tokens.map(() => "LOWER(m.content) LIKE ? ESCAPE '\\'").join(' AND ');
-    const escapedTokens = tokens.map(t => t.replace(/%/g, '\\%').replace(/_/g, '\\_'));
-    const params: string[] = escapedTokens.map(t => `%${t}%`);
-    params.push(String(limit));
+    let results: SessionRow[];
 
-    const results = db.prepare(`
-      SELECT m.session_id, m.role, m.content, m.timestamp, s.cwd
-      FROM messages m
-      JOIN sessions s ON m.session_id = s.id
-      WHERE ${conditions}
-      ORDER BY m.id DESC
-      LIMIT ?
-    `).all(...params) as SessionRow[];
+    if (fts5Available) {
+      // FTS5 MATCH — 전문 검색 + BM25 순위 정렬
+      const ftsQuery = tokens.map(t => `"${t.replace(/"/g, '""')}"`).join(' AND ');
+      results = db.prepare(`
+        SELECT m.session_id, m.role, m.content, m.timestamp, s.cwd
+        FROM messages_fts fts
+        JOIN messages m ON fts.rowid = m.id
+        JOIN sessions s ON m.session_id = s.id
+        WHERE messages_fts MATCH ?
+        ORDER BY fts.rank
+        LIMIT ?
+      `).all(ftsQuery, limit) as SessionRow[];
+    } else {
+      // LIKE 폴백
+      const conditions = tokens.map(() => "LOWER(m.content) LIKE ? ESCAPE '\\'").join(' AND ');
+      const escapedTokens = tokens.map(t => t.replace(/%/g, '\\%').replace(/_/g, '\\_'));
+      const params: (string | number)[] = escapedTokens.map(t => `%${t}%`);
+      params.push(limit);
+
+      results = db.prepare(`
+        SELECT m.session_id, m.role, m.content, m.timestamp, s.cwd
+        FROM messages m
+        JOIN sessions s ON m.session_id = s.id
+        WHERE ${conditions}
+        ORDER BY m.id DESC
+        LIMIT ?
+      `).all(...params) as SessionRow[];
+    }
 
     return results.map((r: SessionRow) => ({
       sessionId: r.session_id,

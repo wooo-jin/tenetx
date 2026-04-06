@@ -38,6 +38,8 @@ describe('cli - command structure', () => {
       'mcp',
       'init',
       'notepad',
+      'inspect',
+      'onboarding',
       'doctor',
       'uninstall',
     ]);

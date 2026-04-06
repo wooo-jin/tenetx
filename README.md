@@ -20,30 +20,13 @@
 
 ---
 
-## What is Tenetx?
+## The more you use Claude, the better it knows you.
 
-Tenetx wraps Claude Code as a **harness** — it spawns `claude`, watches your sessions, and **automatically accumulates reusable knowledge** that makes Claude better for you over time.
+Tenetx wraps Claude Code as a **personalization harness**. It profiles your work style across 4 axes, learns from your corrections, and adapts Claude's behavior over time.
 
 ```bash
 npm install -g tenetx
 tenetx                    # Use this instead of `claude`
-```
-
-### What happens when you use `tenetx`:
-
-1. **Project facts** auto-detected (TypeScript? Vitest? CI?) → `.claude/rules/project-context.md`
-2. **Safety hooks** active — dangerous commands blocked, secrets filtered
-3. **Compound knowledge** searchable — Claude proactively searches past patterns via MCP
-4. **Session ends** → auto-compound extracts reusable patterns from the conversation
-5. **Next session** → Claude uses accumulated knowledge to give better answers
-
-### User journey
-
-```
-npm i -g tenetx          → Install: hooks, MCP, skills registered
-tenetx forge             → One-time interview: set your preferences (global)
-tenetx                   → Daily use: Claude + safety + compound + auto-learning
-/compound                → Optional: manually extract patterns mid-session
 ```
 
 ---
@@ -54,62 +37,144 @@ tenetx                   → Daily use: Claude + safety + compound + auto-learni
 # Install
 npm install -g tenetx
 
-# Personalize (one-time, optional)
-tenetx forge
+# First run — 4-question onboarding (English/Korean)
+tenetx
 
-# Use daily (instead of `claude`)
+# Daily use (instead of `claude`)
 tenetx
 ```
 
 ### Prerequisites
 
-- **Node.js** >= 20 (>= 22 recommended for session-search feature)
+- **Node.js** >= 20 (>= 22 recommended for session-search)
 - **Claude Code** installed and authenticated (`npm i -g @anthropic-ai/claude-code`)
 
 ---
 
 ## How It Works
 
+### 4-Axis Personalization
+
+Tenetx profiles you across 4 axes, each with a pack and fine-grained facets:
+
+| Axis | Packs | What it controls |
+|------|-------|-----------------|
+| **Quality/Safety** | Conservative / Balanced / Speed-first | Verification depth, stop threshold, change scope |
+| **Autonomy** | Confirm-first / Balanced / Autonomous | When to ask, scope expansion, assumption tolerance |
+| **Judgment** | Minimal-change / Balanced / Structural | Refactoring bias, abstraction preference |
+| **Communication** | Concise / Balanced / Detailed | Explanation depth, report structure, teaching style |
+
+### Learning Loop
+
 ```
-tenetx (harness mode)
-├── Spawns claude with safety hooks + project facts
-├── Session runs normally — you work as usual
-├── Session ends (exit, /new, /compact)
-│   ├── Transcript analyzed by Claude (auto-compound)
-│   ├── Reusable patterns saved to ~/.compound/me/solutions/
-│   └── User patterns observed → ~/.compound/me/behavior/
-└── Next session
-    ├── MCP instructions tell Claude about compound knowledge
-    ├── Claude proactively searches past patterns
-    └── Accumulated knowledge improves answers
+Onboarding (4 questions)
+    → Profile created with pack + facets + trust policy
+    → Rules rendered to .claude/rules/v1-rules.md
+
+Session runs
+    → Claude follows your personalized rules
+    → You correct Claude → correction-record MCP tool → Evidence stored
+    → Behavioral patterns observed
+
+Session ends
+    → Auto-compound extracts solutions + session learning summary
+    → Facet deltas applied to profile (micro-adjustments)
+    → Workflow patterns accumulated
+
+Next session
+    → Updated rules rendered (corrections included)
+    → Mismatch detection (rolling 3-session check)
+    → Compound knowledge searchable via MCP
 ```
 
 ### Compound Knowledge
 
 Knowledge accumulates across sessions:
 
-- **Solutions** — reusable patterns with "why" context
-- **Skills** — promoted from verified solutions via `tenetx skill promote`
-- **Behavioral patterns** — observed user habits auto-accumulated in `~/.compound/me/behavior/`, converted to `.claude/rules/forge-behavioral.md`
+- **Solutions** — reusable patterns with context
+- **Skills** — promoted from verified solutions
+- **Evidence** — corrections and behavioral observations
+- **Workflow patterns** — repeated action sequences (auto-detected, applied at 3+ observations)
 
-Claude searches this knowledge via MCP tools (`compound-search` → `compound-read`).
-No regex matching — **Claude decides what's relevant**.
+Claude searches this knowledge via MCP tools (`compound-search`, `compound-read`).
 
-### Forge (Personalization)
+---
 
-One-time interview sets your preferences:
+## Commands
 
 ```bash
-tenetx forge
+tenetx                          # Start Claude Code with personalization
+tenetx onboarding               # Run 4-question onboarding
+tenetx forge                    # Profile management (--profile, --export, --reset)
+tenetx inspect profile          # View your 4-axis profile + facets
+tenetx inspect rules            # View active/suppressed rules
+tenetx inspect evidence         # View correction history
+tenetx inspect session          # View current session state
+tenetx compound                 # Manage accumulated knowledge
+tenetx skill promote <name>     # Promote solution to skill
+tenetx init                     # Initialize project
+tenetx doctor                   # System diagnostics
+tenetx uninstall                # Remove tenetx cleanly
 ```
 
-- Generates **global rules** (`~/.claude/rules/forge-*.md`) based on your work style
-- Quality focus, risk tolerance, communication style, etc.
-- **Project scan is facts only** — "TypeScript, Vitest, ESLint" (not preference inference)
+### MCP Tools (available to Claude during sessions)
 
-### Safety
+| Tool | Purpose |
+|------|---------|
+| `compound-search` | Search accumulated knowledge by query |
+| `compound-read` | Read full solution content |
+| `compound-list` | List solutions with filters |
+| `compound-stats` | Overview statistics |
+| `session-search` | Search past session conversations |
+| `correction-record` | Record user corrections as structured evidence |
 
-Active hooks (settings.json registered):
+---
+
+## Architecture
+
+```
+~/.tenetx/                       ← v1 personalization home
+├── me/
+│   ├── forge-profile.json       ← 4-axis profile (packs + facets + trust)
+│   ├── rules/                   ← structured Rule store (JSON per rule)
+│   ├── behavior/                ← Evidence store (corrections + observations)
+│   ├── recommendations/         ← Pack recommendations (onboarding + mismatch)
+│   └── solutions/               ← Compound knowledge
+├── state/
+│   ├── sessions/                ← Session effective state snapshots
+│   └── raw-logs/                ← Raw session logs (7-day TTL)
+└── config.json                  ← Global config (locale, trust, packs)
+
+~/.claude/
+├── settings.json                ← Hooks + env vars injected by harness
+├── rules/
+│   ├── forge-behavioral.md      ← Learned patterns (global, all projects)
+│   └── v1-rules.md              ← Rendered personalization rules (per project)
+├── commands/tenetx/             ← Slash commands (19 skills)
+└── .claude.json                 ← MCP server registration
+
+~/.compound/                     ← Legacy compound home (hooks/MCP still reference)
+├── me/
+│   ├── solutions/               ← Accumulated compound knowledge
+│   ├── behavior/                ← Behavioral patterns
+│   └── skills/                  ← Promoted skills
+└── sessions.db                  ← SQLite session history (Node.js 22+)
+```
+
+### Key Design Decisions
+
+- **4-axis personalization** — not just preferences, but structured packs with fine-grained facets
+- **Evidence-based learning** — corrections are structured data, not regex pattern matching
+- **AI judgment boundary** — hooks collect events, Claude interprets, algorithms apply
+- **Pack + overlay model** — stable base pack, personalized via facet adjustments over time
+- **Mismatch detection** — rolling 3-session analysis flags when your pack no longer fits
+- **i18n** — English/Korean, selected at onboarding, applied throughout
+
+---
+
+## Safety
+
+Active hooks (auto-registered):
 
 | Hook | What it does |
 |------|-------------|
@@ -117,81 +182,14 @@ Active hooks (settings.json registered):
 | `db-guard` | Blocks dangerous SQL (DROP TABLE, WHERE-less DELETE) |
 | `secret-filter` | Warns on API key exposure |
 | `slop-detector` | Detects AI slop (TODO remnants, eslint-disable, as any) |
+| `prompt-injection-filter` | Blocks prompt injection attempts |
 | `context-guard` | Warns on context limit approach |
-| `rate-limiter` | MCP tool rate limiting |
-
-Security scan uses **severity classification** (block/warn) with exfiltration and obfuscation detection.
-
----
-
-## Commands
-
-```bash
-tenetx                    # Start Claude Code (harness mode)
-tenetx forge              # Personalize your profile
-tenetx compound           # Manage accumulated knowledge
-tenetx compound --save    # Save auto-analyzed patterns
-tenetx skill promote <n>  # Promote verified solution to skill
-tenetx skill list         # List promoted skills
-tenetx me                 # Personal dashboard
-tenetx config hooks       # Hook management
-tenetx doctor             # System diagnostics
-tenetx uninstall          # Remove tenetx cleanly
-```
-
-### MCP Tools (available to Claude during sessions)
-
-| Tool | Purpose |
-|------|---------|
-| `compound-search` | Search accumulated knowledge by query (with content preview) |
-| `compound-read` | Read full solution content |
-| `compound-list` | List solutions with filters |
-| `compound-stats` | Overview statistics |
-| `session-search` | Search past session conversations (tokenized, with context window) |
-
----
-
-## Architecture
-
-```
-~/.claude/
-├── settings.json          ← hooks registered here (absolute paths)
-├── rules/
-│   └── forge-*.md         ← global user preferences (from interview)
-├── skills/
-│   └── {promoted}/SKILL.md ← promoted skills (Claude Code auto-recognizes)
-└── .claude.json           ← MCP server registered here
-
-{project}/
-└── .claude/
-    ├── rules/
-    │   └── project-context.md  ← project facts (auto-scanned)
-    └── agents/
-        └── ch-*.md             ← custom agents with memory + MCP access
-
-~/.compound/
-├── me/
-│   ├── solutions/         ← accumulated compound knowledge
-│   ├── skills/            ← promoted skills (tenetx managed copy)
-│   ├── behavior/          ← observed user patterns → forge-behavioral.md
-│   └── forge-profile.json ← personality dimensions
-├── sessions.db            ← SQLite session history (Node.js 22+ built-in)
-└── state/                 ← auto-compound state
-```
-
-### Key Design Decisions
-
-- **Harness, not just plugin** — `tenetx` spawns `claude` and controls session lifecycle
-- **Claude is the extractor** — no regex pattern matching; Claude analyzes conversations
-- **Pull, not push** — MCP instructions guide Claude to search knowledge; no forced injection
-- **Facts, not inference** — project scan collects facts; preferences come from interview only
-- **Security by severity** — block vs warn classification prevents false-positive knowledge loss
 
 ---
 
 ## Coexistence
 
-Tenetx detects other plugins (oh-my-claudecode, superpowers, claude-mem) at install time and disables overlapping workflow hooks. Core safety and compound hooks always remain active.
+Tenetx detects other plugins (oh-my-claudecode, superpowers, claude-mem) at install time and disables overlapping hooks. Core safety and compound hooks always remain active.
 
 ---
 

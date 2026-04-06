@@ -20,7 +20,7 @@ const log = createLogger('solution-injector');
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 // filterSolutionContent는 MCP solution-reader에서 사용 (Tier 3)
-import { recordPrompt } from '../engine/prompt-learner.js';
+// v1: recordPrompt (regex 선호 감지) 제거
 import { calculateBudget } from './shared/context-budget.js';
 import { writeSignal } from './shared/plugin-signal.js';
 import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
@@ -85,8 +85,13 @@ async function main(): Promise<void> {
 
   const sessionId = input.session_id ?? 'default';
 
-  // Record prompt for pattern learning (non-blocking)
-  try { recordPrompt(input.prompt, sessionId); } catch (e) { log.debug('prompt 기록 실패 — pattern learning 누락', e); }
+  // v1: 교정 감지 → correction-record 호출 유도 hint
+  const correctionPatterns = /하지\s*마|그렇게\s*말고|앞으로는|이렇게\s*해|stop\s+doing|don'?t\s+do|always\s+do|never\s+do|아니\s*그게\s*아니라/i;
+  if (correctionPatterns.test(input.prompt)) {
+    try {
+      writeSignal(sessionId, 'correction-detected', 0);
+    } catch { /* non-critical */ }
+  }
 
   // 어댑티브 버짓: 다른 플러그인 감지 시 주입��� ���동 축소
   const cwd = process.env.COMPOUND_CWD ?? process.cwd();
@@ -191,7 +196,8 @@ async function main(): Promise<void> {
   }).join('\n');
 
   const header = `Matched solutions (use compound-read tool for full content):\n`;
-  const fullInjection = header + injections;
+  const footer = `\n\nIMPORTANT: When you use compound knowledge above, briefly mention it naturally (e.g., "Based on accumulated patterns..." or "From past experience..."). This helps the user see compound learning in action.`;
+  const fullInjection = header + injections + footer;
 
   // 플러그인 시그널 기록 (다른 플러그인이 참고할 수 있도록)
   try { writeSignal(sessionId, 'UserPromptSubmit', fullInjection.length); } catch (e) { log.debug('plugin signal 기록 실패', e); }
