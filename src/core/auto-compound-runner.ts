@@ -13,8 +13,30 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, type ExecFileSyncOptions } from 'node:child_process';
 import { containsPromptInjection, filterSolutionContent } from '../hooks/prompt-injection-filter.js';
+
+/** Auto-compound에 사용할 모델 — background 추출이므로 haiku로 충분 */
+const COMPOUND_MODEL = 'haiku';
+
+/** execFileSync wrapper: transient 에러(ETIMEDOUT 등) 시 1회 재시도 */
+function execClaudeRetry(args: string[], opts: ExecFileSyncOptions): string {
+  const TRANSIENT = /ETIMEDOUT|ECONNRESET|ECONNREFUSED|EPIPE/;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return execFileSync('claude', args, opts) as unknown as string;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (attempt === 0 && TRANSIENT.test(msg)) {
+        process.stderr.write(`[tenetx-auto-compound] transient error, retrying in 3s...\n`);
+        execFileSync('sleep', ['3']);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error('unreachable');
+}
 
 const [,, cwd, transcriptPath, sessionId] = process.argv;
 
@@ -239,8 +261,8 @@ ${sanitizedSummary.slice(0, 6000)}
 ---`;
 
   try {
-    execFileSync('claude', ['-p', solutionPrompt, '--allowedTools', 'Bash'], {
-      cwd, timeout: 60_000, stdio: ['pipe', 'ignore', 'pipe'],
+    execClaudeRetry(['-p', solutionPrompt, '--allowedTools', 'Bash', '--model', COMPOUND_MODEL], {
+      cwd, timeout: 90_000, stdio: ['pipe', 'ignore', 'pipe'],
     });
   } catch (e) {
     process.stderr.write(`[tenetx-auto-compound] solution extraction: ${e instanceof Error ? e.message : String(e)}\n`);
@@ -274,8 +296,8 @@ ${sanitizedSummary.slice(0, 4000)}
 ---`;
 
   try {
-    const userResult = execFileSync('claude', ['-p', userPrompt], {
-      cwd, timeout: 30_000, encoding: 'utf-8',
+    const userResult = execClaudeRetry(['-p', userPrompt, '--model', COMPOUND_MODEL], {
+      cwd, timeout: 60_000, encoding: 'utf-8',
     });
 
     // 결과가 의미 있으면 behavior/ 파일로 저장
@@ -337,8 +359,8 @@ ${sanitizedSummary.slice(0, 4000)}
 ${sanitizedSummary.slice(0, 4000)}
 ---`;
 
-      const learningResult = execFileSync('claude', ['-p', learningSummaryPrompt], {
-        cwd, timeout: 30_000, encoding: 'utf-8',
+      const learningResult = execClaudeRetry(['-p', learningSummaryPrompt, '--model', COMPOUND_MODEL], {
+        cwd, timeout: 60_000, encoding: 'utf-8',
       });
 
       // JSON 파싱 시도

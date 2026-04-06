@@ -144,9 +144,9 @@ describe('Chain 3: auto-compound quality gate', () => {
 
   it('validateSolutionFiles가 추출 후 호출된다', () => {
     const src = fs.readFileSync(path.join(PROJECT_ROOT, 'src', 'core', 'auto-compound-runner.ts'), 'utf-8');
-    // solutionsBefore 스냅샷 → claude -p → validateSolutionFiles 순서
+    // solutionsBefore 스냅샷 → claude 호출(execClaudeRetry) → validateSolutionFiles 순서
     const beforeIdx = src.indexOf('solutionsBefore');
-    const claudeIdx = src.indexOf("execFileSync('claude'");
+    const claudeIdx = src.indexOf("execClaudeRetry(['-p', solutionPrompt");
     const validateIdx = src.indexOf('validateSolutionFiles(solutionsBefore)');
     expect(beforeIdx).toBeGreaterThan(-1);
     expect(claudeIdx).toBeGreaterThan(beforeIdx);
