@@ -99,10 +99,14 @@ export async function spawnClaude(args: string[], context: V1HarnessContext): Pr
       // 세션 종료 후 하네스 작업
       try {
         const transcript = findLatestTranscript(context.cwd);
-        if (transcript) {
+        if (!transcript) {
+          log.debug('transcript 파일을 찾을 수 없음');
+        } else {
           const stat = fs.statSync(transcript);
           // 이 세션에서 생성/수정된 transcript만
-          if (stat.mtimeMs > sessionStartTime) {
+          if (stat.mtimeMs <= sessionStartTime) {
+            log.debug(`transcript mtime(${stat.mtimeMs}) <= sessionStart(${sessionStartTime}), 건너뜀`);
+          } else {
             const sessionId = path.basename(transcript, '.jsonl');
 
             // 1. FTS5 인덱싱
@@ -117,12 +121,12 @@ export async function spawnClaude(args: string[], context: V1HarnessContext): Pr
             if (userMsgCount >= 10) {
               await runAutoCompound(context.cwd, transcript, sessionId);
             } else {
-              log.debug(`세션이 짧아 auto-compound 생략 (${userMsgCount} messages)`);
+              console.log(`[tenetx] 세션이 짧아 auto-compound 생략 (${userMsgCount} messages)`);
             }
           }
         }
       } catch (e) {
-        log.debug('세션 종료 후 처리 실패', e);
+        console.error('[tenetx] 세션 종료 후 처리 실패:', e instanceof Error ? e.message : e);
       }
 
       if (code === 0 || code === null) {

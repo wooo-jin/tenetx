@@ -30,15 +30,6 @@
 
 ---
 
-# Tenetx — Completion Checklist
-
-## 작업 완료 시 문서 정리 필수
-- 코드 변경 후 관련 문서(CHANGELOG, README, 백로그, plugin.json 버전 등)도 반드시 업데이트
-- 완료된 계획/이슈는 docs/history/로 이관하거나 상태를 갱신
-- 버전 범프 시 package.json, plugin.json, CHANGELOG 3곳 동기화 확인
-
----
-
 # Tenetx — Compound Loop
 
 ## Personal Rules (Me)

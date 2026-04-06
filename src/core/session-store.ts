@@ -14,6 +14,18 @@ import { createLogger } from './logger.js';
 
 const require = createRequire(import.meta.url);
 
+// Suppress ExperimentalWarning for node:sqlite (Node.js 22+)
+{
+  const origWarningListeners = process.listeners('warning');
+  process.removeAllListeners('warning');
+  process.on('warning', (warning) => {
+    if (warning.name === 'ExperimentalWarning') return;
+    for (const listener of origWarningListeners) {
+      (listener as (w: Error) => void)(warning);
+    }
+  });
+}
+
 const log = createLogger('session-store');
 
 const DB_PATH = path.join(os.homedir(), '.compound', 'sessions.db');
