@@ -19,6 +19,7 @@ import { createLogger } from '../core/logger.js';
 const log = createLogger('solution-injector');
 import { sanitizeId } from './shared/sanitize-id.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { withFileLock, withFileLockSync, FileLockError } from './shared/file-lock.js';
 // filterSolutionContent는 MCP solution-reader에서 사용 (Tier 3)
 // v1: recordPrompt (regex 선호 감지) 제거
 import { calculateBudget } from './shared/context-budget.js';
@@ -46,25 +47,115 @@ interface SessionCacheData {
 function loadSessionCache(sessionId: string): { injected: Set<string>; totalInjectedChars: number } {
   const cachePath = getSessionCachePath(sessionId);
   try {
-    if (fs.existsSync(cachePath)) {
-      const data: SessionCacheData = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
-      const age = data.updatedAt ? Date.now() - new Date(data.updatedAt).getTime() : Infinity;
-      if (!Number.isFinite(age) || age > 24 * 60 * 60 * 1000) {
-        fs.unlinkSync(cachePath);
-        return { injected: new Set(), totalInjectedChars: 0 };
-      }
+    if (!fs.existsSync(cachePath)) return { injected: new Set(), totalInjectedChars: 0 };
+
+    const data: SessionCacheData = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+    const age = data.updatedAt ? Date.now() - new Date(data.updatedAt).getTime() : Infinity;
+    if (Number.isFinite(age) && age <= 24 * 60 * 60 * 1000) {
       return { injected: new Set(data.injected ?? []), totalInjectedChars: data.totalInjectedChars ?? 0 };
     }
+
+    // M-1 fix: 만료 unlink를 lock 안에서 fresh updatedAt 재검증 후에만.
+    // 이전 lock 없는 unlink는 다른 hook이 막 만든 fresh cache를 삭제할 수 있었음.
+    try {
+      withFileLockSync(cachePath, () => {
+        if (!fs.existsSync(cachePath)) return;
+        const fresh: SessionCacheData = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+        const freshAge = fresh.updatedAt ? Date.now() - new Date(fresh.updatedAt).getTime() : Infinity;
+        if (!Number.isFinite(freshAge) || freshAge > 24 * 60 * 60 * 1000) {
+          // 정말 만료된 경우에만 unlink
+          fs.unlinkSync(cachePath);
+        }
+      });
+    } catch (e) {
+      if (e instanceof FileLockError) {
+        log.warn('session cache GC lock 실패 — skip', e);
+      }
+    }
+    return { injected: new Set(), totalInjectedChars: 0 };
   } catch (e) { log.debug('캐시 읽기 실패', e); }
   return { injected: new Set(), totalInjectedChars: 0 };
 }
 
-function saveSessionCache(sessionId: string, injected: Set<string>, totalInjectedChars: number): void {
-  atomicWriteJSON(getSessionCachePath(sessionId), {
-    injected: [...injected],
-    totalInjectedChars,
-    updatedAt: new Date().toISOString(),
-  });
+interface SessionCacheCommitResult {
+  /**
+   * 이번 호출에서 disk에 실제로 새로 추가된 entries.
+   * caller는 이 list로만 evidence.injected counter를 갱신해야 한다.
+   * 다른 hook이 이미 같은 entry를 추가했다면 그 entry는 newlyAdded에 포함되지 않는다.
+   */
+  newlyAdded: Array<{ name: string; chars: number }>;
+  /** disk에 저장된 fresh totalInjectedChars (caller가 다음 budget 검사에 사용 가능) */
+  totalInjectedChars: number;
+}
+
+/**
+ * 새로 inject할 entries를 disk session cache에 commit한다.
+ *
+ * H-1 + M-3 fix:
+ *   - 이전 saveSessionCache는 caller의 메모리 set 전체를 저장 + Math.max로 chars 합산
+ *     → disjoint write 합산 손실로 budget cap이 헐거워졌음 (H-1)
+ *   - 또한 두 hook이 거의 동시에 같은 솔루션을 inject 후보로 보면 둘 다
+ *     evidence.injected를 증가시켜 중복 카운트 (M-3)
+ *
+ * 이번 fix:
+ *   1. caller는 "이번에 추가하려는 entries (name+chars)"만 전달
+ *   2. lock 안에서 disk fresh를 읽어 이미 있는 name은 제외
+ *   3. 새로 추가된 것만 newlyAdded로 반환
+ *   4. disk의 fresh chars + newlyAdded chars를 합산해 새 total로 저장
+ *   5. caller는 newlyAdded로만 evidence.injected counter 갱신 → 중복 차단
+ */
+function commitSessionCacheEntries(
+  sessionId: string,
+  newEntries: Array<{ name: string; chars: number }>,
+): SessionCacheCommitResult {
+  const cachePath = getSessionCachePath(sessionId);
+  let result: SessionCacheCommitResult = { newlyAdded: [], totalInjectedChars: 0 };
+  try {
+    withFileLockSync(cachePath, () => {
+      // Lock 안에서 fresh re-read
+      let freshInjected = new Set<string>();
+      let freshChars = 0;
+      try {
+        if (fs.existsSync(cachePath)) {
+          const fresh: SessionCacheData = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+          // L-2 fix: 만료된 fresh는 무시 (24h 초과)
+          const age = fresh.updatedAt ? Date.now() - new Date(fresh.updatedAt).getTime() : Infinity;
+          if (Number.isFinite(age) && age <= 24 * 60 * 60 * 1000) {
+            if (Array.isArray(fresh.injected)) {
+              for (const name of fresh.injected) {
+                if (typeof name === 'string') freshInjected.add(name);
+              }
+            }
+            if (typeof fresh.totalInjectedChars === 'number') {
+              freshChars = fresh.totalInjectedChars;
+            }
+          }
+        }
+      } catch (e) { log.debug('session cache fresh re-read 실패', e); }
+
+      // disjoint만 필터링 — 이미 disk에 있으면 다른 hook이 먼저 추가한 것
+      const newlyAdded = newEntries.filter(e => !freshInjected.has(e.name));
+      const addedChars = newlyAdded.reduce((sum, e) => sum + e.chars, 0);
+      const mergedInjected = new Set(freshInjected);
+      for (const e of newlyAdded) mergedInjected.add(e.name);
+      const newTotal = freshChars + addedChars;
+
+      atomicWriteJSON(cachePath, {
+        injected: [...mergedInjected],
+        totalInjectedChars: newTotal,
+        updatedAt: new Date().toISOString(),
+      }, { mode: 0o600, dirMode: 0o700 });
+
+      result = { newlyAdded, totalInjectedChars: newTotal };
+    });
+  } catch (e) {
+    if (e instanceof FileLockError) {
+      log.warn(`session cache lock 실패 — write skipped`, e);
+    } else {
+      log.debug('session cache 저장 실패', e);
+    }
+  }
+  return result;
 }
 
 /** XML 속성/내용 이스케이프 */
@@ -92,29 +183,37 @@ function backfillCacheTagsOnDisk(
 ): void {
   if (allMatched.length === 0) return;
   if (!fs.existsSync(cachePath)) return;
+  // PR2c-1: withFileLockSync로 read-modify-write 보호.
   try {
-    const existing = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
-    if (!Array.isArray(existing.solutions)) return;
+    withFileLockSync(cachePath, () => {
+      const existing = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+      if (!Array.isArray(existing.solutions)) return;
 
-    const matchedByName = new Map(allMatched.map(m => [m.name, m]));
-    let mutated = false;
-    const updated = existing.solutions.map((sol: { name: string; tags?: unknown }) => {
-      // R3 sentinel: tags 키 자체가 없을 때만 backfill.
-      // 빈 배열 (`tags: []`)은 정당한 상태로 보고 유지 → 무한 backfill 회피.
-      if (sol.tags !== undefined) return sol;
-      const fresh = matchedByName.get(sol.name);
-      if (!fresh) return sol;
-      mutated = true;
-      // R5: defensive copy로 fresh.tags reference 공유 차단.
-      return { ...sol, tags: [...fresh.tags] };
-    });
+      const matchedByName = new Map(allMatched.map(m => [m.name, m]));
+      let mutated = false;
+      const updated = existing.solutions.map((sol: { name: string; tags?: unknown }) => {
+        // R3 sentinel: tags 키 자체가 없을 때만 backfill.
+        if (sol.tags !== undefined) return sol;
+        const fresh = matchedByName.get(sol.name);
+        if (!fresh) return sol;
+        mutated = true;
+        // R5: defensive copy로 fresh.tags reference 공유 차단.
+        return { ...sol, tags: [...fresh.tags] };
+      });
 
-    if (!mutated) return;
-    atomicWriteJSON(cachePath, {
-      solutions: updated,
-      updatedAt: new Date().toISOString(),
+      if (!mutated) return;
+      atomicWriteJSON(cachePath, {
+        solutions: updated,
+        updatedAt: new Date().toISOString(),
+      }, { mode: 0o600, dirMode: 0o700 });
     });
-  } catch (e) { log.debug('injection cache backfill 실패', e); }
+  } catch (e) {
+    if (e instanceof FileLockError) {
+      log.warn('injection cache backfill lock 실패 — write skipped', e);
+    } else {
+      log.debug('injection cache backfill 실패', e);
+    }
+  }
 }
 
 async function main(): Promise<void> {
@@ -176,7 +275,7 @@ async function main(): Promise<void> {
 
   // 어댑티브 프롬프트당 솔루션 수 제한, experiment는 1개 제한
   let experimentCount = 0;
-  const toInject = [];
+  const toInject: typeof matches = [];
   for (const sol of matches) {
     if (injected.has(sol.name)) continue;
     if (sol.status === 'experiment') {
@@ -190,76 +289,95 @@ async function main(): Promise<void> {
   // Progressive Disclosure Tier 2: 요약만 push, 전문은 MCP compound-read로 pull
   // 근거: Anthropic "smallest set of high-signal tokens" + Cursor 46.9% 토큰 절감
   const summaries = new Map<string, string>();
-  let newChars = 0;
+  const candidateEntries: Array<{ name: string; chars: number }> = [];
   for (const sol of toInject) {
-    injected.add(sol.name);
     // Tier 2: 한 줄 요약만 생성 (전문 읽기 없음 → 토큰 대폭 절감)
     const summary = `${sol.name} [${sol.type}|${sol.confidence.toFixed(2)}]: ${sol.matchedTags.slice(0, 5).join(', ')}`;
     summaries.set(sol.name, summary);
-    newChars += summary.length;
+    candidateEntries.push({ name: sol.name, chars: summary.length });
   }
-  totalInjectedChars += newChars;
-  saveSessionCache(sessionId, injected, totalInjectedChars);
+
+  // H-1 + M-3 fix: lock 안 disjoint 검증으로 새로 추가된 entry만 반환받는다.
+  // 다른 hook이 같은 sessionId로 동시에 같은 솔루션을 inject했다면 이 hook의
+  // commit에서는 newlyAdded에 포함되지 않아 evidence 중복 카운트가 차단된다.
+  const commitResult = commitSessionCacheEntries(sessionId, candidateEntries);
+  // toInject은 commit 결과의 newlyAdded만 의미 있음 — evidence/cache 갱신은 이 list 기준
+  const newlyAddedNames = new Set(commitResult.newlyAdded.map(e => e.name));
+  const effectiveToInject = toInject.filter(sol => newlyAddedNames.has(sol.name));
+
+  // 다른 hook이 모두 먼저 inject했다면 effectiveToInject가 0 — 출력할 게 없음
+  if (effectiveToInject.length === 0) {
+    console.log(approve());
+    return;
+  }
 
   // Save injection cache for Code Reflection (Phase 2) — cumulative merge
+  // PR2c-1: withFileLock으로 read-modify-write 보호. 동시 hook이 같은 cache를
+  // 만지면 last-writer-wins로 _sessionCounted 등 비트가 사라질 수 있었음.
   const injectionCachePath = path.join(STATE_DIR, `injection-cache-${sanitizeId(sessionId)}.json`);
   try {
-    // Load existing cache and merge (cumulative).
-    // NOTE: `tags` was added later for tag-based negative attribution
-    // (post-tool-handlers.ts checkCompoundNegative reads `sol.tags`).
-    // Older cache entries without `tags` are tolerated via downstream `?? []`.
-    let existingSolutions: Array<{ name: string; identifiers: string[]; tags?: string[]; status: string; injectedAt: string; _sessionCounted?: boolean }> = [];
-    try {
-      if (fs.existsSync(injectionCachePath)) {
-        const existing = JSON.parse(fs.readFileSync(injectionCachePath, 'utf-8'));
-        if (Array.isArray(existing.solutions)) existingSolutions = existing.solutions;
-      }
-    } catch (e) { log.debug('injection cache 읽기 실패 — 기존 캐시 없이 새로 시작', e); }
+    await withFileLock(injectionCachePath, () => {
+      // Lock 안에서 fresh re-read
+      let existingSolutions: Array<{ name: string; identifiers: string[]; tags?: string[]; status: string; injectedAt: string; _sessionCounted?: boolean }> = [];
+      try {
+        if (fs.existsSync(injectionCachePath)) {
+          const existing = JSON.parse(fs.readFileSync(injectionCachePath, 'utf-8'));
+          if (Array.isArray(existing.solutions)) existingSolutions = existing.solutions;
+        }
+      } catch (e) { log.debug('injection cache 읽기 실패 — 기존 캐시 없이 새로 시작', e); }
 
-    // R5: defensive copy로 SolutionMatch.tags / .identifiers reference 공유 차단.
-    // 매칭 캐시가 cache.solutions를 통해 의도치 않게 mutate될 위험 제거.
-    const newSolutions = toInject.map(sol => ({
-      name: sol.name,
-      identifiers: [...sol.identifiers],
-      tags: [...sol.tags],
-      status: sol.status,
-      injectedAt: new Date().toISOString(),
-    }));
+      // R5: defensive copy로 SolutionMatch.tags / .identifiers reference 공유 차단.
+      // M-3 fix: effectiveToInject는 commitSessionCacheEntries가 검증한 disjoint set만 포함.
+      const newSolutions = effectiveToInject.map(sol => ({
+        name: sol.name,
+        identifiers: [...sol.identifiers],
+        tags: [...sol.tags],
+        status: sol.status,
+        injectedAt: new Date().toISOString(),
+      }));
 
-    // Merge: add new, keep existing (dedup by name).
-    // BACKFILL: existing entry에 tags 키 자체가 없고(R3 sentinel) 이번 매칭에
-    // 같은 이름이 있으면 그 tags로 채워넣는다. 빈 배열은 정당한 상태로 유지.
-    // R5: defensive copy로 fresh.tags reference 공유 차단.
-    const matchedByName = new Map(allMatched.map(m => [m.name, m]));
-    const existingNames = new Set(existingSolutions.map(s => s.name));
-    const merged = [
-      ...existingSolutions.map(existing => {
-        if (existing.tags !== undefined) return existing;
-        const fresh = matchedByName.get(existing.name);
-        if (!fresh) return existing;
-        return { ...existing, tags: [...fresh.tags] };
-      }),
-      ...newSolutions.filter(s => !existingNames.has(s.name)),
-    ];
+      // BACKFILL: existing entry에 tags 키 자체가 없으면 fresh로 채움.
+      const matchedByName = new Map(allMatched.map(m => [m.name, m]));
+      const existingNames = new Set(existingSolutions.map(s => s.name));
+      const merged = [
+        ...existingSolutions.map(existing => {
+          if (existing.tags !== undefined) return existing;
+          const fresh = matchedByName.get(existing.name);
+          if (!fresh) return existing;
+          return { ...existing, tags: [...fresh.tags] };
+        }),
+        ...newSolutions.filter(s => !existingNames.has(s.name)),
+      ];
 
-    const injectionData = {
-      solutions: merged,
-      updatedAt: new Date().toISOString(),
-    };
-    atomicWriteJSON(injectionCachePath, injectionData);
-  } catch (e) { log.debug('injection cache 저장 실패', e); }
+      const injectionData = {
+        solutions: merged,
+        updatedAt: new Date().toISOString(),
+      };
+      // mode 0o600 + dirMode 0o700 — STATE_DIR auto-detect 의존성을 명시화
+      atomicWriteJSON(injectionCachePath, injectionData, { mode: 0o600, dirMode: 0o700 });
+    });
+  } catch (e) {
+    if (e instanceof FileLockError) {
+      log.warn(`injection cache lock 실패 — write skipped`, e);
+    } else {
+      log.debug('injection cache 저장 실패', e);
+    }
+  }
 
-  // Update evidence.injected counters on solution files
+  // Update evidence.injected counters on solution files.
+  // M-3 fix: effectiveToInject(commit이 검증한 disjoint set)만 evidence 갱신 →
+  // 동시 hook이 같은 솔루션을 inject해도 한 번만 카운트됨.
   try {
     const { updateSolutionEvidence } = await import('./pre-tool-use.js');
-    for (const sol of toInject) {
+    for (const sol of effectiveToInject) {
       updateSolutionEvidence(sol.name, 'injected');
     }
   } catch (e) { log.debug('evidence.injected counter 업데이트 실패', e); }
 
   // Progressive Disclosure: Tier 1(인덱스) + Tier 2(매칭 요약) push
   // Tier 3(전문)은 compound-read MCP tool로 pull
-  const injections = toInject.map(sol => {
+  // effectiveToInject 사용 — 다른 hook이 이미 inject한 솔루션은 사용자에게 다시 push 안 함
+  const injections = effectiveToInject.map(sol => {
     const summary = summaries.get(sol.name) ?? sol.name;
     return `- ${summary}`;
   }).join('\n');

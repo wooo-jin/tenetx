@@ -16,6 +16,7 @@ const log = createLogger('pre-tool-use');
 import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
+import { withFileLockSync, FileLockError } from './shared/file-lock.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { incrementEvidence } from '../engine/solution-writer.js';
 import { isReflectionCandidate } from './compound-reflection.js';
@@ -220,34 +221,61 @@ function checkCompoundReflection(toolName: string, toolInput: Record<string, unk
   const cachePath = path.join(STATE_DIR, `injection-cache-${sanitizeId(sessionId)}.json`);
   if (!fs.existsSync(cachePath)) return;
 
+  // PR2c-1 + M-2 fix: lock-narrowing.
+  // cache lock 안에서는 cache 갱신(_sessionCounted 비트)만 수행하고,
+  // evidence 갱신은 lock 밖에서 수행한다. 이전 구조는 cache lock을 잡은 채로
+  // 매 솔루션마다 .md 파일 lock을 잡아서 cache lock holding time이 N×해졌고
+  // 다른 hook이 cache lock을 잡지 못해 FileLockError가 빈발할 수 있었다.
+  const reflectedNames: string[] = [];
+  const newlySessionCounted: string[] = [];
   try {
-    const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
-    if (!Array.isArray(cache.solutions)) return;
+    withFileLockSync(cachePath, () => {
+      const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+      if (!Array.isArray(cache.solutions)) return;
 
-    const now = new Date();
+      const now = new Date();
+      let mutated = false;
 
-    for (const sol of cache.solutions) {
-      if (!Array.isArray(sol.identifiers) || sol.identifiers.length === 0) continue;
+      for (const sol of cache.solutions) {
+        if (!Array.isArray(sol.identifiers) || sol.identifiers.length === 0) continue;
 
-      const result = isReflectionCandidate({
-        identifiers: sol.identifiers,
-        code,
-        injectedAt: sol.injectedAt ?? '',
-        now,
-      });
+        const result = isReflectionCandidate({
+          identifiers: sol.identifiers,
+          code,
+          injectedAt: sol.injectedAt ?? '',
+          now,
+        });
 
-      if (result.reflected) {
-        updateSolutionEvidence(sol.name, 'reflected');
-
-        if (!sol._sessionCounted) {
-          updateSolutionEvidence(sol.name, 'sessions');
-          sol._sessionCounted = true;
-          atomicWriteJSON(cachePath, cache);
+        if (result.reflected) {
+          reflectedNames.push(sol.name);
+          if (!sol._sessionCounted) {
+            sol._sessionCounted = true;
+            mutated = true;
+            newlySessionCounted.push(sol.name);
+          }
         }
       }
-    }
+
+      if (mutated) {
+        // mode 0o600 — solution-injector와 일관성
+        atomicWriteJSON(cachePath, cache, { mode: 0o600, dirMode: 0o700 });
+      }
+    });
   } catch (e) {
-    log.debug('compound reflection 체크 실패', e);
+    if (e instanceof FileLockError) {
+      log.warn('compound reflection lock 실패 — write skipped', e);
+    } else {
+      log.debug('compound reflection 체크 실패', e);
+    }
+    return;
+  }
+
+  // Evidence 갱신은 lock 밖에서 (M-2 fix). solution-writer가 자체 lock을 가지므로 안전.
+  for (const name of reflectedNames) {
+    updateSolutionEvidence(name, 'reflected');
+  }
+  for (const name of newlySessionCounted) {
+    updateSolutionEvidence(name, 'sessions');
   }
 }
 
