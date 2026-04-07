@@ -316,23 +316,8 @@ else
   warn "post-tool-failure.js not found"
 fi
 
-# 2.5-3. auto-tuner 모듈 존재 확인
-TUNER_JS=$(find "$VERSION_DIR" -name "auto-tuner.js" -path "*/forge/*" 2>/dev/null | head -1)
-if [ -n "$TUNER_JS" ] && [ -f "$TUNER_JS" ]; then
-  TUNER_CHECK=$(node -e "
-    const m = require('$TUNER_JS');
-    if (typeof m.computeDeltas === 'function' && typeof m.tuneFromBehavior === 'function' && typeof m.parseBehaviorFile === 'function') {
-      console.log('ok');
-    } else { console.log('missing-exports'); }
-  " 2>/dev/null)
-  if [ "$TUNER_CHECK" = "ok" ]; then
-    pass "forge/auto-tuner: all exports present (computeDeltas, tuneFromBehavior, parseBehaviorFile)"
-  else
-    fail "forge/auto-tuner: missing exports — $TUNER_CHECK"
-  fi
-else
-  fail "forge/auto-tuner.js not found in dist"
-fi
+# 2.5-3. auto-tuner — v5에서 제거됨. 스킵.
+# (forge/auto-tuner는 evidence 기반 시스템으로 대체)
 
 # 2.5-4. session-store FTS5 코드 존재 확인
 SESSION_JS=$(find "$VERSION_DIR" -name "session-store.js" -path "*/core/*" 2>/dev/null | head -1)
