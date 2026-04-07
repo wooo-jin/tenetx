@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { COMPOUND_HOME, ME_BEHAVIOR, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from './paths.js';
+import { COMPOUND_HOME, LAB_DIR, ME_BEHAVIOR, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from './paths.js';
 
 /** ~/.claude/projects/ — Claude Code 세션 저장 경로 */
 const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
@@ -77,13 +77,13 @@ export async function runDoctor(): Promise<void> {
   console.log();
 
   console.log('  [Directories]');
-  check('~/.compound/', exists(COMPOUND_HOME));
-  check('~/.compound/me/', exists(ME_DIR));
-  check('~/.compound/me/solutions/', exists(ME_SOLUTIONS));
-  check('~/.compound/me/behavior/', exists(ME_BEHAVIOR));
-  check('~/.compound/me/rules/', exists(ME_RULES));
-  check('~/.compound/packs/', exists(PACKS_DIR));
-  check('~/.compound/sessions/', exists(SESSIONS_DIR));
+  check('~/.tenetx/', exists(COMPOUND_HOME));
+  check('~/.tenetx/me/', exists(ME_DIR));
+  check('~/.tenetx/me/solutions/', exists(ME_SOLUTIONS));
+  check('~/.tenetx/me/behavior/', exists(ME_BEHAVIOR));
+  check('~/.tenetx/me/rules/', exists(ME_RULES));
+  check('~/.tenetx/packs/', exists(PACKS_DIR));
+  check('~/.tenetx/sessions/', exists(SESSIONS_DIR));
   console.log();
 
   console.log('  [Philosophy]');
@@ -129,7 +129,7 @@ export async function runDoctor(): Promise<void> {
   console.log();
 
   // Lab 데이터 정리
-  const labExpDir = path.join(COMPOUND_HOME, 'lab', 'experiments');
+  const labExpDir = path.join(LAB_DIR, 'experiments');
   if (exists(labExpDir)) {
     const expFiles = fs.readdirSync(labExpDir).filter(f => f.endsWith('.json'));
     // 1차 필터: 0바이트 또는 50바이트 미만 파일 (빠른 stat 기반)

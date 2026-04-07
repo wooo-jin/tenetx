@@ -2,6 +2,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { buildEnv } from './config-injector.js';
 import type { V1HarnessContext } from './harness.js';
 import { loadGlobalConfig } from './global-config.js';
@@ -40,7 +41,7 @@ function findLatestTranscript(cwd: string): string | null {
 async function runAutoCompound(cwd: string, transcriptPath: string, sessionId: string): Promise<void> {
   console.log('\n[tenetx] 세션 분석 중... (자동 compound)');
 
-  const runnerPath = path.join(path.dirname(new URL(import.meta.url).pathname), 'auto-compound-runner.js');
+  const runnerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'auto-compound-runner.js');
   try {
     execFileSync('node', [runnerPath, cwd, transcriptPath, sessionId], {
       cwd,

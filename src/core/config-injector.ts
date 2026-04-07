@@ -304,7 +304,7 @@ export function generateClaudeRuleFiles(cwd: string, v1RenderedRules?: string | 
         const truncated = truncateContent(raw, RULE_FILE_CAPS.perRuleFile);
         rules['user-profile.md'] = [
           '# Tenetx — User Profile',
-          '# auto-injected from ~/.compound/me/USER.md',
+          '# auto-injected from ~/.tenetx/me/USER.md',
           '',
           truncated,
           '',

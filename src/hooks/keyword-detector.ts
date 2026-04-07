@@ -10,7 +10,6 @@
  */
 
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger } from '../core/logger.js';
@@ -22,7 +21,7 @@ import { truncateContent, INJECTION_CAPS } from './shared/injection-caps.js';
 import { sanitizeForDetection } from './shared/sanitize.js';
 // v1: prompt-learner (regex 선호 감지) 제거 — Evidence 기반으로 전환
 // v1: pack-config (레거시 팩) 제거 — quality/autonomy pack으로 전환
-import { ALL_MODES, COMPOUND_HOME, PACKS_DIR, STATE_DIR } from '../core/paths.js';
+import { ALL_MODES, TENETX_HOME, ME_DIR, PACKS_DIR, STATE_DIR } from '../core/paths.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { escapeAllXmlTags } from './prompt-injection-filter.js';
 import { getSkillConflicts } from '../core/plugin-detector.js';
@@ -235,10 +234,10 @@ function loadSkillContent(skillName: string): string | null {
   }
 
   // 사용자 개인 스킬 경로
-  searchPaths.push(path.join(os.homedir(), '.compound', 'me', 'skills', `${skillName}.md`));
+  searchPaths.push(path.join(ME_DIR, 'skills', `${skillName}.md`));
 
   // 글로벌 스킬 경로
-  searchPaths.push(path.join(COMPOUND_HOME, 'skills', `${skillName}.md`));
+  searchPaths.push(path.join(TENETX_HOME, 'skills', `${skillName}.md`));
 
   // tenetx 패키지 내장 스킬
   const pkgSkillPath = path.resolve(

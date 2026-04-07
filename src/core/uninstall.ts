@@ -305,7 +305,7 @@ export async function handleUninstall(cwd: string, options: { force?: boolean })
   console.log('  5. Remove slash commands (~/.claude/commands/tenetx/)');
   console.log('  6. Remove plugin artifacts (cache, installed_plugins.json, plugin directory)');
   console.log('');
-  console.log('Note: ~/.compound/ directory is preserved (manual deletion: rm -rf ~/.compound)\n');
+  console.log('Note: ~/.tenetx/ directory is preserved (manual deletion: rm -rf ~/.tenetx)\n');
 
   if (!options.force) {
     if (!process.stdin.isTTY) {

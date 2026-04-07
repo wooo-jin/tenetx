@@ -26,7 +26,7 @@ async function main() {
   const firstRun = isFirstRun();
   if (firstRun) {
     console.log('\n  Tenetx — Setting up for the first time.\n');
-    console.log('  Creating ~/.compound/ directory and default philosophy.');
+    console.log('  Creating ~/.tenetx/ directory and default philosophy.');
     console.log('  Run `tenetx setup` afterwards to complete additional configuration.\n');
   }
 

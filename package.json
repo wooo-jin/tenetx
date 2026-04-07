@@ -1,6 +1,6 @@
 {
   "name": "tenetx",
-  "version": "5.1.1",
+  "version": "5.1.2",
   "main": "dist/lib.js",
   "types": "./dist/lib.d.ts",
   "exports": {
@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc && node scripts/copy-assets.js && chmod +x dist/cli.js dist/txd.js dist/mcp/server.js",
+    "build": "node scripts/clean-dist.js clean && tsc && node scripts/copy-assets.js && node scripts/clean-dist.js chmod",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -27,7 +27,8 @@
     "lint:fix": "biome lint --write src/",
     "format": "biome format --write src/",
     "postinstall": "node scripts/postinstall.js",
-    "prepublishOnly": "npm run build && npm test"
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test"
   },
   "author": "jang-ujin",
   "license": "MIT",
@@ -76,15 +77,12 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^4.1.0",
+    "typescript": "^5.9.3",
     "vitest": "^4.0.18"
-  },
-  "optionalDependencies": {
-    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",
     "js-yaml": "^4.1.1",
-    "tenetx": "^5.0.1",
     "zod": "^4.3.6"
   }
 }

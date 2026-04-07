@@ -1,9 +1,12 @@
 {
   "$schema": "https://claude.ai/schemas/claude-plugin.json",
   "name": "tenetx",
-  "version": "3.1.0",
-  "description": "Claude Code plugin that learns your coding patterns",
-  "author": { "name": "jang-ujin" },
+  "version": "5.1.2",
+  "description": "Claude Code harness — the more you use Claude, the better it gets",
+  "author": {
+    "name": "jang-ujin",
+    "url": "https://github.com/wooo-jin"
+  },
   "repository": "https://github.com/wooo-jin/tenetx",
   "homepage": "https://github.com/wooo-jin/tenetx",
   "license": "MIT",

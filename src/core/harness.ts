@@ -442,7 +442,7 @@ function ensureCompoundMemory(cwd: string): void {
     }
 
     const indexPath = path.join(memoryDir, 'compound-index.md');
-    const solutionsDir = path.join(os.homedir(), '.compound', 'me', 'solutions');
+    const solutionsDir = ME_SOLUTIONS;
     let solutionCount = 0;
     try {
       solutionCount = fs.readdirSync(solutionsDir).filter(f => f.endsWith('.md')).length;

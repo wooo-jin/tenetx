@@ -129,7 +129,7 @@ DO NOT extract code patterns or technical solutions. Extract HOW THE USER WORKS:
 - Conditional approaches (e.g., "for refactoring: ensures tests pass first, then restructures", "for PRs: security check → test review → code quality")
 - Values/philosophy (e.g., "quality over speed", "pragmatic over theoretical")
 
-For each pattern found, write a file to ~/.compound/me/behavior/{slug}.md in this EXACT format:
+For each pattern found, write a file to ~/.tenetx/me/behavior/{slug}.md in this EXACT format:
 \`\`\`
 ---
 name: "{slug}"

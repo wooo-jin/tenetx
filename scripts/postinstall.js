@@ -351,7 +351,12 @@ function generateSkillsDir() {
  * 단일 소스 오브 트루스: hook-registry.ts와 동일 파일을 읽습니다.
  * 중복/불일치 완전 제거.
  */
-const HOOK_REGISTRY = JSON.parse(readFileSync(join(PKG_ROOT, 'hooks', 'hook-registry.json'), 'utf-8'));
+let HOOK_REGISTRY = [];
+try {
+  HOOK_REGISTRY = JSON.parse(readFileSync(join(PKG_ROOT, 'hooks', 'hook-registry.json'), 'utf-8'));
+} catch {
+  console.warn('[tenetx] hook-registry.json not found, skipping hook generation');
+}
 
 /**
  * hook-config.ts의 isHookEnabled 로직 인라인 구현.
@@ -639,16 +644,9 @@ function applyMcpToClaudeJson() {
   const mcpServerPath = join(PKG_ROOT, 'dist', 'mcp', 'server.js');
   if (!existsSync(mcpServerPath)) return false;
 
-  // npm이 설치한 bin 링크 사용
-  let mcpCommand = 'tenetx-mcp';
-  let mcpArgs = [];
-  try {
-    const whichCmd = IS_WINDOWS ? 'where' : 'which';
-    execFileSync(whichCmd, ['tenetx-mcp'], { stdio: 'ignore' });
-  } catch {
-    mcpCommand = 'node';
-    mcpArgs = [mcpServerPath];
-  }
+  // W-V3: 항상 node + 절대경로 사용 — PATH 변경/nvm 전환에도 안정적
+  const mcpCommand = 'node';
+  const mcpArgs = [mcpServerPath];
 
   const claudeJsonPath = join(HOME, '.claude.json');
   let claudeJson = {};
@@ -686,6 +684,11 @@ function cleanLegacyMcpFromSettings(settings) {
  * settings.json을 수정하면 데이터 유실 가능성이 있었습니다.
  */
 function main() {
+  // W-V2: 로컬 설치 시 전역 설정 수정 방지
+  if (!process.env.npm_config_global && process.env.INIT_CWD && process.env.INIT_CWD !== PKG_ROOT) {
+    // npm install (로컬) — postinstall 스킵
+    return;
+  }
   ensureDirectories();
 
   // ── 1. settings.json 한 번 읽기 ──
@@ -753,7 +756,7 @@ function main() {
   }
 
   // sudo 실행 시 파일 소유권을 실제 유저로 변경
-  fixOwnership(join(HOME, '.claude'), join(HOME, '.compound'));
+  fixOwnership(join(HOME, '.claude'), join(HOME, '.tenetx'));
 
   const parts = [];
   if (plugin) parts.push('plugin');

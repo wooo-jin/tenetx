@@ -15,13 +15,13 @@ import { createLogger } from '../core/logger.js';
 const log = createLogger('pre-tool-use');
 import { HookError } from '../core/errors.js';
 import { readStdinJSON } from './shared/read-stdin.js';
-import { atomicWriteJSON } from './shared/atomic-write.js';
+import { atomicWriteJSON, atomicWriteText } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
 import { isReflectionCandidate } from './compound-reflection.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, approveWithWarning, deny, failOpen } from './shared/hook-response.js';
-import { COMPOUND_HOME, ME_SOLUTIONS, ME_RULES, STATE_DIR } from '../core/paths.js';
+import { TENETX_HOME, ME_SOLUTIONS, ME_RULES, STATE_DIR } from '../core/paths.js';
 const FAIL_COUNTER_PATH = path.join(STATE_DIR, 'pre-tool-fail-counter.json');
 const FAIL_CLOSE_THRESHOLD = 3; // 연속 3회 파싱 실패 시에만 reject
 
@@ -89,7 +89,7 @@ function loadDangerousPatterns(): DangerousPatternEntry[] {
 
   // 2. 사용자 커스텀 패턴 (~/.compound/dangerous-patterns.json)
   try {
-    const customPath = path.join(COMPOUND_HOME, 'dangerous-patterns.json');
+    const customPath = path.join(TENETX_HOME, 'dangerous-patterns.json');
     if (fs.existsSync(customPath)) {
       const custom: Array<{ pattern: string; description: string; severity: string; flags?: string }> =
         JSON.parse(fs.readFileSync(customPath, 'utf-8'));
@@ -279,7 +279,7 @@ export function updateSolutionEvidence(solutionName: string, field: 'reflected' 
           (ev as unknown as Record<string, number>)[field] = ((ev as unknown as Record<string, number>)[field] ?? 0) + 1;
         }
         solution.frontmatter.updated = new Date().toISOString().split('T')[0];
-        fs.writeFileSync(filePath, serializeSolutionV3(solution), 'utf-8');
+        atomicWriteText(filePath, serializeSolutionV3(solution));
         return;
       }
     }

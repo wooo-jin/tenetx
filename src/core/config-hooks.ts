@@ -5,9 +5,9 @@
  * 훅 상태, 감지된 플러그인, 컨텍스트 버짓을 ANSI 컬러로 출력합니다.
  */
 
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { HOOK_REGISTRY, type HookTier } from '../hooks/hook-registry.js';
+import { TENETX_HOME } from './paths.js';
 import { detectInstalledPlugins } from './plugin-detector.js';
 import { isHookEnabled } from '../hooks/hook-config.js';
 import { calculateBudget } from '../hooks/shared/context-budget.js';
@@ -110,7 +110,7 @@ export async function displayHookStatus(cwd?: string): Promise<void> {
 
   // ── 경로 ──
   const hooksJson = path.join(process.cwd(), 'hooks', 'hooks.json');
-  const configPath = path.join(os.homedir(), '.compound', 'hook-config.json');
+  const configPath = path.join(TENETX_HOME, 'hook-config.json');
   console.log(`  hooks.json: ${dim(hooksJson)} ${dim('(auto-generated)')}`);
   console.log(`  Config:     ${dim(configPath)}`);
   console.log();

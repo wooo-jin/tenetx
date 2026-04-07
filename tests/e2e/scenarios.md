@@ -26,7 +26,7 @@ npm i -g tenetx
 
 **검증 체인:**
 1. `tenetx forge` → 인터뷰 답변
-2. `~/.compound/me/forge-profile.json` 생성 (차원값 0-1)
+2. `~/.tenetx/me/forge-profile.json` 생성 (차원값 0-1)
 3. `~/.claude/rules/forge-*.md` 생성
 4. **Claude가 이 규칙을 실제로 따르는가** → `claude -p`로 테스트 프롬프트 → 응답이 규칙을 반영
 
@@ -74,7 +74,7 @@ npm i -g tenetx
 
 **검증 체인:**
 1. 세션 중 특정 행동 반복 (예: 매번 "테스트 먼저" 요청)
-2. **prompt-learner가 이 패턴을 감지하는가** → `~/.compound/me/behavior/` 파일 생성 확인
+2. **prompt-learner가 이 패턴을 감지하는가** → `~/.tenetx/me/behavior/` 파일 생성 확인
 3. **다음 세션에서 forge-behavioral.md에 반영되는가** → 규칙 내용 확인
 4. **Claude가 이 규칙을 따르는가** → 테스트 먼저 요청 안 해도 Claude가 테스트부터 작성
 
@@ -91,7 +91,7 @@ npm i -g tenetx
 1. 의미 있는 작업이 포함된 세션 실행 (10+ 프롬프트)
 2. 세션 종료 (exit / /new)
 3. auto-compound-runner 실행 → transcript 분석
-4. `~/.compound/me/solutions/`에 **새 파일 생성** (이전 대비 +N)
+4. `~/.tenetx/me/solutions/`에 **새 파일 생성** (이전 대비 +N)
 5. 생성된 솔루션의 **내용에 "왜"가 포함**되어 있는가 (피상적이지 않은지)
 6. **다음 세션에서 compound-search로 이 솔루션이 검색되는가**
 7. **Claude가 이 솔루션을 답변에 활용하는가**
@@ -111,7 +111,7 @@ npm i -g tenetx
 1. auto-compound 실행 → USER.md 생성
 2. USER.md에 관찰 패턴이 기록됨
 3. **이 패턴이 Claude의 시스템 프롬프트에 도달하는가**
-   - `~/.compound/me/USER.md` → 어떤 경로로 Claude에 전달?
+   - `~/.tenetx/me/USER.md` → 어떤 경로로 Claude에 전달?
    - behavior/ 파일 → forge-behavioral.md → `.claude/rules/` → Claude ✅
    - USER.md 직접 → ??? (경로 불명확)
 4. **다음 세션에서 Claude 응답이 관찰된 패턴을 반영하는가**
@@ -134,7 +134,7 @@ npm i -g tenetx
 **검증 체인:**
 1. verified 솔루션이 있음
 2. `tenetx skill promote <name>` 실행
-3. `.compound/me/skills/<name>.md` 생성
+3. `.tenetx/me/skills/<name>.md` 생성
 4. **다음 세션에서 트리거 키워드 사용 시 이 스킬이 주입되는가**
 5. **Claude가 스킬 내용을 따르는가**
 

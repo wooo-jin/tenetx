@@ -57,8 +57,8 @@ else fail "tenetx CLI not found"; fi
 if command -v tenetx-mcp &>/dev/null; then pass "tenetx-mcp CLI in PATH"
 else fail "tenetx-mcp CLI not found"; fi
 
-# ~/.compound/ 디렉터리
-for dir in "$HOME/.compound" "$HOME/.compound/me/solutions" "$HOME/.compound/me/behavior" "$HOME/.compound/me/skills" "$HOME/.compound/sessions" "$HOME/.compound/state"; do
+# ~/.tenetx/ 디렉터리
+for dir in "$HOME/.tenetx" "$HOME/.tenetx/me/solutions" "$HOME/.tenetx/me/behavior" "$HOME/.tenetx/me/skills" "$HOME/.tenetx/sessions" "$HOME/.tenetx/state"; do
   if [ -d "$dir" ]; then pass "$(echo $dir | sed "s|$HOME|~|") exists"
   else fail "$(echo $dir | sed "s|$HOME|~|") missing"; fi
 done
@@ -149,7 +149,7 @@ fi
 echo ""
 echo "  [Phase 2: Starter Knowledge Pack]"
 
-SOLUTIONS_DIR="$HOME/.compound/me/solutions"
+SOLUTIONS_DIR="$HOME/.tenetx/me/solutions"
 if [ -d "$SOLUTIONS_DIR" ]; then
   SOL_COUNT=$(ls "$SOLUTIONS_DIR/"*.md 2>/dev/null | wc -l | tr -d ' ')
   if [ "$SOL_COUNT" -ge 10 ]; then

@@ -37,7 +37,7 @@ function todayStr(): string {
 }
 
 /**
- * 세션 로그를 ~/.compound/sessions/{date}_{sessionId}.json 에 기록
+ * 세션 로그를 ~/.tenetx/sessions/{date}_{sessionId}.json 에 기록
  * harness.ts의 prepareHarness() 완료 후 호출
  */
 export function startSessionLog(context: HarnessContext): void {

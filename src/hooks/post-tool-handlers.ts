@@ -8,7 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createLogger } from '../core/logger.js';
-import { atomicWriteJSON } from './shared/atomic-write.js';
+import { atomicWriteJSON, atomicWriteText } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
 import { detectErrorPattern } from './post-tool-use.js';
@@ -121,7 +121,7 @@ export function updateNegativeEvidence(solutionName: string): void {
         if (!solution) return;
         solution.frontmatter.evidence.negative += 1;
         solution.frontmatter.updated = new Date().toISOString().split('T')[0];
-        fs.writeFileSync(filePath, serializeSolutionV3(solution), 'utf-8');
+        atomicWriteText(filePath, serializeSolutionV3(solution));
         return;
       }
     }

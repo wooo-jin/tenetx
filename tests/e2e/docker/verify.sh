@@ -44,29 +44,29 @@ else
   fail "txd CLI not found"
 fi
 
-# 0-4. ~/.compound/ 디렉터리 구조
-if [ -d "$HOME/.compound" ]; then
-  pass "~/.compound/ exists"
+# 0-4. ~/.tenetx/ 디렉터리 구조
+if [ -d "$HOME/.tenetx" ]; then
+  pass "~/.tenetx/ exists"
 else
-  fail "~/.compound/ missing"
+  fail "~/.tenetx/ missing"
 fi
 
-if [ -d "$HOME/.compound/me/solutions" ]; then
-  pass "~/.compound/me/solutions/ exists"
+if [ -d "$HOME/.tenetx/me/solutions" ]; then
+  pass "~/.tenetx/me/solutions/ exists"
 else
-  fail "~/.compound/me/solutions/ missing"
+  fail "~/.tenetx/me/solutions/ missing"
 fi
 
-if [ -d "$HOME/.compound/me/behavior" ]; then
-  pass "~/.compound/me/behavior/ exists"
+if [ -d "$HOME/.tenetx/me/behavior" ]; then
+  pass "~/.tenetx/me/behavior/ exists"
 else
-  fail "~/.compound/me/behavior/ missing"
+  fail "~/.tenetx/me/behavior/ missing"
 fi
 
-if [ -d "$HOME/.compound/me/skills" ]; then
-  pass "~/.compound/me/skills/ exists"
+if [ -d "$HOME/.tenetx/me/skills" ]; then
+  pass "~/.tenetx/me/skills/ exists"
 else
-  fail "~/.compound/me/skills/ missing"
+  fail "~/.tenetx/me/skills/ missing"
 fi
 
 # 0-5. 플러그인 캐시 디렉터리

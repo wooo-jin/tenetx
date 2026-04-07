@@ -7,7 +7,7 @@
  * 감지 방법:
  *   1. ~/.claude/plugins/ 디렉토리에서 설치된 플러그인 스캔
  *   2. 알려진 플러그인의 파일 시그니처 (.omc/, .claude-mem/ 등) 확인
- *   3. 결과를 ~/.compound/state/detected-plugins.json에 캐시 (1시간 TTL)
+ *   3. 결과를 ~/.tenetx/state/detected-plugins.json에 캐시 (1시간 TTL)
  *
  * 설계 결정:
  *   - 감지는 읽기 전용 — 다른 플러그인의 파일을 수정하지 않음

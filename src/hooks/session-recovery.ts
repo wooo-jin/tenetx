@@ -336,7 +336,7 @@ async function main(): Promise<void> {
 
       if (transcripts.length > 0) {
         const prevTranscript = path.join(projectDir, transcripts[0].name);
-        const lastCompoundPath = path.join(os.homedir(), '.compound', 'state', 'last-auto-compound.json');
+        const lastCompoundPath = path.join(STATE_DIR, 'last-auto-compound.json');
         let lastCompoundedSession = '';
         try {
           lastCompoundedSession = JSON.parse(fs.readFileSync(lastCompoundPath, 'utf-8')).sessionId ?? '';
@@ -345,7 +345,12 @@ async function main(): Promise<void> {
         const prevSessionId = transcripts[0].name.replace('.jsonl', '');
         if (prevSessionId !== lastCompoundedSession) {
           // 이전 세션이 compound 안 된 상태 — 메시지 수 확인
-          const content = fs.readFileSync(prevTranscript, 'utf-8');
+          // W-D2: 대용량 transcript 보호 — 앞 200KB만 읽어 메시지 수 추정
+          const fd = fs.openSync(prevTranscript, 'r');
+          const buf = Buffer.alloc(200 * 1024);
+          const bytesRead = fs.readSync(fd, buf, 0, buf.length, 0);
+          fs.closeSync(fd);
+          const content = buf.toString('utf-8', 0, bytesRead);
           const userMsgCount = content.split('\n')
             .filter(l => { try { const t = JSON.parse(l).type; return t === 'user' || t === 'queue-operation'; } catch { return false; } })
             .length;
@@ -354,7 +359,7 @@ async function main(): Promise<void> {
             // background로 auto-compound 실행 (hook timeout과 무관)
             const { spawn: spawnProcess } = await import('node:child_process');
             const autoCompound = spawnProcess('node', [
-              path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'core', 'auto-compound-runner.js'),
+              path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'core', 'auto-compound-runner.js'),
               cwd, prevTranscript, prevSessionId,
             ], { detached: true, stdio: 'ignore' });
             autoCompound.unref();
@@ -369,7 +374,7 @@ async function main(): Promise<void> {
 
   // Compound v3: Run lifecycle check once per day
   try {
-    const { runLifecycleCheck } = await import('../engine/compound-lifecycle.js');
+    const lifecycleModulePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'engine', 'compound-lifecycle.js');
     const lastLifecyclePath = path.join(STATE_DIR, 'last-lifecycle.json');
     let shouldRun = true;
     try {
@@ -380,7 +385,14 @@ async function main(): Promise<void> {
       }
     } catch { /* last-lifecycle.json parse failure — run lifecycle check anyway */ }
     if (shouldRun) {
-      runLifecycleCheck(sessionId);
+      // B-4: detached background spawn으로 분리 — hook timeout 초과 방지
+      const { spawn: spawnLifecycle } = await import('node:child_process');
+      const lifecycleRunner = spawnLifecycle('node', [
+        '--input-type=module',
+        '-e',
+        `import('${lifecycleModulePath.replace(/\\/g, '/')}').then(m => m.runLifecycleCheck('${sessionId}'))`,
+      ], { detached: true, stdio: 'ignore' });
+      lifecycleRunner.unref();
       const { atomicWriteJSON: writeJSON } = await import('./shared/atomic-write.js');
       writeJSON(lastLifecyclePath, { lastRun: new Date().toISOString() });
     }

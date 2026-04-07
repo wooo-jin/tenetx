@@ -29,7 +29,7 @@ function execClaudeRetry(args: string[], opts: ExecFileSyncOptions): string {
       const msg = e instanceof Error ? e.message : String(e);
       if (attempt === 0 && TRANSIENT.test(msg)) {
         process.stderr.write(`[tenetx-auto-compound] transient error, retrying in 3s...\n`);
-        execFileSync('sleep', ['3']);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
         continue;
       }
       throw e;

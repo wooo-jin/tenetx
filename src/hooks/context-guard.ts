@@ -89,7 +89,7 @@ export async function main(): Promise<void> {
       const errorMsg = input.error;
       if (/context.*limit|token.*limit|conversation.*too.*long/i.test(errorMsg)) {
         saveHandoff(sessionId, 'context-limit', errorMsg);
-        console.log(approveWithContext(`[Tenetx] Context limit reached. Current state has been saved to ~/.compound/handoffs/.\nThe previous work will be automatically recovered in the next session.`, 'UserPromptSubmit'));
+        console.log(approveWithWarning(`[Tenetx] Context limit reached. Current state has been saved to ~/.tenetx/handoffs/.\nThe previous work will be automatically recovered in the next session.`));
         return;
       }
     }

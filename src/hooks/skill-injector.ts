@@ -37,7 +37,7 @@ function escapeXmlAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 import { atomicWriteJSON } from './shared/atomic-write.js';
-import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
+import { TENETX_HOME, ME_DIR, STATE_DIR } from '../core/paths.js';
 import { KEYWORD_PATTERNS } from './keyword-detector.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
@@ -177,8 +177,8 @@ function collectSkills(): SkillMeta[] {
   // v1: 팀 팩 스킬 제거. 프로젝트 > 개인 > 글로벌 > 패키지 내장
   const dirs = [
     path.join(process.cwd(), '.compound', 'skills'),
-    path.join(COMPOUND_HOME, 'me', 'skills'),
-    path.join(COMPOUND_HOME, 'skills'),
+    path.join(ME_DIR, 'skills'),
+    path.join(TENETX_HOME, 'skills'),
     pkgSkillsDir,
   ];
 
@@ -223,20 +223,28 @@ export function matchSkills(prompt: string, skills: SkillMeta[]): SkillMeta[] {
   });
 }
 
-/** 오래된 skill-cache 파일 가비지 컬렉션 */
+/** 오래된 skill-cache 파일 가비지 컬렉션 (1시간마다 실행) */
 function cleanStaleSkillCaches(): void {
   if (!fs.existsSync(STATE_DIR)) return;
+  // W-D3: 매 프롬프트 대신 1시간 간격으로 실행
+  const markerPath = path.join(STATE_DIR, '.last-cache-gc');
+  try {
+    if (fs.existsSync(markerPath)) {
+      const lastGc = fs.statSync(markerPath).mtimeMs;
+      if (Date.now() - lastGc < 60 * 60 * 1000) return;
+    }
+  } catch { /* marker read failure — proceed with GC */ }
   try {
     const now = Date.now();
     for (const f of fs.readdirSync(STATE_DIR)) {
       if (!f.startsWith('skill-cache-')) continue;
       const p = path.join(STATE_DIR, f);
       const stat = fs.statSync(p);
-      // 24시간 초과 파일 삭제
       if (now - stat.mtimeMs > 24 * 60 * 60 * 1000) {
         fs.unlinkSync(p);
       }
     }
+    fs.writeFileSync(markerPath, '');
   } catch (e) { log.debug('오래된 캐시 파일 삭제 실패', e); }
 }
 

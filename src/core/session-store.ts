@@ -9,8 +9,8 @@
 import { createRequire } from 'node:module';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { createLogger } from './logger.js';
+import { TENETX_HOME } from './paths.js';
 
 const require = createRequire(import.meta.url);
 
@@ -28,7 +28,7 @@ const require = createRequire(import.meta.url);
 
 const log = createLogger('session-store');
 
-const DB_PATH = path.join(os.homedir(), '.compound', 'sessions.db');
+const DB_PATH = path.join(TENETX_HOME, 'sessions.db');
 
 interface SqliteDb {
   exec(sql: string): void;

@@ -23,6 +23,20 @@ export function atomicWriteJSON(filePath: string, data: unknown, options?: { pre
   }
 }
 
+/** 텍스트를 원자적으로 파일에 기록 (tmp → rename) */
+export function atomicWriteText(filePath: string, content: string): void {
+  const dir = path.dirname(filePath);
+  fs.mkdirSync(dir, { recursive: true });
+  const tmpFile = `${filePath}.tmp.${process.pid}`;
+  try {
+    fs.writeFileSync(tmpFile, content, 'utf-8');
+    fs.renameSync(tmpFile, filePath);
+  } catch (e) {
+    try { fs.unlinkSync(tmpFile); } catch { /* cleanup */ }
+    throw e;
+  }
+}
+
 /** JSON 파일을 안전하게 읽기 (파싱 실패 시 fallback 반환) */
 export function safeReadJSON<T>(filePath: string, fallback: T): T {
   try {
