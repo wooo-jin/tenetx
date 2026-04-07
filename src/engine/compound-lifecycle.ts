@@ -1,8 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { parseFrontmatterOnly, parseSolutionV3, serializeSolutionV3 } from './solution-format.js';
+import { parseFrontmatterOnly } from './solution-format.js';
 import type { SolutionFrontmatter, SolutionStatus } from './solution-format.js';
+import { mutateSolutionFile } from './solution-writer.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('compound-lifecycle');
@@ -159,32 +160,18 @@ export function isStale(fm: SolutionFrontmatter): boolean {
   return age > ninetyDaysMs;
 }
 
-/** Update a solution file with new frontmatter */
+/**
+ * Update a solution file with new frontmatter.
+ * PR2b: solution-writer.mutateSolutionFile로 통합. lock + fresh re-read + atomic write.
+ */
 export function updateSolutionFile(filePath: string, updates: Partial<SolutionFrontmatter>): boolean {
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const solution = parseSolutionV3(content);
-    if (!solution) return false;
-
-    const today = new Date().toISOString().split('T')[0];
-    solution.frontmatter = {
-      ...solution.frontmatter,
+  return mutateSolutionFile(filePath, sol => {
+    sol.frontmatter = {
+      ...sol.frontmatter,
       ...updates,
-      updated: today,
     };
-
-    // Atomic write: tmp → rename. 크래시 시 파일 corruption 방지.
-    // 다른 상태 파일은 atomicWriteJSON 사용, Markdown은 텍스트이므로 인라인 구현.
-    const tmpFile = `${filePath}.tmp.${process.pid}`;
-    fs.writeFileSync(tmpFile, serializeSolutionV3(solution), 'utf-8');
-    fs.renameSync(tmpFile, filePath);
     return true;
-  } catch (e) {
-    // tmp 파일 정리 시도
-    try { fs.unlinkSync(`${filePath}.tmp.${process.pid}`); } catch { /* ignore */ }
-    log.debug(`Failed to update solution file: ${filePath}`, e);
-    return false;
-  }
+  });
 }
 
 /** Run lifecycle check on all solutions */

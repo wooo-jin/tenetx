@@ -25,7 +25,8 @@ import { createLogger } from '../core/logger.js';
 
 const log = createLogger('compound-extractor');
 import { CLAUDE_DIR, ME_SOLUTIONS, STATE_DIR } from '../core/paths.js';
-import { atomicWriteJSON } from '../hooks/shared/atomic-write.js';
+import { atomicWriteJSON, atomicWriteText } from '../hooks/shared/atomic-write.js';
+import { mutateSolutionFile } from './solution-writer.js';
 
 const LAST_EXTRACTION_PATH = path.join(STATE_DIR, 'last-extraction.json');
 const MAX_EXTRACTIONS_PER_DAY = 5;
@@ -651,33 +652,40 @@ function saveExtractedSolution(sol: ExtractedSolution, sessionId: string): strin
   if (fs.existsSync(filePath)) return null;
 
   fs.mkdirSync(ME_SOLUTIONS, { recursive: true });
-  fs.writeFileSync(filePath, serializeSolutionV3(solution));
+  // PR2b: 새 파일 create는 atomicWriteText로. O_EXCL이 race를 차단한다.
+  atomicWriteText(filePath, serializeSolutionV3(solution));
 
   return slugName;
 }
 
-/** Increment reExtracted counter on existing solution that matches given tags */
+/**
+ * Increment reExtracted counter on existing solution that matches given tags.
+ * PR2b 라운드 2 (M-2 fix): mutateSolutionFile로 통합. parse → 카운터 증가 →
+ * serialize. 이전 regex in-place mutation은 frontmatter 외 body의 우연 매칭
+ * 위험이 있었고 다른 mutator와 일관성이 깨졌다.
+ */
 function updateReExtractedCounter(tags: string[]): void {
   if (!fs.existsSync(ME_SOLUTIONS)) return;
   const files = fs.readdirSync(ME_SOLUTIONS).filter(f => f.endsWith('.md'));
   for (const file of files) {
     const filePath = path.join(ME_SOLUTIONS, file);
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const tagMatch = content.match(/tags:\s*\[([^\]]*)\]/);
+    // 사전 필터 (lock 없이 read) — frontmatter parse가 더 정확하지만,
+    // 70% overlap 조건은 frontmatter 안의 tags만 보는 게 의도라
+    // tagMatch regex가 frontmatter에 우선 매칭됨 (frontmatter가 항상 앞).
+    let preview: string;
+    try { preview = fs.readFileSync(filePath, 'utf-8'); } catch { continue; }
+    const tagMatch = preview.match(/tags:\s*\[([^\]]*)\]/);
     if (!tagMatch) continue;
     const existingTags = tagMatch[1].split(',').map(t => t.trim().replace(/"/g, ''));
     const overlap = tags.filter(t => existingTags.includes(t));
-    if (overlap.length / Math.max(tags.length, existingTags.length, 1) >= 0.7) {
-      const regex = /reExtracted:\s*(\d+)/;
-      const match = content.match(regex);
-      if (match) {
-        const updated = content.replace(regex, `reExtracted: ${parseInt(match[1], 10) + 1}`);
-        const today = new Date().toISOString().split('T')[0];
-        const final = updated.replace(/updated:\s*"?\d{4}-\d{2}-\d{2}"?/, `updated: "${today}"`);
-        fs.writeFileSync(filePath, final, 'utf-8');
-      }
-      return;
-    }
+    if (overlap.length / Math.max(tags.length, existingTags.length, 1) < 0.7) continue;
+
+    // lock + fresh re-read + parse-modify-serialize
+    mutateSolutionFile(filePath, sol => {
+      sol.frontmatter.evidence.reExtracted = (sol.frontmatter.evidence.reExtracted ?? 0) + 1;
+      return true;
+    });
+    return;
   }
 }
 

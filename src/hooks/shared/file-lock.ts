@@ -223,9 +223,10 @@ export function withFileLockSync<T>(
   let acquired = false;
   while (!acquired) {
     try {
+      // M-1 fix: sync 경로도 async와 동일하게 O_NOFOLLOW로 symlink 차단
       const fd = fs.openSync(
         lockPath,
-        fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL,
+        fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | O_NOFOLLOW,
         0o600,
       );
       try {

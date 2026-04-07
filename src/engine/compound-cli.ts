@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { extractTags, parseFrontmatterOnly, parseSolutionV3, serializeSolutionV3 } from './solution-format.js';
+import { extractTags, parseFrontmatterOnly, parseSolutionV3 } from './solution-format.js';
+import { mutateSolutionFile } from './solution-writer.js';
 
 import { ME_SOLUTIONS, ME_RULES } from '../core/paths.js';
 
@@ -161,24 +162,18 @@ export function retagSolutions(): void {
     return;
   }
 
+  // PR2b: solution-writer.mutateSolutionFile로 통합. lock + fresh re-read.
+  // 동시 hook이 같은 .md를 update해도 retag 결과가 손실되지 않는다.
   let retagged = 0;
   for (const entry of entries) {
-    try {
-      const content = fs.readFileSync(entry.filePath, 'utf-8');
-      const parsed = parseSolutionV3(content);
-      if (!parsed) continue;
-
-      const source = [parsed.context, parsed.content].filter(Boolean).join(' ');
+    const ok = mutateSolutionFile(entry.filePath, sol => {
+      const source = [sol.context, sol.content].filter(Boolean).join(' ');
       const newTags = extractTags(source);
-      parsed.frontmatter.tags = newTags;
-
-      const tmpPath = entry.filePath + '.tmp';
-      fs.writeFileSync(tmpPath, serializeSolutionV3(parsed));
-      fs.renameSync(tmpPath, entry.filePath);
-      retagged++;
-    } catch {
-      console.log(`    Failed: ${entry.name}`);
-    }
+      sol.frontmatter.tags = newTags;
+      return true;
+    });
+    if (ok) retagged++;
+    else console.log(`    Failed: ${entry.name}`);
   }
 
   console.log(`\n  Retagged ${retagged}/${entries.length} solutions.\n`);

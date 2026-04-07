@@ -8,11 +8,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createLogger } from '../core/logger.js';
-import { atomicWriteJSON, atomicWriteText } from './shared/atomic-write.js';
+import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
-import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
+import { incrementEvidence } from '../engine/solution-writer.js';
 import { detectErrorPattern } from './post-tool-use.js';
-import { ME_SOLUTIONS, ME_RULES, STATE_DIR } from '../core/paths.js';
+import { STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('post-tool-handlers');
 const CONTEXT_SIGNALS_PATH = path.join(STATE_DIR, 'context-signals.json');
@@ -100,32 +100,10 @@ export function getCompoundSuccessHint(toolName: string, toolResponse: string, s
   return `<compound-success-hint>\n${hints.map(h => `- ${h}`).join('\n')}\n</compound-success-hint>`;
 }
 
-/** Update negative evidence counter in solution file */
+/**
+ * Update negative evidence counter in solution file.
+ * PR2b: solution-writer.incrementEvidence로 위임. lock + fresh re-read + atomic write.
+ */
 export function updateNegativeEvidence(solutionName: string): void {
-  try {
-    const dirs = [
-      ME_SOLUTIONS,
-      ME_RULES,
-    ];
-    for (const dir of dirs) {
-      if (!fs.existsSync(dir)) continue;
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
-      for (const file of files) {
-        const filePath = path.join(dir, file);
-        // Security: symlink을 통한 임의 파일 읽기/쓰기 방지
-        if (fs.lstatSync(filePath).isSymbolicLink()) continue;
-        const content = fs.readFileSync(filePath, 'utf-8');
-        if (!content.includes(`name: "${solutionName}"`) && !content.includes(`name: ${solutionName}`)) continue;
-
-        const solution = parseSolutionV3(content);
-        if (!solution) return;
-        solution.frontmatter.evidence.negative += 1;
-        solution.frontmatter.updated = new Date().toISOString().split('T')[0];
-        atomicWriteText(filePath, serializeSolutionV3(solution));
-        return;
-      }
-    }
-  } catch (e) {
-    log.debug(`negative evidence 업데이트 실패: ${solutionName}`, e);
-  }
+  incrementEvidence(solutionName, 'negative');
 }

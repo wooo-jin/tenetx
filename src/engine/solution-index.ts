@@ -2,6 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { SolutionIndexEntry } from './solution-format.js';
 import { parseFrontmatterOnly, isV1Format, migrateV1toV3 } from './solution-format.js';
+import { withFileLockSync } from '../hooks/shared/file-lock.js';
+import { atomicWriteText } from '../hooks/shared/atomic-write.js';
 
 export interface SolutionDirConfig {
   dir: string;
@@ -86,9 +88,19 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
         const fileMtime = fs.statSync(filePath).mtimeMs;
 
         if (!content.trimStart().startsWith('---') && isV1Format(content)) {
-          const migrated = migrateV1toV3(content, filePath);
-          fs.writeFileSync(filePath, migrated);
-          content = migrated;
+          // PR2b: V1→V3 migration도 lock으로 보호. 동시 hook이 같은 V1 파일을
+          // 마이그레이션하면 last-writer-wins로 손상될 수 있다. parseSolutionV3를
+          // 못 쓰는 케이스라 mutateSolutionFile API 대신 명시적 lock + atomic write.
+          try {
+            withFileLockSync(filePath, () => {
+              const fresh = fs.readFileSync(filePath, 'utf-8');
+              if (fresh.trimStart().startsWith('---')) return; // 다른 mutator가 이미 마이그레이션
+              if (!isV1Format(fresh)) return;
+              const migrated = migrateV1toV3(fresh, filePath);
+              atomicWriteText(filePath, migrated);
+              content = migrated;
+            });
+          } catch { /* lock 실패는 non-fatal */ }
         }
 
         const fm = parseFrontmatterOnly(content);

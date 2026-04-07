@@ -20,8 +20,9 @@ import { ME_SOLUTIONS, PACKS_DIR } from '../core/paths.js';
 import { getOrBuildIndex } from '../engine/solution-index.js';
 import type { SolutionDirConfig } from '../engine/solution-index.js';
 import { extractTags } from '../engine/solution-format.js';
-import { parseSolutionV3, serializeSolutionV3 } from '../engine/solution-format.js';
+import { parseSolutionV3 } from '../engine/solution-format.js';
 import type { SolutionStatus, SolutionType } from '../engine/solution-format.js';
+import { mutateSolutionFile } from '../engine/solution-writer.js';
 import { calculateRelevance } from '../engine/solution-matcher.js';
 import { filterSolutionContent } from '../hooks/prompt-injection-filter.js';
 
@@ -230,17 +231,13 @@ export function readSolution(name: string, options?: { dirs?: SolutionDirConfig[
   if (contextFilter.verdict === 'block') return null;
 
   // Pull(MCP) 경로: evidence에 기여 — sessions + reflected 카운트 증가
+  // PR2b: solution-writer.mutateSolutionFile로 통합. lock + fresh re-read로 race 방지.
   if (!options?.skipEvidence) {
-    try {
-      parsed.frontmatter.evidence.sessions += 1;
-      parsed.frontmatter.evidence.reflected += 1;
-      parsed.frontmatter.updated = new Date().toISOString().split('T')[0];
-      const tmpPath = entry.filePath + '.tmp';
-      fs.writeFileSync(tmpPath, serializeSolutionV3(parsed));
-      fs.renameSync(tmpPath, entry.filePath);
-    } catch {
-      // evidence 업데이트 실패는 무시 — 읽기 결과는 정상 반환
-    }
+    mutateSolutionFile(entry.filePath, sol => {
+      sol.frontmatter.evidence.sessions += 1;
+      sol.frontmatter.evidence.reflected += 1;
+      return true;
+    });
   }
 
   return {
