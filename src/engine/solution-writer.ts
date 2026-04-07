@@ -106,18 +106,23 @@ export function mutateSolutionFile(filePath: string, mutator: SolutionMutator): 
  *
  * C3 fix: 사전 필터를 정확한 frontmatter parse로 교체. 이전엔 substring 매칭
  * 이라 `inc1` 찾을 때 `inc12.md`가 먼저 매치되어 silent miss가 발생했다.
- * 또한 mutator가 false 반환해도 다음 후보로 continue (이전엔 first match에서
- * 즉시 return).
  *
- * H-S2 명시: 현재 ME_SOLUTIONS / ME_RULES 스코프만 스캔한다. project/team
- * scope (cwd/.compound/solutions, packs/<team>/solutions)는 evidence 갱신
- * 대상에서 제외된다. 후속 PR(PR2c)에서 caller가 dirs를 주입할 수 있도록
- * 확장 예정.
+ * PR2c-3 (H-S2 fix): caller가 extraDirs로 project/team scope를 추가할 수 있다.
+ * 기본은 ME_SOLUTIONS / ME_RULES만 스캔. solution-injector는 cwd 기반 project
+ * 디렉터리를 주입해 해당 scope의 솔루션도 evidence 갱신 받게 할 수 있다.
+ *
+ * PR2c-3 (L-3 fix): mutator가 false 반환하면 다음 후보로 continue.
+ * 같은 name이 여러 파일에 있을 가능성은 invariant 위반이지만, 사용자가 수동
+ * 중복을 만들 수 있으므로 fail-safe로 다음 후보 시도.
  *
  * symlink는 보안상 무시 (lstatSync 가드).
  */
-export function mutateSolutionByName(name: string, mutator: SolutionMutator): boolean {
-  const dirs = [ME_SOLUTIONS, ME_RULES];
+export function mutateSolutionByName(
+  name: string,
+  mutator: SolutionMutator,
+  options?: { extraDirs?: string[] },
+): boolean {
+  const dirs = [ME_SOLUTIONS, ME_RULES, ...(options?.extraDirs ?? [])];
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue;
     let files: string[];
@@ -135,7 +140,6 @@ export function mutateSolutionByName(name: string, mutator: SolutionMutator): bo
         continue;
       }
       // C3 fix: 정확한 frontmatter parse로 사전 필터.
-      // substring 매칭은 prefix 충돌 (inc1 vs inc12)에서 silent miss를 만들었다.
       let content: string;
       try {
         content = fs.readFileSync(filePath, 'utf-8');
@@ -145,14 +149,14 @@ export function mutateSolutionByName(name: string, mutator: SolutionMutator): bo
       const fm = parseFrontmatterOnly(content);
       if (!fm || fm.name !== name) continue;
 
-      // lock 안에서 fresh re-read 후 한 번 더 검증 (다른 hook이 그 사이 mutate 가능)
+      // lock 안에서 fresh re-read 후 한 번 더 검증
       const result = mutateSolutionFile(filePath, sol => {
         if (sol.frontmatter.name !== name) return false;
         return mutator(sol);
       });
-      // mutator가 false 반환해도 다음 후보로 진행하지 않음 — 정확한 매칭이라
-      // 같은 이름의 다른 파일은 없을 것. 만약 mutator가 false면 진짜 no-op.
-      return result;
+      if (result) return true;
+      // L-3 fix: mutator/mutateSolutionFile이 false면 다음 후보로 continue.
+      // 같은 name의 다른 파일을 찾아 mutate 시도.
     }
   }
   return false;

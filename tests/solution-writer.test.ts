@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 
 const { TEST_HOME } = vi.hoisted(() => {
   const tmpRoot = process.env.TMPDIR || '/tmp';
@@ -203,6 +204,59 @@ describe('mutateSolutionByName', () => {
     // symlink 파일을 직접 통한 mutate는 일어나지 않음
     const linkStat = fs.lstatSync(linkPath);
     expect(linkStat.isSymbolicLink()).toBe(true);
+  });
+});
+
+describe('PR2c-3: extraDirs + 다음 후보 탐색', () => {
+  it('extraDirs로 추가 디렉터리 스캔', () => {
+    const extraDir = fs.mkdtempSync(path.join(os.tmpdir(), 'extra-dir-test-'));
+    try {
+      fs.writeFileSync(path.join(extraDir, 'extra.md'), serializeSolutionV3(makeSolution('extra-sol')));
+
+      // ME_SOLUTIONS에는 없고 extraDir에만 있는 솔루션
+      const result = mutateSolutionByName('extra-sol', sol => {
+        sol.frontmatter.evidence.injected = 5;
+        return true;
+      }, { extraDirs: [extraDir] });
+
+      expect(result).toBe(true);
+      const fresh = parseSolutionV3(fs.readFileSync(path.join(extraDir, 'extra.md'), 'utf-8'))!;
+      expect(fresh.frontmatter.evidence.injected).toBe(5);
+    } finally {
+      fs.rmSync(extraDir, { recursive: true, force: true });
+    }
+  });
+
+  it('extraDirs 미지정 시 ME_SOLUTIONS / ME_RULES만 스캔 (기본 동작)', () => {
+    const extraDir = fs.mkdtempSync(path.join(os.tmpdir(), 'extra-dir-test-'));
+    try {
+      fs.writeFileSync(path.join(extraDir, 'only-extra.md'), serializeSolutionV3(makeSolution('only-extra')));
+
+      // extraDirs 없이 호출 → only-extra는 못 찾음
+      const result = mutateSolutionByName('only-extra', () => true);
+      expect(result).toBe(false);
+    } finally {
+      fs.rmSync(extraDir, { recursive: true, force: true });
+    }
+  });
+
+  it('L-3: 같은 name이 여러 파일에 있을 때 mutator false면 다음 후보 시도', () => {
+    // 비정상 invariant이지만 fail-safe로 동작해야 함
+    fs.mkdirSync(ME_SOLUTIONS, { recursive: true });
+    fs.writeFileSync(path.join(ME_SOLUTIONS, 'a.md'), serializeSolutionV3(makeSolution('dup')));
+    fs.writeFileSync(path.join(ME_SOLUTIONS, 'b.md'), serializeSolutionV3(makeSolution('dup')));
+
+    let callCount = 0;
+    const result = mutateSolutionByName('dup', sol => {
+      callCount++;
+      // 첫 번째 호출에선 false, 두 번째에선 true
+      if (callCount === 1) return false;
+      sol.frontmatter.evidence.reflected = 1;
+      return true;
+    });
+
+    expect(result).toBe(true);
+    expect(callCount).toBe(2); // 다음 후보 시도됨
   });
 });
 
