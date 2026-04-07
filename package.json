@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "build": "node scripts/clean-dist.js clean && tsc && node scripts/copy-assets.js && node scripts/clean-dist.js chmod",
+    "build": "node scripts/clean-dist.cjs clean && tsc && node scripts/copy-assets.js && node scripts/clean-dist.cjs chmod",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
