@@ -12,6 +12,7 @@ const { tmpDir, tmpEvDir } = vi.hoisted(() => {
 
 vi.mock('../../src/core/paths.js', () => ({
   V1_EVIDENCE_DIR: tmpEvDir,
+  STATE_DIR: '/__test_no_state_dir__',
 }));
 
 import { createEvidence, saveEvidence, loadEvidence, loadAllEvidence, loadEvidenceBySession, loadEvidenceByType, loadRecentEvidence } from '../../src/store/evidence-store.js';

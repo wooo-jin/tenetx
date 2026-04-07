@@ -6,7 +6,7 @@ const { tmpRecDir } = vi.hoisted(() => {
   const o = require('node:os');
   return { tmpRecDir: p.join(o.tmpdir(), `tenetx-onb-test-${process.pid}`, 'me', 'recommendations') };
 });
-vi.mock('../../src/core/paths.js', () => ({ V1_RECOMMENDATIONS_DIR: tmpRecDir }));
+vi.mock('../../src/core/paths.js', () => ({ V1_RECOMMENDATIONS_DIR: tmpRecDir, STATE_DIR: '/__test_no_state_dir__' }));
 
 import { computeOnboarding, onboardingToRecommendation } from '../../src/forge/onboarding.js';
 

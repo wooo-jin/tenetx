@@ -29,6 +29,7 @@ vi.mock('../../src/core/paths.js', () => ({
   TENETX_HOME: tmpDir,
   V1_ME_DIR: require('node:path').join(tmpDir, 'me'),
   V1_STATE_DIR: require('node:path').join(tmpDir, 'state'),
+  STATE_DIR: require('node:path').join(tmpDir, 'state'),
 }));
 
 import { handleForge } from '../../src/forge/cli.js';

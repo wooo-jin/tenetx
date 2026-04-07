@@ -10,6 +10,7 @@ const { tmpDir, tmpRecDir } = vi.hoisted(() => {
 
 vi.mock('../../src/core/paths.js', () => ({
   V1_RECOMMENDATIONS_DIR: tmpRecDir,
+  STATE_DIR: '/__test_no_state_dir__',
 }));
 
 import { createRecommendation, saveRecommendation, loadRecommendation, loadAllRecommendations, updateRecommendationStatus, loadAcceptedRecommendation, loadLatestRecommendation } from '../../src/store/recommendation-store.js';

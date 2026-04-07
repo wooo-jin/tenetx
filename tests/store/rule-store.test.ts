@@ -12,6 +12,7 @@ const { tmpDir, tmpRulesDir } = vi.hoisted(() => {
 
 vi.mock('../../src/core/paths.js', () => ({
   V1_RULES_DIR: tmpRulesDir,
+  STATE_DIR: '/__test_no_state_dir__',
 }));
 
 import { createRule, saveRule, loadRule, loadAllRules, loadActiveRules, updateRuleStatus } from '../../src/store/rule-store.js';
