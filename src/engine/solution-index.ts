@@ -28,8 +28,25 @@ export interface SolutionIndex {
  *     when their cached dirs' mtimes hadn't changed.
  *   - We must NOT sort the signature: `[me,project]` and `[project,me]` are
  *     legitimately different precedence chains and need separate cache slots.
+ *
+ * PR2c-2: LRU eviction with insertion-order touch.
+ *   long-running MCP 서버가 여러 cwd를 처리하면 cache가 무한 누적될 수 있음.
+ *   Map의 insertion order를 LRU 시뮬레이션에 활용 — set/get 시 delete + set으로
+ *   touch해 가장 최근 사용된 entry가 마지막에 오게 한다. 32 초과 시 oldest evict.
  */
+const MAX_CACHE_ENTRIES = 32;
 const cachedIndexes = new Map<string, SolutionIndex>();
+
+/**
+ * SOFT_CAP: 디렉터리당 인덱싱되는 entry 수 상한 (parse 후 slice).
+ *   100 → 500 상향 (accumulated knowledge base에 100은 너무 낮음).
+ *
+ * HARD_CAP: 디렉터리당 read+parse하는 파일 수 상한.
+ *   SOFT_CAP만으로는 readFileSync + YAML parse가 N번 발생해 hook이 수십 초
+ *   블록될 수 있음. HARD_CAP 초과 시 statSync로 cheap mtime 정렬해 상위만 처리.
+ */
+const SOFT_CAP = 500;
+const HARD_CAP = 5000;
 
 /**
  * Build an escape-safe, order-preserving signature for a dirs set.
@@ -73,6 +90,22 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
       files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
     } catch {
       continue;
+    }
+
+    // HARD_CAP: read+parse 비용 상한. 초과 시 cheap statSync 정렬로 상위만 처리.
+    if (files.length > HARD_CAP) {
+      console.warn(`[tenetx] Warning: ${dir} contains ${files.length} files; pre-filtering to the ${HARD_CAP} most recent before parsing.`);
+      const stats: { f: string; m: number }[] = [];
+      for (const f of files) {
+        try {
+          const m = fs.statSync(path.join(dir, f)).mtimeMs;
+          stats.push({ f, m });
+        } catch {
+          // skip unreadable
+        }
+      }
+      stats.sort((a, b) => b.m - a.m);
+      files = stats.slice(0, HARD_CAP).map(s => s.f);
     }
 
     const fileEntries: { entry: SolutionIndexEntry; mtime: number }[] = [];
@@ -126,9 +159,6 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
     }
 
     fileEntries.sort((a, b) => b.mtime - a.mtime);
-    // Soft cap on indexed entries (not files read).
-    // Bumped from 100 → 500: 100 was too low for accumulated knowledge bases.
-    const SOFT_CAP = 500;
     if (fileEntries.length > SOFT_CAP) {
       console.warn(`[tenetx] Warning: ${dir} has ${fileEntries.length} solutions, only the ${SOFT_CAP} most recent are indexed.`);
     }
@@ -145,10 +175,23 @@ export function getOrBuildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
   const sig = dirsSignature(dirs);
   const cached = cachedIndexes.get(sig);
   if (cached && !isIndexStale(cached)) {
+    // LRU touch: re-insert으로 가장 최근 사용 표시
+    cachedIndexes.delete(sig);
+    cachedIndexes.set(sig, cached);
     return cached;
   }
+  // Stale rebuild path도 LRU touch — JS Map.set on existing key는
+  // insertion order를 갱신하지 않으므로 hot cwd가 자주 invalidate되면
+  // 영원히 oldest로 남는다. delete + set으로 강제 reorder.
+  cachedIndexes.delete(sig);
   const fresh = buildIndex(dirs);
   cachedIndexes.set(sig, fresh);
+  // Evict oldest until size within cap
+  while (cachedIndexes.size > MAX_CACHE_ENTRIES) {
+    const oldestKey = cachedIndexes.keys().next().value;
+    if (oldestKey === undefined) break;
+    cachedIndexes.delete(oldestKey);
+  }
   return fresh;
 }
 

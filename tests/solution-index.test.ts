@@ -204,3 +204,84 @@ describe('cache key isolation by dirs signature', () => {
     expect(projectIndex.entries[0]?.scope).toBe('project');
   });
 });
+
+describe('PR2c-2: LRU eviction + HARD_CAP', () => {
+  it('LRU evicts oldest entries beyond MAX_CACHE_ENTRIES (32)', () => {
+    resetIndexCache();
+    const tmpDirs: string[] = [];
+    try {
+      for (let i = 0; i < 33; i++) {
+        const d = fs.mkdtempSync(path.join(os.tmpdir(), `solution-index-lru-${i}-`));
+        tmpDirs.push(d);
+        createSolutionFile(d, `n${i}`, [`t${i}`]);
+        getOrBuildIndex([{ dir: d, scope: 'me' }]);
+      }
+      // 첫 번째 dir의 cache는 LRU evict 됐을 것 (32 초과)
+      const firstAgain = getOrBuildIndex([{ dir: tmpDirs[0], scope: 'me' }]);
+      const firstYetAgain = getOrBuildIndex([{ dir: tmpDirs[0], scope: 'me' }]);
+      expect(firstYetAgain).toBe(firstAgain);
+    } finally {
+      for (const d of tmpDirs) fs.rmSync(d, { recursive: true, force: true });
+    }
+  });
+
+  it('rebuild path가 LRU touch한다 (M5 회귀)', () => {
+    // M5 fix: stale rebuild가 delete + set으로 hot을 newest로 reorder.
+    resetIndexCache();
+    const hotDir = fs.mkdtempSync(path.join(os.tmpdir(), 'solution-index-hot-'));
+    const coldDirs: string[] = [];
+    try {
+      createSolutionFile(hotDir, 'hot1', ['hottag']);
+      getOrBuildIndex([{ dir: hotDir, scope: 'me' }]);
+
+      // 31 cold (cache 32, hot oldest)
+      for (let i = 0; i < 31; i++) {
+        const d = fs.mkdtempSync(path.join(os.tmpdir(), `solution-index-cold-${i}-`));
+        coldDirs.push(d);
+        createSolutionFile(d, `c${i}`, [`ct${i}`]);
+        getOrBuildIndex([{ dir: d, scope: 'me' }]);
+      }
+
+      // hot stale → rebuild가 newest로 reorder
+      createSolutionFile(hotDir, 'hot2', ['hottag2']);
+      const hotRebuilt = getOrBuildIndex([{ dir: hotDir, scope: 'me' }]);
+      expect(hotRebuilt.entries).toHaveLength(2);
+
+      // 1 cold 더 → cache 33 → oldest evict
+      const lastCold = fs.mkdtempSync(path.join(os.tmpdir(), 'solution-index-cold-last-'));
+      coldDirs.push(lastCold);
+      createSolutionFile(lastCold, 'clast', ['lasttag']);
+      getOrBuildIndex([{ dir: lastCold, scope: 'me' }]);
+
+      // hot은 살아남아야 함
+      const hotAfter = getOrBuildIndex([{ dir: hotDir, scope: 'me' }]);
+      expect(hotAfter).toBe(hotRebuilt);
+    } finally {
+      fs.rmSync(hotDir, { recursive: true, force: true });
+      for (const d of coldDirs) fs.rmSync(d, { recursive: true, force: true });
+    }
+  });
+
+  it('HARD_CAP 경로: 5000개 초과 디렉터리에서 statSync 사전 정렬', () => {
+    // 6000개 빈 .md 파일 — YAML parse 실패하지만 statSync 경로가 동작하는지
+    resetIndexCache();
+    const bigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'solution-index-bigdir-'));
+    try {
+      const now = Date.now() / 1000;
+      for (let i = 0; i < 6000; i++) {
+        const fp = path.join(bigDir, `f${i}.md`);
+        fs.writeFileSync(fp, '');
+        fs.utimesSync(fp, now, now + i);
+      }
+
+      const start = Date.now();
+      const index = getOrBuildIndex([{ dir: bigDir, scope: 'me' }]);
+      const elapsed = Date.now() - start;
+
+      expect(index.entries).toHaveLength(0);
+      expect(elapsed).toBeLessThan(3000); // hook timeout 3s 안에
+    } finally {
+      fs.rmSync(bigDir, { recursive: true, force: true });
+    }
+  });
+});

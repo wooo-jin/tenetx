@@ -88,9 +88,13 @@ export function defaultSolutionDirs(cwd?: string): SolutionDirConfig[] {
   ];
 
   // 팩 디렉토리 스캔 — 하위에 solutions/ 디렉토리가 있는 팩만 포함
+  // PR2c-2 (M7 fix): readdirSync 결과를 정렬해 결정적 순서 보장.
+  // 정렬 안 하면 같은 팩 집합도 파일시스템 순서에 따라 다른 cache key/precedence
+  // 가 생겨 LRU와 인덱스 결정성이 깨진다.
   try {
     if (fs.existsSync(PACKS_DIR)) {
-      for (const entry of fs.readdirSync(PACKS_DIR)) {
+      const packEntries = fs.readdirSync(PACKS_DIR).sort();
+      for (const entry of packEntries) {
         const solDir = path.join(PACKS_DIR, entry, 'solutions');
         if (fs.existsSync(solDir)) {
           dirs.push({ dir: solDir, scope: 'team' });
