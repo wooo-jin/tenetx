@@ -14,7 +14,28 @@ export interface SolutionIndex {
   builtAt: number;
 }
 
-let cachedIndex: SolutionIndex | null = null;
+/**
+ * Cache keyed by an order-preserving directory signature.
+ *
+ * Why this matters:
+ *   - `buildIndex` accumulates entries in dir order, and `solution-reader`
+ *     returns the first match — so dir order is the precedence chain
+ *     (me > team > project, by convention).
+ *   - The previous single `cachedIndex` global was reused regardless of the
+ *     `dirs` argument, so different cwd contexts received stale results
+ *     when their cached dirs' mtimes hadn't changed.
+ *   - We must NOT sort the signature: `[me,project]` and `[project,me]` are
+ *     legitimately different precedence chains and need separate cache slots.
+ */
+const cachedIndexes = new Map<string, SolutionIndex>();
+
+/**
+ * Build an escape-safe, order-preserving signature for a dirs set.
+ * JSON.stringify avoids delimiter collisions when paths contain `|` or `:`.
+ */
+function dirsSignature(dirs: SolutionDirConfig[]): string {
+  return JSON.stringify(dirs.map(d => [d.scope, d.dir]));
+}
 
 export function isIndexStale(index: SolutionIndex): boolean {
   for (const [dir, mtime] of Object.entries(index.directoryMtimes)) {
@@ -93,10 +114,13 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
     }
 
     fileEntries.sort((a, b) => b.mtime - a.mtime);
-    if (fileEntries.length > 100) {
-      console.warn(`[tenetx] Warning: ${dir} has ${fileEntries.length} solutions, only the 100 most recent are indexed.`);
+    // Soft cap on indexed entries (not files read).
+    // Bumped from 100 → 500: 100 was too low for accumulated knowledge bases.
+    const SOFT_CAP = 500;
+    if (fileEntries.length > SOFT_CAP) {
+      console.warn(`[tenetx] Warning: ${dir} has ${fileEntries.length} solutions, only the ${SOFT_CAP} most recent are indexed.`);
     }
-    const limited = fileEntries.slice(0, 100);
+    const limited = fileEntries.slice(0, SOFT_CAP);
     for (const { entry } of limited) {
       entries.push(entry);
     }
@@ -106,12 +130,16 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
 }
 
 export function getOrBuildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
-  if (cachedIndex === null || isIndexStale(cachedIndex)) {
-    cachedIndex = buildIndex(dirs);
+  const sig = dirsSignature(dirs);
+  const cached = cachedIndexes.get(sig);
+  if (cached && !isIndexStale(cached)) {
+    return cached;
   }
-  return cachedIndex;
+  const fresh = buildIndex(dirs);
+  cachedIndexes.set(sig, fresh);
+  return fresh;
 }
 
 export function resetIndexCache(): void {
-  cachedIndex = null;
+  cachedIndexes.clear();
 }

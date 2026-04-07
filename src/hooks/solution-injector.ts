@@ -72,6 +72,51 @@ function saveSessionCache(sessionId: string, injected: Set<string>, totalInjecte
 // readSolutionContent 제거됨 — Progressive Disclosure로 전문 읽기 불필요
 // Tier 3(전문)은 MCP compound-read가 담당
 
+/**
+ * 기존 injection cache에서 tags가 누락된 entry를 매칭 결과로 채운다.
+ *
+ * 호출 시점:
+ *   - main()의 cache merge 단계 (in-place, 새 entry 추가와 함께)
+ *   - matches.length === 0 early return 직전 (cache write만 수행)
+ *
+ * R3 sentinel 동작:
+ *   - tags 키 자체가 없을 때만 backfill (`existing.tags === undefined`)
+ *   - 빈 배열 (`tags: []`)은 정당한 상태로 보고 그대로 유지
+ *   - 이전 `length === 0` 가드는 진짜 빈 tags 솔루션을 매번 무한 backfill 시도하던 결함
+ *
+ * 동시성: lock 없음 (PR1 의도). PR2에서 file lock으로 보호 예정.
+ */
+function backfillCacheTagsOnDisk(
+  cachePath: string,
+  allMatched: Array<{ name: string; tags: string[] }>,
+): void {
+  if (allMatched.length === 0) return;
+  if (!fs.existsSync(cachePath)) return;
+  try {
+    const existing = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+    if (!Array.isArray(existing.solutions)) return;
+
+    const matchedByName = new Map(allMatched.map(m => [m.name, m]));
+    let mutated = false;
+    const updated = existing.solutions.map((sol: { name: string; tags?: unknown }) => {
+      // R3 sentinel: tags 키 자체가 없을 때만 backfill.
+      // 빈 배열 (`tags: []`)은 정당한 상태로 보고 유지 → 무한 backfill 회피.
+      if (sol.tags !== undefined) return sol;
+      const fresh = matchedByName.get(sol.name);
+      if (!fresh) return sol;
+      mutated = true;
+      // R5: defensive copy로 fresh.tags reference 공유 차단.
+      return { ...sol, tags: [...fresh.tags] };
+    });
+
+    if (!mutated) return;
+    atomicWriteJSON(cachePath, {
+      solutions: updated,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) { log.debug('injection cache backfill 실패', e); }
+}
+
 async function main(): Promise<void> {
   const input = await readStdinJSON<HookInput>();
   if (!isHookEnabled('solution-injector')) {
@@ -112,10 +157,19 @@ async function main(): Promise<void> {
   const scope = resolveScope(cwd);
 
   // 프롬프트와 관련된 솔루션 매칭
-  const matches = matchSolutions(input.prompt, scope, cwd)
-    .filter(m => !injected.has(m.name));
+  // allMatched는 backfill 용도로 보존: 이미 injected된 entry라도 같은 솔루션이
+  // 다시 매칭되면 그 정보로 cache의 missing tags를 채울 수 있다.
+  // matches는 새 주입 후보 (이미 injected는 제외).
+  const allMatched = matchSolutions(input.prompt, scope, cwd);
+  const matches = allMatched.filter(m => !injected.has(m.name));
 
+  // 신규 주입할 게 없어도 backfill은 수행한다.
+  // R2 fix: matches.length === 0인 경우에도 allMatched에 정보가 있으면
+  // 기존 cache의 missing tags를 채울 수 있다. 이전엔 이 경로를 놓쳐서
+  // backfill fix가 절반만 적용된 상태였다 (Codex/code-reviewer 발견).
   if (matches.length === 0) {
+    const earlyCachePath = path.join(STATE_DIR, `injection-cache-${sanitizeId(sessionId)}.json`);
+    backfillCacheTagsOnDisk(earlyCachePath, allMatched);
     console.log(approve());
     return;
   }
@@ -150,8 +204,11 @@ async function main(): Promise<void> {
   // Save injection cache for Code Reflection (Phase 2) — cumulative merge
   const injectionCachePath = path.join(STATE_DIR, `injection-cache-${sanitizeId(sessionId)}.json`);
   try {
-    // Load existing cache and merge (cumulative)
-    let existingSolutions: Array<{ name: string; identifiers: string[]; status: string; injectedAt: string; _sessionCounted?: boolean }> = [];
+    // Load existing cache and merge (cumulative).
+    // NOTE: `tags` was added later for tag-based negative attribution
+    // (post-tool-handlers.ts checkCompoundNegative reads `sol.tags`).
+    // Older cache entries without `tags` are tolerated via downstream `?? []`.
+    let existingSolutions: Array<{ name: string; identifiers: string[]; tags?: string[]; status: string; injectedAt: string; _sessionCounted?: boolean }> = [];
     try {
       if (fs.existsSync(injectionCachePath)) {
         const existing = JSON.parse(fs.readFileSync(injectionCachePath, 'utf-8'));
@@ -159,17 +216,29 @@ async function main(): Promise<void> {
       }
     } catch (e) { log.debug('injection cache 읽기 실패 — 기존 캐시 없이 새로 시작', e); }
 
+    // R5: defensive copy로 SolutionMatch.tags / .identifiers reference 공유 차단.
+    // 매칭 캐시가 cache.solutions를 통해 의도치 않게 mutate될 위험 제거.
     const newSolutions = toInject.map(sol => ({
       name: sol.name,
-      identifiers: sol.identifiers,
+      identifiers: [...sol.identifiers],
+      tags: [...sol.tags],
       status: sol.status,
       injectedAt: new Date().toISOString(),
     }));
 
-    // Merge: add new, keep existing (dedup by name)
+    // Merge: add new, keep existing (dedup by name).
+    // BACKFILL: existing entry에 tags 키 자체가 없고(R3 sentinel) 이번 매칭에
+    // 같은 이름이 있으면 그 tags로 채워넣는다. 빈 배열은 정당한 상태로 유지.
+    // R5: defensive copy로 fresh.tags reference 공유 차단.
+    const matchedByName = new Map(allMatched.map(m => [m.name, m]));
     const existingNames = new Set(existingSolutions.map(s => s.name));
     const merged = [
-      ...existingSolutions,
+      ...existingSolutions.map(existing => {
+        if (existing.tags !== undefined) return existing;
+        const fresh = matchedByName.get(existing.name);
+        if (!fresh) return existing;
+        return { ...existing, tags: [...fresh.tags] };
+      }),
       ...newSolutions.filter(s => !existingNames.has(s.name)),
     ];
 
