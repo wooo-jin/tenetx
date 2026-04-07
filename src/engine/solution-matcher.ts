@@ -21,12 +21,27 @@ export const SYNONYM_MAP: Record<string, string[]> = {
   performance: ['optimize', 'profiling', 'bottleneck', 'latency'],
   security: ['vulnerability', 'injection', 'xss', 'csrf'],
   refactor: ['cleanup', 'restructure', 'simplify', 'decompose'],
-  // Korean synonyms
-  데이터베이스: ['db', 'sql', '스키마', '마이그레이션'],
-  테스트: ['testing', 'spec', '검증', '단위테스트'],
-  성능: ['최적화', 'optimize', '프로파일링', '병목'],
-  보안: ['취약점', 'vulnerability', '인젝션', '인증'],
-  리팩토링: ['정리', 'cleanup', '개선', '분리'],
+  handling: ['handler', 'catch', 'try', 'recovery', '핸들링', '처리'],
+  validation: ['validate', 'check', 'sanitize', '검증', '유효성'],
+  cache: ['caching', 'memoize', 'invalidate', '캐시', '캐싱'],
+  logging: ['log', 'trace', 'monitor', '로깅', '로그'],
+  deploy: ['deployment', 'release', 'publish', '배포'],
+  migration: ['migrate', 'upgrade', '마이그레이션', '업그레이드'],
+  // Korean → English cross-mapping
+  에러: ['error', 'bug', 'fix', 'debug', 'crash', 'exception', '오류', '버그', '예외'],
+  핸들링: ['handling', 'handler', 'catch', 'try', '처리', '대응'],
+  오류: ['error', 'bug', 'exception', '에러', '버그'],
+  디버깅: ['debug', 'debugger', 'breakpoint', '디버그'],
+  데이터베이스: ['database', 'db', 'sql', '스키마', '마이그레이션'],
+  테스트: ['test', 'testing', 'spec', '검증', '단위테스트'],
+  성능: ['performance', 'optimize', '최적화', '프로파일링', '병목'],
+  보안: ['security', 'vulnerability', '취약점', '인젝션', '인증'],
+  리팩토링: ['refactor', 'cleanup', '정리', '개선', '분리'],
+  배포: ['deploy', 'deployment', 'release', 'publish'],
+  인증: ['auth', 'authentication', 'login', 'jwt', 'session'],
+  컴포넌트: ['component', 'react', 'jsx', 'widget'],
+  최적화: ['optimize', 'performance', 'profiling', '성능'],
+  캐시: ['cache', 'caching', 'memoize', 'invalidate'],
 };
 
 /** Expand tags with synonyms — adds related terms to improve matching */
