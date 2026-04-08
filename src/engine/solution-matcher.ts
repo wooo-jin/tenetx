@@ -5,59 +5,34 @@ import { extractTags } from './solution-format.js';
 import { getOrBuildIndex } from './solution-index.js';
 import type { SolutionDirConfig } from './solution-index.js';
 import type { SolutionStatus, SolutionType } from './solution-format.js';
+import { defaultNormalizer } from './term-normalizer.js';
 
-// ── Synonym dictionary for tag expansion ──
+// ── Synonym expansion (delegates to term-normalizer) ──
+//
+// The old `SYNONYM_MAP` + `expandTagsWithSynonyms` pair had two problems:
+//   1. The reverse-lookup `Object.entries(SYNONYM_MAP).filter(v => v.includes(tag))`
+//      was O(N) per term and ran once per (query, solution) pair — quadratic
+//      on the solution count.
+//   2. Korean↔English cross-mapping was maintained as two separate map entries
+//      that drifted (fixed in 5.1.2 but fragile).
+//
+// Both are now handled by `src/engine/term-normalizer.ts`. See that file for
+// the canonical registry (`DEFAULT_MATCH_TERMS`) and the `buildTermNormalizer`
+// implementation. Reverse lookup is an O(1) `Map<term, canonicals>` fetch.
+//
+// The export below is kept as a thin backwards-compatible wrapper so
+// downstream callers (and the existing `synonym-tfidf.test.ts` spot-checks)
+// continue to work — but the hot path in this module now passes
+// pre-normalized query tags via the new `calculateRelevance` options arg
+// and skips the wrapper entirely.
 
-export const SYNONYM_MAP: Record<string, string[]> = {
-  react: ['jsx', 'component', 'hook', 'useState', 'useEffect'],
-  database: ['db', 'sql', 'schema', 'migration', 'query'],
-  test: ['testing', 'spec', 'vitest', 'jest', 'mocha'],
-  typescript: ['ts', 'type', 'interface', 'generic'],
-  api: ['rest', 'graphql', 'endpoint', 'route'],
-  auth: ['authentication', 'authorization', 'login', 'session', 'jwt'],
-  docker: ['container', 'dockerfile', 'compose'],
-  ci: ['pipeline', 'workflow', 'actions', 'deploy'],
-  error: ['bug', 'fix', 'debug', 'crash', 'exception'],
-  performance: ['optimize', 'profiling', 'bottleneck', 'latency'],
-  security: ['vulnerability', 'injection', 'xss', 'csrf'],
-  refactor: ['cleanup', 'restructure', 'simplify', 'decompose'],
-  handling: ['handler', 'catch', 'try', 'recovery', '핸들링', '처리'],
-  validation: ['validate', 'check', 'sanitize', '검증', '유효성'],
-  cache: ['caching', 'memoize', 'invalidate', '캐시', '캐싱'],
-  logging: ['log', 'trace', 'monitor', '로깅', '로그'],
-  deploy: ['deployment', 'release', 'publish', '배포'],
-  migration: ['migrate', 'upgrade', '마이그레이션', '업그레이드'],
-  // Korean → English cross-mapping
-  에러: ['error', 'bug', 'fix', 'debug', 'crash', 'exception', '오류', '버그', '예외'],
-  핸들링: ['handling', 'handler', 'catch', 'try', '처리', '대응'],
-  오류: ['error', 'bug', 'exception', '에러', '버그'],
-  디버깅: ['debug', 'debugger', 'breakpoint', '디버그'],
-  데이터베이스: ['database', 'db', 'sql', '스키마', '마이그레이션'],
-  테스트: ['test', 'testing', 'spec', '검증', '단위테스트'],
-  성능: ['performance', 'optimize', '최적화', '프로파일링', '병목'],
-  보안: ['security', 'vulnerability', '취약점', '인젝션', '인증'],
-  리팩토링: ['refactor', 'cleanup', '정리', '개선', '분리'],
-  배포: ['deploy', 'deployment', 'release', 'publish'],
-  인증: ['auth', 'authentication', 'login', 'jwt', 'session'],
-  컴포넌트: ['component', 'react', 'jsx', 'widget'],
-  최적화: ['optimize', 'performance', 'profiling', '성능'],
-  캐시: ['cache', 'caching', 'memoize', 'invalidate'],
-};
-
-/** Expand tags with synonyms — adds related terms to improve matching */
+/**
+ * @deprecated Use `defaultNormalizer.normalizeTerms` from
+ * `./term-normalizer.js` directly. Kept as a thin wrapper for the existing
+ * `synonym-tfidf.test.ts` and any external consumers.
+ */
 export function expandTagsWithSynonyms(tags: string[]): string[] {
-  const expanded = new Set(tags);
-  for (const tag of tags) {
-    const synonyms = SYNONYM_MAP[tag];
-    if (synonyms) {
-      for (const syn of synonyms) expanded.add(syn);
-    }
-    // reverse lookup: if tag is a synonym value, add the key
-    for (const [key, values] of Object.entries(SYNONYM_MAP)) {
-      if (values.includes(tag)) expanded.add(key);
-    }
-  }
-  return [...expanded];
+  return defaultNormalizer.normalizeTerms(tags);
 }
 
 // ── TF-IDF weighting for common tags ──
@@ -102,24 +77,52 @@ interface LoadedSolution {
   scope: 'me' | 'team' | 'project';
 }
 
-export function calculateRelevance(promptTags: string[], solutionTags: string[], confidence: number): { relevance: number; matchedTags: string[] };
+/**
+ * Optional hints for the v3 `calculateRelevance` path. Used by hot-path
+ * callers (matchSolutions, searchSolutions) to avoid re-normalizing the
+ * same query tags on every solution.
+ */
+export interface CalculateRelevanceOptions {
+  /**
+   * Pre-normalized prompt tags (produced by `defaultNormalizer.normalizeTerms`).
+   * If provided, skips the per-call expansion. Callers loop-running against
+   * many solutions should compute this once outside the loop and pass it in.
+   */
+  normalizedPromptTags?: string[];
+}
+
+export function calculateRelevance(
+  promptTags: string[],
+  solutionTags: string[],
+  confidence: number,
+  options?: CalculateRelevanceOptions,
+): { relevance: number; matchedTags: string[] };
 /** @deprecated */
 export function calculateRelevance(prompt: string, keywords: string[]): number;
 export function calculateRelevance(
   promptOrTags: string | string[],
   keywordsOrTags: string[],
   confidence?: number,
+  options?: CalculateRelevanceOptions,
 ): number | { relevance: number; matchedTags: string[] } {
   if (typeof promptOrTags === 'string') {
-    // Legacy mode: substring matching for backwards compatibility
+    // Legacy mode: substring matching for backwards compatibility.
+    // Not a hot path — only hit by the (old) solution-matcher.test.ts cases.
     const promptTags = extractTags(promptOrTags);
     const intersection = keywordsOrTags.filter(kw =>
       promptTags.some(pt => pt === kw || (pt.length > 3 && kw.length > 3 && (pt.startsWith(kw) || kw.startsWith(pt)))),
     );
     return Math.min(1, intersection.length / Math.max(promptTags.length * 0.5, 1));
   }
-  // v3 mode: tag matching with synonym expansion + TF-IDF weighting
-  const expandedPromptTags = expandTagsWithSynonyms(promptOrTags);
+  // v3 mode: tag matching with synonym expansion + TF-IDF weighting.
+  //
+  // T2: the synonym expansion is now a hash-indexed lookup via
+  // `defaultNormalizer.normalizeTerms` (see term-normalizer.ts). Callers in
+  // the hot path pre-compute the expansion once per query and pass it via
+  // `options.normalizedPromptTags`, so this function no longer repeats the
+  // work per solution.
+  const expandedPromptTags = options?.normalizedPromptTags
+    ?? defaultNormalizer.normalizeTerms(promptOrTags);
 
   const intersection = keywordsOrTags.filter(t => expandedPromptTags.includes(t));
 
@@ -135,7 +138,11 @@ export function calculateRelevance(
   // 완화된 임계값: 가중 점수 0.5 이상이면 후보
   if (weightedMatched < 0.5) return { relevance: 0, matchedTags: [] };
 
-  // Jaccard-like: weighted matched / union
+  // Jaccard-like: weighted matched / union.
+  // Union uses RAW promptTags and RAW solutionTags — not the expanded set —
+  // so that the denominator semantics are unchanged from pre-T2 behaviour.
+  // This is intentional: expanding both sides of the Jaccard would
+  // asymmetrically inflate recall and silently shift all baseline metrics.
   const union = new Set([...promptOrTags, ...keywordsOrTags]).size;
   const tagScore = weightedMatched / Math.max(union, 1);
   return {
@@ -206,9 +213,27 @@ function rankCandidates<T extends RankableSolution>(
   promptLower: string,
   solutions: readonly T[],
 ): RankedCandidate<T>[] {
+  // T2: normalize prompt tags ONCE per query (not once per solution).
+  // Pre-T2 this expansion happened inside calculateRelevance and was
+  // repeated N times for N solutions — the plan's primary hot-path win.
+  //
+  // Note: we intentionally do NOT use `sol.normalizedTags` (if present) for
+  // the intersection. Using normalized on BOTH sides is bidirectional
+  // expansion that inflates Jaccard intersection 5-10× and silently shifts
+  // every baseline metric. `entry.normalizedTags` is populated by the
+  // index but reserved for T3 (ranking log explainability) and T4 (BM25
+  // term-frequency stats). If a future change uses it in scoring, it must
+  // update ROUND3_BASELINE in the same PR.
+  const normalizedPromptTags = defaultNormalizer.normalizeTerms(promptTags);
+
   return solutions
     .map(sol => {
-      const result = calculateRelevance(promptTags, sol.tags, sol.confidence) as { relevance: number; matchedTags: string[] };
+      const result = calculateRelevance(
+        promptTags,
+        sol.tags,
+        sol.confidence,
+        { normalizedPromptTags },
+      ) as { relevance: number; matchedTags: string[] };
 
       let identifierBoost = 0;
       const matchedIdentifiers: string[] = [];

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { expandTagsWithSynonyms, tagWeight, SYNONYM_MAP, calculateRelevance } from '../src/engine/solution-matcher.js';
+import { expandTagsWithSynonyms, tagWeight, calculateRelevance } from '../src/engine/solution-matcher.js';
+import { DEFAULT_MATCH_TERMS } from '../src/engine/term-normalizer.js';
 
 describe('expandTagsWithSynonyms', () => {
   it('known tag에 대해 synonym을 추가한다', () => {
@@ -60,16 +61,25 @@ describe('tagWeight', () => {
   });
 });
 
-describe('SYNONYM_MAP', () => {
+// T2: SYNONYM_MAP removed. The registry now lives in
+// src/engine/term-normalizer.ts as DEFAULT_MATCH_TERMS (MatchTermEntry[]).
+// Coverage of the registry shape is in tests/term-normalizer.test.ts;
+// these legacy spot-checks remain here to guard bilingual migration.
+describe('DEFAULT_MATCH_TERMS (migrated from SYNONYM_MAP)', () => {
   it('영어와 한국어 synonym 모두 포함', () => {
-    expect(Object.keys(SYNONYM_MAP).length).toBeGreaterThanOrEqual(10);
-    expect(SYNONYM_MAP['react']).toBeDefined();
-    expect(SYNONYM_MAP['데이터베이스']).toBeDefined();
+    expect(DEFAULT_MATCH_TERMS.length).toBeGreaterThanOrEqual(10);
+    const canonicals = new Set(DEFAULT_MATCH_TERMS.map(e => e.canonical));
+    expect(canonicals.has('react')).toBe(true);
+    expect(canonicals.has('database')).toBe(true);
+    // Korean terms that were top-level in SYNONYM_MAP now live inside a
+    // canonical's matchTerms array. Spot-check one.
+    const database = DEFAULT_MATCH_TERMS.find(e => e.canonical === 'database')!;
+    expect(database.matchTerms).toContain('데이터베이스');
   });
 
-  it('모든 값이 비어있지 않다', () => {
-    for (const [key, values] of Object.entries(SYNONYM_MAP)) {
-      expect(values.length, `${key} should have synonyms`).toBeGreaterThan(0);
+  it('모든 canonical이 비어있지 않은 matchTerms를 가진다', () => {
+    for (const entry of DEFAULT_MATCH_TERMS) {
+      expect(entry.matchTerms.length, `${entry.canonical} should have matchTerms`).toBeGreaterThan(0);
     }
   });
 });

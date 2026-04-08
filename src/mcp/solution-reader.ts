@@ -24,6 +24,7 @@ import { parseSolutionV3 } from '../engine/solution-format.js';
 import type { SolutionStatus, SolutionType } from '../engine/solution-format.js';
 import { mutateSolutionFile } from '../engine/solution-writer.js';
 import { calculateRelevance } from '../engine/solution-matcher.js';
+import { defaultNormalizer } from '../engine/term-normalizer.js';
 import { filterSolutionContent } from '../hooks/prompt-injection-filter.js';
 
 // ── 타입 ──
@@ -131,13 +132,23 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
   const queryTags = extractTags(query);
   if (queryTags.length === 0) return [];
 
+  // T2: normalize query ONCE outside the per-entry loop and reuse for every
+  // calculateRelevance call. Matches the same hot-path optimization in
+  // solution-matcher.rankCandidates.
+  const normalizedPromptTags = defaultNormalizer.normalizeTerms(queryTags);
+
   const results: SearchResult[] = [];
 
   for (const entry of index.entries) {
     if (options?.type && entry.type !== options.type) continue;
     if (options?.status && entry.status !== options.status) continue;
 
-    const result = calculateRelevance(queryTags, entry.tags, entry.confidence) as {
+    const result = calculateRelevance(
+      queryTags,
+      entry.tags,
+      entry.confidence,
+      { normalizedPromptTags },
+    ) as {
       relevance: number;
       matchedTags: string[];
     };

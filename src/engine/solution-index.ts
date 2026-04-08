@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { SolutionIndexEntry } from './solution-format.js';
 import { parseFrontmatterOnly, isV1Format, migrateV1toV3 } from './solution-format.js';
+import { defaultNormalizer } from './term-normalizer.js';
 import { withFileLockSync } from '../hooks/shared/file-lock.js';
 import { atomicWriteText } from '../hooks/shared/atomic-write.js';
 
@@ -148,6 +149,10 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
             type: fm.type,
             scope: dirConfig.scope,
             tags: fm.tags,
+            // T2: pre-expand via the shared term normalizer. Once per solution
+            // per index build, not once per solution per query. Safe to
+            // recompute on rebuild (cheap: O(N_tags) Map lookups).
+            normalizedTags: defaultNormalizer.normalizeTerms(fm.tags),
             identifiers: fm.identifiers,
             filePath,
           },

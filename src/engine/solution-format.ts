@@ -43,6 +43,24 @@ export interface SolutionIndexEntry {
   type: SolutionType;
   scope: 'me' | 'team' | 'project';
   tags: string[];
+  /**
+   * Pre-expanded tag set, computed at index build time via the term normalizer.
+   * Contains `tags` plus every related match term from the canonical families
+   * they belong to.
+   *
+   * T2 scope (current): populated as forward-looking metadata for T3's
+   * ranking-decision log (which records raw + normalized query/solution
+   * terms for offline explainability) and T4's BM25 term-frequency stats.
+   * **NOT consumed by the current matcher** — `rankCandidates` and
+   * `calculateRelevance` still use raw `tags` for intersection to preserve
+   * the Round 3 baseline (bidirectional expansion would inflate recall 5-10×
+   * and invalidate fixture metrics). A future PR that uses `normalizedTags`
+   * in scoring must update `ROUND3_BASELINE` in the same commit.
+   *
+   * Not persisted — recomputed on every index build. Safe to regenerate whenever
+   * `DEFAULT_MATCH_TERMS` changes.
+   */
+  normalizedTags: string[];
   identifiers: string[];
   filePath: string;
 }
