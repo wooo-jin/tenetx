@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { ME_SOLUTIONS, PACKS_DIR } from '../core/paths.js';
 import type { ScopeInfo } from '../core/types.js';
-import { extractTags } from './solution-format.js';
+import { extractTags, expandCompoundTags, expandQueryBigrams } from './solution-format.js';
 import { getOrBuildIndex } from './solution-index.js';
 import type { SolutionDirConfig } from './solution-index.js';
 import type { SolutionStatus, SolutionType } from './solution-format.js';
@@ -89,6 +89,15 @@ export interface CalculateRelevanceOptions {
    * many solutions should compute this once outside the loop and pass it in.
    */
   normalizedPromptTags?: string[];
+  /**
+   * R4-T1: solution tags expanded with compound-split alternatives
+   * (`expandCompoundTags`). When supplied, the intersection/partial-match
+   * step uses this set INSTEAD of `solutionTags`, but the Jaccard union
+   * denominator still uses `solutionTags` (raw) so the score normalization
+   * stays semantically stable. Caller responsibility to pass the matching
+   * pair — `solutionTagsExpanded` MUST be a superset of `solutionTags`.
+   */
+  solutionTagsExpanded?: string[];
 }
 
 export function calculateRelevance(
@@ -124,10 +133,17 @@ export function calculateRelevance(
   const expandedPromptTags = options?.normalizedPromptTags
     ?? defaultNormalizer.normalizeTerms(promptOrTags);
 
-  const intersection = keywordsOrTags.filter(t => expandedPromptTags.includes(t));
+  // R4-T1: when the caller supplies a compound-expanded solution tag set,
+  // intersection and partial matching run against the expanded set (so
+  // `api-key` matches `api`/`key` queries via the split parts), but the
+  // Jaccard union denominator below still uses the RAW `keywordsOrTags`
+  // for normalization stability.
+  const matchTags = options?.solutionTagsExpanded ?? keywordsOrTags;
+
+  const intersection = matchTags.filter(t => expandedPromptTags.includes(t));
 
   // partial/substring matches for longer tags (>3 chars)
-  const partialMatches = keywordsOrTags.filter(t =>
+  const partialMatches = matchTags.filter(t =>
     t.length > 3 && !intersection.includes(t)
     && expandedPromptTags.some(pt => pt.length > 3 && (pt.includes(t) || t.includes(pt))),
   );
@@ -143,6 +159,8 @@ export function calculateRelevance(
   // so that the denominator semantics are unchanged from pre-T2 behaviour.
   // This is intentional: expanding both sides of the Jaccard would
   // asymmetrically inflate recall and silently shift all baseline metrics.
+  // R4-T1 explicitly preserves this: `keywordsOrTags` is the raw solution
+  // tag list, not the compound-expanded `matchTags` used above.
   const union = new Set([...promptOrTags, ...keywordsOrTags]).size;
   const tagScore = weightedMatched / Math.max(union, 1);
   return {
@@ -217,22 +235,38 @@ function rankCandidates<T extends RankableSolution>(
   // Pre-T2 this expansion happened inside calculateRelevance and was
   // repeated N times for N solutions — the plan's primary hot-path win.
   //
+  // R4-T1: also expand the prompt tags with adjacent-token bigrams BEFORE
+  // running the canonical normalizer. `expandQueryBigrams` produces compound
+  // forms like `api-key`, `apikey`, `api-keys`, `apikeys` from the raw
+  // ['api', 'keys'] token pair, so a query "api keys" can hit a solution
+  // tag `api-key` via direct intersection — without depending on the
+  // partialMatches half-weight fallback. The bigram expansion is layered
+  // BEFORE normalization so that `apikey → api` (via the api canonical
+  // family) still works.
+  //
   // Note: we intentionally do NOT use `sol.normalizedTags` (if present) for
   // the intersection. Using normalized on BOTH sides is bidirectional
   // expansion that inflates Jaccard intersection 5-10× and silently shifts
   // every baseline metric. `entry.normalizedTags` is populated by the
-  // index but reserved for T3 (ranking log explainability) and T4 (BM25
-  // term-frequency stats). If a future change uses it in scoring, it must
-  // update ROUND3_BASELINE in the same PR.
-  const normalizedPromptTags = defaultNormalizer.normalizeTerms(promptTags);
+  // index but reserved for log explainability. If a future change uses it
+  // in scoring, it must update ROUND3_BASELINE in the same PR.
+  const promptTagsWithBigrams = expandQueryBigrams(promptTags);
+  const normalizedPromptTags = defaultNormalizer.normalizeTerms(promptTagsWithBigrams);
 
   return solutions
     .map(sol => {
+      // R4-T1: solution-side compound-tag expansion. `api-key` becomes
+      // {api-key, api, key} so a query token `api` (from "api keys") hits
+      // it directly. Computed per solution because each sol.tags is
+      // independent — caching across the rank loop is not worth the
+      // bookkeeping for the corpus sizes Tenetx targets (N ≤ 200).
+      const solTagsExpanded = expandCompoundTags(sol.tags);
+
       const result = calculateRelevance(
         promptTags,
         sol.tags,
         sol.confidence,
-        { normalizedPromptTags },
+        { normalizedPromptTags, solutionTagsExpanded: solTagsExpanded },
       ) as { relevance: number; matchedTags: string[] };
 
       let identifierBoost = 0;
@@ -335,6 +369,21 @@ export interface EvalResult {
  *     PASS@1. Indicated a measurement plateau but masked the matcher's true
  *     ranking and false-positive weaknesses because the fixture queries were
  *     too tag-aligned.
+ *   - v3 (2026-04-08, fixture v2 + R4-T1 compound-tag fix): 1.0 / 0.986 / 0.0 / 0.357
+ *     R4-T1 added `expandCompoundTags` (solution-side) and
+ *     `expandQueryBigrams` (query-side) so hyphenated solution tags like
+ *     `api-key`, `code-review`, `red-green-refactor` participate in direct
+ *     intersection rather than relying on the half-weight partialMatches
+ *     fallback. positive `mrrAt5` improved 0.959 → 0.981 (+0.022). 2 of
+ *     the 4 v2 hard positive cases were resolved (`managing api keys and
+ *     credentials safely` and `red green refactor cycle for new features`
+ *     now rank @1). The remaining 2 (`avoiding hardcoded credentials …`
+ *     and `writing unit tests for a function with side effects`) require
+ *     R4-T2 (phrase matcher) or R4-T3 (specificity classifier) — they're
+ *     about query-side English semantics, not compound-tag tokenization.
+ *     `negativeAnyResultRate` is unchanged at 0.357 because R4-T1 is a
+ *     ranking-quality fix, not a false-positive filter.
+ *
  *   - v2 (2026-04-08, fixture v2, 53+16+14 queries): 1.0 / 0.969 / 0.0 / 0.357
  *     Expanded with 12 hard positive (multi-canonical / compound-tag tug-of-
  *     war), 6 Korean subtle paraphrase, and 4 tricky negative queries. The
@@ -434,11 +483,11 @@ export interface EvalResult {
  */
 export const ROUND3_BASELINE: EvalResult = {
   recallAt5: 1.0,
-  mrrAt5: 0.969,
+  mrrAt5: 0.986,
   noResultRate: 0.0,
   negativeAnyResultRate: 0.357,
   byBucket: {
-    positive: { recallAt5: 1.0, mrrAt5: 0.959, noResultRate: 0.0, total: 53 },
+    positive: { recallAt5: 1.0, mrrAt5: 0.981, noResultRate: 0.0, total: 53 },
     paraphrase: { recallAt5: 1.0, mrrAt5: 1.0, noResultRate: 0.0, total: 16 },
   },
   total: { positive: 53, paraphrase: 16, negative: 14 },
@@ -479,6 +528,31 @@ function computeBucketMetrics(queries: EvalQuery[], solutions: EvalSolution[]): 
     noResultRate: total > 0 ? noResultCount / total : 0,
     total,
   };
+}
+
+/**
+ * Test/diagnostic helper: evaluate one query against a fixture solution set
+ * and return the top-5 ranked candidates with their relevance + matched tags.
+ *
+ * Exists so per-query regression tests (e.g. the R4-T1 hard-positive guards
+ * in `tests/solution-matcher-eval.test.ts`) can assert specific ranking
+ * outcomes without scraping aggregate metrics. Wraps `rankCandidates` so
+ * the test path stays in sync with the production ranker.
+ *
+ * Returns the same shape as `rankCandidates` minus the generic carrier:
+ * `{name, relevance, matchedTags}`. Use the names to assert "expected
+ * solution at rank 1".
+ */
+export function evaluateQuery(
+  query: string,
+  solutions: readonly EvalSolution[],
+): Array<{ name: string; relevance: number; matchedTags: string[] }> {
+  const promptTags = extractTags(query);
+  return rankCandidates(promptTags, query.toLowerCase(), solutions).map(c => ({
+    name: c.solution.name,
+    relevance: c.relevance,
+    matchedTags: c.matchedTags,
+  }));
 }
 
 /**

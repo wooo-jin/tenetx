@@ -279,6 +279,16 @@ const MAX_TAGS = 8;
  * Korean 2-char words preserved (e.g. "에러", "배포"), stopwords filtered.
  * English words require 3+ chars, stopwords filtered.
  * Tags capped at MAX_TAGS, ranked by frequency.
+ *
+ * NOTE on hyphens: this function strips `-` to a space (`api-key` query token
+ * becomes `api` and `key` separately). Solution-side compound tags are
+ * recovered downstream by `expandCompoundTags`, and query-side bigram
+ * recovery is done by `expandQueryBigrams`. Both ship as part of R4-T1
+ * (compound-tag tokenizer fix) — see `docs/plans/2026-04-08-t4-bm25-skip-adr.md`
+ * "Round 4 candidates" section for the rationale. Changing this regex
+ * directly was considered but rejected: it would silently shift the index
+ * representation of every existing solution, requiring an index rebuild and
+ * a fresh `ROUND3_BASELINE` measurement on every downstream PR.
  */
 export function extractTags(text: string): string[] {
   const cleaned = text
@@ -305,6 +315,129 @@ export function extractTags(text: string): string[] {
     .sort((a, b) => b[1] - a[1])
     .slice(0, MAX_TAGS)
     .map(([tag]) => tag);
+}
+
+// ── Compound-tag expansion (R4-T1) ──
+//
+// The matcher's tag intersection step compares solution.tags directly
+// against the (expanded) query tag set. Hyphenated solution tags like
+// `api-key`, `code-review`, `red-green-refactor` only intersect literal
+// query tokens that contain the hyphen — but `extractTags` strips hyphens
+// from query input, so a query "api keys" produces ['api', 'keys'] and
+// never reaches the compound `api-key` tag via direct intersection. The
+// existing `partialMatches` substring rule catches some of these at half
+// weight, but the half-weight discount + a Jaccard denominator that doesn't
+// know about the compound structure means the right solution still loses
+// to a competitor that has a generic single-word match (`api`,
+// `code`, `function`).
+//
+// R4-T1 fixes this from BOTH sides:
+//   - solution-side: `expandCompoundTags` returns the raw tags PLUS the
+//     hyphen-split parts (≥3 chars each), so `api-key` indexes as
+//     {api-key, api, key}. The compound tag stays in the set so existing
+//     literal hits keep working.
+//   - query-side: `expandQueryBigrams` adds adjacent-token compounds and
+//     a singular-stem variant (`api keys` → +{api-key, apikey, api-keys,
+//     apikeys}), so the compound tag still wins via direct intersection
+//     even after the query lost its hyphen during extraction.
+//
+// Both helpers are intentionally lossless additions on top of the raw
+// tag/token list — callers that pass these into `calculateRelevance` MUST
+// keep the RAW tags for the Jaccard union denominator (otherwise the
+// expanded set inflates the union and silently shifts the score). The
+// `solutionTagsExpanded` option on `calculateRelevance` enforces this
+// separation: matching uses expanded, normalization uses raw.
+
+/** Minimum length of a hyphen-split part to be kept as an alternative tag. */
+const COMPOUND_PART_MIN_LENGTH = 3;
+
+/**
+ * Expand a solution tag list with hyphen-split alternatives.
+ *
+ * Each input tag is preserved verbatim, and any tag containing `-` also
+ * contributes its parts (length ≥ 3 each) as additional tags. The output
+ * is deduplicated.
+ *
+ * Examples:
+ *   - `['api-key', 'security']` → `['api-key', 'api', 'key', 'security']`
+ *   - `['code-review', 'quality']` → `['code-review', 'code', 'review', 'quality']`
+ *   - `['n+1', 'database']` → `['n+1', 'database']` (no hyphen, n+1 unchanged)
+ *   - `['red-green-refactor']` → `['red-green-refactor', 'red', 'green', 'refactor']`
+ *   - `['typescript']` → `['typescript']` (no hyphen, no expansion)
+ *
+ * Korean compound tags (`API에러`, `테스트주도개발`) are preserved verbatim
+ * because they contain no `-`. The expansion is intentionally English-
+ * compound-aware only — Korean compound recovery is not in scope for R4-T1
+ * (the existing `term-normalizer` family expansion handles Korean ↔ English
+ * cross-mapping).
+ *
+ * The output ordering is insertion order: original tags first, then split
+ * parts in left-to-right order. Stable across runs (Set + Array dedup).
+ */
+export function expandCompoundTags(tags: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const t of tags) {
+    out.add(t);
+    if (t.includes('-')) {
+      for (const part of t.split('-')) {
+        if (part.length >= COMPOUND_PART_MIN_LENGTH) {
+          out.add(part);
+        }
+      }
+    }
+  }
+  return [...out];
+}
+
+/**
+ * Expand a query tag list with adjacent-token bigram alternatives.
+ *
+ * For each adjacent (a, b) pair where both tokens are length ≥ 3, the
+ * function adds:
+ *   - `a-b`   (hyphen-joined form, e.g. `api-key`)
+ *   - `ab`    (concatenated form, e.g. `apikey`)
+ *   - `a-b'`  (singular stem of b, only if b ends in `s` and length > 3)
+ *   - `ab'`   (concatenated singular stem)
+ *
+ * Examples:
+ *   - `['api', 'keys']` → `['api', 'keys', 'api-key', 'apikey', 'api-keys', 'apikeys']`
+ *   - `['code', 'review']` → `['code', 'review', 'code-review', 'codereview']`
+ *   - `['red', 'green', 'refactor']` → `[..., 'red-green', 'redgreen', 'green-refactor', 'greenrefactor']`
+ *
+ * Plural→singular stem is intentionally minimal: only `s`-suffix removal,
+ * no `es`/`ies` handling. The cost-benefit is asymmetric — `apis → api`
+ * is the highest-value case and is handled correctly; `classes → classe`
+ * is wrong but doesn't matter because no solution tag is `classe`.
+ *
+ * Why both `-` and concatenated forms: solution tag conventions vary
+ * across packs (`api-key` vs `apikey`), and this expansion is cheap.
+ * The downstream intersection check is O(M) per solution where M = expanded
+ * query tag count, so even doubling the query tag count is well within
+ * the matcher's hot-path budget for the corpus sizes Tenetx targets
+ * (N ≤ 200 solutions).
+ *
+ * Korean tokens (`/[가-힣]/`) are passed through verbatim: bigram
+ * concatenation of Korean compound words is meaningless because the
+ * boundary is lexical, not whitespace-driven (`디버깅` is one word, not
+ * two adjacent tokens). Only ASCII-letter pairs participate.
+ */
+export function expandQueryBigrams(tags: readonly string[]): string[] {
+  const out = new Set<string>(tags);
+  for (let i = 0; i < tags.length - 1; i++) {
+    const a = tags[i];
+    const b = tags[i + 1];
+    if (a.length < 3 || b.length < 3) continue;
+    // ASCII-only filter — Korean bigrams are not meaningful (see header).
+    if (!/^[a-z0-9]+$/.test(a) || !/^[a-z0-9]+$/.test(b)) continue;
+    out.add(`${a}-${b}`);
+    out.add(`${a}${b}`);
+    if (b.endsWith('s') && b.length > 3) {
+      const bSing = b.slice(0, -1);
+      out.add(`${a}-${bSing}`);
+      out.add(`${a}${bSing}`);
+    }
+  }
+  return [...out];
 }
 
 // ── Migration ──

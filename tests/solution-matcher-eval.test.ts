@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fixture from './fixtures/solution-match-bootstrap.json' with { type: 'json' };
 import {
+  evaluateQuery,
   evaluateSolutionMatcher,
   ROUND3_BASELINE,
   BASELINE_TOLERANCE,
@@ -110,6 +111,37 @@ describe('solution matcher bootstrap eval', () => {
     expect(ROUND3_BASELINE.total.positive).toBe(fx.positive.length);
     expect(ROUND3_BASELINE.total.paraphrase).toBe(fx.paraphrase.length);
     expect(ROUND3_BASELINE.total.negative).toBe(fx.negative.length);
+  });
+
+  // ── R4-T1: per-query regression guard for compound-tag hard positives ──
+  //
+  // Two of the v2 fixture's hard positives flipped from rank 2-3 to rank 1
+  // when R4-T1 (compound-tag tokenizer fix) shipped. The aggregate mrrAt5
+  // floor (0.969 - 0.05 = 0.919) is too lax to catch a silent flip back —
+  // a future change to term-normalizer or stopwords could regress these
+  // two queries while the aggregate still passes. Assert each one
+  // explicitly so the regression fails loudly with the offending query
+  // name in the message.
+  //
+  // The third hard positive (`writing unit tests for a function with side
+  // effects`) is INTENTIONALLY NOT asserted at @1 here — R4-T1 cannot
+  // resolve it (the win is decided by Jaccard union size, not compound
+  // tags), and it remains a Round 4 R4-T2/R4-T3 target. The fourth
+  // (`avoiding hardcoded credentials in source code`) is the same: query-
+  // side English semantics, not compound tokenization.
+  it('R4-T1: compound-tag hard positives reach rank 1', () => {
+    const fx = fixture as EvalFixture;
+    const hardPositives: Array<{ query: string; expected: string }> = [
+      { query: 'managing api keys and credentials safely', expected: 'starter-secret-management' },
+      { query: 'red green refactor cycle for new features', expected: 'starter-tdd-red-green-refactor' },
+    ];
+    for (const { query, expected } of hardPositives) {
+      const ranked = evaluateQuery(query, fx.solutions);
+      expect(
+        ranked[0]?.name,
+        `R4-T1 regression: expected '${expected}' @1 for query "${query}", got '${ranked[0]?.name ?? '<no result>'}' (full top-5: ${ranked.map(r => r.name).join(', ')})`,
+      ).toBe(expected);
+    }
   });
 
   // ── Confidence multiplier sensitivity (LOW #3 coverage) ──

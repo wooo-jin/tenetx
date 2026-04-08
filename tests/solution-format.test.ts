@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractTags,
+  expandCompoundTags,
+  expandQueryBigrams,
   parseFrontmatterOnly,
   parseSolutionV3,
   serializeSolutionV3,
@@ -105,6 +107,146 @@ describe('extractTags', () => {
     expect(tags).toContain('지시');
     expect(tags).toContain('신중');
     expect(tags).toContain('존중');
+  });
+});
+
+// ── R4-T1: expandCompoundTags ──
+//
+// Solution-side helper that recovers hyphen-split alternatives from compound
+// tags like `api-key`, `code-review`, `red-green-refactor`. Tested as a pure
+// function — the integration with `calculateRelevance` is exercised by the
+// bootstrap eval test (`tests/solution-matcher-eval.test.ts`).
+
+describe('expandCompoundTags (R4-T1)', () => {
+  it('passes through tags with no hyphens unchanged', () => {
+    expect(expandCompoundTags(['typescript', 'security', 'pattern']))
+      .toEqual(['typescript', 'security', 'pattern']);
+  });
+
+  it('expands a hyphenated tag with both the original and the parts', () => {
+    const out = expandCompoundTags(['api-key']);
+    expect(out).toContain('api-key');
+    expect(out).toContain('api');
+    expect(out).toContain('key');
+  });
+
+  it('expands multi-segment hyphenated tags into all segments', () => {
+    const out = expandCompoundTags(['red-green-refactor']);
+    expect(out).toContain('red-green-refactor');
+    expect(out).toContain('red');
+    expect(out).toContain('green');
+    expect(out).toContain('refactor');
+  });
+
+  it('drops segments shorter than 3 characters (preserves the original)', () => {
+    // 'n+1' has no hyphen, so this also covers the no-op path; 'a-bb-ccc'
+    // exercises the length filter directly.
+    const out = expandCompoundTags(['a-bb-ccc']);
+    expect(out).toContain('a-bb-ccc');
+    expect(out).toContain('ccc');
+    expect(out).not.toContain('a');
+    expect(out).not.toContain('bb');
+  });
+
+  it('preserves Korean compound tags verbatim (no hyphen, no expansion)', () => {
+    const koreanTags = ['API에러', '응답형식', '테스트주도개발'];
+    expect(expandCompoundTags(koreanTags)).toEqual(koreanTags);
+  });
+
+  it('deduplicates when an expanded part collides with another tag', () => {
+    // 'api-key' expands to {api-key, api, key}. If 'api' is already present
+    // as its own tag, the output must not contain a duplicate.
+    const out = expandCompoundTags(['api-key', 'api', 'security']);
+    const apiCount = out.filter(t => t === 'api').length;
+    expect(apiCount).toBe(1);
+    expect(out).toContain('api-key');
+    expect(out).toContain('key');
+    expect(out).toContain('security');
+  });
+
+  it('handles n+1 / non-hyphen special-character tags as-is', () => {
+    // The compound expansion only triggers on `-`. Tags with `+`, `/`, etc.
+    // pass through unchanged so existing fixture tags stay valid.
+    expect(expandCompoundTags(['n+1', 'database']))
+      .toEqual(['n+1', 'database']);
+  });
+});
+
+// ── R4-T1: expandQueryBigrams ──
+//
+// Query-side helper that adds adjacent-token compounds + a singular stem.
+// Tested as a pure function — see solution-matcher.rankCandidates for
+// integration with the matcher hot path.
+
+describe('expandQueryBigrams (R4-T1)', () => {
+  it('passes through a single-token query unchanged', () => {
+    expect(expandQueryBigrams(['async'])).toEqual(['async']);
+  });
+
+  it('adds hyphen-joined and concatenated forms for adjacent ASCII pairs', () => {
+    const out = expandQueryBigrams(['code', 'review']);
+    expect(out).toContain('code');
+    expect(out).toContain('review');
+    expect(out).toContain('code-review');
+    expect(out).toContain('codereview');
+  });
+
+  it('adds singular stem for plural-ending second token', () => {
+    const out = expandQueryBigrams(['api', 'keys']);
+    expect(out).toContain('api');
+    expect(out).toContain('keys');
+    expect(out).toContain('api-keys');
+    expect(out).toContain('apikeys');
+    expect(out).toContain('api-key');
+    expect(out).toContain('apikey');
+  });
+
+  it('skips tokens shorter than 3 characters', () => {
+    const out = expandQueryBigrams(['ab', 'review']);
+    expect(out).toContain('ab');
+    expect(out).toContain('review');
+    expect(out).not.toContain('ab-review');
+    expect(out).not.toContain('abreview');
+  });
+
+  it('skips Korean tokens (bigram concatenation is not meaningful)', () => {
+    const out = expandQueryBigrams(['디버깅', 'systematic']);
+    expect(out).toContain('디버깅');
+    expect(out).toContain('systematic');
+    // No mixed Korean-English bigrams produced
+    expect(out).not.toContain('디버깅-systematic');
+    expect(out).not.toContain('디버깅systematic');
+  });
+
+  it('produces bigrams for every adjacent pair in a 3-token query', () => {
+    const out = expandQueryBigrams(['red', 'green', 'refactor']);
+    expect(out).toContain('red-green');
+    expect(out).toContain('redgreen');
+    expect(out).toContain('green-refactor');
+    expect(out).toContain('greenrefactor');
+    // Non-adjacent pair (red, refactor) is NOT bigram'd
+    expect(out).not.toContain('red-refactor');
+  });
+
+  it('does not strip singular stem for short plurals (length ≤ 3)', () => {
+    // 'is' is too short to participate at all (also fails the 3-char gate),
+    // but a plural like 'ids' (length 3) should also not get stem'd.
+    const out = expandQueryBigrams(['user', 'ids']);
+    // 'ids' meets the 3-char floor for participation, so the bigrams are
+    // produced — but the singular stem variant requires len > 3, so 'id'
+    // (length 2) must NOT appear.
+    expect(out).toContain('user-ids');
+    expect(out).toContain('userids');
+    expect(out).not.toContain('user-id');
+    expect(out).not.toContain('userid');
+  });
+
+  it('deduplicates collisions between input tags and generated bigrams', () => {
+    // If a query already contains 'api-key' literally, the bigram output
+    // must not contain a duplicate.
+    const out = expandQueryBigrams(['api', 'key', 'api-key']);
+    const compoundCount = out.filter(t => t === 'api-key').length;
+    expect(compoundCount).toBe(1);
   });
 });
 

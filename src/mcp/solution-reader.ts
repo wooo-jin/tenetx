@@ -19,7 +19,7 @@ import * as path from 'node:path';
 import { ME_SOLUTIONS, PACKS_DIR } from '../core/paths.js';
 import { getOrBuildIndex } from '../engine/solution-index.js';
 import type { SolutionDirConfig } from '../engine/solution-index.js';
-import { extractTags } from '../engine/solution-format.js';
+import { extractTags, expandCompoundTags, expandQueryBigrams } from '../engine/solution-format.js';
 import { parseSolutionV3 } from '../engine/solution-format.js';
 import type { SolutionStatus, SolutionType } from '../engine/solution-format.js';
 import { mutateSolutionFile } from '../engine/solution-writer.js';
@@ -136,7 +136,14 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
   // T2: normalize query ONCE outside the per-entry loop and reuse for every
   // calculateRelevance call. Matches the same hot-path optimization in
   // solution-matcher.rankCandidates.
-  const normalizedPromptTags = defaultNormalizer.normalizeTerms(queryTags);
+  //
+  // R4-T1: layer adjacent-token bigram expansion BEFORE canonical
+  // normalization so compound query phrases like "api keys" produce the
+  // `api-key`/`apikey`/`api-keys` candidates that hit hyphenated solution
+  // tags via direct intersection. This mirrors the same change in
+  // solution-matcher.rankCandidates so hook and MCP paths stay consistent.
+  const queryTagsWithBigrams = expandQueryBigrams(queryTags);
+  const normalizedPromptTags = defaultNormalizer.normalizeTerms(queryTagsWithBigrams);
 
   const results: SearchResult[] = [];
 
@@ -144,11 +151,16 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
     if (options?.type && entry.type !== options.type) continue;
     if (options?.status && entry.status !== options.status) continue;
 
+    // R4-T1: solution-side compound expansion. See the matching block in
+    // solution-matcher.rankCandidates for the rationale (separation of
+    // matching set from Jaccard union for normalization stability).
+    const entryTagsExpanded = expandCompoundTags(entry.tags);
+
     const result = calculateRelevance(
       queryTags,
       entry.tags,
       entry.confidence,
-      { normalizedPromptTags },
+      { normalizedPromptTags, solutionTagsExpanded: entryTagsExpanded },
     ) as {
       relevance: number;
       matchedTags: string[];
