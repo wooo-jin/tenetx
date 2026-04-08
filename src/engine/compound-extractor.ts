@@ -669,6 +669,12 @@ function updateReExtractedCounter(tags: string[]): void {
   const files = fs.readdirSync(ME_SOLUTIONS).filter(f => f.endsWith('.md'));
   for (const file of files) {
     const filePath = path.join(ME_SOLUTIONS, file);
+    // PR2c-4 (security L-1): symlink을 통한 임의 파일 read 차단.
+    try {
+      if (fs.lstatSync(filePath).isSymbolicLink()) continue;
+    } catch {
+      continue;
+    }
     // 사전 필터 (lock 없이 read) — frontmatter parse가 더 정확하지만,
     // 70% overlap 조건은 frontmatter 안의 tags만 보는 게 의도라
     // tagMatch regex가 frontmatter에 우선 매칭됨 (frontmatter가 항상 앞).

@@ -22,6 +22,7 @@
  */
 
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { randomBytes } from 'node:crypto';
 
 // L1 hardening: O_NOFOLLOW로 symlink 공격 차단 (POSIX only).
@@ -53,7 +54,9 @@ export interface FileLockOptions {
  */
 export class FileLockError extends Error {
   constructor(public readonly cause: NodeJS.ErrnoException, public readonly lockPath: string) {
-    super(`File lock failure on ${lockPath}: ${cause.code ?? cause.message}`);
+    // PR2c-4 (security M-3): basename만 노출. 전체 path는 sessionId를 포함하므로
+    // 로그에 남으면 정보 노출 위험. 디버그 시 caller가 e.lockPath로 명시 접근 가능.
+    super(`File lock failure on ${path.basename(lockPath)}: ${cause.code ?? cause.message}`);
     this.name = 'FileLockError';
   }
 }

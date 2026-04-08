@@ -310,6 +310,13 @@ export function verifySolution(solutionName: string): boolean {
       const files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
       for (const file of files) {
         const filePath = path.join(dir, file);
+        // PR2c-4 (security L-1): symlink을 통한 임의 파일 read 차단.
+        // mutateSolutionByName과 일관성 유지.
+        try {
+          if (fs.lstatSync(filePath).isSymbolicLink()) continue;
+        } catch {
+          continue;
+        }
         const content = fs.readFileSync(filePath, 'utf-8');
         const fm = parseFrontmatterOnly(content);
         if (!fm || fm.name !== solutionName) continue;
