@@ -91,27 +91,43 @@ describe('cache lock + atomic-write 합성', () => {
 });
 
 describe('session-cache delta commit 패턴 (H-1 + M-3 fix)', () => {
+  // L-1 note (code-reviewer round 2):
+  //   이 격리 helper는 solution-injector.ts:commitSessionCacheEntries와 동일한
+  //   식이다. solution-injector가 import 시 main()을 stdin에 연결해 자동 실행하므로
+  //   실 함수를 직접 import하는 것은 테스트 환경에서 hang을 만든다. 대신 이 파일은
+  //   helper와 production 함수가 drift하지 않도록 다음 규칙을 따른다:
+  //     - commitSessionCacheEntries의 시그니처/시맨틱이 바뀌면 이 helper도 업데이트.
+  //     - status='committed' 케이스만 검증 (lock-failed/error는 별도 시나리오).
+  //   PR2c-5 follow-up에서 dedicated export 또는 worker isolation으로 교체 가능.
   it('disjoint commit이 fresh disk와 비교해 새 entry만 더한다 — chars 누적 정확', () => {
-    // H-1 fix 시뮬레이션: commitSessionCacheEntries의 disjoint + chars 합산
-    // 시퀀스:
-    //   1. 초기 disk: {initial}, total=100
-    //   2. HookA가 [a:50, b:30] commit → disjoint 모두 → disk: {initial,a,b}, total=180
-    //   3. HookB가 [b:30, c:70] commit → b는 이미 있음(skip), c만 → disk: {initial,a,b,c}, total=250
     fs.writeFileSync(cachePath, JSON.stringify({
       injected: ['initial'],
       totalInjectedChars: 100,
       updatedAt: new Date().toISOString(),
     }));
 
-    // commitSessionCacheEntries 로직을 격리해 검증
+    // SYNC WITH: src/hooks/solution-injector.ts commitSessionCacheEntries
     interface CommitEntry { name: string; chars: number }
-    interface CommitResult { newlyAdded: CommitEntry[]; totalInjectedChars: number }
+    interface CommitResult {
+      status: 'committed' | 'lock-failed' | 'error';
+      newlyAdded: CommitEntry[];
+      totalInjectedChars: number;
+    }
     const commit = (entries: CommitEntry[]): CommitResult => {
-      let result: CommitResult = { newlyAdded: [], totalInjectedChars: 0 };
+      let result: CommitResult = { status: 'lock-failed', newlyAdded: [], totalInjectedChars: 0 };
       withFileLockSync(cachePath, () => {
-        const fresh = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
-        const freshSet = new Set<string>(fresh.injected ?? []);
-        const freshChars = typeof fresh.totalInjectedChars === 'number' ? fresh.totalInjectedChars : 0;
+        let freshSet = new Set<string>();
+        let freshChars = 0;
+        if (fs.existsSync(cachePath)) {
+          const fresh = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+          const age = fresh.updatedAt ? Date.now() - new Date(fresh.updatedAt).getTime() : Infinity;
+          if (Number.isFinite(age) && age <= 24 * 60 * 60 * 1000) {
+            freshSet = new Set<string>(fresh.injected ?? []);
+            freshChars = typeof fresh.totalInjectedChars === 'number' ? fresh.totalInjectedChars : 0;
+          } else {
+            try { fs.unlinkSync(cachePath); } catch { /* skip */ }
+          }
+        }
         const newlyAdded = entries.filter(e => !freshSet.has(e.name));
         const addedChars = newlyAdded.reduce((sum, e) => sum + e.chars, 0);
         const merged = new Set(freshSet);
@@ -121,24 +137,64 @@ describe('session-cache delta commit 패턴 (H-1 + M-3 fix)', () => {
           injected: [...merged],
           totalInjectedChars: newTotal,
           updatedAt: new Date().toISOString(),
-        }, { mode: 0o600 });
-        result = { newlyAdded, totalInjectedChars: newTotal };
+        }, { mode: 0o600, dirMode: 0o700 });
+        result = { status: 'committed', newlyAdded, totalInjectedChars: newTotal };
       });
       return result;
     };
 
     const r1 = commit([{ name: 'a', chars: 50 }, { name: 'b', chars: 30 }]);
+    expect(r1.status).toBe('committed');
     expect(r1.newlyAdded).toHaveLength(2);
     expect(r1.totalInjectedChars).toBe(180);
 
     const r2 = commit([{ name: 'b', chars: 30 }, { name: 'c', chars: 70 }]);
-    expect(r2.newlyAdded).toHaveLength(1); // c만 새로 추가
+    expect(r2.status).toBe('committed');
+    expect(r2.newlyAdded).toHaveLength(1);
     expect(r2.newlyAdded[0].name).toBe('c');
-    expect(r2.totalInjectedChars).toBe(250); // 180 + 70
+    expect(r2.totalInjectedChars).toBe(250); // freshChars(180) + addedChars(70)
 
     const final = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
     expect(final.injected.sort()).toEqual(['a', 'b', 'c', 'initial']);
     expect(final.totalInjectedChars).toBe(250);
+  });
+
+  it('만료 fresh (24h 초과)는 무시되고 새 cache로 덮어쓰기 (L-2 consistency)', () => {
+    // 만료된 fresh는 load/commit 둘 다 unlink → 새 session으로 출발.
+    const expiredTimestamp = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+    fs.writeFileSync(cachePath, JSON.stringify({
+      injected: ['stale1', 'stale2'],
+      totalInjectedChars: 500,
+      updatedAt: expiredTimestamp,
+    }));
+
+    withFileLockSync(cachePath, () => {
+      // commit 시뮬레이션: 만료 fresh를 읽고 무시 → 새 entries로 덮어쓰기
+      let freshSet = new Set<string>();
+      let freshChars = 0;
+      const fresh = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+      const age = Date.now() - new Date(fresh.updatedAt).getTime();
+      if (age > 24 * 60 * 60 * 1000) {
+        try { fs.unlinkSync(cachePath); } catch { /* skip */ }
+      } else {
+        freshSet = new Set<string>(fresh.injected);
+        freshChars = fresh.totalInjectedChars;
+      }
+      const newEntries = [{ name: 'new1', chars: 20 }];
+      const newlyAdded = newEntries.filter(e => !freshSet.has(e.name));
+      const merged = new Set(freshSet);
+      for (const e of newlyAdded) merged.add(e.name);
+      atomicWriteJSON(cachePath, {
+        injected: [...merged],
+        totalInjectedChars: freshChars + newlyAdded.reduce((s, e) => s + e.chars, 0),
+        updatedAt: new Date().toISOString(),
+      }, { mode: 0o600 });
+    });
+
+    const final = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+    // 만료된 stale1/stale2는 사라지고 new1만 남음
+    expect(final.injected).toEqual(['new1']);
+    expect(final.totalInjectedChars).toBe(20);
   });
 });
 

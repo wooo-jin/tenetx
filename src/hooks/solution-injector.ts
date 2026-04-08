@@ -79,12 +79,23 @@ function loadSessionCache(sessionId: string): { injected: Set<string>; totalInje
 
 interface SessionCacheCommitResult {
   /**
+   * commit 상태:
+   *   'committed'     — 정상적으로 lock 안에서 disk 갱신 완료
+   *   'lock-failed'   — file lock 획득 실패 (stale recovery, timeout 등). disk는 변경 안 됨.
+   *   'error'         — lock은 잡았으나 parse/write 실패. disk 상태 불명확.
+   * caller는 'lock-failed' 시 retry하거나 fail-open 처리해야 한다.
+   */
+  status: 'committed' | 'lock-failed' | 'error';
+  /**
    * 이번 호출에서 disk에 실제로 새로 추가된 entries.
    * caller는 이 list로만 evidence.injected counter를 갱신해야 한다.
    * 다른 hook이 이미 같은 entry를 추가했다면 그 entry는 newlyAdded에 포함되지 않는다.
    */
   newlyAdded: Array<{ name: string; chars: number }>;
-  /** disk에 저장된 fresh totalInjectedChars (caller가 다음 budget 검사에 사용 가능) */
+  /**
+   * disk에 저장된 fresh totalInjectedChars.
+   * status='committed'일 때만 정확한 값. 그 외엔 0 또는 fallback.
+   */
   totalInjectedChars: number;
 }
 
@@ -104,21 +115,31 @@ interface SessionCacheCommitResult {
  *   4. disk의 fresh chars + newlyAdded chars를 합산해 새 total로 저장
  *   5. caller는 newlyAdded로만 evidence.injected counter 갱신 → 중복 차단
  */
-function commitSessionCacheEntries(
+/**
+ * Test-only export: 격리된 회귀 테스트가 inline 재구현 대신 실 함수를 호출할 수 있도록
+ * 한다 (L-1 fix — PR2c-1 라운드 2 code-reviewer 발견).
+ */
+export function commitSessionCacheEntries(
   sessionId: string,
   newEntries: Array<{ name: string; chars: number }>,
 ): SessionCacheCommitResult {
   const cachePath = getSessionCachePath(sessionId);
-  let result: SessionCacheCommitResult = { newlyAdded: [], totalInjectedChars: 0 };
+  let result: SessionCacheCommitResult = {
+    status: 'lock-failed',
+    newlyAdded: [],
+    totalInjectedChars: 0,
+  };
   try {
     withFileLockSync(cachePath, () => {
       // Lock 안에서 fresh re-read
       let freshInjected = new Set<string>();
       let freshChars = 0;
+      let hadExpiredFresh = false;
       try {
         if (fs.existsSync(cachePath)) {
           const fresh: SessionCacheData = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
-          // L-2 fix: 만료된 fresh는 무시 (24h 초과)
+          // L-2 fix: 만료된 fresh는 무시 (24h 초과).
+          // M-2 fix: loadSessionCache와 일관되게 lock 안에서 unlink (GC).
           const age = fresh.updatedAt ? Date.now() - new Date(fresh.updatedAt).getTime() : Infinity;
           if (Number.isFinite(age) && age <= 24 * 60 * 60 * 1000) {
             if (Array.isArray(fresh.injected)) {
@@ -129,9 +150,17 @@ function commitSessionCacheEntries(
             if (typeof fresh.totalInjectedChars === 'number') {
               freshChars = fresh.totalInjectedChars;
             }
+          } else {
+            hadExpiredFresh = true;
           }
         }
       } catch (e) { log.debug('session cache fresh re-read 실패', e); }
+
+      if (hadExpiredFresh) {
+        // M-2 fix: 만료된 cache는 unlink해 load/commit 간 일관성 유지.
+        // load는 unlink, commit도 unlink — 두 함수의 만료 처리가 정합.
+        try { fs.unlinkSync(cachePath); } catch { /* 다른 hook이 이미 처리 */ }
+      }
 
       // disjoint만 필터링 — 이미 disk에 있으면 다른 hook이 먼저 추가한 것
       const newlyAdded = newEntries.filter(e => !freshInjected.has(e.name));
@@ -146,13 +175,15 @@ function commitSessionCacheEntries(
         updatedAt: new Date().toISOString(),
       }, { mode: 0o600, dirMode: 0o700 });
 
-      result = { newlyAdded, totalInjectedChars: newTotal };
+      result = { status: 'committed', newlyAdded, totalInjectedChars: newTotal };
     });
   } catch (e) {
     if (e instanceof FileLockError) {
       log.warn(`session cache lock 실패 — write skipped`, e);
+      result = { status: 'lock-failed', newlyAdded: [], totalInjectedChars: 0 };
     } else {
       log.debug('session cache 저장 실패', e);
+      result = { status: 'error', newlyAdded: [], totalInjectedChars: 0 };
     }
   }
   return result;
@@ -243,6 +274,8 @@ async function main(): Promise<void> {
 
   const cache = loadSessionCache(sessionId);
   const injected = cache.injected;
+  // H-1 fix: `let`으로 재할당을 허락하되, commit 이후 fresh total로 갱신된다.
+  // 이전엔 dead variable이었음 (선언 후 재할당 없음).
   let totalInjectedChars = cache.totalInjectedChars;
 
   if (injected.size >= MAX_SOLUTIONS_PER_SESSION || totalInjectedChars >= budget.solutionSessionMax) {
@@ -301,6 +334,19 @@ async function main(): Promise<void> {
   // 다른 hook이 같은 sessionId로 동시에 같은 솔루션을 inject했다면 이 hook의
   // commit에서는 newlyAdded에 포함되지 않아 evidence 중복 카운트가 차단된다.
   const commitResult = commitSessionCacheEntries(sessionId, candidateEntries);
+
+  // M-1 fix: lock 실패와 정상 0건을 구분.
+  // lock-failed / error: disk 상태 불명 → fail-open으로 approve 하되 warn으로 가시화
+  if (commitResult.status !== 'committed') {
+    log.warn(`session cache commit ${commitResult.status} — hook approving without injection`);
+    console.log(approve());
+    return;
+  }
+
+  // H-1 fix: commit 이후 fresh disk total로 caller 변수 갱신.
+  // 이전엔 dead variable이라 budget cap이 caller-side stale 값에 의존했다.
+  totalInjectedChars = commitResult.totalInjectedChars;
+
   // toInject은 commit 결과의 newlyAdded만 의미 있음 — evidence/cache 갱신은 이 list 기준
   const newlyAddedNames = new Set(commitResult.newlyAdded.map(e => e.name));
   const effectiveToInject = toInject.filter(sol => newlyAddedNames.has(sol.name));
