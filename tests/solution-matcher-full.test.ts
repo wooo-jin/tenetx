@@ -102,4 +102,44 @@ describe('matchSolutions', () => {
     const matches = matchSolutions('testing pattern strategy', defaultScope, '/tmp/nonexistent');
     expect(matches.length).toBeLessThanOrEqual(5);
   });
+
+  // Scope collision regression: two scopes can legitimately have solutions
+  // with the same name (user overrides a team/project pattern in their me/
+  // directory). A Round 2 refactor briefly introduced a `Map<name, sol>`
+  // last-wins lookup that swapped scope metadata when the same name appeared
+  // in me/ and project/. The fix makes rankCandidates carry source refs.
+  // This test locks in the fix: both entries must appear AND each must
+  // report its own scope correctly.
+  it('same name in me and project both appear with correct scope metadata', () => {
+    const projectDir = path.join(TEST_HOME, 'project');
+    const projectSolutions = path.join(projectDir, '.compound', 'solutions');
+
+    writeSolution(ME_SOLUTIONS, 'shared-name-pattern', ['unique-me-tag', 'pattern']);
+    writeSolution(projectSolutions, 'shared-name-pattern', ['unique-project-tag', 'pattern']);
+
+    // Query with BOTH unique tags so both entries rank.
+    const matches = matchSolutions(
+      'unique-me-tag unique-project-tag pattern',
+      defaultScope,
+      projectDir,
+    );
+
+    const sameNameEntries = matches.filter(m => m.name === 'shared-name-pattern');
+    expect(sameNameEntries.length).toBe(2);
+
+    const scopes = sameNameEntries.map(m => m.scope).sort();
+    expect(scopes).toEqual(['me', 'project']);
+
+    // Each entry must hydrate with ITS OWN tags — not a swapped Map lookup.
+    const meEntry = sameNameEntries.find(m => m.scope === 'me');
+    const projectEntry = sameNameEntries.find(m => m.scope === 'project');
+    expect(meEntry?.tags).toContain('unique-me-tag');
+    expect(meEntry?.tags).not.toContain('unique-project-tag');
+    expect(projectEntry?.tags).toContain('unique-project-tag');
+    expect(projectEntry?.tags).not.toContain('unique-me-tag');
+
+    // And each entry's path must point at its own scope directory.
+    expect(meEntry?.path).toContain(ME_SOLUTIONS);
+    expect(projectEntry?.path).toContain(projectSolutions);
+  });
 });

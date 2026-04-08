@@ -1,0 +1,176 @@
+{
+  "_comment": "Bootstrap eval fixture for solution matcher — Round 3 baseline. Derived from starter-pack/solutions/. Do not edit without updating docs/plans/2026-04-07-synonym-map-round3-validation.md AND ROUND3_BASELINE in src/engine/solution-matcher.ts. Notes: (1) positive bucket has 41 queries not 40 — plan says 40+; extra query is intentional (3-per-solution where tags are distinctive, 2-per-solution otherwise). (2) negative query 'solar system planets astronomy' is an intentional false positive — the current partialMatches logic matches 'system' → 'systematic' tag; kept in baseline to give T2 matchTerms migration and T4 BM25 a concrete improvement target.",
+  "solutions": [
+    {
+      "name": "starter-api-error-responses",
+      "tags": ["api", "error", "response", "rest", "format", "API에러", "응답형식"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-async-patterns",
+      "tags": ["async", "promise", "parallel", "sequential", "비동기", "병렬처리"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-caching-strategy",
+      "tags": ["performance", "cache", "ttl", "invalidation", "성능", "캐싱"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-code-review-checklist",
+      "tags": ["review", "code-review", "checklist", "quality", "코드리뷰", "품질"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-debugging-systematic",
+      "tags": ["debug", "debugging", "systematic", "reproduce", "디버깅", "체계적"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-dependency-injection",
+      "tags": ["di", "dependency", "injection", "testing", "mock"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-error-handling-patterns",
+      "tags": ["error", "handling", "validation", "boundary", "에러", "에러처리"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-git-atomic-commits",
+      "tags": ["git", "commit", "workflow", "atomic", "커밋", "버전관리"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-input-validation",
+      "tags": ["security", "validation", "input", "zod", "boundary", "보안", "입력검증"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-n-plus-one-queries",
+      "tags": ["performance", "database", "n+1", "query", "batch", "성능", "데이터베이스"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-refactor-safely",
+      "tags": ["refactor", "safe", "incremental", "testing", "리팩토링", "안전"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-secret-management",
+      "tags": ["security", "secret", "env", "api-key", "credential", "보안", "시크릿"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-separation-of-concerns",
+      "tags": ["architecture", "separation", "pure", "function", "관심사분리", "아키텍처"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-tdd-red-green-refactor",
+      "tags": ["tdd", "test", "workflow", "red-green-refactor", "테스트", "테스트주도개발"],
+      "identifiers": [],
+      "confidence": 0.7
+    },
+    {
+      "name": "starter-typescript-strict-types",
+      "tags": ["typescript", "type", "strict", "any", "union", "타입", "타입스크립트"],
+      "identifiers": [],
+      "confidence": 0.7
+    }
+  ],
+  "positive": [
+    { "query": "error handling boundary validation", "expectAnyOf": ["starter-error-handling-patterns"] },
+    { "query": "proper error handling pattern", "expectAnyOf": ["starter-error-handling-patterns"] },
+    { "query": "handling validation boundary", "expectAnyOf": ["starter-error-handling-patterns", "starter-input-validation"] },
+
+    { "query": "rest api error response format", "expectAnyOf": ["starter-api-error-responses"] },
+    { "query": "api error response rest", "expectAnyOf": ["starter-api-error-responses"] },
+    { "query": "api error format response", "expectAnyOf": ["starter-api-error-responses"] },
+
+    { "query": "async promise parallel sequential", "expectAnyOf": ["starter-async-patterns"] },
+    { "query": "promise async parallel pattern", "expectAnyOf": ["starter-async-patterns"] },
+    { "query": "async pattern sequential promise", "expectAnyOf": ["starter-async-patterns"] },
+
+    { "query": "cache performance ttl invalidation", "expectAnyOf": ["starter-caching-strategy"] },
+    { "query": "cache ttl invalidation strategy", "expectAnyOf": ["starter-caching-strategy"] },
+    { "query": "performance cache invalidation", "expectAnyOf": ["starter-caching-strategy"] },
+
+    { "query": "code review checklist quality", "expectAnyOf": ["starter-code-review-checklist"] },
+    { "query": "review quality checklist", "expectAnyOf": ["starter-code-review-checklist"] },
+    { "query": "checklist review quality", "expectAnyOf": ["starter-code-review-checklist"] },
+
+    { "query": "systematic debug reproduce", "expectAnyOf": ["starter-debugging-systematic"] },
+    { "query": "debugging systematic reproduce issue", "expectAnyOf": ["starter-debugging-systematic"] },
+    { "query": "debug reproduce systematic approach", "expectAnyOf": ["starter-debugging-systematic"] },
+
+    { "query": "dependency injection testing mock", "expectAnyOf": ["starter-dependency-injection"] },
+    { "query": "di injection mock", "expectAnyOf": ["starter-dependency-injection"] },
+    { "query": "injection dependency mock testing", "expectAnyOf": ["starter-dependency-injection"] },
+
+    { "query": "git atomic commit workflow", "expectAnyOf": ["starter-git-atomic-commits"] },
+    { "query": "atomic git commit", "expectAnyOf": ["starter-git-atomic-commits"] },
+
+    { "query": "input validation zod security", "expectAnyOf": ["starter-input-validation"] },
+    { "query": "security validation input zod", "expectAnyOf": ["starter-input-validation"] },
+    { "query": "zod input validation boundary", "expectAnyOf": ["starter-input-validation"] },
+
+    { "query": "n+1 query database batch", "expectAnyOf": ["starter-n-plus-one-queries"] },
+    { "query": "database query batch performance", "expectAnyOf": ["starter-n-plus-one-queries"] },
+    { "query": "batch database query performance", "expectAnyOf": ["starter-n-plus-one-queries"] },
+
+    { "query": "refactor safely incremental testing", "expectAnyOf": ["starter-refactor-safely"] },
+    { "query": "safe incremental refactor", "expectAnyOf": ["starter-refactor-safely"] },
+    { "query": "refactor testing incremental", "expectAnyOf": ["starter-refactor-safely"] },
+
+    { "query": "secret env api-key credential", "expectAnyOf": ["starter-secret-management"] },
+    { "query": "secret management credential env", "expectAnyOf": ["starter-secret-management"] },
+
+    { "query": "separation concerns architecture pure", "expectAnyOf": ["starter-separation-of-concerns"] },
+    { "query": "architecture separation pure function", "expectAnyOf": ["starter-separation-of-concerns"] },
+
+    { "query": "tdd red green refactor workflow", "expectAnyOf": ["starter-tdd-red-green-refactor"] },
+    { "query": "tdd test workflow red-green-refactor", "expectAnyOf": ["starter-tdd-red-green-refactor"] },
+
+    { "query": "typescript strict type union", "expectAnyOf": ["starter-typescript-strict-types"] },
+    { "query": "typescript strict any union", "expectAnyOf": ["starter-typescript-strict-types"] },
+    { "query": "strict typescript type", "expectAnyOf": ["starter-typescript-strict-types"] }
+  ],
+  "paraphrase": [
+    { "query": "에러 핸들링 boundary 패턴", "expectAnyOf": ["starter-error-handling-patterns"] },
+    { "query": "성능 캐싱 invalidation", "expectAnyOf": ["starter-caching-strategy"] },
+    { "query": "비동기 promise 병렬처리", "expectAnyOf": ["starter-async-patterns"] },
+    { "query": "타입스크립트 strict 타입", "expectAnyOf": ["starter-typescript-strict-types"] },
+    { "query": "디버깅 체계적 reproduce", "expectAnyOf": ["starter-debugging-systematic"] },
+    { "query": "코드리뷰 품질 checklist", "expectAnyOf": ["starter-code-review-checklist"] },
+    { "query": "보안 입력검증 zod", "expectAnyOf": ["starter-input-validation"] },
+    { "query": "테스트 주도 개발 red green", "expectAnyOf": ["starter-tdd-red-green-refactor"] },
+    { "query": "리팩토링 안전 incremental", "expectAnyOf": ["starter-refactor-safely"] },
+    { "query": "데이터베이스 성능 n+1", "expectAnyOf": ["starter-n-plus-one-queries"] }
+  ],
+  "negative": [
+    { "query": "chocolate cake baking recipe", "expectAnyOf": [] },
+    { "query": "tourist spots paris landmarks", "expectAnyOf": [] },
+    { "query": "ancient rome history empire", "expectAnyOf": [] },
+    { "query": "guitar beginner lesson chords", "expectAnyOf": [] },
+    { "query": "oil change maintenance vehicle", "expectAnyOf": [] },
+    { "query": "knitting sweater yarn pattern", "expectAnyOf": [] },
+    { "query": "solar system planets astronomy", "expectAnyOf": [] },
+    { "query": "italian pasta cooking recipe", "expectAnyOf": [] },
+    { "query": "morning yoga meditation routine", "expectAnyOf": [] },
+    { "query": "gardening soil tomato plant", "expectAnyOf": [] }
+  ]
+}

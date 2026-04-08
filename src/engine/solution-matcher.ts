@@ -148,6 +148,269 @@ export function calculateRelevance(
  * Match solutions relevant to the given prompt.
  * knowledge-comes-to-you principle: knowledge should come to you.
  */
+// ── Shared ranking core (used by matchSolutions + evaluator) ──
+
+/**
+ * Narrow input shape for the shared ranking pipeline. `matchSolutions` and the
+ * bootstrap evaluator both reduce to this contract — `LoadedSolution` is
+ * structurally compatible (it has more fields), and `EvalSolution` mirrors it
+ * exactly. Keeping the input narrow prevents the evaluator from leaking onto
+ * prod types and vice versa.
+ */
+interface RankableSolution {
+  name: string;
+  tags: string[];
+  identifiers?: string[];
+  confidence: number;
+}
+
+/**
+ * Intermediate ranked candidate. Generic over the source solution type so the
+ * caller can get back the exact object they passed in — this matters for
+ * `matchSolutions`, which needs to re-hydrate scope/filePath from the
+ * original `LoadedSolution` without a name-based Map lookup.
+ *
+ * A name-based Map was tried in Round 2 and caused a scope precedence bug:
+ * when two scopes had solutions with the same name (legitimate: user-level
+ * `me/foo` and project-level `foo`), the Map was last-wins and produced
+ * duplicate entries all pointing at the project copy. Carrying the source
+ * reference straight through ranking fixes this by construction.
+ */
+interface RankedCandidate<T extends RankableSolution = RankableSolution> {
+  solution: T;
+  relevance: number;
+  matchedTags: string[];
+  matchedIdentifiers: string[];
+}
+
+/**
+ * Shared ranking core: tag-based relevance + identifier boost + top-5 sort.
+ *
+ * Single source of truth for the matcher's ranking behaviour. Both
+ * `matchSolutions` (production, reads from the index) and
+ * `evaluateSolutionMatcher` (bootstrap eval, reads from an in-memory fixture)
+ * call through here so the eval metrics track reality — any future
+ * ranking-logic change only needs to happen in one place.
+ *
+ * Contract:
+ *   - identifier boost requires `id.length >= 4` (STRONG_ID_MIN_LENGTH mirror)
+ *     and substring presence in the prompt (case-insensitive).
+ *   - candidates with zero matched tags AND zero matched identifiers are dropped.
+ *   - top-5 by `relevance` descending.
+ *   - duplicate names are NOT deduplicated — that matches the pre-refactor
+ *     `matchSolutions` behaviour (both scopes could rank). Callers that want
+ *     first-wins scope precedence must dedupe on their side.
+ */
+function rankCandidates<T extends RankableSolution>(
+  promptTags: string[],
+  promptLower: string,
+  solutions: readonly T[],
+): RankedCandidate<T>[] {
+  return solutions
+    .map(sol => {
+      const result = calculateRelevance(promptTags, sol.tags, sol.confidence) as { relevance: number; matchedTags: string[] };
+
+      let identifierBoost = 0;
+      const matchedIdentifiers: string[] = [];
+      for (const id of sol.identifiers ?? []) {
+        if (id.length >= 4 && promptLower.includes(id.toLowerCase())) {
+          identifierBoost += 0.15;
+          matchedIdentifiers.push(id);
+        }
+      }
+
+      return {
+        solution: sol,
+        relevance: result.relevance + identifierBoost,
+        matchedTags: result.matchedTags,
+        matchedIdentifiers,
+      };
+    })
+    .filter(c => c.matchedTags.length + c.matchedIdentifiers.length >= 1)
+    .sort((a, b) => b.relevance - a.relevance)
+    .slice(0, 5);
+}
+
+// ── Bootstrap evaluator (T1 / PR4) ──
+
+/**
+ * In-memory solution shape for the bootstrap evaluator. Mirrors the index
+ * entry fields that `matchSolutions` consumes (tags, identifiers, confidence)
+ * but without any filesystem dependency — the evaluator is pure so CI can run
+ * it without mounting a starter pack.
+ */
+export interface EvalSolution {
+  name: string;
+  tags: string[];
+  identifiers?: string[];
+  confidence: number;
+}
+
+export interface EvalQuery {
+  query: string;
+  /** Names that should appear in the top-5. Empty array = expect no match (negative case). */
+  expectAnyOf: string[];
+}
+
+export interface EvalFixture {
+  solutions: EvalSolution[];
+  positive: EvalQuery[];
+  /** Bilingual or compound-word variants that exercise synonym expansion. */
+  paraphrase: EvalQuery[];
+  /** Unrelated queries that should not return a top-1 hit. */
+  negative: EvalQuery[];
+}
+
+/** Per-bucket metrics. Paraphrase and positive are reported separately so a
+ *  bilingual regression (T2 synonym change) can't hide inside the aggregate. */
+export interface BucketMetrics {
+  /** |{q : ∃i≤5, ranked[i] ∈ q.expectAnyOf}| / |q| */
+  recallAt5: number;
+  /** Σ (1 / firstMatchRank) / |q|; rank > 5 contributes 0. */
+  mrrAt5: number;
+  /** |{q : ranked is empty}| / |q| */
+  noResultRate: number;
+  /** Number of queries in this bucket. */
+  total: number;
+}
+
+export interface EvalResult {
+  /** Combined (positive ∪ paraphrase) metrics — backwards-compatible headline numbers. */
+  recallAt5: number;
+  mrrAt5: number;
+  noResultRate: number;
+  /**
+   * Fraction of negative queries where the matcher returned ≥ 1 candidate
+   * (regardless of rank). Name is honest: this is the "any result" rate on
+   * the negative bucket, not a rank-1 precision metric. It's the correct
+   * baseline for "did synonym/stemming leak into unrelated queries?".
+   */
+  negativeAnyResultRate: number;
+  /** Per-bucket breakdown — use these to catch paraphrase-only regressions. */
+  byBucket: {
+    positive: BucketMetrics;
+    paraphrase: BucketMetrics;
+  };
+  total: {
+    positive: number;
+    paraphrase: number;
+    negative: number;
+  };
+}
+
+/**
+ * Round 3 baseline metrics, recorded on 2026-04-08 against the current
+ * `SYNONYM_MAP` + `calculateRelevance` + fixture
+ * `solution-match-bootstrap.json`. Used as a relative regression guard in
+ * `tests/solution-matcher-eval.test.ts` — downstream PRs (T2/T3/T4) must not
+ * regress any field by more than `BASELINE_TOLERANCE`.
+ *
+ * If a PR legitimately improves a metric, update this constant in the same
+ * commit so future PRs guard against the new floor.
+ */
+export const ROUND3_BASELINE: EvalResult = {
+  recallAt5: 1.0,
+  mrrAt5: 1.0,
+  noResultRate: 0.0,
+  negativeAnyResultRate: 0.1,
+  byBucket: {
+    positive: { recallAt5: 1.0, mrrAt5: 1.0, noResultRate: 0.0, total: 41 },
+    paraphrase: { recallAt5: 1.0, mrrAt5: 1.0, noResultRate: 0.0, total: 10 },
+  },
+  total: { positive: 41, paraphrase: 10, negative: 10 },
+};
+
+/** Maximum allowed absolute regression per metric. 5% is tight enough to catch
+ *  ~2-3 query regressions in a 51-query bucket but lenient enough that a
+ *  single fixture edit won't spuriously fail the guard. */
+export const BASELINE_TOLERANCE = 0.05;
+
+/** Run a single bucket through the ranking pipeline and aggregate IR metrics. */
+function computeBucketMetrics(queries: EvalQuery[], solutions: EvalSolution[]): BucketMetrics {
+  let recallHits = 0;
+  let reciprocalSum = 0;
+  let noResultCount = 0;
+
+  for (const q of queries) {
+    const promptTags = extractTags(q.query);
+    const ranked = rankCandidates(promptTags, q.query.toLowerCase(), solutions);
+    if (ranked.length === 0) {
+      noResultCount++;
+      continue;
+    }
+    for (let i = 0; i < ranked.length; i++) {
+      if (q.expectAnyOf.includes(ranked[i].solution.name)) {
+        recallHits++;
+        reciprocalSum += 1 / (i + 1);
+        break;
+      }
+    }
+  }
+
+  const total = queries.length;
+  return {
+    recallAt5: total > 0 ? recallHits / total : 0,
+    mrrAt5: total > 0 ? reciprocalSum / total : 0,
+    noResultRate: total > 0 ? noResultCount / total : 0,
+    total,
+  };
+}
+
+/**
+ * Evaluate the current matcher against a labeled fixture and return IR
+ * metrics. This is the Round 3 baseline — each downstream PR (T2/T3/T4) must
+ * not regress any of the thresholds asserted in `solution-matcher-eval.test.ts`.
+ *
+ * Uses `rankCandidates` (shared with `matchSolutions`) so the evaluator can't
+ * silently drift from production ranking behaviour.
+ *
+ * Metrics are reported both aggregated (positive ∪ paraphrase) and per-bucket,
+ * so paraphrase-only regressions surface in `byBucket.paraphrase` even if the
+ * aggregate looks fine.
+ */
+export function evaluateSolutionMatcher(fixture: EvalFixture): EvalResult {
+  const positiveM = computeBucketMetrics(fixture.positive, fixture.solutions);
+  const paraphraseM = computeBucketMetrics(fixture.paraphrase, fixture.solutions);
+
+  const combinedTotal = positiveM.total + paraphraseM.total;
+  // Weighted aggregation: counts, not means — so a large positive bucket
+  // doesn't drown a small paraphrase bucket but also a single-query bucket
+  // doesn't dominate.
+  const recallAt5 = combinedTotal > 0
+    ? (positiveM.recallAt5 * positiveM.total + paraphraseM.recallAt5 * paraphraseM.total) / combinedTotal
+    : 0;
+  const mrrAt5 = combinedTotal > 0
+    ? (positiveM.mrrAt5 * positiveM.total + paraphraseM.mrrAt5 * paraphraseM.total) / combinedTotal
+    : 0;
+  const noResultRate = combinedTotal > 0
+    ? (positiveM.noResultRate * positiveM.total + paraphraseM.noResultRate * paraphraseM.total) / combinedTotal
+    : 0;
+
+  let negAnyResult = 0;
+  for (const q of fixture.negative) {
+    const promptTags = extractTags(q.query);
+    const ranked = rankCandidates(promptTags, q.query.toLowerCase(), fixture.solutions);
+    if (ranked.length >= 1) negAnyResult++;
+  }
+  const negTotal = fixture.negative.length;
+
+  return {
+    recallAt5,
+    mrrAt5,
+    noResultRate,
+    negativeAnyResultRate: negTotal > 0 ? negAnyResult / negTotal : 0,
+    byBucket: {
+      positive: positiveM,
+      paraphrase: paraphraseM,
+    },
+    total: {
+      positive: fixture.positive.length,
+      paraphrase: fixture.paraphrase.length,
+      negative: fixture.negative.length,
+    },
+  };
+}
+
 export function matchSolutions(prompt: string, scope: ScopeInfo, cwd: string): SolutionMatch[] {
   // Build solution dirs for index cache
   const dirs: SolutionDirConfig[] = [
@@ -163,45 +426,26 @@ export function matchSolutions(prompt: string, scope: ScopeInfo, cwd: string): S
   const allSolutions: LoadedSolution[] = index.entries.map(e => ({ ...e }));
 
   const promptTags = extractTags(prompt);
-
-  // 프롬프트에서 identifier 후보도 추출 (camelCase, snake_case 등 6자 이상)
   const promptLower = prompt.toLowerCase();
 
-  const matches: SolutionMatch[] = allSolutions
-    .map(sol => {
-      const result = calculateRelevance(promptTags, sol.tags, sol.confidence) as { relevance: number; matchedTags: string[] };
+  // Delegate to shared ranking core. `rankCandidates` is generic so each
+  // ranked candidate carries the original `LoadedSolution` reference — no
+  // name-based re-lookup, so two scopes sharing a name (e.g. me/foo and
+  // project/foo) can both appear in the result without a Map last-wins
+  // scope-precedence bug.
+  const ranked = rankCandidates(promptTags, promptLower, allSolutions);
 
-      // identifier boost: 프롬프트에 솔루션의 identifier가 포함되면 추가 점수
-      let identifierBoost = 0;
-      const matchedIdentifiers: string[] = [];
-      for (const id of sol.identifiers) {
-        if (id.length >= 4 && promptLower.includes(id.toLowerCase())) {
-          identifierBoost += 0.15;
-          matchedIdentifiers.push(id);
-        }
-      }
-
-      const totalRelevance = result.relevance + identifierBoost;
-      const allMatched = [...result.matchedTags, ...matchedIdentifiers];
-
-      return {
-        name: sol.name,
-        path: sol.filePath,
-        scope: sol.scope,
-        relevance: totalRelevance,
-        summary: sol.name,
-        status: sol.status,
-        confidence: sol.confidence,
-        type: sol.type,
-        tags: sol.tags,
-        identifiers: sol.identifiers,
-        matchedTags: allMatched,
-      };
-    })
-    // 태그 1개 이상 매칭 OR identifier 1개 이상 매칭
-    .filter(m => m.matchedTags.length >= 1)
-    .sort((a, b) => b.relevance - a.relevance)
-    .slice(0, 5);
-
-  return matches;
+  return ranked.map(c => ({
+    name: c.solution.name,
+    path: c.solution.filePath,
+    scope: c.solution.scope,
+    relevance: c.relevance,
+    summary: c.solution.name,
+    status: c.solution.status,
+    confidence: c.solution.confidence,
+    type: c.solution.type,
+    tags: c.solution.tags,
+    identifiers: c.solution.identifiers,
+    matchedTags: [...c.matchedTags, ...c.matchedIdentifiers],
+  }));
 }

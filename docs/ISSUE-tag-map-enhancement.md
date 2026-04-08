@@ -29,3 +29,20 @@
 - hook timeout 3초 이내 매칭 완료 필수
 - 외부 API 호출 불가 (hook은 오프라인 동작)
 - 임베딩 사용 시 로컬 캐시 필수
+
+## Round 3 실행 계획
+
+2026-04-07 결정: Phase 1/2/3를 재정의한 4-step 실행 계획으로 전환.
+
+상세는 `docs/plans/2026-04-07-synonym-map-round3-validation.md` 참고. 요약:
+
+- **T1 — Bootstrap eval infra** ✅ 완료 (2026-04-08)
+  - `tests/fixtures/solution-match-bootstrap.json` (15 solutions, 41 positive, 10 paraphrase, 10 negative)
+  - `evaluateSolutionMatcher` + `ROUND3_BASELINE` in `src/engine/solution-matcher.ts`
+  - Baseline: recall=1.0 / mrr=1.0 / noResult=0.0 / negativeAnyResult=0.1
+  - 후속 PR의 회귀 가드: `BASELINE_TOLERANCE = 0.05`
+- **T2 — Migrate SYNONYM_MAP → indexed matchTerms** (진행 예정)
+- **T3 — Query normalization + ranking decision logs** (T2 이후)
+- **T4 — BM25** (T1-T3 plateau 확인 후 조건부)
+
+기존 Phase 1/2/3는 이 실행 계획의 배경 맥락으로 남김. 실제 구현 순서는 위 T1-T4를 따른다.
