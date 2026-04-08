@@ -11,6 +11,7 @@ import { createLogger } from '../core/logger.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { incrementEvidence } from '../engine/solution-writer.js';
+import { classifyMatch, shouldAttribute } from '../engine/term-matcher.js';
 import { detectErrorPattern } from './post-tool-use.js';
 import { STATE_DIR } from '../core/paths.js';
 
@@ -58,11 +59,19 @@ export function checkCompoundNegative(toolName: string, toolResponse: string, se
     const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
     if (!Array.isArray(cache.solutions)) return;
 
+    // PR3: term-matcher로 word-boundary 매칭 + NEGATIVE_TERM_BLOCKLIST +
+    // match strength classification. 이전 substring 매칭은 `api` 솔루션이
+    // `rapid build failed`에 잘못 매칭되는 등 over-attribution이 심각했다.
     const experiments = cache.solutions.filter((s: { status: string }) => s.status === 'experiment');
     for (const sol of experiments) {
-      const allTerms = [...(sol.identifiers ?? []), ...(sol.tags ?? [])].filter((t: string) => t.length >= 4);
-      const isRelated = allTerms.length === 0 || allTerms.some((term: string) => toolResponse.toLowerCase().includes(term.toLowerCase()));
-      if (!isRelated) continue;
+      const classification = classifyMatch(
+        toolResponse,
+        Array.isArray(sol.identifiers) ? sol.identifiers : [],
+        Array.isArray(sol.tags) ? sol.tags : [],
+      );
+      // 'strong' (identifier 매칭) 또는 'multi' (tag ≥2 매칭)만 attribute.
+      // 'weak' (tag 1개)와 'none'은 over-attribution 위험으로 무시.
+      if (!shouldAttribute(classification)) continue;
 
       updateNegativeEvidence(sol.name);
     }

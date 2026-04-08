@@ -228,14 +228,23 @@ const EN_STOPWORDS = new Set([
   'across', 'just', 'detected', 'based', 'sessions', 'prompts',
 ]);
 
-/** 한국어 일반 조사/어미 — strip 대상 (긴 것부터 매칭) */
-const KO_SUFFIXES = [
+/** 한국어 일반 조사/어미 — strip 대상 (긴 것부터 매칭)
+ *
+ * term-matcher에서 재사용 가능하도록 export — 매칭 시점과 추출 시점의 stripping
+ * 규칙을 단일 source of truth로 유지해 한국어 stem 비교 정합성 보장.
+ *
+ * 주의: 이 리스트는 **추출 시점에도 적용**되므로 1글자 suffix를 추가할 때
+ * `집중`→`집`, `시도`→`시` 같은 한자어 명사가 깨지지 않도록 극도로 보수적으로
+ * 유지한다. 동사 활용형(`리팩토링중`, `배포시`)처럼 매칭 전용 suffix가 필요하면
+ * term-matcher의 `KO_VERBAL_SUFFIXES`에 따로 둔다.
+ */
+export const KO_SUFFIXES = [
   '했습니다', '있습니다', '합니다', '입니다', '됩니다',
   '에서', '까지', '으로', '하는', '하고', '했다', '된다', '한다',
   '을', '를', '이', '가', '은', '는', '의', '에', '와', '과', '도', '만', '로',
 ];
 
-function stripKoSuffix(word: string): string {
+export function stripKoSuffix(word: string): string {
   for (const suffix of KO_SUFFIXES) {
     if (word.endsWith(suffix) && word.length > suffix.length) {
       return word.slice(0, -suffix.length);

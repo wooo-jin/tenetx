@@ -89,6 +89,23 @@ describe('extractTags', () => {
     expect(tags).toContain('error');
     expect(tags).toContain('deploy');
   });
+
+  it('PR3 C1 회귀: 한자어 명사 (집중/감시/명시/지시/신중/존중)는 보존', () => {
+    // 이전 라운드 2는 KO_SUFFIXES에 '중'/'시' 추가 → stripKoSuffix가 1자 stem으로
+    // 파괴. 라운드 3에서 '중'/'시'를 제거해 extractTags의 정합성 회복.
+    //
+    // 참고:
+    //   - '시도'는 '도' 조사로 strip되어 '시' 1자 → drop (이전부터 있던 동작)
+    //   - '다시'는 KO_STOPWORDS에 포함
+    // 이 둘은 본 회귀의 scope 외. 라운드 2가 추가한 '중'/'시' suffix 부작용만 검증.
+    const tags = extractTags('집중 감시 명시 지시 신중 존중');
+    expect(tags).toContain('집중');
+    expect(tags).toContain('감시');
+    expect(tags).toContain('명시');
+    expect(tags).toContain('지시');
+    expect(tags).toContain('신중');
+    expect(tags).toContain('존중');
+  });
 });
 
 // ── parseFrontmatterOnly ──
