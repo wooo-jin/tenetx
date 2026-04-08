@@ -1,5 +1,5 @@
 {
-  "_comment": "Bootstrap eval fixture for solution matcher — Round 3 baseline. Derived from starter-pack/solutions/. Do not edit without updating docs/plans/2026-04-07-synonym-map-round3-validation.md AND ROUND3_BASELINE in src/engine/solution-matcher.ts. Notes: (1) positive bucket has 41 queries not 40 — plan says 40+; extra query is intentional (3-per-solution where tags are distinctive, 2-per-solution otherwise). (2) negative query 'solar system planets astronomy' is an intentional false positive — the current partialMatches logic matches 'system' → 'systematic' tag; kept in baseline to give T2 matchTerms migration and T4 BM25 a concrete improvement target.",
+  "_comment": "Bootstrap eval fixture for solution matcher — Round 3 baseline (v2 expansion). Derived from starter-pack/solutions/. Do not edit without updating docs/plans/2026-04-07-synonym-map-round3-validation.md AND ROUND3_BASELINE in src/engine/solution-matcher.ts. v2 (2026-04-08) added 12 hard positive + 6 Korean subtle paraphrase + 4 tricky negative queries to differentiate genuine plateau from fixture artifact. The added hard positives expose ranking weaknesses on compound-tag/multi-canonical queries (rank 2-3 not 1), and the added negatives expose false-positive weaknesses on common dev-adjacent words (system, performance, validation, database) — these are the targets the T4 BM25 + IDF gate is designed to address.",
   "solutions": [
     {
       "name": "starter-api-error-responses",
@@ -147,7 +147,21 @@
 
     { "query": "typescript strict type union", "expectAnyOf": ["starter-typescript-strict-types"] },
     { "query": "typescript strict any union", "expectAnyOf": ["starter-typescript-strict-types"] },
-    { "query": "strict typescript type", "expectAnyOf": ["starter-typescript-strict-types"] }
+    { "query": "strict typescript type", "expectAnyOf": ["starter-typescript-strict-types"] },
+
+    { "query": "writing async code without race conditions", "expectAnyOf": ["starter-async-patterns"] },
+    { "query": "preventing sql injection with input sanitization", "expectAnyOf": ["starter-input-validation"] },
+    { "query": "checklist before merging a pull request", "expectAnyOf": ["starter-code-review-checklist"] },
+    { "query": "reproducing intermittent bugs systematically", "expectAnyOf": ["starter-debugging-systematic"] },
+    { "query": "strict null checks and union types in typescript", "expectAnyOf": ["starter-typescript-strict-types"] },
+    { "query": "split commits into atomic logical units", "expectAnyOf": ["starter-git-atomic-commits"] },
+    { "query": "how to inject mock for unit testing", "expectAnyOf": ["starter-dependency-injection"] },
+    { "query": "trying to handle authentication errors gracefully when our backend api returns inconsistent response formats from different microservices", "expectAnyOf": ["starter-api-error-responses", "starter-error-handling-patterns"] },
+
+    { "query": "managing api keys and credentials safely", "expectAnyOf": ["starter-secret-management"] },
+    { "query": "avoiding hardcoded credentials in source code", "expectAnyOf": ["starter-secret-management"] },
+    { "query": "red green refactor cycle for new features", "expectAnyOf": ["starter-tdd-red-green-refactor"] },
+    { "query": "writing unit tests for a function with side effects", "expectAnyOf": ["starter-dependency-injection", "starter-tdd-red-green-refactor"] }
   ],
   "paraphrase": [
     { "query": "에러 핸들링 boundary 패턴", "expectAnyOf": ["starter-error-handling-patterns"] },
@@ -159,7 +173,14 @@
     { "query": "보안 입력검증 zod", "expectAnyOf": ["starter-input-validation"] },
     { "query": "테스트 주도 개발 red green", "expectAnyOf": ["starter-tdd-red-green-refactor"] },
     { "query": "리팩토링 안전 incremental", "expectAnyOf": ["starter-refactor-safely"] },
-    { "query": "데이터베이스 성능 n+1", "expectAnyOf": ["starter-n-plus-one-queries"] }
+    { "query": "데이터베이스 성능 n+1", "expectAnyOf": ["starter-n-plus-one-queries"] },
+
+    { "query": "버그 재현 시스템적으로", "expectAnyOf": ["starter-debugging-systematic"] },
+    { "query": "환경 변수로 시크릿 관리하기", "expectAnyOf": ["starter-secret-management"] },
+    { "query": "프로미스로 비동기 병렬 처리", "expectAnyOf": ["starter-async-patterns"] },
+    { "query": "디버깅을 체계적으로 하는 방법", "expectAnyOf": ["starter-debugging-systematic"] },
+    { "query": "캐시 무효화 전략 ttl", "expectAnyOf": ["starter-caching-strategy"] },
+    { "query": "테스트 먼저 작성하고 리팩토링", "expectAnyOf": ["starter-tdd-red-green-refactor", "starter-refactor-safely"] }
   ],
   "negative": [
     { "query": "chocolate cake baking recipe", "expectAnyOf": [] },
@@ -171,6 +192,11 @@
     { "query": "solar system planets astronomy", "expectAnyOf": [] },
     { "query": "italian pasta cooking recipe", "expectAnyOf": [] },
     { "query": "morning yoga meditation routine", "expectAnyOf": [] },
-    { "query": "gardening soil tomato plant", "expectAnyOf": [] }
+    { "query": "gardening soil tomato plant", "expectAnyOf": [] },
+
+    { "query": "performance review meeting notes", "expectAnyOf": [] },
+    { "query": "system architecture overview document", "expectAnyOf": [] },
+    { "query": "database backup recovery procedure", "expectAnyOf": [] },
+    { "query": "validation of insurance claims", "expectAnyOf": [] }
   ]
 }

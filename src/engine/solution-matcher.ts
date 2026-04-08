@@ -324,30 +324,121 @@ export interface EvalResult {
 }
 
 /**
- * Round 3 baseline metrics, recorded on 2026-04-08 against the current
- * `SYNONYM_MAP` + `calculateRelevance` + fixture
- * `solution-match-bootstrap.json`. Used as a relative regression guard in
- * `tests/solution-matcher-eval.test.ts` — downstream PRs (T2/T3/T4) must not
- * regress any field by more than `BASELINE_TOLERANCE`.
+ * Round 3 baseline metrics, recorded against the current `term-normalizer`
+ * + `calculateRelevance` + fixture `solution-match-bootstrap.json`. Used as
+ * a relative regression guard in `tests/solution-matcher-eval.test.ts` —
+ * downstream PRs must not regress any field by more than `BASELINE_TOLERANCE`.
+ *
+ * History:
+ *   - v1 (2026-04-08, fixture v1, 41+10+10 queries): 1.0 / 1.0 / 0.0 / 0.1
+ *     Recorded against the original 61-query fixture, all positive queries
+ *     PASS@1. Indicated a measurement plateau but masked the matcher's true
+ *     ranking and false-positive weaknesses because the fixture queries were
+ *     too tag-aligned.
+ *   - v2 (2026-04-08, fixture v2, 53+16+14 queries): 1.0 / 0.969 / 0.0 / 0.357
+ *     Expanded with 12 hard positive (multi-canonical / compound-tag tug-of-
+ *     war), 6 Korean subtle paraphrase, and 4 tricky negative queries. The
+ *     drops are intentional and represent genuine matcher behaviour:
+ *       * positive mrrAt5 1.0 → 0.959: 4 of 12 added positives rank #2-3:
+ *         (1) "managing api keys and credentials safely" → secret @3 vs
+ *             api-error-responses @1 — the `api` canonical in
+ *             DEFAULT_MATCH_TERMS expands to {api, rest, graphql, endpoint,
+ *             route}, so query `api` hits BOTH `api` AND `rest` on
+ *             starter-api-error-responses (matched=['api','rest']) — a
+ *             double-count numerator. starter-secret-management only scores
+ *             a single weak partial match on `credential`. The compound
+ *             `api-key` tag on secret-management is never reached because
+ *             extractTags strips the query-side hyphen and yields
+ *             ['api','keys'] (the solution-side tag remains hyphenated in
+ *             the index but has no query token to intersect with). T4 IDF
+ *             would down-weight both `api` and `rest`, neutralising the
+ *             double-count and letting `credential` outscore the noise.
+ *         (2) "avoiding hardcoded credentials in source code" → secret @2
+ *             vs code-review @1 — `code` partial-matches `code-review`
+ *             (len>3, code-review.includes('code')=true) at half weight.
+ *             secret-management's `credential` matches by partial too but
+ *             the union size differs.
+ *         (3) "red green refactor cycle for new features" → tdd @2 vs
+ *             refactor-safely @1 — `refactor` is a full-weight intersection
+ *             with both refactor-safely's `refactor` and `리팩토링` (via
+ *             the refactor canonical), giving 2 hits at 1.0 each. tdd-red-
+ *             green-refactor only matches the literal compound tag
+ *             `red-green-refactor` (one weighted hit) — the full-weight
+ *             generic `refactor` term overpowers the compound-tag specifity.
+ *         (4) "writing unit tests for a function with side effects" → tdd
+ *             @2 vs separation-of-concerns @1 — both solutions have a
+ *             SINGLE matching tag with weighted score 0.5: separation gets
+ *             `function` (COMMON_TAG, exact intersection, weight 0.5);
+ *             tdd-red-green-refactor gets `tests` partial-matching `test`
+ *             (len>3, partial weight 1.0 × 0.5 = 0.5). Both numerators are
+ *             identical. Separation wins because the `function` co-occurs
+ *             in both promptTags and solution.tags, shrinking its Jaccard
+ *             union by one element vs tdd's — a 1-element union-size
+ *             advantage drives the entire ranking. starter-dependency-
+ *             injection is *not* in top-5 despite having `testing`/`mock`/
+ *             `dependency` tags (`tests` does not partial-match `testing`
+ *             — neither is a substring of the other), so listing `di` in
+ *             expectAnyOf is purely defensive recall, not a live candidate.
+ *             T4 BM25 with proper length normalization would attack the
+ *             union-size tie-breaker more rigorously than current Jaccard.
+ *       * paraphrase mrrAt5 stays at 1.0: all 6 added Korean paraphrases
+ *         rank @1 (the originally hard "테스트 먼저 작성하고 리팩토링" is
+ *         documented in the fixture as legitimately matching either tdd
+ *         OR refactor-safely, since starter-refactor-safely's README also
+ *         covers test-first workflows — both are defensible answers).
+ *       * negativeAnyResultRate 0.1 → 0.357: 4 added tricky negatives all
+ *         trigger false positives via single common dev-adjacent words —
+ *         "performance review meeting notes" → caching (matches
+ *         `performance`), "system architecture overview document" →
+ *         separation-of-concerns (matches `architecture`), "database backup
+ *         recovery procedure" → n-plus-one-queries (matches `database`,
+ *         `query`, `데이터베이스`), "validation of insurance claims" →
+ *         error-handling (matches `validation`).
+ *     These weaknesses are the explicit T4 BM25 + IDF improvement targets:
+ *     IDF would down-weight the common dev-adjacent words ('api', 'code',
+ *     'performance', 'database', 'validation', 'system') that drive both
+ *     the ranking failures (positive bucket) and the false positives
+ *     (negative bucket).
+ *
+ * Known matcher quirks (separate from T4 BM25 — documented for future fix):
+ *   - `term-normalizer.ts` `error` canonical contains `debug` as a matchTerm
+ *     (intentional for `bug → error` recall), which causes any prompt
+ *     containing `error` to expand to `debug` and over-rank
+ *     `starter-debugging-systematic` on otherwise unrelated queries. This
+ *     is why `async await error propagation` could not be added as a hard
+ *     case — the matcher returns debugging-systematic at #1, which is
+ *     defensible-but-noisy. T4 BM25 IDF would partially mitigate (debug
+ *     would be slightly down-weighted) but the semantic overflow is best
+ *     fixed at the normalizer level in a follow-up PR.
+ *
+ * Long-tail caveat:
+ *   - `"trying to handle authentication errors gracefully when our backend
+ *     api returns inconsistent response formats from different
+ *     microservices"` is a 17-word query intentionally added to exercise
+ *     long-tail behaviour. Currently PASS@1, but this single query is
+ *     sensitive to BM25 length normalization — if T4 introduces document
+ *     length penalty, recheck this case explicitly before updating the
+ *     baseline.
  *
  * If a PR legitimately improves a metric, update this constant in the same
  * commit so future PRs guard against the new floor.
  */
 export const ROUND3_BASELINE: EvalResult = {
   recallAt5: 1.0,
-  mrrAt5: 1.0,
+  mrrAt5: 0.969,
   noResultRate: 0.0,
-  negativeAnyResultRate: 0.1,
+  negativeAnyResultRate: 0.357,
   byBucket: {
-    positive: { recallAt5: 1.0, mrrAt5: 1.0, noResultRate: 0.0, total: 41 },
-    paraphrase: { recallAt5: 1.0, mrrAt5: 1.0, noResultRate: 0.0, total: 10 },
+    positive: { recallAt5: 1.0, mrrAt5: 0.959, noResultRate: 0.0, total: 53 },
+    paraphrase: { recallAt5: 1.0, mrrAt5: 1.0, noResultRate: 0.0, total: 16 },
   },
-  total: { positive: 41, paraphrase: 10, negative: 10 },
+  total: { positive: 53, paraphrase: 16, negative: 14 },
 };
 
 /** Maximum allowed absolute regression per metric. 5% is tight enough to catch
- *  ~2-3 query regressions in a 51-query bucket but lenient enough that a
- *  single fixture edit won't spuriously fail the guard. */
+ *  ~3-4 query regressions in a 69-query combined bucket (positive+paraphrase)
+ *  but lenient enough that a single fixture edit won't spuriously fail the
+ *  guard. */
 export const BASELINE_TOLERANCE = 0.05;
 
 /** Run a single bucket through the ranking pipeline and aggregate IR metrics. */
