@@ -25,6 +25,7 @@ import type { SolutionStatus, SolutionType } from '../engine/solution-format.js'
 import { mutateSolutionFile } from '../engine/solution-writer.js';
 import { calculateRelevance } from '../engine/solution-matcher.js';
 import { defaultNormalizer } from '../engine/term-normalizer.js';
+import { logMatchDecision } from '../engine/match-eval-log.js';
 import { filterSolutionContent } from '../hooks/prompt-injection-filter.js';
 
 // ── 타입 ──
@@ -172,7 +173,28 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
   }
 
   results.sort((a, b) => b.relevance - a.relevance);
-  return results.slice(0, limit);
+  const top = results.slice(0, limit);
+
+  // T3: ranking-decision log for offline analysis. Fail-open via logger's
+  // own try/catch. `source: 'mcp'` distinguishes this from the hook path.
+  // `rankedTopN` here equals the post-`limit` slice the caller receives —
+  // MCP path has no further filtering, so for this source ranked == returned.
+  // Skip when limit is 0 (caller doesn't care about results).
+  if (limit > 0) {
+    logMatchDecision({
+      source: 'mcp',
+      rawQuery: query,
+      normalizedQuery: normalizedPromptTags,
+      candidates: top.map(r => ({
+        name: r.name,
+        relevance: r.relevance,
+        matchedTerms: r.matchedTags,
+      })),
+      rankedTopN: top.slice(0, 5).map(r => r.name),
+    });
+  }
+
+  return top;
 }
 
 // ── 목록 ──

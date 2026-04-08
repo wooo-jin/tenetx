@@ -36,6 +36,13 @@ export const PACKS_DIR = path.join(TENETX_HOME, 'packs');
 /** ~/.tenetx/state/ — 상태 파일 디렉토리 */
 export const STATE_DIR = path.join(TENETX_HOME, 'state');
 
+/**
+ * ~/.tenetx/state/match-eval-log.jsonl — JSONL ranking-decision log for the
+ * bootstrap evaluator and offline matcher debugging. Written best-effort by
+ * `src/engine/match-eval-log.ts`; never on the hook critical path.
+ */
+export const MATCH_EVAL_LOG_PATH = path.join(STATE_DIR, 'match-eval-log.jsonl');
+
 /** ~/.tenetx/sessions/ — 세션 로그 */
 export const SESSIONS_DIR = path.join(TENETX_HOME, 'sessions');
 

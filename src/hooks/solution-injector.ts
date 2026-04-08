@@ -13,6 +13,9 @@ import * as path from 'node:path';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { matchSolutions } from '../engine/solution-matcher.js';
+import { extractTags } from '../engine/solution-format.js';
+import { defaultNormalizer } from '../engine/term-normalizer.js';
+import { logMatchDecision } from '../engine/match-eval-log.js';
 import { resolveScope } from '../core/scope-resolver.js';
 import { createLogger } from '../core/logger.js';
 
@@ -132,7 +135,7 @@ export function commitSessionCacheEntries(
   try {
     withFileLockSync(cachePath, () => {
       // Lock 안에서 fresh re-read
-      let freshInjected = new Set<string>();
+      const freshInjected = new Set<string>();
       let freshChars = 0;
       let hadExpiredFresh = false;
       try {
@@ -294,6 +297,29 @@ async function main(): Promise<void> {
   // matches는 새 주입 후보 (이미 injected는 제외).
   const allMatched = matchSolutions(input.prompt, scope, cwd);
   const matches = allMatched.filter(m => !injected.has(m.name));
+
+  // T3: emit a ranking-decision record for offline analysis. Fail-open —
+  // the logger swallows any error so this never blocks hook approval.
+  // Runs AFTER ranking (plan: "Add the logging call in solution-injector
+  // after ranking, not before."). `rankedTopN` records what the matcher
+  // returned at log time; subsequent caller-side filtering (budget cap,
+  // experiment cap, session-cache disjoint) is intentionally NOT captured
+  // here — the field's contract is "matcher's top, not final injection set".
+  try {
+    const promptTags = extractTags(input.prompt);
+    const normalizedQuery = defaultNormalizer.normalizeTerms(promptTags);
+    logMatchDecision({
+      source: 'hook',
+      rawQuery: input.prompt,
+      normalizedQuery,
+      candidates: allMatched.map(m => ({
+        name: m.name,
+        relevance: m.relevance,
+        matchedTerms: m.matchedTags,
+      })),
+      rankedTopN: allMatched.slice(0, 5).map(m => m.name),
+    });
+  } catch (e) { log.debug('match-eval-log emit failed', e); }
 
   // 신규 주입할 게 없어도 backfill은 수행한다.
   // R2 fix: matches.length === 0인 경우에도 allMatched에 정보가 있으면
