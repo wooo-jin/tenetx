@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Validate and harden solution matching by migrating `SYNONYM_MAP` to indexed `matchTerms`, adding query normalization and evaluation logs, and only introducing BM25 after baseline metrics prove the simpler design has plateaued.
+**Goal:** Validate and harden solution matching by migrating `SYNONYM_MAP` to indexed `matchTerms`, adding query normalization and evaluation logs, and only introducing BM25 after baseline metrics prove the simpler design has plateaued. *(Round 3 outcome 2026-04-08: T1-T3 + T3.5 fixture v2 expansion shipped; T4 BM25 was empirically skipped after 4-variant prototype gate failure — see Task 4 § and `docs/plans/2026-04-08-t4-bm25-skip-adr.md`.)*
 
 **Architecture:** Keep the current file-backed solution index, but move synonym handling from ad hoc map expansion to a compiled term-normalization layer. Normalize the query once per prompt, normalize solution tags once per index build, log ranking decisions for offline review, and treat BM25 as a scoring upgrade on top of the same normalized term pipeline rather than a separate search system.
 
@@ -234,6 +234,19 @@ git commit -m "feat: add query normalization logs for matcher eval"
 ```
 
 ### Task 4: Add BM25 Only If Step 1-3 Metrics Plateau
+
+> **STATUS (2026-04-08): SKIPPED.** Empirical gate failure — BM25 prototypes
+> (naive, hybrid Jaccard×IDF, precision filter, soft penalty) all underperform
+> or match the current Jaccard scorer on the v2 fixture (53+16+14 queries).
+> Step 4's gate ("BM25 must improve at least one metric without regressing
+> others") is not met. See `docs/plans/2026-04-08-t4-bm25-skip-adr.md` for
+> the full decision record + per-variant metrics + root-cause analysis.
+> Round 4 candidates (compound-tag tokenizer fix, phrase/n-gram matcher
+> overlay, query-side specificity classifier) are documented in the ADR
+> but defer to Round 4. Corpus growth (N≥100) is tracked separately as
+> Reversal Trigger #1 in the ADR — it is a passive re-evaluation signal,
+> not a Round 4 candidate.
+
 
 **Files:**
 - Modify: `src/engine/solution-matcher.ts`

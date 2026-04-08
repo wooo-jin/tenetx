@@ -37,12 +37,31 @@
 상세는 `docs/plans/2026-04-07-synonym-map-round3-validation.md` 참고. 요약:
 
 - **T1 — Bootstrap eval infra** ✅ 완료 (2026-04-08)
-  - `tests/fixtures/solution-match-bootstrap.json` (15 solutions, 41 positive, 10 paraphrase, 10 negative)
+  - `tests/fixtures/solution-match-bootstrap.json` v1 (15 solutions, 41 positive, 10 paraphrase, 10 negative)
   - `evaluateSolutionMatcher` + `ROUND3_BASELINE` in `src/engine/solution-matcher.ts`
-  - Baseline: recall=1.0 / mrr=1.0 / noResult=0.0 / negativeAnyResult=0.1
+  - Baseline v1: recall=1.0 / mrr=1.0 / noResult=0.0 / negativeAnyResult=0.1
   - 후속 PR의 회귀 가드: `BASELINE_TOLERANCE = 0.05`
-- **T2 — Migrate SYNONYM_MAP → indexed matchTerms** (진행 예정)
-- **T3 — Query normalization + ranking decision logs** (T2 이후)
-- **T4 — BM25** (T1-T3 plateau 확인 후 조건부)
+- **T2 — Migrate SYNONYM_MAP → indexed matchTerms** ✅ 완료 (2026-04-08)
+  - `src/engine/term-normalizer.ts` 신규 (19 canonicals, hash-indexed lookup)
+  - 핫패스 정규화는 `defaultNormalizer.normalizeTerms` 1회 호출로 통합
+- **T3 — Query normalization + ranking decision logs** ✅ 완료 (2026-04-08)
+  - `src/engine/match-eval-log.ts` 신규 (privacy-by-construction: hash + length, 원문 미저장)
+- **T3.5 — Fixture v2 expansion** ✅ 완료 (2026-04-08, commit `8858ae2`)
+  - 22 hard cases 추가 (12 positive + 6 Korean paraphrase + 4 tricky negative)
+  - Baseline v2: recall=1.0 / mrr=0.969 / noResult=0.0 / **negativeAnyResult=0.357** ← v1 0.1에서 3.5× 점프
+  - 천장 마스킹 해제: real ranking weakness + false positive weakness 노출
+- **T4 — BM25** ⛔ **SKIPPED (2026-04-08)** — `docs/plans/2026-04-08-t4-bm25-skip-adr.md`
+  - 4개 BM25 variant (naive / hybrid Jaccard×IDF / precision filter / soft penalty) 모두 baseline 대비 metric 개선 없음
+  - 근본 원인: N=15 코퍼스에서 IDF noise 지배 + binary TF 붕괴 + semantic-not-statistical FP + compound-tag 토큰화 아티팩트
+  - Reversal triggers (corpus N≥100, compound-tag tokenizer 선행, negativeAnyResult > 0.5, recallAt5 < 0.95) 충족 시 재평가
 
-기존 Phase 1/2/3는 이 실행 계획의 배경 맥락으로 남김. 실제 구현 순서는 위 T1-T4를 따른다.
+### Round 4 placeholder (T4 ADR에서 도출된 후속 후보)
+
+Round 3 마무리. Round 4 시작 시 우선순위 매겨서 picking. 모두 ADR에서 detail.
+
+- **R4-T1: Compound-tag tokenizer fix** — `extractTags` 정규식이 하이픈을 strip하는 문제 해결. 4 hard positive ranking failure 직접 해결 예상. 가장 surgical하고 actionable.
+- **R4-T2: Phrase/n-gram matcher overlay** — `performance review`, `system architecture` 등 dev-context-killer 2-word phrase 50개 큐레이션 → `negativeAnyResult` 0.357 → ~0.10 예상.
+- **R4-T3: Query-side dev specificity classifier** — high-signal vs ambiguous dev term 큐레이션 vocabulary로 query-level filter.
+- **(passive) Larger corpus 추적** — production corpus N≥100 도달 시 BM25 재평가. ADR Reversal trigger #1.
+
+기존 Phase 1/2/3는 이 실행 계획의 배경 맥락으로 남김. Round 3은 T1-T3 + T3.5 완료, T4 실증 skip으로 종결.

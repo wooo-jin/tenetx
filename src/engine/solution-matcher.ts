@@ -394,31 +394,40 @@ export interface EvalResult {
  *         recovery procedure" → n-plus-one-queries (matches `database`,
  *         `query`, `데이터베이스`), "validation of insurance claims" →
  *         error-handling (matches `validation`).
- *     These weaknesses are the explicit T4 BM25 + IDF improvement targets:
- *     IDF would down-weight the common dev-adjacent words ('api', 'code',
- *     'performance', 'database', 'validation', 'system') that drive both
- *     the ranking failures (positive bucket) and the false positives
- *     (negative bucket).
+ *     The original Round 3 plan staged these for T4 (BM25 + IDF). T4 was
+ *     EMPIRICALLY SKIPPED on 2026-04-08 — see
+ *     `docs/plans/2026-04-08-t4-bm25-skip-adr.md` for the full decision
+ *     record. Summary: BM25 prototypes (naive, hybrid Jaccard×IDF,
+ *     precision filter, soft penalty) all matched or underperformed the
+ *     current scorer on every metric. The starter corpus (N=15) is too
+ *     small for IDF to be informative, and the false positives are
+ *     semantic ("performance" is both a dev tag and an English noun) — not
+ *     statistical, so no frequency-based weighting can fix them. The real
+ *     follow-up candidates are tokenizer fix for compound tags, an n-gram
+ *     phrase matcher, and corpus growth — all deferred to Round 4 per the
+ *     ADR.
  *
- * Known matcher quirks (separate from T4 BM25 — documented for future fix):
+ * Known matcher quirks (separate from the T4 BM25 investigation):
  *   - `term-normalizer.ts` `error` canonical contains `debug` as a matchTerm
  *     (intentional for `bug → error` recall), which causes any prompt
  *     containing `error` to expand to `debug` and over-rank
  *     `starter-debugging-systematic` on otherwise unrelated queries. This
  *     is why `async await error propagation` could not be added as a hard
  *     case — the matcher returns debugging-systematic at #1, which is
- *     defensible-but-noisy. T4 BM25 IDF would partially mitigate (debug
- *     would be slightly down-weighted) but the semantic overflow is best
- *     fixed at the normalizer level in a follow-up PR.
+ *     defensible-but-noisy. The fix is at the normalizer level (split
+ *     `debug` out of the `error` family or remove the `error → debug`
+ *     edge entirely) and is queued as a Round 4 follow-up. T4 BM25 was
+ *     considered as a partial mitigation but the T4 skip ADR (referenced
+ *     in the Round 3 outcome paragraph above) shows it does not help.
  *
  * Long-tail caveat:
  *   - `"trying to handle authentication errors gracefully when our backend
  *     api returns inconsistent response formats from different
  *     microservices"` is a 17-word query intentionally added to exercise
- *     long-tail behaviour. Currently PASS@1, but this single query is
- *     sensitive to BM25 length normalization — if T4 introduces document
- *     length penalty, recheck this case explicitly before updating the
- *     baseline.
+ *     long-tail behaviour. Currently PASS@1. Originally flagged as BM25
+ *     length-normalization sensitive, but since T4 BM25 was skipped this
+ *     caveat is now informational only — no length-norm code path is
+ *     planned in Round 3.
  *
  * If a PR legitimately improves a metric, update this constant in the same
  * commit so future PRs guard against the new floor.
