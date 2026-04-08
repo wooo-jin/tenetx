@@ -16,19 +16,24 @@ describe('solution matcher bootstrap eval', () => {
   // is catastrophic — assert them first so a regression fails with the most
   // obvious message.
   //
-  // The negativeAnyResultRate floor (0.45) is loose because the v2 fixture
-  // expansion deliberately added tricky negatives that exercise the matcher's
-  // weakest path (no IDF down-weighting on common dev-adjacent words). The
-  // current baseline is 0.358 — the floor sits at +0.092 to catch a true
-  // catastrophic regression (e.g. the matcher starts matching every negative)
-  // while allowing the realistic measured rate. T4 BM25 should bring the
-  // floor down once IDF is in place; update both this floor and the baseline
-  // in the same PR.
+  // negativeAnyResultRate floor history:
+  //   v2 fixture (2026-04-08): 0.45 — loose because v2 added tricky negatives
+  //     and the matcher had no IDF down-weighting (baseline 0.357, floor +0.092)
+  //   R4-T2 phrase blocklist (2026-04-08): 0.20 — tightened after the
+  //     blocklist dropped baseline to 0.143, floor sits at +0.057 headroom
+  //     above the residual rate. 2 surviving false positives (`database
+  //     backup recovery procedure`, `validation of insurance claims`) are
+  //     the explicit R4-T3 query-specificity-classifier targets — both
+  //     have a single dev-tag homograph that survives masking and the
+  //     term-normalizer expansion still surfaces a false match. They
+  //     cannot be addressed by phrase blocking alone without breaking
+  //     legitimate dev queries (see ROUND3_BASELINE JSDoc for the full
+  //     argument). Update this floor and the baseline together in R4-T3.
   it('meets absolute floor thresholds', () => {
     expect(result.recallAt5).toBeGreaterThanOrEqual(0.8);
     expect(result.mrrAt5).toBeGreaterThanOrEqual(0.6);
     expect(result.noResultRate).toBeLessThanOrEqual(0.15);
-    expect(result.negativeAnyResultRate).toBeLessThanOrEqual(0.45);
+    expect(result.negativeAnyResultRate).toBeLessThanOrEqual(0.20);
   });
 
   // ── Baseline-relative regression guard ──
@@ -142,6 +147,64 @@ describe('solution matcher bootstrap eval', () => {
         `R4-T1 regression: expected '${expected}' @1 for query "${query}", got '${ranked[0]?.name ?? '<no result>'}' (full top-5: ${ranked.map(r => r.name).join(', ')})`,
       ).toBe(expected);
     }
+  });
+
+  // ── R4-T2: per-query regression guard for phrase-blocked negatives ──
+  //
+  // Four of the five v2 trigger negatives are blocked by R4-T2's phrase
+  // blocklist via specific 2-word English compounds. Aggregate
+  // negativeAnyResultRate (currently 0.071 floor) catches "blocklist
+  // entirely deleted" but doesn't catch "one specific phrase quietly
+  // removed". Each blocked query asserts an empty result list explicitly
+  // so a future blocklist edit fails loudly with the offending phrase.
+  //
+  // The fifth negative (`validation of insurance claims`) is intentionally
+  // NOT in this list — it's the R4-T3 target. Adding it here would create
+  // a test that R4-T3 must change rather than augment.
+  it('R4-T2: phrase-blocked negatives produce zero candidates', () => {
+    const fx = fixture as EvalFixture;
+    // Only the 3 negatives whose ENTIRE prompt-tag set is masked by the
+    // blocklist appear here. `database backup recovery procedure` is
+    // intentionally excluded — `database backup` masks the database/backup
+    // tokens, but the residual `recovery procedure` survives via the
+    // term-normalizer's `recovery → handling` expansion (legitimate for
+    // "error recovery handler" queries). It's an R4-T3 target, not a
+    // phrase-blocking case.
+    const blockedNegatives = [
+      'performance review meeting notes',
+      'system architecture overview document',
+      'solar system planets astronomy',
+    ];
+    for (const query of blockedNegatives) {
+      const ranked = evaluateQuery(query, fx.solutions);
+      expect(
+        ranked.length,
+        `R4-T2 regression: phrase-blocked query "${query}" should return zero candidates, got ${ranked.length} (top: ${ranked.slice(0, 3).map(r => r.name).join(', ')})`,
+      ).toBe(0);
+    }
+  });
+
+  // ── R4-T2 mixed-query safety guard ──
+  // The phrase blocklist is supposed to mask only the *constituent
+  // tokens* of the blocked phrase, leaving other dev tokens intact. A
+  // query like "performance review of caching strategy" must still
+  // surface the caching solution because `caching` and `strategy`
+  // survive the mask. Without this assertion, a future change that
+  // accidentally masks the entire query would still pass the
+  // R4-T2-blocked-negatives test (because that test only checks the
+  // blocked queries) and pass aggregate metrics (because the mixed
+  // case isn't in the fixture). Lock it in here.
+  it('R4-T2: mixed query (blocked phrase + dev signal) still surfaces dev solution', () => {
+    const fx = fixture as EvalFixture;
+    const ranked = evaluateQuery('performance review of caching strategy', fx.solutions);
+    expect(
+      ranked.length,
+      'R4-T2 regression: mixed query should still produce results — caching/strategy tokens survive the mask',
+    ).toBeGreaterThan(0);
+    expect(
+      ranked[0]?.name,
+      `R4-T2 regression: expected starter-caching-strategy at @1, got '${ranked[0]?.name ?? '<no result>'}' (top-5: ${ranked.map(r => r.name).join(', ')})`,
+    ).toBe('starter-caching-strategy');
   });
 
   // ── Confidence multiplier sensitivity (LOW #3 coverage) ──

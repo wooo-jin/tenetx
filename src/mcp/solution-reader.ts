@@ -22,6 +22,7 @@ import type { SolutionDirConfig } from '../engine/solution-index.js';
 import { extractTags, expandCompoundTags, expandQueryBigrams } from '../engine/solution-format.js';
 import { parseSolutionV3 } from '../engine/solution-format.js';
 import type { SolutionStatus, SolutionType } from '../engine/solution-format.js';
+import { maskBlockedTokens } from '../engine/phrase-blocklist.js';
 import { mutateSolutionFile } from '../engine/solution-writer.js';
 import { calculateRelevance } from '../engine/solution-matcher.js';
 import { defaultNormalizer } from '../engine/term-normalizer.js';
@@ -130,7 +131,17 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
 
   const index = getOrBuildIndex(dirs);
 
-  const queryTags = extractTags(query);
+  const queryTagsRaw = extractTags(query);
+  if (queryTagsRaw.length === 0) return [];
+
+  // R4-T2: mask query tokens that belong to blocked English compounds
+  // ("performance review", "system architecture", etc.) BEFORE bigram
+  // expansion or canonical normalization runs. See `phrase-blocklist.ts`
+  // for the rationale and `solution-matcher.rankCandidates` for the
+  // mirror of this same step in the hook path. If every prompt tag
+  // gets masked, the query carries no dev-context signal and we return
+  // an empty result list.
+  const queryTags = maskBlockedTokens(query.toLowerCase(), queryTagsRaw);
   if (queryTags.length === 0) return [];
 
   // T2: normalize query ONCE outside the per-entry loop and reuse for every
@@ -156,6 +167,9 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
     // matching set from Jaccard union for normalization stability).
     const entryTagsExpanded = expandCompoundTags(entry.tags);
 
+    // R4-T2: pass `queryTags` (already masked above) so the union
+    // denominator inside calculateRelevance uses the post-mask set, in
+    // sync with the matching step.
     const result = calculateRelevance(
       queryTags,
       entry.tags,

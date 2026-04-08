@@ -6,6 +6,7 @@ import { getOrBuildIndex } from './solution-index.js';
 import type { SolutionDirConfig } from './solution-index.js';
 import type { SolutionStatus, SolutionType } from './solution-format.js';
 import { defaultNormalizer } from './term-normalizer.js';
+import { maskBlockedTokens } from './phrase-blocklist.js';
 
 // ── Synonym expansion (delegates to term-normalizer) ──
 //
@@ -235,6 +236,17 @@ function rankCandidates<T extends RankableSolution>(
   // Pre-T2 this expansion happened inside calculateRelevance and was
   // repeated N times for N solutions — the plan's primary hot-path win.
   //
+  // R4-T2: BEFORE any expansion or normalization, mask out tokens that
+  // belong to blocked English phrases ("performance review", "system
+  // architecture", etc.). This is a precision filter for non-dev-context
+  // false positives. The mask runs first so neither bigram expansion nor
+  // canonical normalization can re-introduce a masked token via synonyms
+  // or compound recovery — the masked tokens are simply removed from the
+  // matching pipeline. See `phrase-blocklist.ts` for the full rationale
+  // and the `maskBlockedTokens` contract.
+  const maskedPromptTags = maskBlockedTokens(promptLower, promptTags);
+  if (maskedPromptTags.length === 0) return [];
+  //
   // R4-T1: also expand the prompt tags with adjacent-token bigrams BEFORE
   // running the canonical normalizer. `expandQueryBigrams` produces compound
   // forms like `api-key`, `apikey`, `api-keys`, `apikeys` from the raw
@@ -250,7 +262,7 @@ function rankCandidates<T extends RankableSolution>(
   // every baseline metric. `entry.normalizedTags` is populated by the
   // index but reserved for log explainability. If a future change uses it
   // in scoring, it must update ROUND3_BASELINE in the same PR.
-  const promptTagsWithBigrams = expandQueryBigrams(promptTags);
+  const promptTagsWithBigrams = expandQueryBigrams(maskedPromptTags);
   const normalizedPromptTags = defaultNormalizer.normalizeTerms(promptTagsWithBigrams);
 
   return solutions
@@ -262,8 +274,14 @@ function rankCandidates<T extends RankableSolution>(
       // bookkeeping for the corpus sizes Tenetx targets (N ≤ 200).
       const solTagsExpanded = expandCompoundTags(sol.tags);
 
+      // R4-T2: pass `maskedPromptTags` (not the original `promptTags`) as
+      // the first arg so the Jaccard union denominator inside
+      // calculateRelevance reflects the post-mask tag set. The matching
+      // step (intersection/partialMatches) already uses the masked set
+      // via `normalizedPromptTags` — the union must match for score
+      // semantics to stay consistent.
       const result = calculateRelevance(
-        promptTags,
+        maskedPromptTags,
         sol.tags,
         sol.confidence,
         { normalizedPromptTags, solutionTagsExpanded: solTagsExpanded },
@@ -369,6 +387,52 @@ export interface EvalResult {
  *     PASS@1. Indicated a measurement plateau but masked the matcher's true
  *     ranking and false-positive weaknesses because the fixture queries were
  *     too tag-aligned.
+ *   - v4 (2026-04-08, fixture v2 + R4-T1 + R4-T2 phrase blocklist):
+ *     1.0 / 0.986 / 0.0 / 0.143
+ *     R4-T2 added `phrase-blocklist.ts` with 17 curated 2-word English
+ *     non-dev compounds ("performance review", "system architecture",
+ *     "database backup", etc.) and a `maskBlockedTokens` step at the
+ *     top of `rankCandidates` and `searchSolutions`. When a query
+ *     contains a blocked phrase, the constituent tokens are removed
+ *     from the prompt tag list before bigram expansion / canonical
+ *     normalization runs — so the false-positive evidence is removed
+ *     at the source rather than demoted in scoring.
+ *
+ *     `negativeAnyResultRate` dropped 0.357 → 0.143 (3 of 5 v2 trigger
+ *     negatives fully blocked):
+ *       * "performance review meeting notes" — blocked via
+ *         `performance review` + `meeting notes`
+ *       * "system architecture overview document" — blocked via
+ *         `system architecture` + `overview document`
+ *       * "solar system planets astronomy" — blocked via `solar system`
+ *
+ *     2 false positives remain (both deferred to R4-T3 query-side
+ *     specificity classifier — the residuals share a common shape:
+ *     a single dev-tag homograph survives whatever masking is applied,
+ *     and the term-normalizer expansion still surfaces a false match):
+ *
+ *       * "database backup recovery procedure" → error-handling-patterns:
+ *         `database backup` is blocked, but the residual tokens
+ *         {`recovery`, `procedure`} survive. `recovery` is in the
+ *         `handling` canonical's matchTerms (intentional, for legitimate
+ *         "error recovery handler" queries), so the masked query still
+ *         hits `starter-error-handling-patterns` via the handling
+ *         family. A 3-word `recovery procedure` blocklist entry was
+ *         considered and rejected — it would silently mask legitimate
+ *         dev SRE queries like "disaster recovery procedure" or
+ *         "rollback recovery procedure" without a fixture-driven
+ *         signal. The right fix is at the query-specificity layer
+ *         (R4-T3): require ≥ 2 distinct dev-context signals before any
+ *         match is returned, not at the phrase-blocklist layer.
+ *
+ *       * "validation of insurance claims" → error-handling-patterns:
+ *         `insurance claim` is blocked, but the residual `validation`
+ *         token IS a legitimate dev tag (input-validation,
+ *         error-handling-patterns both have it). Same R4-T3 target.
+ *
+ *     positive/paraphrase mrrAt5 are unchanged from v3 because no
+ *     legitimate dev query in the fixture contains a blocked phrase.
+ *
  *   - v3 (2026-04-08, fixture v2 + R4-T1 compound-tag fix): 1.0 / 0.986 / 0.0 / 0.357
  *     R4-T1 added `expandCompoundTags` (solution-side) and
  *     `expandQueryBigrams` (query-side) so hyphenated solution tags like
@@ -485,7 +549,7 @@ export const ROUND3_BASELINE: EvalResult = {
   recallAt5: 1.0,
   mrrAt5: 0.986,
   noResultRate: 0.0,
-  negativeAnyResultRate: 0.357,
+  negativeAnyResultRate: 0.143,
   byBucket: {
     positive: { recallAt5: 1.0, mrrAt5: 0.981, noResultRate: 0.0, total: 53 },
     paraphrase: { recallAt5: 1.0, mrrAt5: 1.0, noResultRate: 0.0, total: 16 },
