@@ -24,7 +24,7 @@ import { parseSolutionV3 } from '../engine/solution-format.js';
 import type { SolutionStatus, SolutionType } from '../engine/solution-format.js';
 import { maskBlockedTokens } from '../engine/phrase-blocklist.js';
 import { mutateSolutionFile } from '../engine/solution-writer.js';
-import { calculateRelevance } from '../engine/solution-matcher.js';
+import { calculateRelevance, shouldRejectByR4T3Rules } from '../engine/solution-matcher.js';
 import { defaultNormalizer } from '../engine/term-normalizer.js';
 import { logMatchDecision } from '../engine/match-eval-log.js';
 import { filterSolutionContent } from '../hooks/prompt-injection-filter.js';
@@ -181,10 +181,27 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
     };
 
     // 태그 매칭 + 이름 매칭: 솔루션 이름에 쿼리 단어가 포함되면 boost
+    // Compute name match FIRST so R4-T3 cannot silently drop a candidate
+    // with strong name-match evidence.
     const nameWords = entry.name.toLowerCase().split(/[-_]/);
     const nameMatchCount = queryTags.filter(t => nameWords.includes(t)).length;
-    if (result.matchedTags.length === 0 && nameMatchCount === 0) continue;
     const nameBoost = nameMatchCount * 0.1;
+
+    // R4-T3: orchestration-layer specificity guards (mirror of the
+    // matching block in solution-matcher.rankCandidates). Reject single-
+    // tag matches that lack a corroborating signal. Name-match hits are
+    // the MCP-path equivalent of the hook path's identifier boost and
+    // bypass the R4-T3 gate — a nameMatchCount > 0 is strong evidence.
+    let tagRelevance = result.relevance;
+    let tagMatches = result.matchedTags;
+    if (nameMatchCount === 0
+      && tagMatches.length > 0
+      && shouldRejectByR4T3Rules(queryTags, tagMatches)) {
+      tagRelevance = 0;
+      tagMatches = [];
+    }
+
+    if (tagMatches.length === 0 && nameMatchCount === 0) continue;
 
     results.push({
       name: entry.name,
@@ -193,8 +210,8 @@ export function searchSolutions(query: string, options?: SearchOptions): SearchR
       type: entry.type,
       scope: entry.scope,
       tags: entry.tags,
-      relevance: result.relevance + nameBoost,
-      matchedTags: [...result.matchedTags, ...queryTags.filter(t => nameWords.includes(t) && !result.matchedTags.includes(t))],
+      relevance: tagRelevance + nameBoost,
+      matchedTags: [...tagMatches, ...queryTags.filter(t => nameWords.includes(t) && !tagMatches.includes(t))],
     });
   }
 

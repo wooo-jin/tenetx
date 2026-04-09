@@ -20,20 +20,17 @@ describe('solution matcher bootstrap eval', () => {
   //   v2 fixture (2026-04-08): 0.45 — loose because v2 added tricky negatives
   //     and the matcher had no IDF down-weighting (baseline 0.357, floor +0.092)
   //   R4-T2 phrase blocklist (2026-04-08): 0.20 — tightened after the
-  //     blocklist dropped baseline to 0.143, floor sits at +0.057 headroom
-  //     above the residual rate. 2 surviving false positives (`database
-  //     backup recovery procedure`, `validation of insurance claims`) are
-  //     the explicit R4-T3 query-specificity-classifier targets — both
-  //     have a single dev-tag homograph that survives masking and the
-  //     term-normalizer expansion still surfaces a false match. They
-  //     cannot be addressed by phrase blocking alone without breaking
-  //     legitimate dev queries (see ROUND3_BASELINE JSDoc for the full
-  //     argument). Update this floor and the baseline together in R4-T3.
+  //     blocklist dropped baseline to 0.143, floor at +0.057 headroom
+  //   R4-T3 specificity guards (2026-04-08): 0.10 — every fixture v2
+  //     negative now produces zero candidates (baseline 0.000, floor at
+  //     +0.10 catastrophic-only safety). The two narrow rules (single-
+  //     token query + single-tag match → reject; all-expansion + single-
+  //     tag → reject) close the residual gap from R4-T2.
   it('meets absolute floor thresholds', () => {
     expect(result.recallAt5).toBeGreaterThanOrEqual(0.8);
     expect(result.mrrAt5).toBeGreaterThanOrEqual(0.6);
     expect(result.noResultRate).toBeLessThanOrEqual(0.15);
-    expect(result.negativeAnyResultRate).toBeLessThanOrEqual(0.20);
+    expect(result.negativeAnyResultRate).toBeLessThanOrEqual(0.10);
   });
 
   // ── Baseline-relative regression guard ──
@@ -182,6 +179,31 @@ describe('solution matcher bootstrap eval', () => {
         `R4-T2 regression: phrase-blocked query "${query}" should return zero candidates, got ${ranked.length} (top: ${ranked.slice(0, 3).map(r => r.name).join(', ')})`,
       ).toBe(0);
     }
+  });
+
+  // ── R4-T3: per-query regression guards for the two specificity rules ──
+  //
+  // The two rules are narrow precision filters applied at the orchestration
+  // layer (rankCandidates / searchSolutions) via shouldRejectByR4T3Rules.
+  // Aggregate negativeAnyResultRate floor (currently 0.10) catches "all
+  // rules deleted", but doesn't catch "one rule quietly removed" — each
+  // rule fixes exactly one residual, so they need individual asserts.
+  it('R4-T3 Rule A (single-token query + single-tag match): validation of insurance claims rejected', () => {
+    const fx = fixture as EvalFixture;
+    const ranked = evaluateQuery('validation of insurance claims', fx.solutions);
+    expect(
+      ranked.length,
+      `R4-T3 Rule A regression: query masks to [validation], single-tag match should be rejected. Got ${ranked.length} (top: ${ranked.slice(0, 3).map(r => r.name).join(', ')})`,
+    ).toBe(0);
+  });
+
+  it('R4-T3 Rule B (all-expansion + single-tag match): database backup recovery procedure rejected', () => {
+    const fx = fixture as EvalFixture;
+    const ranked = evaluateQuery('database backup recovery procedure', fx.solutions);
+    expect(
+      ranked.length,
+      `R4-T3 Rule B regression: query masks to [recovery, procedure], "handling" matches via expansion only (recovery → handling family), single-tag match should be rejected. Got ${ranked.length} (top: ${ranked.slice(0, 3).map(r => r.name).join(', ')})`,
+    ).toBe(0);
   });
 
   // ── R4-T2 mixed-query safety guard ──

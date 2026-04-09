@@ -170,6 +170,96 @@ export function calculateRelevance(
   };
 }
 
+// ── R4-T3: query-side specificity guards (orchestration layer) ──
+//
+// Two narrow precision rules applied AFTER `calculateRelevance` returns,
+// at the orchestration layer (`rankCandidates`, `searchSolutions`).
+// These rules fix the 2 surviving false positives from R4-T2 — the
+// "validation of insurance claims" and "database backup recovery
+// procedure" residuals — WITHOUT regressing any legitimate fixture
+// positive or paraphrase.
+//
+// Why orchestration-level (not inside calculateRelevance):
+//   `calculateRelevance` is a pure scoring function with a stable
+//   contract: given (promptTags, solutionTags, confidence), return the
+//   relevance and the matched tag set. Several internal tests
+//   (synonym-tfidf.test.ts) call it directly with single-token inputs
+//   to verify synonym expansion in isolation. Embedding precision
+//   filters in the scoring path would break those tests AND break the
+//   semantic of "scoring is a pure function". The two rules below are
+//   policy-layer decisions about which scored candidates to surface,
+//   so they belong at the caller — not at the scorer.
+//
+// Rule A — single-token query AND single-tag match → reject.
+//   Rationale: a query that's been reduced to a single dev token (after
+//   R4-T2 phrase masking) is unlikely to be a real dev question. Combined
+//   with a single-tag match, this is the "validation of insurance
+//   claims" shape: masked to `[validation]`, matched a single ambiguous
+//   tag `validation` on error-handling-patterns. No legitimate fixture
+//   positive or paraphrase has both promptTags.length === 1 AND
+//   matchedTags.length === 1.
+//
+// Rule B — all matched tags came via SYNONYM EXPANSION (none appear
+//   literally in the prompt tokens) AND match is single-tag → reject.
+//   Rationale: the "database backup recovery procedure" shape. After
+//   R4-T2 masks `database`/`backup`, the residual tokens are `[recovery,
+//   procedure]`. The matched tag is `handling` — which appears nowhere
+//   in the query. It only matches because the term-normalizer's
+//   `handling` canonical includes `recovery` as a matchTerm (legitimate
+//   for "error recovery handler" queries). The rule rejects this
+//   expansion-only single-tag match because the query carries no
+//   LITERAL signal that the matched solution is relevant. Multi-tag
+//   expansion matches are NOT rejected — those indicate the canonical
+//   family is being hit from multiple angles ("버그 재현 시스템적으로"
+//   hits debugging-systematic via both `debug` and `debugging` — two
+//   distinct matches survive).
+//
+// Literal hit: a matched tag is "literal" with respect to the query if
+// any of the following holds for some prompt token `pt`:
+//   1. `pt === tag` (exact verbatim match in the query)
+//   2. `pt` is a substring of `tag` or vice versa, with both length > 3
+//      (mirrors the partialMatches discovery rule in calculateRelevance —
+//      e.g., `code` (query) ↔ `code-review` (matched tag))
+//   3. `pt` and `tag` share a common prefix of length ≥ 4 (catches
+//      morphological variants like `caching` ↔ `cache`, `cached` ↔
+//      `cache`, `documents` ↔ `document` where neither is a substring
+//      of the other but both clearly come from the same stem)
+//
+// Rule (3) is the defensive precision fix: without it, a query like
+// "caching strategy" (which the term-normalizer expands `caching → cache`
+// via the cache canonical) would have its single-tag `cache` match
+// rejected by Rule B, even though `caching` is morphologically the same
+// concept. The 4-char threshold is the same as the partialMatches rule
+// to keep the literal-hit semantics consistent across the matcher.
+//
+// Returns true if the candidate should be rejected (caller filters
+// it out), false if the candidate passes both rules.
+export function shouldRejectByR4T3Rules(
+  promptTags: readonly string[],
+  matchedTags: readonly string[],
+): boolean {
+  // Rule A
+  if (promptTags.length === 1 && matchedTags.length === 1) {
+    return true;
+  }
+  // Rule B
+  if (matchedTags.length === 1) {
+    const tag = matchedTags[0];
+    const literalHit = promptTags.includes(tag)
+      || promptTags.some(pt => {
+        if (pt.length <= 3 || tag.length <= 3) return false;
+        if (pt.includes(tag) || tag.includes(pt)) return true;
+        // Morphological stem: shared prefix of length ≥ 4
+        let i = 0;
+        const limit = Math.min(pt.length, tag.length);
+        while (i < limit && pt[i] === tag[i]) i++;
+        return i >= 4;
+      });
+    if (!literalHit) return true;
+  }
+  return false;
+}
+
 /**
  * Match solutions relevant to the given prompt.
  * knowledge-comes-to-you principle: knowledge should come to you.
@@ -287,6 +377,9 @@ function rankCandidates<T extends RankableSolution>(
         { normalizedPromptTags, solutionTagsExpanded: solTagsExpanded },
       ) as { relevance: number; matchedTags: string[] };
 
+      // Compute identifier boost FIRST — independent of tag scoring so
+      // R4-T3's tag-evidence precision rules below cannot silently drop
+      // a candidate that has strong identifier-level evidence.
       let identifierBoost = 0;
       const matchedIdentifiers: string[] = [];
       for (const id of sol.identifiers ?? []) {
@@ -296,10 +389,32 @@ function rankCandidates<T extends RankableSolution>(
         }
       }
 
+      // R4-T3: orchestration-layer specificity guards. Reject single-tag
+      // matches that lack a corroborating signal (single-token query OR
+      // all-via-expansion match). See `shouldRejectByR4T3Rules` for the
+      // full rule rationale.
+      //
+      // Identifier evidence is the escape hatch: if the query literally
+      // mentioned one of the solution's identifiers (e.g. a function or
+      // file name), the R4-T3 tag-precision rules are bypassed because
+      // the identifier hit is itself a strong-specificity signal. Only
+      // the tag evidence is zeroed out when R4-T3 fires; the identifier
+      // boost and matched identifiers are preserved, so a candidate with
+      // a single weak tag match but a valid identifier still survives
+      // the `matchedTags.length + matchedIdentifiers.length >= 1` filter.
+      let tagRelevance = result.relevance;
+      let tagMatches = result.matchedTags;
+      if (matchedIdentifiers.length === 0
+        && tagMatches.length > 0
+        && shouldRejectByR4T3Rules(maskedPromptTags, tagMatches)) {
+        tagRelevance = 0;
+        tagMatches = [];
+      }
+
       return {
         solution: sol,
-        relevance: result.relevance + identifierBoost,
-        matchedTags: result.matchedTags,
+        relevance: tagRelevance + identifierBoost,
+        matchedTags: tagMatches,
         matchedIdentifiers,
       };
     })
@@ -381,72 +496,12 @@ export interface EvalResult {
  * a relative regression guard in `tests/solution-matcher-eval.test.ts` —
  * downstream PRs must not regress any field by more than `BASELINE_TOLERANCE`.
  *
- * History:
+ * History (chronological ascending — v1 at top, latest at bottom):
  *   - v1 (2026-04-08, fixture v1, 41+10+10 queries): 1.0 / 1.0 / 0.0 / 0.1
  *     Recorded against the original 61-query fixture, all positive queries
  *     PASS@1. Indicated a measurement plateau but masked the matcher's true
  *     ranking and false-positive weaknesses because the fixture queries were
  *     too tag-aligned.
- *   - v4 (2026-04-08, fixture v2 + R4-T1 + R4-T2 phrase blocklist):
- *     1.0 / 0.986 / 0.0 / 0.143
- *     R4-T2 added `phrase-blocklist.ts` with 17 curated 2-word English
- *     non-dev compounds ("performance review", "system architecture",
- *     "database backup", etc.) and a `maskBlockedTokens` step at the
- *     top of `rankCandidates` and `searchSolutions`. When a query
- *     contains a blocked phrase, the constituent tokens are removed
- *     from the prompt tag list before bigram expansion / canonical
- *     normalization runs — so the false-positive evidence is removed
- *     at the source rather than demoted in scoring.
- *
- *     `negativeAnyResultRate` dropped 0.357 → 0.143 (3 of 5 v2 trigger
- *     negatives fully blocked):
- *       * "performance review meeting notes" — blocked via
- *         `performance review` + `meeting notes`
- *       * "system architecture overview document" — blocked via
- *         `system architecture` + `overview document`
- *       * "solar system planets astronomy" — blocked via `solar system`
- *
- *     2 false positives remain (both deferred to R4-T3 query-side
- *     specificity classifier — the residuals share a common shape:
- *     a single dev-tag homograph survives whatever masking is applied,
- *     and the term-normalizer expansion still surfaces a false match):
- *
- *       * "database backup recovery procedure" → error-handling-patterns:
- *         `database backup` is blocked, but the residual tokens
- *         {`recovery`, `procedure`} survive. `recovery` is in the
- *         `handling` canonical's matchTerms (intentional, for legitimate
- *         "error recovery handler" queries), so the masked query still
- *         hits `starter-error-handling-patterns` via the handling
- *         family. A 3-word `recovery procedure` blocklist entry was
- *         considered and rejected — it would silently mask legitimate
- *         dev SRE queries like "disaster recovery procedure" or
- *         "rollback recovery procedure" without a fixture-driven
- *         signal. The right fix is at the query-specificity layer
- *         (R4-T3): require ≥ 2 distinct dev-context signals before any
- *         match is returned, not at the phrase-blocklist layer.
- *
- *       * "validation of insurance claims" → error-handling-patterns:
- *         `insurance claim` is blocked, but the residual `validation`
- *         token IS a legitimate dev tag (input-validation,
- *         error-handling-patterns both have it). Same R4-T3 target.
- *
- *     positive/paraphrase mrrAt5 are unchanged from v3 because no
- *     legitimate dev query in the fixture contains a blocked phrase.
- *
- *   - v3 (2026-04-08, fixture v2 + R4-T1 compound-tag fix): 1.0 / 0.986 / 0.0 / 0.357
- *     R4-T1 added `expandCompoundTags` (solution-side) and
- *     `expandQueryBigrams` (query-side) so hyphenated solution tags like
- *     `api-key`, `code-review`, `red-green-refactor` participate in direct
- *     intersection rather than relying on the half-weight partialMatches
- *     fallback. positive `mrrAt5` improved 0.959 → 0.981 (+0.022). 2 of
- *     the 4 v2 hard positive cases were resolved (`managing api keys and
- *     credentials safely` and `red green refactor cycle for new features`
- *     now rank @1). The remaining 2 (`avoiding hardcoded credentials …`
- *     and `writing unit tests for a function with side effects`) require
- *     R4-T2 (phrase matcher) or R4-T3 (specificity classifier) — they're
- *     about query-side English semantics, not compound-tag tokenization.
- *     `negativeAnyResultRate` is unchanged at 0.357 because R4-T1 is a
- *     ranking-quality fix, not a false-positive filter.
  *
  *   - v2 (2026-04-08, fixture v2, 53+16+14 queries): 1.0 / 0.969 / 0.0 / 0.357
  *     Expanded with 12 hard positive (multi-canonical / compound-tag tug-of-
@@ -520,6 +575,110 @@ export interface EvalResult {
  *     phrase matcher, and corpus growth — all deferred to Round 4 per the
  *     ADR.
  *
+ *   - v3 (2026-04-08, fixture v2 + R4-T1 compound-tag fix): 1.0 / 0.986 / 0.0 / 0.357
+ *     R4-T1 added `expandCompoundTags` (solution-side) and
+ *     `expandQueryBigrams` (query-side) so hyphenated solution tags like
+ *     `api-key`, `code-review`, `red-green-refactor` participate in direct
+ *     intersection rather than relying on the half-weight partialMatches
+ *     fallback. positive `mrrAt5` improved 0.959 → 0.981 (+0.022). 2 of
+ *     the 4 v2 hard positive cases were resolved (`managing api keys and
+ *     credentials safely` and `red green refactor cycle for new features`
+ *     now rank @1). The remaining 2 (`avoiding hardcoded credentials …`
+ *     and `writing unit tests for a function with side effects`) require
+ *     R4-T2 (phrase matcher) or R4-T3 (specificity classifier) — they're
+ *     about query-side English semantics, not compound-tag tokenization.
+ *     `negativeAnyResultRate` is unchanged at 0.357 because R4-T1 is a
+ *     ranking-quality fix, not a false-positive filter.
+ *
+ *   - v4 (2026-04-08, fixture v2 + R4-T1 + R4-T2 phrase blocklist):
+ *     1.0 / 0.986 / 0.0 / 0.143
+ *     R4-T2 added `phrase-blocklist.ts` with 17 curated 2-word English
+ *     non-dev compounds ("performance review", "system architecture",
+ *     "database backup", etc.) and a `maskBlockedTokens` step at the
+ *     top of `rankCandidates` and `searchSolutions`. When a query
+ *     contains a blocked phrase, the constituent tokens are removed
+ *     from the prompt tag list before bigram expansion / canonical
+ *     normalization runs — so the false-positive evidence is removed
+ *     at the source rather than demoted in scoring.
+ *
+ *     `negativeAnyResultRate` dropped 0.357 → 0.143 (3 of 5 v2 trigger
+ *     negatives fully blocked):
+ *       * "performance review meeting notes" — blocked via
+ *         `performance review` + `meeting notes`
+ *       * "system architecture overview document" — blocked via
+ *         `system architecture` + `overview document`
+ *       * "solar system planets astronomy" — blocked via `solar system`
+ *
+ *     2 false positives remain (both deferred to R4-T3 query-side
+ *     specificity classifier — the residuals share a common shape:
+ *     a single dev-tag homograph survives whatever masking is applied,
+ *     and the term-normalizer expansion still surfaces a false match):
+ *
+ *       * "database backup recovery procedure" → error-handling-patterns:
+ *         `database backup` is blocked, but the residual tokens
+ *         {`recovery`, `procedure`} survive. `recovery` is in the
+ *         `handling` canonical's matchTerms (intentional, for legitimate
+ *         "error recovery handler" queries), so the masked query still
+ *         hits `starter-error-handling-patterns` via the handling
+ *         family. A 3-word `recovery procedure` blocklist entry was
+ *         considered and rejected — it would silently mask legitimate
+ *         dev SRE queries like "disaster recovery procedure" or
+ *         "rollback recovery procedure" without a fixture-driven
+ *         signal. The right fix is at the query-specificity layer
+ *         (R4-T3): require ≥ 2 distinct dev-context signals before any
+ *         match is returned, not at the phrase-blocklist layer.
+ *
+ *       * "validation of insurance claims" → error-handling-patterns:
+ *         `insurance claim` is blocked, but the residual `validation`
+ *         token IS a legitimate dev tag (input-validation,
+ *         error-handling-patterns both have it). Same R4-T3 target.
+ *
+ *     positive/paraphrase mrrAt5 are unchanged from v3 because no
+ *     legitimate dev query in the fixture contains a blocked phrase.
+ *
+ *   - v5 (2026-04-08, fixture v2 + R4-T1 + R4-T2 + R4-T3 specificity guards):
+ *     1.0 / 0.986 / 0.0 / 0.000
+ *     R4-T3 added two narrow precision rules at the ORCHESTRATION LAYER —
+ *     NOT inside `calculateRelevance` (which remains a pure scoring
+ *     function for test symmetry). The rules are implemented as the
+ *     exported helper `shouldRejectByR4T3Rules(promptTags, matchedTags)`
+ *     and called from both `rankCandidates` (hook path) and
+ *     `searchSolutions` (MCP path) right after the per-solution
+ *     `calculateRelevance` call:
+ *       (Rule A) single-token query AND single-tag match → reject;
+ *       (Rule B) single-tag match with no literal hit in the prompt
+ *                (verbatim match, or substring partial length > 3, or
+ *                shared prefix ≥ 4 for morphological stems) → reject.
+ *     Both rules are scoped narrowly enough to fix exactly the 2 R4-T2
+ *     residuals without recall regression — every fixture positive and
+ *     paraphrase still ranks identically:
+ *       * "validation of insurance claims" → masked to `[validation]`
+ *         (length 1) with single-tag match `validation` → Rule A reject.
+ *       * "database backup recovery procedure" → masked to
+ *         `[recovery, procedure]` with single-tag match `handling`
+ *         (zero literal hit; `handling` is reached via the `recovery`
+ *         canonical-family expansion in term-normalizer) → Rule B reject.
+ *     `negativeAnyResultRate` is now 0.000 — every fixture v2 negative
+ *     produces zero candidates. positive/paraphrase metrics unchanged
+ *     from v4 because no fixture positive matches the (single-token AND
+ *     single-tag) or (all-expansion AND single-tag) shape.
+ *
+ *     Escape hatch: identifier-boost evidence (hook path) or name-match
+ *     evidence (MCP path) BYPASSES the R4-T3 rules. A candidate with
+ *     even a single weak tag match plus an identifier hit still
+ *     surfaces — the precision rules only fire when the candidate's
+ *     entire evidence pool is a single ambiguous tag.
+ *
+ *     Defensive precision note: Rule B's "shared prefix ≥ 4"
+ *     morphological check is currently NOT fixture-driven (no fixture
+ *     query masks down to the `caching/cache`-style morphological gap).
+ *     It exists as a pre-emptive fix against silently rejecting
+ *     legitimate future queries where the term-normalizer synonym
+ *     expansion is the only bridge between the query token and the
+ *     solution tag. If a production query surfaces a case the prefix
+ *     check misses, extend it (e.g. by lowering the threshold or
+ *     adding a Levenshtein-1 check) rather than removing it.
+ *
  * Known matcher quirks (separate from the T4 BM25 investigation):
  *   - `term-normalizer.ts` `error` canonical contains `debug` as a matchTerm
  *     (intentional for `bug → error` recall), which causes any prompt
@@ -549,7 +708,7 @@ export const ROUND3_BASELINE: EvalResult = {
   recallAt5: 1.0,
   mrrAt5: 0.986,
   noResultRate: 0.0,
-  negativeAnyResultRate: 0.143,
+  negativeAnyResultRate: 0.0,
   byBucket: {
     positive: { recallAt5: 1.0, mrrAt5: 0.981, noResultRate: 0.0, total: 53 },
     paraphrase: { recallAt5: 1.0, mrrAt5: 1.0, noResultRate: 0.0, total: 16 },
