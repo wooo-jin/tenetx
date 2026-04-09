@@ -18,7 +18,7 @@ import { readStdinJSON } from './shared/read-stdin.js';
 import { atomicWriteJSON } from './shared/atomic-write.js';
 import { loadHookConfig, isHookEnabled } from './hook-config.js';
 import { approve, approveWithContext, approveWithWarning, failOpen } from './shared/hook-response.js';
-import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
+import { HANDOFFS_DIR, STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('context-guard');
 const CONTEXT_STATE_PATH = path.join(STATE_DIR, 'context-guard.json');
@@ -141,14 +141,13 @@ export async function main(): Promise<void> {
 }
 
 function saveHandoff(sessionId: string, reason: string, detail: string): void {
-  const handoffDir = path.join(COMPOUND_HOME, 'handoffs');
-  fs.mkdirSync(handoffDir, { recursive: true });
+  fs.mkdirSync(HANDOFFS_DIR, { recursive: true });
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const handoffPath = path.join(handoffDir, `${timestamp}-${reason}.md`);
+  const handoffPath = path.join(HANDOFFS_DIR, `${timestamp}-${reason}.md`);
 
   // 활성 모드 상태 수집
-  const stateDir = path.join(COMPOUND_HOME, 'state');
+  const stateDir = STATE_DIR;
   const activeStates: string[] = [];
   if (fs.existsSync(stateDir)) {
     for (const f of fs.readdirSync(stateDir)) {

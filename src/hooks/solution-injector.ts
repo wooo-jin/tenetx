@@ -272,7 +272,7 @@ async function main(): Promise<void> {
   }
 
   // 어댑티브 버짓: 다른 플러그인 감지 시 주입��� ���동 축소
-  const cwd = process.env.COMPOUND_CWD ?? process.cwd();
+  const cwd = process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd();
   const budget = calculateBudget(cwd);
 
   const cache = loadSessionCache(sessionId);

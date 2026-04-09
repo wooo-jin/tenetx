@@ -341,10 +341,10 @@ async function main(): Promise<void> {
   }
 
   // Cache conflict map once for the duration of this hook execution
-  const skillConflicts = getSkillConflicts(input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd());
+  const skillConflicts = getSkillConflicts(input.cwd ?? process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd());
 
   if (match.type === 'cancel') {
-    const cancelCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
+    const cancelCwd = input.cwd ?? process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd();
 
     if (match.keyword === 'cancel-ralph') {
       // ralph만 취소
@@ -393,7 +393,7 @@ async function main(): Promise<void> {
     // Compound: mode usage 기록
     // v1: recordModeUsage 제거
     const skillContent = loadSkillContent(match.skill);
-    const effectiveCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
+    const effectiveCwd = input.cwd ?? process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd();
 
     // 상태 저장
     saveState(`${match.skill}-state`, {

@@ -29,6 +29,13 @@ function execClaudeRetry(args: string[], opts: ExecFileSyncOptions): string {
       const msg = e instanceof Error ? e.message : String(e);
       if (attempt === 0 && TRANSIENT.test(msg)) {
         process.stderr.write(`[tenetx-auto-compound] transient error, retrying in 3s...\n`);
+        // Blocking synchronous sleep: Atomics.wait on a zero-initialized
+        // SharedArrayBuffer is the Node.js idiom for blocking the event
+        // loop without spawning child processes. This file runs as a
+        // detached subprocess (`auto-compound-runner`) so blocking is
+        // both safe and intentional. The 3000ms matches the backoff
+        // before retry. Alternative setTimeout would require making this
+        // function async, which would ripple through the entire runner.
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
         continue;
       }

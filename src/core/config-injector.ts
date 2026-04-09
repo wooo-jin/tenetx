@@ -457,12 +457,23 @@ export async function registerTmuxBindings(): Promise<void> {
   }
 }
 
-/** 환경변수로 하네스 컨텍스트 전달 (v1) */
+/**
+ * B10 (2026-04-09): environment variables for the harness context.
+ *
+ * The canonical namespace is now `TENETX_*`. The legacy `COMPOUND_*`
+ * names are set alongside for one transition period (third-party hooks
+ * or user scripts may still read them). When all consumers have been
+ * migrated and a major version ships, remove the `COMPOUND_*` lines.
+ */
 export function buildEnv(cwd: string, v1SessionId?: string): Record<string, string> {
   const env: Record<string, string> = {
+    // New canonical names
+    TENETX_HARNESS: '1',
+    TENETX_CWD: cwd,
+    TENETX_V1: '1',
+    // Legacy compat (remove in next major)
     COMPOUND_HARNESS: '1',
     COMPOUND_CWD: cwd,
-    TENETX_V1: '1',
   };
   if (v1SessionId) {
     env.TENETX_SESSION_ID = v1SessionId;

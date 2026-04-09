@@ -42,7 +42,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const effectiveCwd = input.cwd ?? process.env.COMPOUND_CWD ?? process.cwd();
+  const effectiveCwd = input.cwd ?? process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd();
   const notepadContent = readNotepad(effectiveCwd);
 
   if (!notepadContent.trim()) {

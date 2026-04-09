@@ -9,7 +9,20 @@ export const CLAUDE_DIR = path.join(HOME, '.claude');
 /** ~/.claude/settings.json — Claude Code 설정 파일 */
 export const SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
 
-/** ~/.compound/ — 레거시 하네스 홈 (v1 이전) */
+/**
+ * ~/.compound/ — LEGACY harness home (pre-v5).
+ *
+ * @deprecated A5 (2026-04-09): this path must NEVER be used for WRITES.
+ * It exists solely as the source path for `migrateCompoundToTenetx()`.
+ * All new writes must target `TENETX_HOME`-based paths. Consumers that
+ * read from this path should prefer the TENETX_HOME equivalent first
+ * and fall back here only during migration.
+ *
+ * Pre-A5, `harness.ts:ensureDirectories` and several hooks actively
+ * created directories under this path, causing a dual-reality where
+ * state could diverge between `~/.compound/` and `~/.tenetx/` when the
+ * migration symlink was broken (sudo install, SIP, CI, manual delete).
+ */
 export const COMPOUND_HOME = path.join(HOME, '.compound');
 
 /** ~/.tenetx/ — v1 하네스 홈 디렉토리 */
@@ -30,8 +43,14 @@ export const ME_BEHAVIOR = path.join(ME_DIR, 'behavior');
 /** ~/.tenetx/me/rules/ — 개인 규칙 */
 export const ME_RULES = path.join(ME_DIR, 'rules');
 
+/** ~/.tenetx/me/skills/ — 개인 스킬 (promoted solutions) */
+export const ME_SKILLS = path.join(ME_DIR, 'skills');
+
 /** ~/.tenetx/packs/ — 팀 팩 저장소 */
 export const PACKS_DIR = path.join(TENETX_HOME, 'packs');
+
+/** ~/.tenetx/handoffs/ — 세션 간 핸드오프 데이터 */
+export const HANDOFFS_DIR = path.join(TENETX_HOME, 'handoffs');
 
 /** ~/.tenetx/state/ — 상태 파일 디렉토리 */
 export const STATE_DIR = path.join(TENETX_HOME, 'state');

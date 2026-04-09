@@ -61,7 +61,7 @@ export function clearNotepad(cwd: string): void {
  */
 export async function handleNotepad(args: string[]): Promise<void> {
   const subcommand = args[0] ?? 'show';
-  const cwd = process.env.COMPOUND_CWD ?? process.cwd();
+  const cwd = process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd();
 
   if (subcommand === 'show') {
     const content = readNotepad(cwd);

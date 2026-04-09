@@ -238,7 +238,7 @@ export function runLifecycleCheck(sessionId: string = 'system'): LifecycleResult
 
         // 5. Identifier staleness — code references no longer exist
         if (fm.identifiers.length > 0) {
-          const effectiveCwd = process.env.COMPOUND_CWD ?? process.cwd();
+          const effectiveCwd = process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd();
           if (checkIdentifierStaleness(fm, effectiveCwd)) {
             const newConf = Math.max(0, fm.confidence - 0.20);
             if (updateSolutionFile(filePath, { confidence: newConf })) {

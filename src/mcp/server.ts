@@ -10,8 +10,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerTools } from './tools.js';
 
-if (!process.env.COMPOUND_CWD) {
-  process.env.COMPOUND_CWD = process.cwd();
+if (!process.env.TENETX_CWD && !process.env.COMPOUND_CWD) {
+  process.env.TENETX_CWD = process.cwd();
+  process.env.COMPOUND_CWD = process.cwd(); // legacy compat
 }
 
 const INSTRUCTIONS = [

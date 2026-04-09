@@ -50,7 +50,7 @@ export function startSessionLog(context: HarnessContext): void {
     sessionStartMs = Date.now();
 
     // 모드 판별: 환경변수 또는 argv 기반
-    const mode = process.env.COMPOUND_MODE ?? 'default';
+    const mode = process.env.TENETX_MODE ?? process.env.COMPOUND_MODE ?? 'default';
 
     const log: SessionLog = {
       sessionId,

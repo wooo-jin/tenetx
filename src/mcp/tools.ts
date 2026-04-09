@@ -26,7 +26,7 @@ import { processCorrection } from '../forge/evidence-processor.js';
 import type { CorrectionKind } from '../store/types.js';
 
 function getCwd(): string | undefined {
-  return process.env.COMPOUND_CWD || undefined;
+  return process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? undefined;
 }
 
 export function registerTools(server: McpServer): void {

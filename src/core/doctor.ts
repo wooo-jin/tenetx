@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { COMPOUND_HOME, LAB_DIR, ME_BEHAVIOR, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from './paths.js';
+import { TENETX_HOME, LAB_DIR, ME_BEHAVIOR, ME_DIR, ME_PHILOSOPHY, ME_SOLUTIONS, ME_RULES, PACKS_DIR, SESSIONS_DIR } from './paths.js';
 
 /** ~/.claude/projects/ — Claude Code 세션 저장 경로 */
 const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
@@ -77,7 +77,7 @@ export async function runDoctor(): Promise<void> {
   console.log();
 
   console.log('  [Directories]');
-  check('~/.tenetx/', exists(COMPOUND_HOME));
+  check('~/.tenetx/', exists(TENETX_HOME));
   check('~/.tenetx/me/', exists(ME_DIR));
   check('~/.tenetx/me/solutions/', exists(ME_SOLUTIONS));
   check('~/.tenetx/me/behavior/', exists(ME_BEHAVIOR));
@@ -92,7 +92,7 @@ export async function runDoctor(): Promise<void> {
 
   console.log('  [Environment]');
   check('Inside tmux session', !!process.env.TMUX);
-  check('COMPOUND_HARNESS env var', process.env.COMPOUND_HARNESS === '1');
+  check('TENETX_HARNESS env var', (process.env.TENETX_HARNESS ?? process.env.COMPOUND_HARNESS) === '1');
   console.log();
 
   // 솔루션/규칙 수

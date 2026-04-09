@@ -18,7 +18,7 @@ import { atomicWriteJSON } from './shared/atomic-write.js';
 import { sanitizeId } from './shared/sanitize-id.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, approveWithContext, failOpen } from './shared/hook-response.js';
-import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
+import { HANDOFFS_DIR, STATE_DIR } from '../core/paths.js';
 
 export interface Checkpoint {
   sessionId: string;
@@ -129,7 +129,7 @@ interface SessionStartPayload {
 }
 
 export function resolveSessionStartContext(rawInput: string): { sessionId: string; cwd: string } {
-  const fallbackCwd = process.env.COMPOUND_CWD ?? process.cwd();
+  const fallbackCwd = process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd();
 
   try {
     const parsed = JSON.parse(rawInput) as SessionStartPayload;
@@ -296,7 +296,7 @@ async function main(): Promise<void> {
   }
 
   // 핸드오프 파일 확인
-  const handoffDir = path.join(COMPOUND_HOME, 'handoffs');
+  const handoffDir = HANDOFFS_DIR;
   if (fs.existsSync(handoffDir)) {
     try {
       const handoffs = fs.readdirSync(handoffDir)

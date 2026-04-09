@@ -14,11 +14,9 @@ import { createLogger } from '../core/logger.js';
 import { readStdinJSON } from './shared/read-stdin.js';
 import { isHookEnabled } from './hook-config.js';
 import { approve, approveWithWarning, failOpen } from './shared/hook-response.js';
-import { COMPOUND_HOME, STATE_DIR } from '../core/paths.js';
+import { HANDOFFS_DIR, ME_BEHAVIOR, STATE_DIR } from '../core/paths.js';
 
 const log = createLogger('pre-compact');
-
-const HANDOFFS_DIR = path.join(COMPOUND_HOME, 'handoffs');
 
 /** 활성 모드 상태 수집 */
 function collectActiveStates(): Array<{ mode: string; data: Record<string, unknown> }> {
@@ -109,7 +107,7 @@ async function main(): Promise<void> {
   // 기존 behavioral 패턴 목록 로드 (중복 방지)
   let existingSolutions: string[] = [];
   try {
-    const solDir = path.join(COMPOUND_HOME, 'me', 'behavior');
+    const solDir = ME_BEHAVIOR;
     if (fs.existsSync(solDir)) {
       existingSolutions = fs.readdirSync(solDir).filter(f => f.endsWith('.md')).map(f => f.replace('.md', ''));
     }

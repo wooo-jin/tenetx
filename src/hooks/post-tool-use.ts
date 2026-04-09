@@ -126,7 +126,7 @@ async function main(): Promise<void> {
         lastToolCall: toolName,
         toolCallCount: modState.toolCallCount,
         timestamp: new Date().toISOString(),
-        cwd: data.cwd ?? process.env.COMPOUND_CWD ?? process.cwd(),
+        cwd: data.cwd ?? process.env.TENETX_CWD ?? process.env.COMPOUND_CWD ?? process.cwd(),
       });
     } catch (e) { log.debug('체크포인트 저장 실패', e); }
   }

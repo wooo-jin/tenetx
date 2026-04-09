@@ -36,14 +36,14 @@ function parseLogLevel(raw: string | undefined): LogLevel {
     case 'info':  return LogLevel.info;
     default:
       // COMPOUND_DEBUG=1이 설정되어 있고 TENETX_LOG_LEVEL이 명시되지 않으면 debug 레벨로 동작
-      if (process.env.COMPOUND_DEBUG === '1') return LogLevel.debug;
+      if (process.env.TENETX_DEBUG === '1' || process.env.COMPOUND_DEBUG === '1') return LogLevel.debug;
       return LogLevel.info;
   }
 }
 
 function resolveEnabledNamespaces(): Set<string> | '*' | null {
   // 레거시 COMPOUND_DEBUG=1 → 전체 활성화
-  if (process.env.COMPOUND_DEBUG === '1') return '*';
+  if (process.env.TENETX_DEBUG === '1' || process.env.COMPOUND_DEBUG === '1') return '*';
 
   const raw = process.env.TENETX_DEBUG;
   if (!raw) return null;
@@ -106,7 +106,7 @@ export function createLogger(namespace: string): Logger {
 export function debugLog(context: string, msg: string, error?: unknown): void {
   // 레거시 호환: COMPOUND_DEBUG=1이면 레벨 체크 없이 무조건 출력
   // TENETX_LOG_LEVEL이 명시적으로 설정된 경우에만 레벨 우선순위를 따름
-  const isLegacyForced = process.env.COMPOUND_DEBUG === '1';
+  const isLegacyForced = process.env.TENETX_DEBUG === '1' || process.env.COMPOUND_DEBUG === '1';
 
   if (!isLegacyForced) {
     const configuredLevel = parseLogLevel(process.env.TENETX_LOG_LEVEL);

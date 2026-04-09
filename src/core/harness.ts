@@ -19,7 +19,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildEnv, generateClaudeRuleFiles, registerTmuxBindings } from './config-injector.js';
 import { createLogger } from './logger.js';
-import { COMPOUND_HOME, ME_BEHAVIOR, ME_DIR, ME_RULES, ME_SOLUTIONS, SESSIONS_DIR, STATE_DIR, TENETX_HOME } from './paths.js';
+import { HANDOFFS_DIR, ME_BEHAVIOR, ME_DIR, ME_RULES, ME_SKILLS, ME_SOLUTIONS, SESSIONS_DIR, STATE_DIR, TENETX_HOME } from './paths.js';
 import { RULE_FILE_CAPS } from '../hooks/shared/injection-caps.js';
 import {
   acquireLock,
@@ -53,28 +53,31 @@ export function isFirstRun(): boolean {
   return !fs.existsSync(TENETX_HOME);
 }
 
-/** 레거시 + v1 디렉토리 구조 초기화 */
+/**
+ * A5: all directories under TENETX_HOME only. Pre-A5 this function
+ * also created directories under `~/.compound/` (COMPOUND_HOME), which
+ * caused a dual-reality when the migration symlink was broken. Now the
+ * migration function handles reading from the old location if needed,
+ * but ALL writes go under `~/.tenetx/`.
+ */
 function ensureDirectories(): void {
-  // 레거시 compound 디렉토리 (기존 훅/MCP가 아직 참조)
-  const legacyDirs = [
-    COMPOUND_HOME,
+  const dirs = [
+    TENETX_HOME,
     ME_DIR,
     ME_SOLUTIONS,
     ME_BEHAVIOR,
     ME_RULES,
+    ME_SKILLS,
     SESSIONS_DIR,
     STATE_DIR,
-    path.join(COMPOUND_HOME, 'handoffs'),
-    path.join(COMPOUND_HOME, 'plans'),
-    path.join(COMPOUND_HOME, 'specs'),
-    path.join(COMPOUND_HOME, 'skills'),
-    path.join(COMPOUND_HOME, 'artifacts', 'ask'),
-    path.join(ME_DIR, 'skills'),
+    HANDOFFS_DIR,
+    path.join(TENETX_HOME, 'plans'),
+    path.join(TENETX_HOME, 'specs'),
+    path.join(TENETX_HOME, 'artifacts', 'ask'),
   ];
-  for (const dir of legacyDirs) {
+  for (const dir of dirs) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  // v1 디렉토리
   ensureV1Directories();
 }
 
@@ -230,7 +233,7 @@ function contentHash(content: string): string {
   return crypto.createHash('sha256').update(content).digest('hex').slice(0, 12);
 }
 
-const AGENT_HASHES_PATH = path.join(COMPOUND_HOME, 'state', 'agent-hashes.json');
+const AGENT_HASHES_PATH = path.join(STATE_DIR, 'agent-hashes.json');
 
 function loadAgentHashes(): Record<string, string> {
   try {
@@ -637,7 +640,7 @@ export async function prepareHarness(cwd: string): Promise<V1HarnessContext> {
 
     // 12. Compound staleness guard
     try {
-      const stalenessDays = Number(process.env.COMPOUND_STALENESS_DAYS) || 3;
+      const stalenessDays = Number(process.env.TENETX_STALENESS_DAYS ?? process.env.COMPOUND_STALENESS_DAYS) || 3;
       const stalenessMs = stalenessDays * 24 * 60 * 60 * 1000;
       const lastExtractionPath = path.join(STATE_DIR, 'last-extraction.json');
       if (fs.existsSync(lastExtractionPath)) {
