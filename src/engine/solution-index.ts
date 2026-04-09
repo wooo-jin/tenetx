@@ -5,6 +5,9 @@ import { parseFrontmatterOnly, isV1Format, migrateV1toV3 } from './solution-form
 import { defaultNormalizer } from './term-normalizer.js';
 import { withFileLockSync } from '../hooks/shared/file-lock.js';
 import { atomicWriteText } from '../hooks/shared/atomic-write.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('solution-index');
 
 export interface SolutionDirConfig {
   dir: string;
@@ -111,12 +114,28 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
 
     const fileEntries: { entry: SolutionIndexEntry; mtime: number }[] = [];
 
+    // C2: diagnostic counters for solutions dropped during index build.
+    // Pre-C2 these were silent `continue` statements — users had no way
+    // to know a file existed on disk but was missing from the index
+    // (observed cause: auto-compound writing frontmatter with the wrong
+    // evidence schema, which made the whole file disappear from searches
+    // without any user-visible feedback). Logging them at debug level
+    // makes `tenetx doctor` / log inspection surface the gap while
+    // keeping the normal output quiet.
+    let droppedMalformed = 0;
+    let droppedRetired = 0;
+    let droppedIoError = 0;
+    let droppedSymlink = 0;
+
     for (const file of files) {
       try {
         const filePath = path.join(dir, file);
 
         // Security: symlink을 통한 임의 파일 읽기 방지 (모든 형식 공통)
-        if (fs.lstatSync(filePath).isSymbolicLink()) continue;
+        if (fs.lstatSync(filePath).isSymbolicLink()) {
+          droppedSymlink++;
+          continue;
+        }
 
         let content = fs.readFileSync(filePath, 'utf-8');
         const fileMtime = fs.statSync(filePath).mtimeMs;
@@ -138,8 +157,15 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
         }
 
         const fm = parseFrontmatterOnly(content);
-        if (!fm) continue;
-        if (fm.status === 'retired') continue;
+        if (!fm) {
+          droppedMalformed++;
+          log.debug(`dropped (malformed frontmatter): ${filePath}`);
+          continue;
+        }
+        if (fm.status === 'retired') {
+          droppedRetired++;
+          continue;
+        }
 
         fileEntries.push({
           entry: {
@@ -158,9 +184,41 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
           },
           mtime: fileMtime,
         });
-      } catch {
-        // skip broken files
+      } catch (e) {
+        droppedIoError++;
+        log.debug(`dropped (i/o or parse error) ${file}: ${e instanceof Error ? e.message : String(e)}`);
       }
+    }
+
+    // Summary log for silently dropped files.
+    //
+    // Design: the index is rebuilt on every hook invocation when the
+    // directory mtime is stale, so a warn-on-every-drop policy would
+    // spam stderr on every matching prompt. Instead:
+    //   - debug-level always: the per-file log calls above already
+    //     capture each drop path for log inspection / `tenetx doctor`
+    //   - warn-level only when the drop rate is materially high
+    //     (>10% of files OR >10 files in absolute terms), which
+    //     indicates a structural problem — e.g. auto-compound writing
+    //     malformed frontmatter in bulk, not a single one-off file
+    //   - retired drops are always debug (expected filter semantics)
+    //
+    // Pre-H-1 (first pass of C2): every non-zero drop warn'd and
+    // leaked into test stderr. H-1 downgrades to debug for small counts.
+    const totalBad = droppedMalformed + droppedIoError + droppedSymlink;
+    const totalScanned = files.length;
+    const badRatio = totalScanned > 0 ? totalBad / totalScanned : 0;
+    if (totalBad >= 10 || (totalBad > 0 && badRatio >= 0.1)) {
+      log.warn(
+        `${dir}: ${droppedMalformed} malformed, ${droppedIoError} i/o errors, ${droppedSymlink} symlinks skipped (${totalBad}/${totalScanned} files)`,
+      );
+    } else if (totalBad > 0) {
+      log.debug(
+        `${dir}: ${droppedMalformed} malformed, ${droppedIoError} i/o errors, ${droppedSymlink} symlinks skipped (${totalBad}/${totalScanned} files)`,
+      );
+    }
+    if (droppedRetired > 0) {
+      log.debug(`${dir}: ${droppedRetired} retired solutions filtered (expected)`);
     }
 
     fileEntries.sort((a, b) => b.mtime - a.mtime);

@@ -292,13 +292,19 @@ export function updateSolutionEvidence(solutionName: string, field: 'reflected' 
 async function main(): Promise<void> {
   const data = await readStdinJSON<PreToolInput>();
   if (!data) {
-    // graceful fail-close: consecutive failure counter
+    // graceful fail-close: consecutive failure counter.
+    // At threshold, block with a user-visible deny message (the block itself
+    // is actionable — the user needs to know why their tool call was
+    // rejected). Below threshold, pass SILENTLY via plain approve() so a
+    // transient parse glitch doesn't leak `systemMessage` noise to the
+    // user's terminal on every tool call. stderr still gets the counter
+    // for `tenetx doctor` / log inspection. Mirrors `db-guard.ts:85-96`.
     const failCount = getAndIncrementFailCount();
     if (failCount >= FAIL_CLOSE_THRESHOLD) {
       console.log(deny(`[Tenetx] PreToolUse: stdin parse failed ${failCount} consecutive times — blocking for safety.`));
     } else {
-      process.stderr.write(`[ch-hook] stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD}), approving\n`);
-      console.log(approveWithWarning(`[Tenetx] ⚠ PreToolUse stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})`));
+      process.stderr.write(`[ch-hook] pre-tool-use stdin parse failed (${failCount}/${FAIL_CLOSE_THRESHOLD})\n`);
+      console.log(approve());
     }
     return;
   }

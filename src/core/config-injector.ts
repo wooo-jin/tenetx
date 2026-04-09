@@ -194,6 +194,76 @@ export function generateCompoundRules(cwd: string): string {
 }
 
 /**
+ * Phrases that indicate a "pattern" is actually echoing a Claude response
+ * rather than a genuine user-behavior signal. Observed in production:
+ * auto-compound was picking up snippets of its own output ("다음 대화에서
+ * 분석하겠습니다", "3개 패턴을 메모리에 추가했습니다", "Step 1 완료") and
+ * treating them as learned user patterns.
+ *
+ * C5 fix (2026-04-09): filter these at render time so they never reach
+ * `~/.claude/rules/forge-behavioral.md`. The source files under
+ * `~/.tenetx/me/behavior/` are left in place — this is a display-time
+ * filter, not a data-mutation step, so a bad filter regex here can't
+ * destroy legitimate history.
+ *
+ * Anchoring rules (H-2 fix):
+ *   1. Every regex is either START-anchored (`^`) or requires a narrow
+ *      prefix context. A bare `/분석하겠습니다/` would false-positive on
+ *      a legit user pattern like "관련 문서를 분석하겠습니다" (the user
+ *      stating their preference to analyze docs). Anchoring prevents
+ *      this by requiring the phrase to be the *beginning* of the line,
+ *      which is the actual Claude-response failure mode.
+ *   2. Self-reference to the tool itself (`tenetx`/`compound`) is
+ *      narrowed to meta-announcement shapes like "N개 패턴을 …에 추가"
+ *      — a legit user rule like "use compound when refactoring" is
+ *      NOT filtered. The earlier bare `/tenetx|compound/i` would have
+ *      dropped any user pattern that happened to name the tool.
+ *   3. English Claude-response templates are covered too. Auto-compound
+ *      will eventually process mixed-language transcripts and the
+ *      filter must catch English leakage as well as Korean.
+ */
+const SELF_REFERENTIAL_PATTERNS: readonly RegExp[] = Object.freeze([
+  // Korean — Claude-voice announcements at line start.
+  // Note: we deliberately DO NOT filter bare `/분석하겠습니다/` because
+  // a user rule like "관련 문서를 분석하겠습니다" is a legitimate
+  // user-voice statement. The "다음/이번/현재 (대화|세션|작업)에서"
+  // prefix + "분석하겠습니다" suffix is Claude-voice; the prefix alone
+  // is enough of a discriminator.
+  /^관찰된 새로운 패턴 없습니다/,
+  /^\d+개 패턴을.*(메모리|compound|tenetx).*(추가|기록)/,
+  /^계획이 진행 중/,
+  /^(다음|이번|현재) (대화|세션|작업)에서/,
+  /^Step \d/,
+  // English — Claude response templates at line start.
+  /^I['\u2019]?ll\s+(analyze|review|check|update|add|create|run|fix)/i,
+  /^Let me\s+(analyze|check|look|verify|update|add)/i,
+  /^I['\u2019]?ve\s+(added|updated|created|fixed|completed)/i,
+  // Object.freeze is defense-in-depth: the readonly type is compile-time
+  // only. Freezing prevents runtime mutation by any other module loaded
+  // in the same process from silently disabling the filter by pushing
+  // an over-broad pattern or emptying the array.
+]);
+
+/**
+ * Strip formatting that already exists in the source line BEFORE the
+ * renderer adds its own prefix/suffix. Without this, a behavior file
+ * whose content begins with `- **[의사결정]** ... (3회 관찰)` ends up
+ * rendered as `- - **[의사결정]** ... (3회 관찰) (1회 관찰)` — double
+ * bullet + double count observed in production.
+ *
+ * Exported under `__testOnly` below for C5 regression coverage.
+ */
+function normalizeDescription(raw: string): string {
+  let desc = raw.trim();
+  // Strip any number of leading bullet markers: `- `, `* `, `• `
+  desc = desc.replace(/^(?:[-*•]\s+)+/, '');
+  // Strip trailing inline "N회 관찰" suffixes (can be chained from
+  // earlier render passes). Note the space before the paren.
+  desc = desc.replace(/(?:\s*\(\d+회 관찰\))+$/, '');
+  return desc.trim();
+}
+
+/**
  * 학습된 선호/사고 패턴을 규칙으로 변환.
  */
 function generateBehavioralRules(): string {
@@ -226,16 +296,38 @@ function generateBehavioralRules(): string {
       const kind = kindMatch?.[1]?.trim().replace(/^["']|["']$/g, '') ?? '';
       const observedCount = countMatch ? parseInt(countMatch[1], 10) : 0;
 
+      const contentIdx = body.indexOf('## Content');
+      const contentBody = contentIdx >= 0 ? body.slice(contentIdx + '## Content'.length) : body;
+      const rawDesc = contentBody.split('\n').find(l => {
+        const t = l.trim();
+        return t.length >= 5 && !t.startsWith('##');
+      });
+      if (!rawDesc) continue;
+
+      // C5: strip any pre-existing bullet/count formatting so we don't
+      // stack `- -` and `(3회 관찰) (1회 관찰)` on re-render.
+      const desc = normalizeDescription(rawDesc);
+      if (desc.length < 5) continue;
+
+      // C5: filter self-referential noise (Claude's own responses
+      // captured as "user patterns").
+      if (SELF_REFERENTIAL_PATTERNS.some(re => re.test(desc))) continue;
+
+      // C5 security hardening (MEDIUM-1 from review): reject any
+      // behavior-file content that looks like a prompt injection
+      // payload. `generateCompoundRules`'s `loadRulesFromDir` already
+      // runs this check with `trusted=false` — this mirrors it for
+      // the auto-compound-populated behavior directory, which is a
+      // higher-risk input source because payloads can be injected
+      // indirectly via transcripts/commit messages that auto-compound
+      // observes. Without this filter, a crafted user prompt could
+      // cause a malicious instruction to be written into
+      // `forge-behavioral.md` and re-injected on every session.
+      if (containsPromptInjection(desc)) continue;
+
       const countStr = observedCount > 0
         ? ` (${observedCount}회 관찰)`
         : '';
-      const contentIdx = body.indexOf('## Content');
-      const contentBody = contentIdx >= 0 ? body.slice(contentIdx + '## Content'.length) : body;
-      const desc = contentBody.split('\n').find(l => {
-        const t = l.trim();
-        return t.length >= 5 && !t.startsWith('##');
-      })?.trim();
-      if (!desc) continue;
 
       if (kind === 'thinking') {
         categories['Thinking Style'].push(`- ${desc}${countStr}`);
@@ -346,3 +438,14 @@ export function buildEnv(cwd: string, v1SessionId?: string): Record<string, stri
   }
   return env;
 }
+
+/**
+ * Test-only exports for the C5 rendering pipeline. The ergonomic choice
+ * over `export function normalizeDescription` is intentional: anything
+ * reached via `__testOnly` is explicitly flagged as "not for production
+ * callers" and easy to grep for in future refactors.
+ */
+export const __testOnly = {
+  normalizeDescription,
+  SELF_REFERENTIAL_PATTERNS,
+};

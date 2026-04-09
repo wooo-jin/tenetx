@@ -54,6 +54,13 @@ describe('compound extractor Claude session context', () => {
     fs.rmSync(TEST_HOME, { recursive: true, force: true });
   });
 
+  // Pre-C4 these tests observed session correlation via the
+  // `recurring-task-pattern` extractor as a side-effect signal. C4
+  // removed that extractor (it was producing word-frequency noise in
+  // production). The tests now call `loadClaudeProjectSessionContext`
+  // directly — same correlation mechanism, but the assertion is on
+  // the loader's output (which project's prompts were selected)
+  // instead of on a downstream extractor that may be further reworked.
   it('prefers the current project Claude sessions over unrelated project sessions', async () => {
     const repoPath = path.join(TEST_HOME, 'repo');
     initRepo(repoPath);
@@ -73,14 +80,13 @@ describe('compound extractor Claude session context', () => {
       'review the release notes',
     ]);
 
-    const { previewExtraction } = await import('../src/engine/compound-extractor.js');
-    const result = await previewExtraction(repoPath);
+    const { loadClaudeProjectSessionContext } = await import('../src/engine/compound-extractor.js');
+    const ctx = loadClaudeProjectSessionContext(repoPath, '');
 
-    expect(result.preview.some((item) =>
-      item.name === 'recurring-task-pattern' &&
-      item.content.includes('deploy') &&
-      !item.content.includes('review'),
-    )).toBe(true);
+    // Correlation must prefer target-session's "deploy" prompts and
+    // must not include unrelated other-project's "review" prompts.
+    expect(ctx.prompts.some(p => p.includes('deploy'))).toBe(true);
+    expect(ctx.prompts.every(p => !p.includes('review'))).toBe(true);
   });
 
   it('matches Claude session context across symlinked project paths', async () => {
@@ -95,13 +101,10 @@ describe('compound extractor Claude session context', () => {
       'deploy production once approved',
     ]);
 
-    const { previewExtraction } = await import('../src/engine/compound-extractor.js');
-    const result = await previewExtraction(linkedRepoPath);
+    const { loadClaudeProjectSessionContext } = await import('../src/engine/compound-extractor.js');
+    const ctx = loadClaudeProjectSessionContext(linkedRepoPath, '');
 
-    expect(result.preview.some((item) =>
-      item.name === 'recurring-task-pattern' &&
-      item.content.includes('deploy'),
-    )).toBe(true);
+    expect(ctx.prompts.some(p => p.includes('deploy'))).toBe(true);
   });
 
   it('matches Claude sessions when the saved project path uses an ancestor alias', async () => {
@@ -120,12 +123,9 @@ describe('compound extractor Claude session context', () => {
       'deploy production after approval',
     ]);
 
-    const { previewExtraction } = await import('../src/engine/compound-extractor.js');
-    const result = await previewExtraction(realRepoPath);
+    const { loadClaudeProjectSessionContext } = await import('../src/engine/compound-extractor.js');
+    const ctx = loadClaudeProjectSessionContext(realRepoPath, '');
 
-    expect(result.preview.some((item) =>
-      item.name === 'recurring-task-pattern' &&
-      item.content.includes('deploy'),
-    )).toBe(true);
+    expect(ctx.prompts.some(p => p.includes('deploy'))).toBe(true);
   });
 });

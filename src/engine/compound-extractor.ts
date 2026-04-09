@@ -326,82 +326,33 @@ function extractFromSessionContext(
 
   const claudeContext = loadClaudeProjectSessionContext(cwd, lastExtractedAt);
 
-  // Load recent prompts
+  // Load recent prompts (still consumed by tech-stack-decision below).
   let prompts = claudeContext.prompts;
   if (prompts.length === 0) {
     prompts = loadPromptHistoryFallback();
   }
 
-  // Load recent writes
-  let writes = claudeContext.writes;
-  if (writes.length === 0) {
-    writes = loadWriteHistoryFallback();
-  }
-
-  // 1. Detect recurring request patterns from prompts
-  // Group similar prompts by extracting key action words
-  const actionPatterns: Record<string, number> = {};
-  for (const p of prompts) {
-    // Extract "verb + object" patterns
-    const verbPatterns = p.match(/(?:만들|작성|수정|추가|삭제|리팩|테스트|검토|분석|설계|배포|fix|create|add|remove|refactor|test|review|analyze|design|deploy)\w*/gi);
-    if (verbPatterns) {
-      for (const vp of verbPatterns) {
-        const key = vp.toLowerCase().slice(0, 20);
-        actionPatterns[key] = (actionPatterns[key] ?? 0) + 1;
-      }
-    }
-  }
-
-  // Find dominant action patterns (appear 3+ times)
-  const dominantActions = Object.entries(actionPatterns)
-    .filter(([, count]) => count >= 3)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-
-  if (dominantActions.length > 0) {
-    const actionList = dominantActions.map(([action, count]) => `${action}(${count}회)`).join(', ');
-    solutions.push({
-      name: 'recurring-task-pattern',
-      type: 'decision',
-      tags: ['workflow', 'recurring', ...dominantActions.map(([a]) => a)],
-      identifiers: [],
-      context: 'Frequently requested actions across sessions',
-      content: `User frequently requests: ${actionList}. Consider automating or templating these recurring tasks.`,
-    });
-  }
-
-  // 2. Detect file co-modification patterns from writes
-  // Which files are always modified together?
-  const sessionFiles: Record<string, Set<string>> = {};
-  for (const w of writes) {
-    const dir = w.filePath.split('/').slice(-2, -1)[0] ?? '';
-    const ext = w.fileExtension;
-    const key = `${dir}/${ext}`;
-    if (!sessionFiles[key]) sessionFiles[key] = new Set();
-    sessionFiles[key].add(w.filePath);
-  }
-
-  // Find directories with many modifications
-  const fileGroups: Record<string, string[]> = {};
-  for (const [key, files] of Object.entries(sessionFiles)) {
-    if (files.size >= 3) {
-      fileGroups[key] = [...files].slice(0, 5);
-    }
-  }
-
-  if (Object.keys(fileGroups).length > 0) {
-    const hotspots = Object.entries(fileGroups)
-      .map(([dir, files]) => `${dir}: ${files.length} files`)
-      .join(', ');
-    solutions.push({
-      name: 'modification-hotspot',
-      type: 'pattern',
-      tags: ['workflow', 'hotspot', 'files', ...Object.keys(fileGroups).slice(0, 3)],
-      identifiers: Object.values(fileGroups).flat().map(f => f.split('/').pop() ?? '').filter(n => n.length >= 4).slice(0, 5),
-      context: 'Frequently modified file areas',
-      content: `Active development areas: ${hotspots}. These areas may benefit from better abstractions or tooling.`,
-    });
-  }
+  // C4 removal (2026-04-09): `recurring-task-pattern` and `modification-
+  // hotspot` extractors were deleted here. They produced word-frequency
+  // histograms and directory counts masquerading as "patterns", with
+  // generic "consider automating/refactoring" advice that applied to
+  // any project. Observed in production: one `recurring-task-pattern`
+  // solution whose entire content was `User frequently requests:
+  // test(39회), 테스트(36회), 추가(32회). Consider automating...` was
+  // injected into 105 sessions before the quality problem was spotted.
+  // The `extractFromSessionContext` function now only emits the
+  // tech-stack-decision pattern below, which at least cross-validates
+  // against both prompts and diff before writing. If session-level
+  // extraction needs to come back, the replacement MUST pass a
+  // content-level sniff test: does the extracted solution teach
+  // something a new developer wouldn't already infer from `git log`?
+  //
+  // M-1 (review follow-up): the `writes` loader was removed from this
+  // function as dead code. Pre-M-1 `loadWriteHistoryFallback()` ran on
+  // every extraction, touching the filesystem to load data no
+  // downstream extractor consumed. If a future extractor needs writes,
+  // restore `claudeContext.writes` (already loaded above) or reintroduce
+  // the fallback loader at that point.
 
   // 3. Detect decision patterns from prompt + diff correlation
   // When user asks about X and diff shows Y, the decision is "for X, use Y"
@@ -569,21 +520,25 @@ function loadPromptHistoryFallback(): string[] {
   }
 }
 
-function loadWriteHistoryFallback(): WriteContextEntry[] {
-  const writeHistoryPath = path.join(STATE_DIR, 'write-history.jsonl');
-  try {
-    if (!fs.existsSync(writeHistoryPath)) return [];
-    const lines = fs.readFileSync(writeHistoryPath, 'utf-8').split('\n').filter(Boolean);
-    return lines.slice(-30).map(l => {
-      try { return JSON.parse(l) as WriteContextEntry; } catch { return null; }
-    }).filter((entry): entry is WriteContextEntry => entry !== null);
-  } catch (e) {
-    log.debug('write-history.jsonl 읽기 실패 — session context fallback 건너뜀', e);
-    return [];
-  }
-}
+// M-1 follow-up (2026-04-09): `loadWriteHistoryFallback` was removed
+// alongside the C4 extractor cleanup. Its only caller was the now-deleted
+// session-context loader for writes, so keeping it would be dead code on
+// the extraction hot path (per-session I/O against a file that nobody
+// reads). If a future write-based extractor is reintroduced, either
+// restore this loader or call it via `claudeContext.writes` once session
+// correlation picks writes up.
 
-function loadClaudeProjectSessionContext(
+/**
+ * Load Claude session prompts + writes correlated to `cwd`.
+ *
+ * Exported primarily for test assertions (the `claude-session-context`
+ * tests need to verify that correlation picks the right project's
+ * sessions and ignores unrelated ones). Before C4 the tests could
+ * observe this indirectly via the now-removed `recurring-task-pattern`
+ * extractor; now they check this loader directly. Not intended for
+ * production callers outside the extractor pipeline.
+ */
+export function loadClaudeProjectSessionContext(
   cwd: string,
   lastExtractedAt: string,
 ): { prompts: string[]; writes: WriteContextEntry[] } {
@@ -766,19 +721,33 @@ function analyzeExtraction(cwd: string, options?: { enforceDailyLimit?: boolean 
   // Get commit messages for "why" context (addresses feedback: auto-extraction loses reasoning)
   const commitMessages = getCommitMessages(cwd, state.lastCommitSha);
 
-  // Combine git diff analysis + session context analysis
+  // Combine git diff analysis + session context analysis.
+  // C3 fix: track provenance so commit context is only attached to
+  // solutions that were actually derived from the diff. Pre-C3 the commit
+  // message was blindly copy-pasted onto every extracted solution —
+  // including session-context-derived patterns (word frequency
+  // histograms, recurring task stats) that had nothing to do with the
+  // commit. Observed failure mode: a "recurring-task-pattern" solution
+  // about `test/테스트/추가` word counts was annotated with a completely
+  // unrelated `Phase 1.5 + 2.5 — surprise detection + contextual bandit`
+  // commit message, producing a misleading audit trail + noise in the
+  // MCP context returned to Claude.
   const diffPatterns = extractFromDiff(gitLog, gitDiff);
   const contextPatterns = extractFromSessionContext(gitDiff, cwd, state.lastExtractedAt);
-  const extracted = [...diffPatterns, ...contextPatterns].slice(0, 3); // max 3 total
 
-  // Enrich extracted solutions with commit message context
+  // Attach commit context ONLY to diff-derived patterns (they're
+  // genuinely about the commit). Session-context patterns keep their
+  // own context unchanged — if they don't have a context, they don't
+  // get a fake one.
   if (commitMessages) {
-    for (const sol of extracted) {
+    for (const sol of diffPatterns) {
       sol.context = sol.context
         ? `${sol.context}\n\nCommit context:\n${commitMessages.slice(0, 300)}`
         : `Commit context:\n${commitMessages.slice(0, 300)}`;
     }
   }
+
+  const extracted = [...diffPatterns, ...contextPatterns].slice(0, 3); // max 3 total
 
   return {
     state,
