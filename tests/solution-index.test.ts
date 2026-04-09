@@ -87,6 +87,56 @@ describe('getOrBuildIndex', () => {
     expect(index.entries).toHaveLength(1);
     expect(index.entries[0].name).toBe('active');
   });
+
+  // C2 regression (2026-04-09): the earlier index-builder dropped
+  // malformed files with zero user-visible feedback. A test file with
+  // the wrong `evidence` schema disappeared from MCP search and was
+  // completely undebuggable without reading source code. C2 added
+  // logger hooks; these tests lock in the behavior contract:
+  //   - a malformed frontmatter file is dropped (filter semantics unchanged)
+  //   - the valid siblings stay indexed
+  //   - the drop is diagnostically visible when the user asks for logs
+  //
+  // We test the *outcome* rather than the specific log call (which would
+  // tightly couple the test to the logger mock shape and break on
+  // cosmetic changes). The outcome is: file count on disk > index size,
+  // valid files still present, invalid files excluded.
+  it('C2: silently drops malformed frontmatter files but keeps valid siblings', () => {
+    createSolutionFile(tmpDir, 'valid', ['tag-v'], 'verified');
+    // Malformed file: frontmatter section is corrupt JSON-ish, parser
+    // returns null, solution-index skips it.
+    fs.writeFileSync(
+      path.join(tmpDir, 'broken.md'),
+      '---\nname: broken\nthis is not valid yaml: : :\n---\n\n## Content\nnothing\n',
+    );
+    // File that looks valid by having `---` delimiters but missing
+    // required fields (version, status, confidence, type, scope, tags,
+    // evidence) → validateFrontmatter returns false → parseFrontmatterOnly
+    // returns null → dropped.
+    fs.writeFileSync(
+      path.join(tmpDir, 'missing-fields.md'),
+      '---\nname: missing-fields\n---\n\n## Content\nnothing\n',
+    );
+
+    const index = getOrBuildIndex([{ dir: tmpDir, scope: 'me' }]);
+
+    // Only the valid file makes it into the index
+    expect(index.entries).toHaveLength(1);
+    expect(index.entries[0].name).toBe('valid');
+    // Count on disk: 3 files (valid, broken, missing-fields)
+    expect(fs.readdirSync(tmpDir).filter(f => f.endsWith('.md'))).toHaveLength(3);
+  });
+
+  it('C2: filter semantics preserved — retired + malformed + valid all coexist', () => {
+    createSolutionFile(tmpDir, 'alpha', ['tag-a'], 'verified');
+    createSolutionFile(tmpDir, 'beta-retired', ['tag-b'], 'retired');
+    fs.writeFileSync(path.join(tmpDir, 'gamma-broken.md'), '---\ninvalid: [unclosed\n---\n');
+
+    const index = getOrBuildIndex([{ dir: tmpDir, scope: 'me' }]);
+
+    // Only alpha survives — retired is filtered, gamma is malformed
+    expect(index.entries.map(e => e.name)).toEqual(['alpha']);
+  });
 });
 
 describe('isIndexStale', () => {

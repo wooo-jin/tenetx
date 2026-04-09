@@ -28,7 +28,8 @@
     "format": "biome format --write src/",
     "postinstall": "node scripts/postinstall.js",
     "prepare": "npm run build",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test",
+    "prepack": "node scripts/prepack-hooks.cjs"
   },
   "author": "jang-ujin",
   "license": "MIT",

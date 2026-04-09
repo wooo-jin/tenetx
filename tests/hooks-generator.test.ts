@@ -141,6 +141,52 @@ describe('hooks-generator', () => {
       expect(result.description).toContain(`${expectedActive}/${HOOK_REGISTRY.length} active`);
     });
 
+    // A4 regression guard (2026-04-09):
+    // The checked-in `hooks/hooks.json` MUST have every hook active.
+    // Pre-A4 fix, the committed file was regenerated in a developer env
+    // where detectInstalledPlugins() picked up a local `oh-my-claudecode`
+    // install, which caused `keyword-detector` and `intent-classifier`
+    // to be auto-disabled at generation time. The resulting 17/19 file
+    // shipped in the npm tarball, breaking keyword activation for every
+    // user who didn't manually regenerate after install.
+    //
+    // The fix: regenerate in a clean env (no plugin conflicts) before
+    // committing. This test locks that in by reading the file on disk
+    // and asserting it declares 19/19 active AND contains the command
+    // for every hook in HOOK_REGISTRY.
+    it('A4: checked-in hooks/hooks.json has all hooks active', async () => {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const repoRoot = path.resolve(__dirname, '..');
+      const hooksJsonPath = path.join(repoRoot, 'hooks', 'hooks.json');
+      const raw = fs.readFileSync(hooksJsonPath, 'utf-8');
+      const parsed = JSON.parse(raw) as { description: string; hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>> };
+
+      // Description MUST declare 19/19 (or whatever HOOK_REGISTRY.length is)
+      expect(
+        parsed.description,
+        `hooks/hooks.json description is stale: "${parsed.description}". ` +
+        `Regenerate in a clean env: \`node -e "import('./dist/hooks/hooks-generator.js').then(m => m.writeHooksJson('hooks', {cwd: '/tmp'}))"\``,
+      ).toContain(`${HOOK_REGISTRY.length}/${HOOK_REGISTRY.length} active`);
+
+      // Every hook in the registry must have a command line somewhere
+      // in the file. Using the script basename as the needle avoids
+      // false positives from partial matches.
+      const allCommands: string[] = [];
+      for (const matchers of Object.values(parsed.hooks)) {
+        for (const m of matchers) {
+          for (const h of m.hooks) allCommands.push(h.command);
+        }
+      }
+      for (const hook of HOOK_REGISTRY) {
+        const scriptBase = hook.script.split(' ')[0]; // "subagent-tracker.js start" → "subagent-tracker.js"
+        expect(
+          allCommands.some(c => c.includes(scriptBase)),
+          `hook "${hook.name}" (${scriptBase}) missing from checked-in hooks.json — regenerate in a clean env`,
+        ).toBe(true);
+      }
+    });
+
     it('이벤트별로 올바르게 그룹핑', () => {
       const result = generateHooksJson();
 

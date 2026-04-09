@@ -224,6 +224,7 @@ export async function handleCompound(args: string[]): Promise<void> {
     tenetx compound list             List saved entries (solutions and rules)
     tenetx compound inspect <name>   Show saved entry details
     tenetx compound remove <name>    Remove a saved entry
+    tenetx compound clean-stale      Retire solutions from removed extractors (C4 cleanup)
     tenetx compound rollback --since 2026-03-20
                                      Rollback unused auto-extracted solutions since date
 
@@ -318,6 +319,13 @@ export async function handleCompound(args: string[]): Promise<void> {
     }
     const { inspectSolution } = await import('./compound-cli.js');
     inspectSolution(name);
+    return;
+  }
+
+  // --- clean-stale command (M-3 migration) ---
+  if (args.includes('clean-stale') || args.includes('--clean-stale')) {
+    const { cleanStaleSolutions } = await import('./compound-cli.js');
+    cleanStaleSolutions();
     return;
   }
 

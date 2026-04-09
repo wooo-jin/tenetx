@@ -33,7 +33,7 @@ interface Command {
 const commands: Command[] = [
   {
     name: 'forge',
-    description: 'Signal-based personalization (--scan-only|--profile|--adjust|--export)',
+    description: 'Personalization profile (--profile|--export|--reset)',
     handler: async (args) => {
       const { handleForge } = await import('./forge/cli.js');
       await handleForge(args);

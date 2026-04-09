@@ -707,11 +707,30 @@ function main() {
   }
 
   // ── 3. hooks.json 동적 생성 ──
+  //
+  // A4 guard (2026-04-09): skip regeneration when running inside the
+  // tenetx source tree itself. Pre-A4 fix, every `npm install` /
+  // `npm audit fix` run from the dev checkout clobbered the package's
+  // own committed `hooks/hooks.json` with a file reflecting the
+  // developer's LOCAL plugin state (which usually has `oh-my-claudecode`
+  // or similar installed for testing). That 17/19-active file then
+  // shipped in the next npm tarball and broke keyword-detector for
+  // every user whose postinstall didn't complete (sudo issues,
+  // read-only FS, etc.). The checked-in file should always be the
+  // pristine 19/19 baseline; per-user plugin conflict resolution is
+  // handled at runtime via `tenetx config hooks`. Detect "we're in the
+  // source tree" via the presence of a sibling `.git/` directory next
+  // to the package root — a regular npm install never has that.
   let hooksJsonResult = null;
-  try {
-    hooksJsonResult = generateAndWriteHooksJson();
-  } catch (err) {
-    console.error(`[tenetx] hooks.json generation failed: ${err?.message ?? err}`);
+  const isSourceCheckout = existsSync(join(PKG_ROOT, '.git'));
+  if (isSourceCheckout) {
+    // no-op in dev: leave the committed file untouched
+  } else {
+    try {
+      hooksJsonResult = generateAndWriteHooksJson();
+    } catch (err) {
+      console.error(`[tenetx] hooks.json generation failed: ${err?.message ?? err}`);
+    }
   }
 
   // ── 4. 슬래시 커맨드 설치 ──

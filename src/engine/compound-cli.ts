@@ -153,6 +153,79 @@ export function removeSolution(name: string): void {
   }
 }
 
+/**
+ * Names of extractors that have been removed from the compound pipeline.
+ * Any solution file on disk whose `name` matches one of these entries is
+ * an artifact of a removed extractor and should be retired.
+ *
+ * Current list (added by C4 cleanup, 2026-04-09):
+ *   - `recurring-task-pattern`: word-frequency histogram, not a real
+ *     pattern. Observed injected 105+ times in production.
+ *   - `modification-hotspot`: directory modification count with generic
+ *     "maybe refactor this" advice.
+ *
+ * Add future entries here whenever an extractor is removed from
+ * `compound-extractor.ts` so users can clean up their stores.
+ */
+const STALE_EXTRACTOR_NAMES: readonly string[] = [
+  'recurring-task-pattern',
+  'modification-hotspot',
+];
+
+/**
+ * Retire solutions whose names match extractors that have been removed
+ * from the compound pipeline. Retired solutions are excluded from the
+ * index (see `solution-index.ts:142`) so they stop being surfaced in
+ * MCP search and hook injection, but the file stays on disk for
+ * audit / undo purposes.
+ *
+ * M-3 (2026-04-09): the C4 extractor cleanup left orphaned files in
+ * users' `~/.tenetx/me/solutions/` directories. Without this migration,
+ * files like `recurring-task-pattern.md` (which had injected=113 on
+ * the author's own machine at fix time) continue to pollute matching
+ * results until the user manually deletes them.
+ */
+export function cleanStaleSolutions(): void {
+  const entries = scanEntries().filter(e => e.category === 'solution');
+
+  const stale = entries.filter(e => STALE_EXTRACTOR_NAMES.includes(e.name));
+
+  if (stale.length === 0) {
+    console.log('\n  No stale extractor artifacts found.\n');
+    return;
+  }
+
+  console.log(`\n  Found ${stale.length} stale extractor artifact(s):`);
+  for (const entry of stale) {
+    console.log(`    - ${entry.name} (status: ${entry.status}, injected: ${entry.evidence.injected})`);
+  }
+  console.log();
+
+  let retired = 0;
+  for (const entry of stale) {
+    // Skip already-retired files — idempotent.
+    if (entry.status === 'retired') {
+      console.log(`    ✓ ${entry.name} already retired, skipping`);
+      continue;
+    }
+    const ok = mutateSolutionFile(entry.filePath, sol => {
+      sol.frontmatter.status = 'retired';
+      sol.frontmatter.updated = new Date().toISOString().split('T')[0];
+      return true;
+    });
+    if (ok) {
+      retired++;
+      console.log(`    ✗ ${entry.name} retired`);
+    } else {
+      console.log(`    ! ${entry.name} failed to update`);
+    }
+  }
+
+  console.log(`\n  Retired ${retired}/${stale.length} stale artifact(s).\n`);
+  console.log('  Tip: retired files are excluded from index + MCP search but');
+  console.log('  remain on disk. Use `tenetx compound remove <name>` to delete.\n');
+}
+
 /** Retag all solutions using improved extractTags */
 export function retagSolutions(): void {
   const entries = scanEntries().filter(e => e.category === 'solution');

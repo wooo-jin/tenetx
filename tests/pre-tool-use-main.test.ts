@@ -52,6 +52,32 @@ describe('pre-tool-use main()', () => {
     });
   });
 
+  // C1 regression (2026-04-09): pre-C1, the low-fail-count path used
+  // approveWithWarning() which produces `systemMessage` in the JSON
+  // response. That systemMessage was user-visible in Claude Code's
+  // UI and leaked infrastructure noise like "⚠ PreToolUse stdin parse
+  // failed (1/3)" on every transient stdin glitch. The fix routes
+  // low-count failures through plain approve() — the deny path at
+  // threshold still uses a visible message, but sub-threshold must
+  // be silent on the UI side. stderr is still populated for
+  // diagnostics (checked via process.stderr.write mock in setup).
+  it('C1: low-fail-count stdin null path returns {continue:true} with NO systemMessage', async () => {
+    mockReadStdinJSON.mockResolvedValue(null);
+    await import('../src/hooks/pre-tool-use.js');
+    await vi.waitFor(() => {
+      expect(logOutput.length).toBeGreaterThan(0);
+    });
+    // Every logged line must be a plain approve — no systemMessage
+    // key, no suppressOutput, no 'stdin parse failed' string.
+    for (const line of logOutput) {
+      if (!line.includes('"continue"')) continue;
+      expect(line, `unexpected systemMessage leak: ${line}`).not.toContain('systemMessage');
+      expect(line, `unexpected warning text leak: ${line}`).not.toContain('stdin parse failed');
+      // The response MUST be the minimal approve shape.
+      expect(JSON.parse(line)).toEqual({ continue: true });
+    }
+  });
+
   it('rm -rf /를 reject', async () => {
     mockReadStdinJSON.mockResolvedValue({
       tool_name: 'Bash',

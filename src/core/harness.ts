@@ -565,7 +565,7 @@ export async function prepareHarness(cwd: string): Promise<V1HarnessContext> {
     const v1Result = bootstrapV1Session();
 
     if (v1Result.needsOnboarding) {
-      log.debug('v1: 온보딩 필요 — tenetx setup 실행 안내');
+      log.debug('v1: 온보딩 필요 — tenetx onboarding 실행 안내');
     }
 
     if (v1Result.legacyBackupPath) {

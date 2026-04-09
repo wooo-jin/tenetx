@@ -181,7 +181,17 @@ export function generateCompoundRules(cwd: string): string {
   }
 
   // 개인 규칙 로드
-  const meRules = loadRulesFromDir(ME_RULES);
+  //
+  // B7 security hardening (2026-04-09): ME_RULES is user-owned but still
+  // writable by any process the user runs (including auto-compound and
+  // skill-injector). An attacker who can write a single file into
+  // `~/.tenetx/me/rules/` via a crafted prompt/skill promotion can
+  // inject instructions into every Claude session. Run the same
+  // injection filter the behavior directory already uses for
+  // consistency. The previous `trusted=true` default was safe only
+  // under the assumption that ME_RULES was exclusively human-authored,
+  // which isn't the case in practice.
+  const meRules = loadRulesFromDir(ME_RULES, false);
   if (meRules.length > 0) {
     lines.push('## Personal Rules (Me)');
     for (const rule of meRules) {
@@ -234,6 +244,14 @@ const SELF_REFERENTIAL_PATTERNS: readonly RegExp[] = Object.freeze([
   /^계획이 진행 중/,
   /^(다음|이번|현재) (대화|세션|작업)에서/,
   /^Step \d/,
+  // Claude permission/proceed flow markers — observed in auto-captured
+  // behavior file `auto-2026-04-07-preference.md`. These are specific
+  // Korean phrases an assistant uses when asking the user to approve
+  // an action. A user writing their own preference would not phrase
+  // it as "승인하면 다음을 확인합니다" or end with "진행할까요?".
+  /권한\s*(확인|요청)이?\s*필요합니다/,
+  /^승인하(면|시면)/,
+  /진행할까요\??/,
   // English — Claude response templates at line start.
   /^I['\u2019]?ll\s+(analyze|review|check|update|add|create|run|fix)/i,
   /^Let me\s+(analyze|check|look|verify|update|add)/i,
@@ -309,6 +327,19 @@ function generateBehavioralRules(): string {
       const desc = normalizeDescription(rawDesc);
       if (desc.length < 5) continue;
 
+      // C5 edge case (2026-04-09): if the description text already
+      // contains an inline "N회 관찰" marker ANYWHERE (not just at the
+      // trailing-suffix position normalizeDescription strips), don't
+      // append another count from frontmatter. Observed data: source
+      // files like `auto-2026-04-02.md` have descriptions ending in
+      // `(compound-engineering-plugin, ohmyopencode 등과 반복 비교 요청 — 3회 관찰)`,
+      // where the `3회 관찰` is embedded inside a long parenthetical —
+      // normalizeDescription's tail regex can't strip it because the
+      // outer paren is not right before the count. Without this check,
+      // the renderer appends its own `(1회 관찰)` (from frontmatter
+      // observedCount) and produces `... 3회 관찰) (1회 관찰)`.
+      const hasInlineCount = /\d+회 관찰/.test(desc);
+
       // C5: filter self-referential noise (Claude's own responses
       // captured as "user patterns").
       if (SELF_REFERENTIAL_PATTERNS.some(re => re.test(desc))) continue;
@@ -325,7 +356,7 @@ function generateBehavioralRules(): string {
       // `forge-behavioral.md` and re-injected on every session.
       if (containsPromptInjection(desc)) continue;
 
-      const countStr = observedCount > 0
+      const countStr = observedCount > 0 && !hasInlineCount
         ? ` (${observedCount}회 관찰)`
         : '';
 

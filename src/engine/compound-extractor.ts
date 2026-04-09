@@ -416,14 +416,34 @@ function getClaudeProjectDirs(cwd: string): string[] {
 }
 
 function listClaudeSessionFiles(projectDirs: string[], maxFiles: number): Array<{ filePath: string; mtimeMs: number }> {
+  // Symlink hardening (INFO from security review, 2026-04-09):
+  // `~/.claude/projects/` is inside the user's HOME so in the normal
+  // threat model it's trusted, but we mirror the `solution-index.ts:135`
+  // defensive posture and refuse to follow symlinks. A local attacker
+  // with HOME write access could otherwise plant a symlink pointing at
+  // arbitrary JSONL files on disk and cause `collectClaudeProjectSessionContext`
+  // to ingest their contents as "Claude session prompts".
   return projectDirs
-    .flatMap(projectDir =>
-      fs.readdirSync(projectDir)
-        .filter(f => f.endsWith('.jsonl'))
-        .map(file => {
-          const filePath = path.join(projectDir, file);
-          return { filePath, mtimeMs: fs.statSync(filePath).mtimeMs };
-        }))
+    .flatMap(projectDir => {
+      let entries: string[];
+      try {
+        entries = fs.readdirSync(projectDir);
+      } catch {
+        return [] as Array<{ filePath: string; mtimeMs: number }>;
+      }
+      const out: Array<{ filePath: string; mtimeMs: number }> = [];
+      for (const file of entries) {
+        if (!file.endsWith('.jsonl')) continue;
+        const filePath = path.join(projectDir, file);
+        try {
+          if (fs.lstatSync(filePath).isSymbolicLink()) continue;
+          out.push({ filePath, mtimeMs: fs.statSync(filePath).mtimeMs });
+        } catch {
+          // unreadable / vanished between readdir and stat — skip
+        }
+      }
+      return out;
+    })
     .sort((a, b) => b.mtimeMs - a.mtimeMs)
     .slice(0, maxFiles);
 }
@@ -452,7 +472,22 @@ function collectClaudeProjectSessionContext(
   const writes: WriteContextEntry[] = [];
 
   for (const file of files) {
-    const lines = fs.readFileSync(file.filePath, 'utf-8').split('\n').filter(Boolean);
+    // Defense in depth: even though listClaudeSessionFiles already
+    // rejects symlinks, re-check here in case a caller bypasses the
+    // lister. A TOCTOU race between lister's lstat and this read is
+    // theoretically possible but requires local HOME write access,
+    // at which point the attacker already has easier vectors.
+    try {
+      if (fs.lstatSync(file.filePath).isSymbolicLink()) continue;
+    } catch {
+      continue;
+    }
+    let lines: string[];
+    try {
+      lines = fs.readFileSync(file.filePath, 'utf-8').split('\n').filter(Boolean);
+    } catch {
+      continue;
+    }
     for (const line of lines) {
       let entry: Record<string, unknown>;
       try {

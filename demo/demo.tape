@@ -18,7 +18,7 @@ Type "# Initialize your philosophy"
 Enter
 Sleep 500ms
 
-Type "tenetx setup --yes"
+Type "tenetx onboarding"
 Enter
 Sleep 3s
 

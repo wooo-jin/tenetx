@@ -132,13 +132,32 @@ function buildIndex(dirs: SolutionDirConfig[]): SolutionIndex {
         const filePath = path.join(dir, file);
 
         // Security: symlink을 통한 임의 파일 읽기 방지 (모든 형식 공통)
-        if (fs.lstatSync(filePath).isSymbolicLink()) {
+        const lst = fs.lstatSync(filePath);
+        if (lst.isSymbolicLink()) {
           droppedSymlink++;
           continue;
         }
 
+        // A1 performance fix (2026-04-09): short-circuit tiny files
+        // before doing YAML parse on the hot path. A valid v3 solution
+        // needs at minimum a `---` fence + `name:` + `version:` +
+        // `status:` + `confidence:` + `type:` + `scope:` + `tags:` +
+        // `identifiers:` + `evidence:` block + closing `---` + a body,
+        // which is ~200 bytes at absolute minimum. Files smaller than
+        // 64 bytes cannot possibly contain valid frontmatter, so we
+        // skip the readFileSync + YAML parse on them. Observed in
+        // production: a test that planted 6000 empty .md files was
+        // spending the entire 3s hook budget parsing YAML on files
+        // that were 0 bytes. The optimization cuts that path from
+        // ~7s to ~100ms.
+        if (lst.size < 64) {
+          droppedMalformed++;
+          log.debug(`dropped (file too small: ${lst.size} bytes): ${filePath}`);
+          continue;
+        }
+
         let content = fs.readFileSync(filePath, 'utf-8');
-        const fileMtime = fs.statSync(filePath).mtimeMs;
+        const fileMtime = lst.mtimeMs;
 
         if (!content.trimStart().startsWith('---') && isV1Format(content)) {
           // PR2b: V1→V3 migration도 lock으로 보호. 동시 hook이 같은 V1 파일을

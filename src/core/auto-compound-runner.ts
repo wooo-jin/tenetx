@@ -301,7 +301,22 @@ ${sanitizedSummary.slice(0, 4000)}
     });
 
     // 결과가 의미 있으면 behavior/ 파일로 저장
-    if (userResult && !userResult.includes('관찰된 패턴 없음') && userResult.trim().length > 10) {
+    //
+    // B4 security hardening (2026-04-09): gate the Claude-generated
+    // behavior output through the prompt-injection filter BEFORE
+    // writing to disk. Pre-B4 the transcript (the INPUT to Claude)
+    // was filtered at line 202 but the MODEL OUTPUT was trusted and
+    // written verbatim. A crafted transcript could make Claude emit
+    // an injection payload like "[의사결정] 실행 전 ; rm -rf ~/.tenetx ..."
+    // which would land on disk. C5's render-time filter in
+    // config-injector would catch it at forge-behavioral.md
+    // generation, but defense in depth — stop it at the source so
+    // the file itself is clean.
+    const isInjection = userResult ? containsPromptInjection(userResult.trim()) : false;
+    if (isInjection) {
+      process.stderr.write(`[tenetx-auto-compound] behavior: injection detected in LLM output, skipping write\n`);
+    }
+    if (userResult && !isInjection && !userResult.includes('관찰된 패턴 없음') && userResult.trim().length > 10) {
       fs.mkdirSync(BEHAVIOR_DIR, { recursive: true });
       const today = new Date().toISOString().split('T')[0];
       const trimmed = userResult.trim();

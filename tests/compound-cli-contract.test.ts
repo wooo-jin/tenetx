@@ -57,6 +57,91 @@ describe('compound CLI contract', () => {
     vi.restoreAllMocks();
   });
 
+  // M-3 regression (2026-04-09): `cleanStaleSolutions` retires
+  // solution files whose names match removed extractors. The two
+  // targets added with C4 are `recurring-task-pattern` and
+  // `modification-hotspot` (both produced word-frequency noise in
+  // production). Tests lock in: (a) matching files get their status
+  // flipped to "retired", (b) non-matching files stay untouched,
+  // (c) already-retired files are a no-op (idempotent), (d) the
+  // behavior survives if no stale files exist (empty directory).
+  it('M-3: cleanStaleSolutions retires known stale extractor artifacts', async () => {
+    const solutionsDir = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
+    fs.mkdirSync(solutionsDir, { recursive: true });
+
+    // Stale extractor artifacts — should be retired
+    fs.writeFileSync(path.join(solutionsDir, 'recurring-task-pattern.md'), makeEntry({
+      name: 'recurring-task-pattern',
+      scope: 'me',
+      type: 'pattern',
+    }));
+    fs.writeFileSync(path.join(solutionsDir, 'modification-hotspot.md'), makeEntry({
+      name: 'modification-hotspot',
+      scope: 'me',
+      type: 'pattern',
+    }));
+    // Non-stale solution — should be untouched
+    fs.writeFileSync(path.join(solutionsDir, 'keep-me.md'), makeEntry({
+      name: 'keep-me',
+      scope: 'me',
+      type: 'pattern',
+    }));
+
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { cleanStaleSolutions } = await import('../src/engine/compound-cli.js');
+    cleanStaleSolutions();
+
+    const recurring = fs.readFileSync(path.join(solutionsDir, 'recurring-task-pattern.md'), 'utf-8');
+    const hotspot = fs.readFileSync(path.join(solutionsDir, 'modification-hotspot.md'), 'utf-8');
+    const keep = fs.readFileSync(path.join(solutionsDir, 'keep-me.md'), 'utf-8');
+
+    expect(recurring).toMatch(/status:\s*["']?retired["']?/);
+    expect(hotspot).toMatch(/status:\s*["']?retired["']?/);
+    // The non-stale file's status must not be touched
+    expect(keep).toMatch(/status:\s*["']?candidate["']?/);
+  });
+
+  it('M-3: cleanStaleSolutions is idempotent on already-retired files', async () => {
+    const solutionsDir = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
+    fs.mkdirSync(solutionsDir, { recursive: true });
+
+    const alreadyRetired = makeEntry({
+      name: 'recurring-task-pattern',
+      scope: 'me',
+      type: 'pattern',
+    }).replace('status: "candidate"', 'status: "retired"');
+    fs.writeFileSync(path.join(solutionsDir, 'recurring-task-pattern.md'), alreadyRetired);
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { cleanStaleSolutions } = await import('../src/engine/compound-cli.js');
+    cleanStaleSolutions();
+
+    const output = logSpy.mock.calls.flat().join('\n');
+    expect(output).toContain('already retired, skipping');
+    // Second run — still idempotent
+    cleanStaleSolutions();
+    const out2 = logSpy.mock.calls.flat().join('\n');
+    expect(out2.split('already retired, skipping').length - 1).toBeGreaterThanOrEqual(2);
+  });
+
+  it('M-3: cleanStaleSolutions is a no-op when no stale artifacts exist', async () => {
+    const solutionsDir = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
+    fs.mkdirSync(solutionsDir, { recursive: true });
+
+    fs.writeFileSync(path.join(solutionsDir, 'clean.md'), makeEntry({
+      name: 'clean',
+      scope: 'me',
+      type: 'pattern',
+    }));
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { cleanStaleSolutions } = await import('../src/engine/compound-cli.js');
+    cleanStaleSolutions();
+
+    const output = logSpy.mock.calls.flat().join('\n');
+    expect(output).toContain('No stale extractor artifacts found');
+  });
+
   it('lists saved entries with their category labels', async () => {
     const solutionsDir = path.join(TEST_HOME, '.tenetx', 'me', 'solutions');
     const rulesDir = path.join(TEST_HOME, '.tenetx', 'me', 'rules');
