@@ -97,79 +97,65 @@ function stripTenetxManagedRules(rules: string[]): string[] {
 }
 
 /** Claude Code settings.json에 하네스 환경변수 + 훅 주입 */
-function injectSettings(env: Record<string, string>, v1Result: V1BootstrapResult): void {
-  fs.mkdirSync(CLAUDE_DIR, { recursive: true });
-  acquireLock();
+// ── B9: injectSettings sub-phases (extracted from 128-line monolith) ──
 
-  let settings: Record<string, unknown> = {};
-  if (fs.existsSync(SETTINGS_PATH)) {
-    try {
-      settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      fs.copyFileSync(SETTINGS_PATH, SETTINGS_BACKUP_PATH);
-    } catch (e) {
-      log.debug('settings.json 파싱 실패, 빈 설정으로 시작',
-        new ConfigError('settings.json parse failed', { configPath: SETTINGS_PATH, cause: e }));
-    }
+/** Read settings.json with backup, or return empty object on failure. */
+function readSettingsWithBackup(): Record<string, unknown> {
+  if (!fs.existsSync(SETTINGS_PATH)) return {};
+  try {
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+    fs.copyFileSync(SETTINGS_PATH, SETTINGS_BACKUP_PATH);
+    return settings as Record<string, unknown>;
+  } catch (e) {
+    log.debug('settings.json 파싱 실패, 빈 설정으로 시작',
+      new ConfigError('settings.json parse failed', { configPath: SETTINGS_PATH, cause: e }));
+    return {};
   }
+}
 
-  // 환경변수 병합
-  const existingEnv = (settings.env as Record<string, string>) ?? {};
-  settings.env = { ...existingEnv, ...env };
-
-  // statusLine
-  const existingStatusLine = settings.statusLine as { type?: string; command?: string } | undefined;
-  const isTenetxStatusLine =
-    !existingStatusLine ||
-    !existingStatusLine.command ||
-    existingStatusLine.command.startsWith('tenetx');
-  if (isTenetxStatusLine) {
-    settings.statusLine = {
-      type: 'command',
-      command: 'tenetx me',
-    };
+/** Apply tenetx statusLine only if user hasn't set a custom one. */
+function applyStatusLine(settings: Record<string, unknown>): void {
+  const existing = settings.statusLine as { type?: string; command?: string } | undefined;
+  const isTenetxOwned = !existing || !existing.command || existing.command.startsWith('tenetx');
+  if (isTenetxOwned) {
+    settings.statusLine = { type: 'command', command: 'tenetx me' };
   }
+}
 
-  // tenetx 훅 주입: hooks.json → settings.json (CLAUDE_PLUGIN_ROOT 치환)
+/** Check if a settings.json hook entry was installed by tenetx. */
+function isTenetxHookEntry(entry: Record<string, unknown>, pkgRoot: string): boolean {
+  const distHooksPath = path.join(pkgRoot, 'dist', 'hooks');
+  const matchesPath = (cmd: string) =>
+    cmd.includes(distHooksPath) || /[\\/]dist[\\/]hooks[\\/].*\.js/.test(cmd);
+  if (typeof entry.command === 'string' && matchesPath(entry.command)) return true;
+  const hooks = entry.hooks as Array<Record<string, unknown>> | undefined;
+  return Array.isArray(hooks) && hooks.some(h => typeof h.command === 'string' && matchesPath(h.command));
+}
+
+/** Strip existing tenetx hooks from settings, merge fresh hooks.json. */
+function mergeHooksIntoSettings(settings: Record<string, unknown>): void {
   const pkgRoot = getPackageRoot();
   const hooksConfig = (settings.hooks as Record<string, unknown[]>) ?? {};
 
-  function isCHHook(entry: Record<string, unknown>): boolean {
-    const distHooksPath = path.join(pkgRoot, 'dist', 'hooks');
-    function matchesHookPath(cmd: string): boolean {
-      return cmd.includes(distHooksPath) || /[\\/]dist[\\/]hooks[\\/].*\.js/.test(cmd);
-    }
-    if (typeof entry.command === 'string' && matchesHookPath(entry.command)) return true;
-    const hooks = entry.hooks as Array<Record<string, unknown>> | undefined;
-    if (Array.isArray(hooks)) {
-      return hooks.some((h) => typeof h.command === 'string' && matchesHookPath(h.command));
-    }
-    return false;
-  }
-
-  // 기존 tenetx 훅 제거 (재주입 전 정리)
+  // Remove existing tenetx hooks (clean slate before re-inject)
   for (const [event, entries] of Object.entries(hooksConfig)) {
-    if (Array.isArray(entries)) {
-      const filtered = entries.filter((h) => !isCHHook(h as Record<string, unknown>));
-      if (filtered.length === 0) {
-        delete hooksConfig[event];
-      } else {
-        hooksConfig[event] = filtered;
-      }
-    }
+    if (!Array.isArray(entries)) continue;
+    const filtered = entries.filter(h => !isTenetxHookEntry(h as Record<string, unknown>, pkgRoot));
+    if (filtered.length === 0) delete hooksConfig[event];
+    else hooksConfig[event] = filtered;
   }
 
-  // hooks.json에서 훅을 읽어 settings.json에 직접 주입
+  // Read hooks.json and inject, replacing ${CLAUDE_PLUGIN_ROOT}
   const hooksJsonPath = path.join(pkgRoot, 'hooks', 'hooks.json');
   try {
     if (fs.existsSync(hooksJsonPath)) {
       const hooksJson = JSON.parse(fs.readFileSync(hooksJsonPath, 'utf-8'));
       const hooksData = hooksJson.hooks as Record<string, unknown[]> | undefined;
       if (hooksData) {
-        // ${CLAUDE_PLUGIN_ROOT} → 실제 패키지 루트 경로로 치환
         const resolved = JSON.parse(
           JSON.stringify(hooksData).replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, pkgRoot),
-        );
-        for (const [event, handlers] of Object.entries(resolved as Record<string, unknown[]>)) {
+        ) as Record<string, unknown[]>;
+        for (const [event, handlers] of Object.entries(resolved)) {
           if (!hooksConfig[event]) hooksConfig[event] = [];
           (hooksConfig[event] as unknown[]).push(...handlers);
         }
@@ -183,39 +169,54 @@ function injectSettings(env: Record<string, string>, v1Result: V1BootstrapResult
   if (settings.hooks && Object.keys(settings.hooks as Record<string, unknown>).length === 0) {
     delete settings.hooks;
   }
+}
 
-  // v1 Profile 기반 보안 정책 (trust policy → permissions)
-  if (v1Result.session) {
-    const trust = v1Result.session.effective_trust_policy;
-    const permissions = (settings.permissions as Record<string, string[]>) ?? {};
-    const existingDeny = stripTenetxManagedRules(permissions.deny ?? []);
+/** Apply v1 trust policy → permissions (deny/ask lists). */
+function applyTrustPolicyPermissions(settings: Record<string, unknown>, v1Result: V1BootstrapResult): void {
+  if (!v1Result.session) return;
+  const trust = v1Result.session.effective_trust_policy;
+  const permissions = (settings.permissions as Record<string, string[]>) ?? {};
+  const existingDeny = stripTenetxManagedRules(permissions.deny ?? []);
 
-    if (trust === '가드레일 우선') {
-      permissions.deny = [
-        ...existingDeny,
-        '# tenetx-managed',
-        'Bash(rm -rf *)',
-        'Bash(git push --force*)',
-        'Bash(git reset --hard*)',
-      ];
-    } else if (trust === '승인 완화') {
-      const existingAsk = stripTenetxManagedRules(permissions.ask ?? []);
-      permissions.ask = [
-        ...existingAsk,
-        '# tenetx-managed',
-        'Bash(rm -rf *)',
-        'Bash(git push --force*)',
-      ];
-      permissions.deny = existingDeny.length > 0 ? existingDeny : undefined as unknown as string[];
-    }
-    // '완전 신뢰 실행': 추가 제한 없음
-
-    if (!permissions.deny?.length) delete permissions.deny;
-    if (!permissions.ask?.length) delete permissions.ask;
-    if (Object.keys(permissions).length > 0) {
-      settings.permissions = permissions;
-    }
+  if (trust === '가드레일 우선') {
+    permissions.deny = [
+      ...existingDeny, '# tenetx-managed',
+      'Bash(rm -rf *)', 'Bash(git push --force*)', 'Bash(git reset --hard*)',
+    ];
+  } else if (trust === '승인 완화') {
+    const existingAsk = stripTenetxManagedRules(permissions.ask ?? []);
+    permissions.ask = [
+      ...existingAsk, '# tenetx-managed',
+      'Bash(rm -rf *)', 'Bash(git push --force*)',
+    ];
+    permissions.deny = existingDeny.length > 0 ? existingDeny : undefined as unknown as string[];
   }
+  // '완전 신뢰 실행': 추가 제한 없음
+
+  if (!permissions.deny?.length) delete permissions.deny;
+  if (!permissions.ask?.length) delete permissions.ask;
+  if (Object.keys(permissions).length > 0) settings.permissions = permissions;
+}
+
+/**
+ * B9: injectSettings — now a ~20-line coordinator calling the extracted
+ * sub-phases above. Pre-B9 this was 128 lines with interleaved phases
+ * (read/backup, env merge, statusLine, hook strip+inject, trust policy,
+ * atomic write). Each phase is now a named function with a single
+ * responsibility, testable in isolation if needed.
+ */
+function injectSettings(env: Record<string, string>, v1Result: V1BootstrapResult): void {
+  fs.mkdirSync(CLAUDE_DIR, { recursive: true });
+  acquireLock();
+
+  const settings = readSettingsWithBackup();
+
+  // Merge env vars
+  settings.env = { ...((settings.env as Record<string, string>) ?? {}), ...env };
+
+  applyStatusLine(settings);
+  mergeHooksIntoSettings(settings);
+  applyTrustPolicyPermissions(settings, v1Result);
 
   try {
     atomicWriteFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
@@ -556,6 +557,55 @@ function migrateCompoundToTenetx(): void {
 }
 
 /** 메인 하네스 준비 함수 (v1) */
+// ── B9: prepareHarness sub-phases (extracted steps 11-12) ──
+
+/** Step 11: start legacy session log (fail-open). */
+async function startLegacySessionLog(cwd: string, inTmux: boolean, v1Result: V1BootstrapResult): Promise<void> {
+  try {
+    const { startSessionLog: legacySessionLog } = await import('./session-logger.js');
+    legacySessionLog({
+      philosophy: { name: 'v1', version: '1.0.0', author: 'tenetx', principles: {} },
+      philosophySource: 'default' as const,
+      scope: {
+        me: { philosophyPath: '', solutionCount: 0, ruleCount: 0 },
+        project: { path: cwd, solutionCount: 0 },
+        summary: `v1(${v1Result.session?.quality_pack ?? 'unknown'})`,
+      },
+      cwd,
+      inTmux,
+    });
+  } catch { /* 세션 로그 실패는 무시 */ }
+}
+
+/** Step 12: write pending-compound.json if last extraction is stale. */
+function checkCompoundStaleness(): void {
+  try {
+    const stalenessDays = Number(process.env.TENETX_STALENESS_DAYS ?? process.env.COMPOUND_STALENESS_DAYS) || 3;
+    const stalenessMs = stalenessDays * 24 * 60 * 60 * 1000;
+    const lastExtractionPath = path.join(STATE_DIR, 'last-extraction.json');
+    if (!fs.existsSync(lastExtractionPath)) return;
+
+    const lastExtraction = JSON.parse(fs.readFileSync(lastExtractionPath, 'utf-8'));
+    const extractedAt = lastExtraction.lastExtractedAt ?? lastExtraction.lastRunAt;
+    const lastRunMs = extractedAt ? new Date(extractedAt).getTime() : Number.NaN;
+    if (!Number.isFinite(lastRunMs)) return;
+
+    const elapsed = Date.now() - lastRunMs;
+    if (elapsed > stalenessMs) {
+      const pendingPath = path.join(STATE_DIR, 'pending-compound.json');
+      if (!fs.existsSync(pendingPath)) {
+        fs.writeFileSync(pendingPath, JSON.stringify({
+          reason: 'staleness',
+          detectedAt: new Date().toISOString(),
+          daysSinceLastRun: Math.floor(elapsed / (24 * 60 * 60 * 1000)),
+        }, null, 2));
+      }
+    }
+  } catch (e) {
+    log.debug('Staleness check failed (non-fatal)', e);
+  }
+}
+
 export async function prepareHarness(cwd: string): Promise<V1HarnessContext> {
   try {
     // 0. 스토리지 마이그레이션 (v5.1: ~/.compound/ → ~/.tenetx/)
@@ -620,50 +670,10 @@ export async function prepareHarness(cwd: string): Promise<V1HarnessContext> {
     ensureCompoundMemory(cwd);
 
     // 11. 세션 로그 시작 (레거시 호환)
-    // v1은 session-state-store에 저장하지만, 레거시 세션 로거도 유지
-    try {
-      const { startSessionLog: legacySessionLog } = await import('./session-logger.js');
-      // 레거시 세션 로거는 HarnessContext를 기대하므로 최소 호환 객체 제공
-      const legacyContext = {
-        philosophy: { name: 'v1', version: '1.0.0', author: 'tenetx', principles: {} },
-        philosophySource: 'default' as const,
-        scope: {
-          me: { philosophyPath: '', solutionCount: 0, ruleCount: 0 },
-          project: { path: cwd, solutionCount: 0 },
-          summary: `v1(${v1Result.session?.quality_pack ?? 'unknown'})`,
-        },
-        cwd,
-        inTmux,
-      };
-      legacySessionLog(legacyContext);
-    } catch { /* 세션 로그 실패는 무시 */ }
+    await startLegacySessionLog(cwd, inTmux, v1Result);
 
     // 12. Compound staleness guard
-    try {
-      const stalenessDays = Number(process.env.TENETX_STALENESS_DAYS ?? process.env.COMPOUND_STALENESS_DAYS) || 3;
-      const stalenessMs = stalenessDays * 24 * 60 * 60 * 1000;
-      const lastExtractionPath = path.join(STATE_DIR, 'last-extraction.json');
-      if (fs.existsSync(lastExtractionPath)) {
-        const lastExtraction = JSON.parse(fs.readFileSync(lastExtractionPath, 'utf-8'));
-        const extractedAt = lastExtraction.lastExtractedAt ?? lastExtraction.lastRunAt;
-        const lastRunMs = extractedAt ? new Date(extractedAt).getTime() : Number.NaN;
-        if (Number.isFinite(lastRunMs)) {
-          const elapsed = Date.now() - lastRunMs;
-          if (elapsed > stalenessMs) {
-            const pendingPath = path.join(STATE_DIR, 'pending-compound.json');
-            if (!fs.existsSync(pendingPath)) {
-              fs.writeFileSync(pendingPath, JSON.stringify({
-                reason: 'staleness',
-                detectedAt: new Date().toISOString(),
-                daysSinceLastRun: Math.floor(elapsed / (24 * 60 * 60 * 1000)),
-              }, null, 2));
-            }
-          }
-        }
-      }
-    } catch (e) {
-      log.debug('Staleness check failed (non-fatal)', e);
-    }
+    checkCompoundStaleness();
 
     return { cwd, inTmux, v1: v1Result };
   } catch (err) {
